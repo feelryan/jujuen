@@ -1,4 +1,6 @@
-請從上傳的generative_ai_leader_exam_guide_english.pdf和generative_ai_leader_study_guide_english.pdf, 根據其文件說明產生120~150題目或題組, 要盡可能夠涵蓋考試範圍及內容並且實際考題越像越好，最後依照下列嚴格定義的 JSON 格式產出。如無法一次完成產出, 則說明需要如何指示來讓你分次產出.
+ **Role:** 你是 Google Cloud 認證考試設計專家，專精於編寫 Generative AI Leader 真實考題。
+
+ **Task:** 請從上傳的generative_ai_leader_exam_guide_english.pdf和generative_ai_leader_study_guide_english.pdf, 根據其文件說明產生120~150題目或題組, 要盡可能夠涵蓋考試範圍及內容並且實際考題越像越好，最後依照下列嚴格定義的 JSON 格式產出。如無法一次完成產出, 則說明需要如何指示來讓你分次產出.
 
 **產出格式規則：**
 
