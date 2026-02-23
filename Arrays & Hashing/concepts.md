@@ -1,7 +1,4 @@
-# Arrays & Hashing（中階）可面試實戰教材｜TypeScript（逐句中英對照）
-
-> 你是資深工程師，這份教材會以「能在面試中講清楚、也能在實務中寫得穩」為目標。  
-> You’re a senior engineer, so this material focuses on “interview clarity + production-grade robustness.”
+# Arrays & Hashing（中階）TypeScript
 
 ***
 

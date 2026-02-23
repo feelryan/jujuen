@@ -1,4 +1,4 @@
-# Arrays & Hashing（Advanced）可面試實戰教材｜TypeScript（中英雙語逐句對照）
+# Arrays & Hashing（Advanced）TypeScript
 
 > 這份進階版會把你從「會用 Map/Set」推到「會設計 key、會證明不變量、會處理精度/碰撞/邊界」。  
 > This advanced version takes you from “can use Map/Set” to “can design keys, prove invariants, and handle precision/collisions/edge cases.”
