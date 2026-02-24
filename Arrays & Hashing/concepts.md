@@ -107,7 +107,7 @@
 
 ***
 
-## 4) 範例講解（至少 1–2 題）｜Worked Examples (at least 1–2)
+## 4) 範例講解｜Worked Examples
 
 ***
 
