@@ -1,6 +1,6 @@
 # Popular Branch
 
-Welcoming people to join ~
+Welcome to join ~ email me if you want your branch to be listed on!
 
 ## example branches
 
