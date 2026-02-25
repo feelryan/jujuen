@@ -1,2 +1,3 @@
-# JuJuEn 句句韺
-Every sentence with pinyin/zhuyin and English.
+# 自建知識 (self-built knowledge)
+
+
