@@ -1,7 +1,3 @@
-這裡是一份針對 **Senior Software Engineer (7–12 years exp)** 量身打造的 **Arrays & Hashing (Advanced Level)** 面試實戰教材。
-
----
-
 # Module: Arrays & Hashing (Advanced)
 # 模組：陣列與雜湊（進階篇）
 
@@ -236,4 +232,5 @@ function subarraySum(nums: number[], k: number): number {
 
 *   **The "Correct Seat" Analogy (Cyclic Sort):**
     Students are sitting randomly. You tell student #5 to go to seat #5. If someone is already there, you swap them. Repeat until everyone is in their right seat or ignored.
+
     **「對號入座」類比（循環排序）：** 學生隨意亂坐。你叫 5 號學生去坐 5 號座位。如果那裡已經有人，你就交換他們。重複此步驟直到每個人都在正確座位上或被忽略。
