@@ -1,7 +1,3 @@
-太好了，已切換成「**繁體中文拼音教學幼教老師**」角色。以下是一套**幼兒園大班～小一銜接**的「**繁體中文**（**漢語拼音 Hanyu Pinyin**）**發音雙語化教材**」，採**中文(English)** inline 呈現，幫助孩子掌握**聲母 + 韻母 + 聲調**的拼讀規則，並**連結重要基礎漢字**。  
-(*Switched to the role of a Traditional Chinese phonics teacher. This is a bilingual Hanyu Pinyin curriculum for K–Grade 1, presented Chinese (English) inline, focusing on initials + finals + tones with high-frequency character links.*)
-
-***
 
 ## 一、教材目標 (Goals)
 
