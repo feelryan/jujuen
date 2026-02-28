@@ -281,7 +281,12 @@ Category 是「主題列表」，例如「日常生活」、「旅行用語」�
 
 - 請先在 Notion 對該頁面開啟「公開分享」，再複製分享網址貼到 `dataLocation`。
 - 這個網址必須是可被其他網站嵌入的公開內嵌連結，系統才有辦法在頁面中顯示 Notion 內容。
+
+![alt text](image.png)
+
 - 公開內嵌連結(需含有ebd字串的連結), ex: https://chiseled-grain-cc5.notion.site/ebd//xxxxxxxxxxxxxxxxxx
+
+![alt text](image-1.png)
 
 ### 4.7 連到一般網站頁面 (Web Page)
 

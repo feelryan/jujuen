@@ -281,7 +281,13 @@ Explanation:
 
 - First, turn on "Share to web" for the page in Notion, then copy the share link into `dataLocation`.
 - The URL must be a public embeddable link that other sites can embed; otherwise the system cannot show the Notion content.
+
+![alt text](image.png)
+
 - The public embeddable link usually contains the string `ebd`, for example: `https://chiseled-grain-cc5.notion.site/ebd//xxxxxxxxxxxxxxxxxx`.
+
+![alt text](image-1.png)
+
 
 ### 4.7 Linking to a Normal Web Page
 
