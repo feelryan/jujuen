@@ -14,7 +14,7 @@
 
 4. Create a menu-path.json on your branch root
 
-# Examples
+Examples:
 
 - https://github.com/feelryan/jujuen/blob/google-generative-ai-leader/menu-path.json
 
@@ -23,6 +23,7 @@
 - https://github.com/feelryan/jujuen/blob/google-professional-cloud-architect/menu-path.json
 
 5. Popularize your content
+
 
 
 
