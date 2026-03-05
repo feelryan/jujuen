@@ -122,7 +122,7 @@ Conceptually / 概念上它會：
 	讀入某章所有的原文段落，依結構整理成合適的區塊。  
 - Ask the AI to output a `Words[]` JSON, where each element contains:  
 	請 AI 產生 `Words[]` JSON，每個元素包含：  
-	- `tag`: display hint (e.g. paragraph, list item, heading).  
+	- `tag`: HTML tag (e.g. h1, h2, h3, h4, li).  
 		`tag`：顯示提示（例如段落、列表項、標題）。  
 	- `t` / `c`: traditional / simplified Chinese.  
 		`t` / `c`：繁體 / 簡體中文。  
@@ -195,4 +195,5 @@ Suggested workflow / 建議工作流程：
 
 By combining a clear navigation model with Python scripts and AI, you can quickly build rich, consistent knowledge branches for very different domains – from classic literature to modern technology courses.  
 透過清楚的導覽模型，加上 Python 腳本與 AI，你可以快速為各種不同領域（從古典文學到現代科技課程）建立內容豐富、結構一致的知識分支。
+
 
