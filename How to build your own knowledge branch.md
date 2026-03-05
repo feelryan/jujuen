@@ -9,8 +9,8 @@ This document describes, at a high level, how to use Python scripts and AI to bu
 
 1. Sign in to GitHub and go to the main repository.  
 	 登入 GitHub，進入主專案倉庫。  
-2. Create a new branch for your topic (for example: `ancient-classics`, `junior-high-math`, `basic-pronunciation`).  
-	 為你的主題建立一個新的分支（例如：`ancient-classics`、`junior-high-math`、`basic-pronunciation`）或者從頭開始 or from the scratch 則挑選主支來複製 then braching out from `main` master brach (`main`)。  
+2. Create a new branch for your topic (for example: `ancient-classics`, `junior-high`, `basic-pronunciation`).  
+	 為你的主題建立一個新的分支（例如：`ancient-classics`、`junior-high`、`basic-pronunciation`）或者從頭開始 or from the scratch 則挑選主支來複製 then braching out from `main` master brach (`main`)。  
 3. All files for this knowledge branch will live under this branch.  
 	 此知識分支相關的所有檔案，都會放在這個分支底下。
 
@@ -195,3 +195,4 @@ Suggested workflow / 建議工作流程：
 
 By combining a clear navigation model with Python scripts and AI, you can quickly build rich, consistent knowledge branches for very different domains – from classic literature to modern technology courses.  
 透過清楚的導覽模型，加上 Python 腳本與 AI，你可以快速為各種不同領域（從古典文學到現代科技課程）建立內容豐富、結構一致的知識分支。
+
