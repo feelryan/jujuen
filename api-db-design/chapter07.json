@@ -1,0 +1,1297 @@
+[
+  {
+    "no": "1",
+    "level": "intermediate",
+    "keywords": "Idempotency, Race Condition, Redis, Distributed Systems",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "def handle_request(req):\n  if redis.exists(req.idempotency_key):\n    return redis.get(req.idempotency_key)\n  \n  result = process_payment(req)\n  redis.set(req.idempotency_key, result)\n  return result",
+    "question": [
+      {
+        "t": "您正在審查一段實作冪等性 (Idempotency) 的程式碼（如上所示），",
+        "en": "You are reviewing a code snippet implementing Idempotency (as shown above),",
+        "wg": [
+          {
+            "t": "審查",
+            "en": "reviewing",
+            "ps": "V"
+          },
+          {
+            "t": "實作",
+            "en": "implementing",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "該邏輯先檢查 Key 是否存在，若不存在則處理請求並寫入結果。",
+        "en": "The logic checks if the Key exists first, and if not, processes the request and writes the result.",
+        "wg": []
+      },
+      {
+        "t": "這段程式碼在併發高流量下最可能面臨什麼問題？",
+        "en": "What is the most likely problem this code will face under high concurrent traffic?",
+        "wg": [
+          {
+            "t": "併發",
+            "en": "concurrent",
+            "ps": "Adj"
+          },
+          {
+            "t": "高流量",
+            "en": "high traffic",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 記憶體洩漏 (Memory Leak)，因為 Redis Key 沒有設定過期時間。",
+        "en": "(A) Memory Leak, because the Redis Key does not have an expiration time set.",
+        "wg": []
+      },
+      {
+        "t": "(B) 競態條件 (Race Condition)，兩個相同的請求可能同時通過檢查並重複執行業務邏輯。",
+        "en": "(B) Race Condition, two identical requests might pass the check simultaneously and execute the business logic twice.",
+        "wg": [
+          {
+            "t": "競態條件",
+            "en": "Race Condition",
+            "ps": "N"
+          },
+          {
+            "t": "重複執行",
+            "en": "execute twice",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(C) 死鎖 (Deadlock)，因為 Redis 在讀取時會鎖住該 Key。",
+        "en": "(C) Deadlock, because Redis locks the Key during reading.",
+        "wg": []
+      },
+      {
+        "t": "(D) 資料不一致，因為 Redis 不支援 ACID 交易。",
+        "en": "(D) Data inconsistency, because Redis does not support ACID transactions.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "這是一個經典的「檢查後執行」(Check-then-Act) 競態條件。在分散式環境中，必須使用原子操作（如 Redis 的 `SETNX`）或分散式鎖來確保只有一個請求能進入處理流程。",
+      "en": "This is a classic 'Check-then-Act' race condition. In a distributed environment, atomic operations (like Redis `SETNX`) or distributed locks must be used to ensure only one request enters the processing flow.",
+      "wg": [
+        {
+          "t": "原子操作",
+          "en": "atomic operations",
+          "ps": "N"
+        },
+        {
+          "t": "分散式鎖",
+          "en": "distributed locks",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "2",
+    "level": "intermediate",
+    "keywords": "Circuit Breaker, Resilience, Fail Fast",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在斷路器 (Circuit Breaker) 模式中，當狀態處於「半開 (Half-Open)」時，系統的行為特徵為何？",
+        "en": "In the Circuit Breaker pattern, what is the behavioral characteristic of the system when the state is 'Half-Open'?",
+        "wg": [
+          {
+            "t": "斷路器",
+            "en": "Circuit Breaker",
+            "ps": "N"
+          },
+          {
+            "t": "半開",
+            "en": "Half-Open",
+            "ps": "Adj"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 拒絕所有請求並直接回傳錯誤，直到管理員手動重置。",
+        "en": "(A) Reject all requests and return errors immediately until an administrator manually resets it.",
+        "wg": []
+      },
+      {
+        "t": "(B) 允許所有請求通過，但會非同步地記錄錯誤日誌。",
+        "en": "(B) Allow all requests to pass but log errors asynchronously.",
+        "wg": []
+      },
+      {
+        "t": "(C) 允許有限數量的請求通過，以測試下游服務是否已恢復。",
+        "en": "(C) Allow a limited number of requests to pass to test if the downstream service has recovered.",
+        "wg": [
+          {
+            "t": "有限數量",
+            "en": "limited number",
+            "ps": "N"
+          },
+          {
+            "t": "下游服務",
+            "en": "downstream service",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(D) 將請求重新導向到備用資料中心。",
+        "en": "(D) Redirect requests to a backup data center.",
+        "wg": []
+      }
+    ],
+    "answer": "(C)",
+    "why": {
+      "t": "Half-Open 是一個中間狀態，用於在斷路器開啟一段時間後，試探性地放行少量流量。若這些請求成功，斷路器會切換回 Closed（正常）；若失敗，則重新回到 Open（熔斷）。",
+      "en": "Half-Open is an intermediate state used to tentatively allow a small amount of traffic after the circuit has been open for a while. If these requests succeed, the breaker switches back to Closed (normal); if they fail, it returns to Open (tripped).",
+      "wg": [
+        {
+          "t": "試探性地",
+          "en": "tentatively",
+          "ps": "Adv"
+        },
+        {
+          "t": "熔斷",
+          "en": "tripped",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "3",
+    "level": "advanced",
+    "keywords": "Bulkhead Pattern, Thread Pool, Cascading Failures",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您的 API Gateway 依賴兩個下游服務：`Service A` (核心業務) 與 `Service B` (次要功能)。",
+        "en": "Your API Gateway depends on two downstream services: `Service A` (core business) and `Service B` (secondary feature).",
+        "wg": [
+          {
+            "t": "依賴",
+            "en": "depends on",
+            "ps": "V"
+          },
+          {
+            "t": "次要功能",
+            "en": "secondary feature",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "最近 `Service B` 回應極慢，導致 Gateway 的所有執行緒 (Threads) 都卡在等待 `Service B`，進而使 `Service A` 的請求也無法被處理。",
+        "en": "Recently, `Service B` has been extremely slow, causing all threads in the Gateway to be stuck waiting for `Service B`, which in turn prevents requests for `Service A` from being processed.",
+        "wg": [
+          {
+            "t": "執行緒",
+            "en": "threads",
+            "ps": "N"
+          },
+          {
+            "t": "卡在",
+            "en": "stuck",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "下列哪種模式最能解決此問題？",
+        "en": "Which of the following patterns best solves this problem?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) Retry Pattern (重試模式)",
+        "en": "(A) Retry Pattern",
+        "wg": []
+      },
+      {
+        "t": "(B) Bulkhead Pattern (艙壁模式)",
+        "en": "(B) Bulkhead Pattern",
+        "wg": [
+          {
+            "t": "艙壁模式",
+            "en": "Bulkhead Pattern",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) Rate Limiting (限流)",
+        "en": "(C) Rate Limiting",
+        "wg": []
+      },
+      {
+        "t": "(D) Saga Pattern",
+        "en": "(D) Saga Pattern",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "艙壁模式 (Bulkhead) 透過隔離資源（如為不同的服務分配獨立的 Thread Pool 或 Connection Pool），確保單一服務的故障不會耗盡所有資源並導致級聯故障 (Cascading Failure)。",
+      "en": "The Bulkhead pattern isolates resources (e.g., allocating separate Thread Pools or Connection Pools for different services) to ensure that a failure in one service does not exhaust all resources and cause a cascading failure.",
+      "wg": [
+        {
+          "t": "隔離資源",
+          "en": "isolating resources",
+          "ps": "V"
+        },
+        {
+          "t": "級聯故障",
+          "en": "cascading failure",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "4",
+    "level": "intermediate",
+    "keywords": "Rate Limiting, Distributed Systems, Anti-patterns",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您正在設計一個分散式 API 服務，並決定在每個應用程式實例 (Instance) 的記憶體中實作 Token Bucket 限流演算法。",
+        "en": "You are designing a distributed API service and decide to implement the Token Bucket rate limiting algorithm in the memory of each application instance.",
+        "wg": [
+          {
+            "t": "實例",
+            "en": "instance",
+            "ps": "N"
+          },
+          {
+            "t": "記憶體",
+            "en": "memory",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "當系統進行水平擴展 (Scale Out) 時，這種設計會面臨什麼主要問題？",
+        "en": "What major problem will this design face when the system scales out?",
+        "wg": [
+          {
+            "t": "水平擴展",
+            "en": "scales out",
+            "ps": "V"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 總限流容量會隨著實例數量增加而線性增長，導致無法精確控制全域流量。",
+        "en": "(A) The total rate limit capacity will increase linearly with the number of instances, making it impossible to precisely control global traffic.",
+        "wg": [
+          {
+            "t": "線性增長",
+            "en": "increase linearly",
+            "ps": "V"
+          },
+          {
+            "t": "全域流量",
+            "en": "global traffic",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(B) Token Bucket 演算法在多執行緒環境下無法運作。",
+        "en": "(B) The Token Bucket algorithm cannot function in a multi-threaded environment.",
+        "wg": []
+      },
+      {
+        "t": "(C) 會導致資料庫連線數過多。",
+        "en": "(C) It will cause too many database connections.",
+        "wg": []
+      },
+      {
+        "t": "(D) 每個實例的記憶體消耗會過大。",
+        "en": "(D) The memory consumption of each instance will be too high.",
+        "wg": []
+      }
+    ],
+    "answer": "(A)",
+    "why": {
+      "t": "本地限流 (Local Rate Limiting) 僅控制單一伺服器的流量。若設定每台限流 100 req/s，當擴展到 10 台時，全域允許的流量變成 1000 req/s，這違背了保護下游的初衷。分散式環境應使用集中式儲存 (如 Redis) 來維護計數。",
+      "en": "Local Rate Limiting only controls traffic for a single server. If set to 100 req/s per server, scaling to 10 servers results in a global allowance of 1000 req/s, defeating the purpose of protecting downstream services. Distributed environments should use centralized storage (like Redis) to maintain counts.",
+      "wg": [
+        {
+          "t": "違背",
+          "en": "defeating",
+          "ps": "V"
+        },
+        {
+          "t": "集中式儲存",
+          "en": "centralized storage",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "5",
+    "level": "intermediate",
+    "keywords": "Idempotency, API Design, Anti-patterns",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在設計冪等性 (Idempotency) 機制時，為什麼「使用 Request Body 的雜湊值 (Hash) 作為 Idempotency Key」通常被視為一種反模式 (Anti-pattern)？",
+        "en": "When designing an Idempotency mechanism, why is 'using the hash of the Request Body as the Idempotency Key' generally considered an Anti-pattern?",
+        "wg": [
+          {
+            "t": "雜湊值",
+            "en": "hash",
+            "ps": "N"
+          },
+          {
+            "t": "反模式",
+            "en": "Anti-pattern",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 計算 Hash 會消耗過多的 CPU 資源。",
+        "en": "(A) Calculating the hash consumes too much CPU resources.",
+        "wg": []
+      },
+      {
+        "t": "(B) 無法區分「使用者刻意發送的重複請求」與「網路重試導致的重複請求」。",
+        "en": "(B) It cannot distinguish between 'duplicate requests intentionally sent by the user' and 'duplicate requests caused by network retries'.",
+        "wg": [
+          {
+            "t": "刻意",
+            "en": "intentionally",
+            "ps": "Adv"
+          },
+          {
+            "t": "區分",
+            "en": "distinguish",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(C) Hash 可能會發生碰撞 (Collision)，導致不同使用者的請求被誤判。",
+        "en": "(C) Hash collisions may occur, causing requests from different users to be misjudged.",
+        "wg": []
+      },
+      {
+        "t": "(D) Request Body 可能包含敏感資訊，不適合進行 Hash。",
+        "en": "(D) The Request Body may contain sensitive information and is not suitable for hashing.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "冪等鍵應該代表「一次特定的操作意圖」。如果使用者真的想買兩張相同的禮物卡（內容完全相同），Body Hash 會一樣，導致第二筆合法交易被錯誤地攔截。正確做法是由客戶端生成隨機 UUID 作為 Key。",
+      "en": "The Idempotency Key should represent 'a specific operational intent'. If a user genuinely wants to buy two identical gift cards (same content), the Body Hash will be the same, causing the second legitimate transaction to be incorrectly blocked. The correct approach is for the client to generate a random UUID as the Key.",
+      "wg": [
+        {
+          "t": "操作意圖",
+          "en": "operational intent",
+          "ps": "N"
+        },
+        {
+          "t": "攔截",
+          "en": "blocked",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "6",
+    "level": "advanced",
+    "keywords": "Idempotency, Distributed Systems, Data Consistency, Dual Write",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "def process_payment(req):\n  key = req.headers['Idempotency-Key']\n  if redis.get(key): return redis.get(key)\n\n  # Business Logic\n  result = db.execute_payment(req.body)\n\n  # Save Result for Idempotency\n  # What if the system crashes here?\n  redis.set(key, result)\n  return result",
+    "question": [
+      {
+        "t": "您正在審查上述的付款處理程式碼。如果在「業務邏輯執行成功」之後，但在「將結果寫入 Redis」之前系統發生崩潰（Crash），會發生什麼後果？",
+        "en": "You are reviewing the payment processing code above. What is the consequence if the system crashes after the \"Business Logic executes successfully\" but before \"writing the result to Redis\"?",
+        "wg": [
+          {
+            "t": "崩潰",
+            "en": "crash",
+            "ps": "V"
+          },
+          {
+            "t": "後果",
+            "en": "consequence",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "假設客戶端在逾時後會進行重試。",
+        "en": "Assume the client retries after a timeout.",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 系統會自動回滾 (Rollback) 資料庫的交易，保持一致性。",
+        "en": "(A) The system will automatically rollback the database transaction, maintaining consistency.",
+        "wg": []
+      },
+      {
+        "t": "(B) Redis 會因為鎖定過期而自動修復此狀態。",
+        "en": "(B) Redis will automatically repair this state due to lock expiration.",
+        "wg": []
+      },
+      {
+        "t": "(C) 重試請求將無法命中快取，導致業務邏輯被重複執行（例如重複扣款）。",
+        "en": "(C) The retry request will miss the cache, causing the business logic to be executed again (e.g., double charge).",
+        "wg": [
+          {
+            "t": "命中快取",
+            "en": "cache hit",
+            "ps": "V"
+          },
+          {
+            "t": "重複扣款",
+            "en": "double charge",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(D) 斷路器 (Circuit Breaker) 會偵測到異常並阻止重試。",
+        "en": "(D) The Circuit Breaker will detect the anomaly and block the retry.",
+        "wg": []
+      }
+    ],
+    "answer": "(C)",
+    "why": {
+      "t": "這是一個典型的「雙寫一致性 (Dual Write Consistency)」問題。因為資料庫寫入與 Redis 快取寫入不是同一個原子交易 (Atomic Transaction)，若在兩者之間失敗，Redis 中缺乏紀錄，導致重試時系統誤以為是新請求而再次執行業務邏輯。解決方案通常涉及將冪等紀錄與業務數據放在同一個 DB Transaction 中。",
+      "en": "This is a classic \"Dual Write Consistency\" problem. Since the database write and Redis cache write are not in the same atomic transaction, a failure between them leaves Redis without a record. Consequently, the system treats the retry as a new request and re-executes the business logic. Solutions often involve placing the idempotency record and business data within the same DB Transaction.",
+      "wg": [
+        {
+          "t": "原子交易",
+          "en": "atomic transaction",
+          "ps": "N"
+        },
+        {
+          "t": "雙寫",
+          "en": "dual write",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "7",
+    "level": "intermediate",
+    "keywords": "Circuit Breaker, Graceful Degradation, UX, Fallback",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您的電子商務網站首頁依賴一個「個人化推薦服務」。",
+        "en": "Your e-commerce homepage depends on a \"Personalized Recommendation Service\".",
+        "wg": [
+          {
+            "t": "依賴",
+            "en": "depend on",
+            "ps": "V"
+          },
+          {
+            "t": "個人化推薦",
+            "en": "personalized recommendation",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "當該服務的斷路器 (Circuit Breaker) 進入「開啟 (Open)」狀態時，為了提供最佳的使用者體驗，API Gateway 應該採取什麼行動？",
+        "en": "When the Circuit Breaker for that service enters the \"Open\" state, what action should the API Gateway take to provide the best user experience?",
+        "wg": [
+          {
+            "t": "採取行動",
+            "en": "take action",
+            "ps": "V"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 回傳 HTTP 500 Internal Server Error。",
+        "en": "(A) Return HTTP 500 Internal Server Error.",
+        "wg": []
+      },
+      {
+        "t": "(B) 實作優雅降級 (Graceful Degradation)，例如回傳一組快取的「熱門商品」列表。",
+        "en": "(B) Implement Graceful Degradation, such as returning a cached list of \"Trending Products\".",
+        "wg": [
+          {
+            "t": "優雅降級",
+            "en": "graceful degradation",
+            "ps": "N"
+          },
+          {
+            "t": "熱門商品",
+            "en": "trending products",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) 讓請求保持等待 (Pending)，直到斷路器恢復為止。",
+        "en": "(C) Keep the request pending until the Circuit Breaker recovers.",
+        "wg": []
+      },
+      {
+        "t": "(D) 回傳 HTTP 429 Too Many Requests。",
+        "en": "(D) Return HTTP 429 Too Many Requests.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "斷路器的目的不僅是保護系統，也應盡量維持服務可用性。對於非核心業務（如推薦），回傳預設值或快取資料（Fallback）比直接報錯更能維持良好的使用者體驗。這被稱為優雅降級。",
+      "en": "The purpose of a Circuit Breaker is not just to protect the system but also to maintain service availability where possible. For non-critical features (like recommendations), returning default or cached data (Fallback) provides a much better user experience than returning an error. This is known as Graceful Degradation.",
+      "wg": [
+        {
+          "t": "非核心業務",
+          "en": "non-critical feature",
+          "ps": "N"
+        },
+        {
+          "t": "預設值",
+          "en": "default value",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "8",
+    "level": "intermediate",
+    "keywords": "Rate Limiting, Algorithms, Fixed Window, Traffic Spikes",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您選擇使用簡單的「固定窗口計數器 (Fixed Window Counter)」演算法來實作限流，限制為每分鐘 100 次請求。",
+        "en": "You choose to use a simple \"Fixed Window Counter\" algorithm to implement rate limiting, with a limit of 100 requests per minute.",
+        "wg": [
+          {
+            "t": "固定窗口",
+            "en": "fixed window",
+            "ps": "N"
+          },
+          {
+            "t": "計數器",
+            "en": "counter",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "這種演算法在處理邊界流量時存在什麼主要缺陷？",
+        "en": "What is the main flaw of this algorithm when handling boundary traffic?",
+        "wg": [
+          {
+            "t": "邊界流量",
+            "en": "boundary traffic",
+            "ps": "N"
+          },
+          {
+            "t": "缺陷",
+            "en": "flaw",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 它需要消耗大量的記憶體來儲存每個請求的時間戳記。",
+        "en": "(A) It consumes a large amount of memory to store timestamps for every request.",
+        "wg": []
+      },
+      {
+        "t": "(B) 在窗口切換的瞬間（例如 10:00:59 到 10:01:01），可能允許兩倍的突發流量通過。",
+        "en": "(B) At the moment the window switches (e.g., 10:00:59 to 10:01:01), it may allow double the burst traffic to pass through.",
+        "wg": [
+          {
+            "t": "突發流量",
+            "en": "burst traffic",
+            "ps": "N"
+          },
+          {
+            "t": "瞬間",
+            "en": "moment/instant",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) 它無法在分散式環境中運作。",
+        "en": "(C) It cannot function in a distributed environment.",
+        "wg": []
+      },
+      {
+        "t": "(D) 它會導致請求延遲顯著增加。",
+        "en": "(D) It causes a significant increase in request latency.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "固定窗口演算法在每個時間窗口開始時會重置計數器。如果攻擊者在第一分鐘的最後一秒發送 100 個請求，並在第二分鐘的第一秒發送 100 個請求，系統會在 2 秒內處理 200 個請求，超過了設計的負載速率。",
+      "en": "The Fixed Window algorithm resets the counter at the start of each time window. If an attacker sends 100 requests in the last second of the first minute and 100 requests in the first second of the second minute, the system processes 200 requests in 2 seconds, exceeding the designed load rate.",
+      "wg": [
+        {
+          "t": "重置",
+          "en": "reset",
+          "ps": "V"
+        },
+        {
+          "t": "負載速率",
+          "en": "load rate",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "9",
+    "level": "intermediate",
+    "keywords": "Bulkhead Pattern, Resource Isolation, Thread Pool",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在一個單體 (Monolithic) 應用程式中，有一個執行緩慢的「報表生成」功能與一個需要快速回應的「使用者登入」功能。",
+        "en": "In a monolithic application, there is a slow-executing \"Report Generation\" feature and a \"User Login\" feature that requires fast responses.",
+        "wg": [
+          {
+            "t": "單體",
+            "en": "monolithic",
+            "ps": "Adj"
+          },
+          {
+            "t": "報表生成",
+            "en": "report generation",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "當大量報表請求湧入時，佔用了所有的 Web Server 執行緒 (Threads)，導致使用者無法登入。哪種設計模式最適合解決此資源競爭問題？",
+        "en": "When a flood of report requests arrives, they occupy all Web Server threads, preventing users from logging in. Which design pattern is best suited to solve this resource contention problem?",
+        "wg": [
+          {
+            "t": "湧入",
+            "en": "flood/surge",
+            "ps": "V"
+          },
+          {
+            "t": "資源競爭",
+            "en": "resource contention",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 斷路器模式 (Circuit Breaker Pattern)",
+        "en": "(A) Circuit Breaker Pattern",
+        "wg": []
+      },
+      {
+        "t": "(B) 艙壁模式 (Bulkhead Pattern)",
+        "en": "(B) Bulkhead Pattern",
+        "wg": []
+      },
+      {
+        "t": "(C) 重試模式 (Retry Pattern)",
+        "en": "(C) Retry Pattern",
+        "wg": []
+      },
+      {
+        "t": "(D) 觀察者模式 (Observer Pattern)",
+        "en": "(D) Observer Pattern",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "艙壁模式 (Bulkhead) 的核心概念是資源隔離。透過為不同的服務或功能分配獨立的執行緒池 (Thread Pool) 或連線池，可以確保當「報表生成」池滿時，不會影響到「使用者登入」池的運作，防止局部故障擴散。",
+      "en": "The core concept of the Bulkhead Pattern is resource isolation. By allocating separate Thread Pools or Connection Pools for different services or features, you ensure that when the \"Report Generation\" pool is full, it does not affect the operation of the \"User Login\" pool, preventing the spread of partial failures.",
+      "wg": [
+        {
+          "t": "資源隔離",
+          "en": "resource isolation",
+          "ps": "N"
+        },
+        {
+          "t": "擴散",
+          "en": "spread/propagate",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "10",
+    "level": "advanced",
+    "keywords": "Rate Limiting, Redis, Race Condition, Lua Script",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "current = redis.get(key)\nif current < limit:\n    redis.incr(key)\n    return True\nelse:\n    return False",
+    "question": [
+      {
+        "t": "您正在實作一個基於 Redis 的分散式限流器，程式碼邏輯如上所示。",
+        "en": "You are implementing a Redis-based distributed rate limiter with the code logic shown above.",
+        "wg": [
+          {
+            "t": "分散式限流器",
+            "en": "distributed rate limiter",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "在高併發 (High Concurrency) 的環境下，這段程式碼有什麼問題？",
+        "en": "What is the problem with this code in a High Concurrency environment?",
+        "wg": [
+          {
+            "t": "高併發",
+            "en": "high concurrency",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 它是正確的，因為 Redis 是單執行緒的。",
+        "en": "(A) It is correct because Redis is single-threaded.",
+        "wg": []
+      },
+      {
+        "t": "(B) 它存在競態條件 (Race Condition)，可能導致實際請求數超過限制。",
+        "en": "(B) It has a Race Condition, which may cause the actual number of requests to exceed the limit.",
+        "wg": [
+          {
+            "t": "競態條件",
+            "en": "race condition",
+            "ps": "N"
+          },
+          {
+            "t": "超過",
+            "en": "exceed",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(C) `redis.get` 和 `redis.incr` 是耗時操作，會導致逾時。",
+        "en": "(C) `redis.get` and `redis.incr` are time-consuming operations that will cause timeouts.",
+        "wg": []
+      },
+      {
+        "t": "(D) Redis 不支援這種整數操作。",
+        "en": "(D) Redis does not support this kind of integer operation.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "這是一個典型的「檢查後執行 (Check-Then-Act)」競態條件。多個請求可能同時讀取到 `current < limit`，然後都執行 `incr`，導致限制被突破。解決方案是使用 Redis Lua Script 將讀取與寫入打包成一個原子操作 (Atomic Operation)。",
+      "en": "This is a typical \"Check-Then-Act\" race condition. Multiple requests might simultaneously read `current < limit` and then all execute `incr`, causing the limit to be breached. The solution is to use a Redis Lua Script to bundle the read and write into a single Atomic Operation.",
+      "wg": [
+        {
+          "t": "檢查後執行",
+          "en": "check-then-act",
+          "ps": "N"
+        },
+        {
+          "t": "原子操作",
+          "en": "atomic operation",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "11",
+    "level": "intermediate",
+    "keywords": "Idempotency, Client Design, API Standards",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您正在開發一個行動應用程式 (Mobile App)，需要呼叫後端的訂單建立 API (`POST /orders`)。",
+        "en": "You are developing a mobile app that needs to call a backend order creation API (`POST /orders`).",
+        "wg": []
+      },
+      {
+        "t": "為了支援冪等性 (Idempotency) 並處理網路逾時重試，`Idempotency-Key` 應該在何時生成？",
+        "en": "To support Idempotency and handle network timeout retries, when should the `Idempotency-Key` be generated?",
+        "wg": [
+          {
+            "t": "網路逾時",
+            "en": "network timeout",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 在每次發送 HTTP 請求時，由客戶端生成一個新的 UUID。",
+        "en": "(A) The client generates a new UUID every time an HTTP request is sent.",
+        "wg": []
+      },
+      {
+        "t": "(B) 在使用者點擊「提交」按鈕時生成一次，並在後續的自動重試中重複使用同一個 Key。",
+        "en": "(B) Generated once when the user clicks \"Submit\", and the same Key is reused in subsequent automatic retries.",
+        "wg": [
+          {
+            "t": "後續的",
+            "en": "subsequent",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "(C) 由伺服器端在接收到請求時生成，並回傳給客戶端。",
+        "en": "(C) Generated by the server upon receiving the request and returned to the client.",
+        "wg": []
+      },
+      {
+        "t": "(D) 使用 Request Body 的雜湊值 (Hash) 自動生成。",
+        "en": "(D) Automatically generated using the hash of the Request Body.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "冪等鍵代表的是「特定的操作意圖」。如果因為網路問題導致請求失敗，客戶端重試時必須攜帶「同一個」Key，伺服器才能識別這是同一個請求並回傳之前的結果。若每次重試都換 Key，伺服器會將其視為新訂單。",
+      "en": "The Idempotency Key represents a \"specific operational intent.\" If a request fails due to network issues, the client must carry the \"same\" Key upon retry so the server can recognize it as the same request and return the previous result. If the Key changes on every retry, the server will treat it as a new order.",
+      "wg": [
+        {
+          "t": "操作意圖",
+          "en": "operational intent",
+          "ps": "N"
+        },
+        {
+          "t": "識別",
+          "en": "recognize/identify",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "12",
+    "level": "intermediate",
+    "keywords": "Circuit Breaker, State Machine, Fail Fast",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在斷路器 (Circuit Breaker) 的狀態機邏輯中，當狀態從「Open」轉變為「Half-Open」後，系統允許發送了一個測試請求。",
+        "en": "In the Circuit Breaker state machine logic, after the state transitions from \"Open\" to \"Half-Open\", the system allows a test request to be sent.",
+        "wg": [
+          {
+            "t": "狀態機",
+            "en": "state machine",
+            "ps": "N"
+          },
+          {
+            "t": "轉變",
+            "en": "transition",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "如果這個測試請求失敗了，斷路器接下來會發生什麼變化？",
+        "en": "If this test request fails, what happens next to the Circuit Breaker?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 保持在 Half-Open 狀態，並立即再試一次。",
+        "en": "(A) Stay in Half-Open state and retry immediately.",
+        "wg": []
+      },
+      {
+        "t": "(B) 切換回 Closed 狀態，假設這只是偶發錯誤。",
+        "en": "(B) Switch back to Closed state, assuming it was a transient error.",
+        "wg": []
+      },
+      {
+        "t": "(C) 切換回 Open 狀態，並重置計時器 (Timer)，繼續阻斷請求。",
+        "en": "(C) Switch back to Open state, reset the timer, and continue blocking requests.",
+        "wg": [
+          {
+            "t": "重置",
+            "en": "reset",
+            "ps": "V"
+          },
+          {
+            "t": "阻斷",
+            "en": "block",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(D) 進入 Disabled 狀態，需要人工介入。",
+        "en": "(D) Enter Disabled state, requiring manual intervention.",
+        "wg": []
+      }
+    ],
+    "answer": "(C)",
+    "why": {
+      "t": "Half-Open 是一個測試狀態。如果測試請求失敗，代表下游服務尚未恢復，斷路器必須重新切換回 Open 狀態並重啟計時器，繼續執行快速失敗 (Fail Fast) 策略，避免對下游造成壓力。",
+      "en": "Half-Open is a testing state. If the test request fails, it indicates the downstream service has not recovered. The Circuit Breaker must switch back to the Open state and restart the timer, continuing the Fail Fast strategy to avoid stressing the downstream service.",
+      "wg": [
+        {
+          "t": "尚未恢復",
+          "en": "not yet recovered",
+          "ps": "Phrase"
+        },
+        {
+          "t": "快速失敗",
+          "en": "fail fast",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "13",
+    "level": "intermediate",
+    "keywords": "Service Mesh, Sidecar, Circuit Breaker, Architecture, Infrastructure",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在微服務架構中，您正在決定是使用客戶端函式庫（如 Resilience4j）還是在 Service Mesh（如 Istio/Envoy）層實作斷路器（Circuit Breaker）。",
+        "en": "In a microservices architecture, you are deciding whether to implement Circuit Breakers using a client library (e.g., Resilience4j) or at the Service Mesh layer (e.g., Istio/Envoy).",
+        "wg": [
+          {
+            "t": "客戶端函式庫",
+            "en": "client library",
+            "ps": "N"
+          },
+          {
+            "t": "微服務架構",
+            "en": "microservices architecture",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "根據「實務場景與系統設計視角」章節，採用 Service Mesh 方法的主要優勢為何？",
+        "en": "According to the 'Real-World & System Design View' section, what is the primary advantage of the Service Mesh approach?",
+        "wg": [
+          {
+            "t": "優勢",
+            "en": "advantage",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 它能確保跨分散式資料庫的資料強一致性。",
+        "en": "(A) It ensures strong data consistency across distributed databases.",
+        "wg": [
+          {
+            "t": "強一致性",
+            "en": "strong consistency",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(B) 它將基礎設施關注點分離，保持應用程式碼乾淨，並避免在不同語言的服務中重複實作。",
+        "en": "(B) It offloads infrastructure concerns, keeping application code clean and avoiding reimplementation across services in different languages.",
+        "wg": [
+          {
+            "t": "基礎設施關注點",
+            "en": "infrastructure concerns",
+            "ps": "N"
+          },
+          {
+            "t": "分離",
+            "en": "offloads",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(C) 它會自動為所有 POST 請求生成全域唯一的 Idempotency Key。",
+        "en": "(C) It automatically generates globally unique Idempotency Keys for all POST requests.",
+        "wg": []
+      },
+      {
+        "t": "(D) 它完全消除了服務之間的網路延遲。",
+        "en": "(D) It completely eliminates network latency between services.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "Service Mesh（如 Istio）允許將斷路器、重試與限流邏輯下放到基礎設施層（Sidecar Proxy）。這使得業務邏輯不需要依賴特定的語言庫（Polyglot），並且讓應用程式碼專注於業務本身，符合章節中提到的架構演進趨勢。",
+      "en": "Service Mesh (like Istio) allows offloading circuit breaking, retries, and rate limiting logic to the infrastructure layer (Sidecar Proxy). This removes the dependency on language-specific libraries (Polyglot) and lets application code focus on business logic, aligning with the architectural trends mentioned in the chapter.",
+      "wg": [
+        {
+          "t": "下放",
+          "en": "offload",
+          "ps": "V"
+        },
+        {
+          "t": "多語言支援",
+          "en": "Polyglot",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "14",
+    "level": "advanced",
+    "keywords": "Rate Limiting, Algorithms, Sliding Window Log, Memory Usage, Trade-offs",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您正在設計限流器（Rate Limiter）並考慮使用「滑動視窗日誌（Sliding Window Log）」演算法，以確保比固定視窗演算法更高的精確度。",
+        "en": "You are designing a Rate Limiter and considering the 'Sliding Window Log' algorithm to ensure higher precision than the Fixed Window algorithm.",
+        "wg": [
+          {
+            "t": "滑動視窗日誌",
+            "en": "Sliding Window Log",
+            "ps": "N"
+          },
+          {
+            "t": "精確度",
+            "en": "precision",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "然而，根據「面試與實務問答切入點」中的討論，對於高流量系統而言，此演算法的主要缺點為何？",
+        "en": "However, based on the discussion in 'Interview & Discussion Hooks', what is the major downside of this algorithm for high-traffic systems?",
+        "wg": [
+          {
+            "t": "缺點",
+            "en": "downside",
+            "ps": "N"
+          },
+          {
+            "t": "高流量",
+            "en": "high-traffic",
+            "ps": "Adj"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 即使配合 Lua Script，它也無法處理並發請求。",
+        "en": "(A) It cannot handle concurrent requests even with Lua Scripts.",
+        "wg": []
+      },
+      {
+        "t": "(B) 它會消耗大量記憶體，因為它必須儲存每一個請求的時間戳記。",
+        "en": "(B) It consumes significant memory because it must store a timestamp for every single request.",
+        "wg": [
+          {
+            "t": "時間戳記",
+            "en": "timestamp",
+            "ps": "N"
+          },
+          {
+            "t": "消耗",
+            "en": "consumes",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(C) 它的準確度實際上低於權杖桶（Token Bucket）演算法。",
+        "en": "(C) Its accuracy is actually lower than the Token Bucket algorithm.",
+        "wg": []
+      },
+      {
+        "t": "(D) 它會導致客戶端的 CPU 使用率顯著上升。",
+        "en": "(D) It causes a significant increase in CPU usage on the client side.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "滑動視窗日誌演算法雖然精確，但需要記錄視窗內每一個請求的時間點（通常使用 Redis Sorted Set）。當請求量很大（例如每秒數萬次）時，這會導致記憶體使用量呈線性增長（O(N)），這是在高併發場景下的主要 Trade-off。",
+      "en": "While the Sliding Window Log algorithm is precise, it requires recording the timestamp of every request within the window (usually using Redis Sorted Set). When request volume is high (e.g., tens of thousands per second), this leads to linear memory growth (O(N)), which is the main trade-off in high-concurrency scenarios.",
+      "wg": [
+        {
+          "t": "線性增長",
+          "en": "linear growth",
+          "ps": "N"
+        },
+        {
+          "t": "權衡",
+          "en": "trade-off",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "15",
+    "level": "advanced",
+    "keywords": "Idempotency, Distributed Locking, TTL, Race Condition, Failure Modes",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "if not idempotency_store.lock(key):\n    raise ConflictError(\"Request currently processing\")\n\n# ... Business Logic ...\n\nidempotency_store.save(key, response, ttl=86400)\nidempotency_store.unlock(key)",
+    "question": [
+      {
+        "t": "參考第 4.1 節的冪等性（Idempotency）實作邏輯：您對 Idempotency Key 獲取了一個鎖（Lock）以防止競態條件。",
+        "en": "Referencing the Idempotency implementation logic in Section 4.1: You acquire a lock on the Idempotency Key to prevent race conditions.",
+        "wg": [
+          {
+            "t": "競態條件",
+            "en": "race conditions",
+            "ps": "N"
+          },
+          {
+            "t": "獲取",
+            "en": "acquire",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "如果您將鎖的存活時間（TTL）設定為 5 秒，但外部支付閘道偶爾需要 8 秒才能回應，這會導致什麼嚴重問題？",
+        "en": "If you set the Lock TTL (Time-To-Live) to 5 seconds, but the external Payment Gateway occasionally takes 8 seconds to respond, what critical issue may arise?",
+        "wg": [
+          {
+            "t": "存活時間",
+            "en": "Time-To-Live",
+            "ps": "N"
+          },
+          {
+            "t": "支付閘道",
+            "en": "Payment Gateway",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) Redis 實例會因為記憶體耗盡而崩潰。",
+        "en": "(A) The Redis instance will crash due to memory exhaustion.",
+        "wg": []
+      },
+      {
+        "t": "(B) 第一個請求會自動失敗並回傳 Timeout，確保資料一致。",
+        "en": "(B) The first request will automatically fail with a Timeout, ensuring data consistency.",
+        "wg": []
+      },
+      {
+        "t": "(C) 在第 6 秒發送的客戶端重試請求可能會再次獲取該鎖，導致並行執行與潛在的重複扣款。",
+        "en": "(C) A client retry sent at the 6th second could acquire the lock again, leading to parallel execution and potential double charging.",
+        "wg": [
+          {
+            "t": "並行執行",
+            "en": "parallel execution",
+            "ps": "N"
+          },
+          {
+            "t": "重複扣款",
+            "en": "double charging",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(D) Idempotency Key 會被永久刪除，導致該訂單無法再被處理。",
+        "en": "(D) The Idempotency Key will be permanently deleted, preventing the order from being processed again.",
+        "wg": []
+      }
+    ],
+    "answer": "(C)",
+    "why": {
+      "t": "如果鎖的 TTL 短於業務邏輯處理時間，鎖會在第一個請求完成前過期釋放。此時若客戶端發起重試（Retry），第二個請求將能成功獲取鎖並開始執行業務邏輯。這破壞了互斥性（Mutual Exclusion），導致兩個請求同時對同一筆訂單進行扣款。",
+      "en": "If the lock's TTL is shorter than the business logic processing time, the lock expires and releases before the first request completes. If the client initiates a retry at this point, the second request can successfully acquire the lock and start executing business logic. This breaks Mutual Exclusion, causing two requests to charge the same order simultaneously.",
+      "wg": [
+        {
+          "t": "互斥性",
+          "en": "Mutual Exclusion",
+          "ps": "N"
+        },
+        {
+          "t": "過期",
+          "en": "expire",
+          "ps": "V"
+        }
+      ]
+    }
+  }
+]

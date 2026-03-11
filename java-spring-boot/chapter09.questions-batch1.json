@@ -1,0 +1,433 @@
+[
+  {
+    "no": "1",
+    "level": "intermediate",
+    "keywords": "Kubernetes, Liveness Probe, Readiness Probe, Cascading Failure",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "livenessProbe:\n  httpGet:\n    path: /actuator/health\n    port: 8080\n  # Assuming /actuator/health checks DB connectivity by default",
+    "question": [
+      {
+        "t": "您正在審查一個 Spring Boot 微服務的 Kubernetes 部署設定，該服務依賴於關聯式資料庫。",
+        "en": "You are reviewing the Kubernetes deployment configuration for a Spring Boot microservice that depends on a relational database.",
+        "wg": [
+          {
+            "t": "部署設定",
+            "en": "deployment configuration",
+            "ps": "NP"
+          },
+          {
+            "t": "關聯式資料庫",
+            "en": "relational database",
+            "ps": "NP"
+          }
+        ]
+      },
+      {
+        "t": "您發現 `livenessProbe` 被設定為檢查包含資料庫連線狀態的 `/actuator/health` 端點。",
+        "en": "You notice that the `livenessProbe` is configured to check the `/actuator/health` endpoint, which includes database connection status.",
+        "wg": [
+          {
+            "t": "端點",
+            "en": "endpoint",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "這種配置在資料庫暫時無法連線時，最可能導致什麼後果？",
+        "en": "What is the most likely consequence of this configuration when the database is temporarily unreachable?",
+        "wg": [
+          {
+            "t": "暫時",
+            "en": "temporarily",
+            "ps": "Adv"
+          },
+          {
+            "t": "無法連線",
+            "en": "unreachable",
+            "ps": "Adj"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 系統將正確運作，因為應用程式會在資料庫恢復後自動重新連線。",
+        "en": "(A) The system will function correctly because the application will automatically reconnect once the database recovers.",
+        "wg": []
+      },
+      {
+        "t": "(B) Kubernetes 會頻繁重啟 Pod，導致級聯故障並加重資料庫負擔。",
+        "en": "(B) Kubernetes will frequently restart the Pod, causing cascading failures and increasing the load on the database.",
+        "wg": [
+          {
+            "t": "級聯故障",
+            "en": "cascading failures",
+            "ps": "NP"
+          },
+          {
+            "t": "重啟",
+            "en": "restart",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(C) Load Balancer 會停止將流量發送給該實例，直到資料庫恢復。",
+        "en": "(C) The Load Balancer will stop sending traffic to the instance until the database recovers.",
+        "wg": []
+      },
+      {
+        "t": "(D) 應用程式會進入唯讀模式以保護資料完整性。",
+        "en": "(D) The application will enter read-only mode to protect data integrity.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "Liveness Probe 的目的是檢查應用程式是否崩潰（例如 Deadlock）。若將 DB 連線檢查放入 Liveness，當 DB 不可用時，K8s 會判定 App 已死並重啟它。重啟無法解決 DB 問題，反而會因為啟動時的連線風暴導致 DB 壓力更大（級聯故障）。應將依賴檢查放入 Readiness Probe。",
+      "en": "The purpose of a Liveness Probe is to check if the application has crashed (e.g., Deadlock). If a DB check is included in Liveness, K8s will restart the app when the DB is unavailable. Restarting does not fix the DB issue and can cause a connection storm during startup, worsening the DB load (Cascading Failure). Dependency checks should be placed in the Readiness Probe.",
+      "wg": [
+        {
+          "t": "連線風暴",
+          "en": "connection storm",
+          "ps": "NP"
+        },
+        {
+          "t": "依賴檢查",
+          "en": "dependency check",
+          "ps": "NP"
+        }
+      ]
+    }
+  },
+  {
+    "no": "2",
+    "level": "advanced",
+    "keywords": "Micrometer, Prometheus, Cardinality, Tags",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "Timer.builder(\"http.requests\")\n    .tag(\"method\", request.getMethod())\n    .tag(\"status\", String.valueOf(response.getStatus()))\n    .tag(\"userId\", user.getId()) // Potential issue here\n    .register(registry);",
+    "question": [
+      {
+        "t": "在 Code Review 過程中，您發現一位工程師使用 Micrometer 記錄 API 請求時間，並將 `userId` 作為 Tag 加入指標中。",
+        "en": "During a Code Review, you notice an engineer using Micrometer to record API request times and adding `userId` as a Tag to the metric.",
+        "wg": [
+          {
+            "t": "指標",
+            "en": "metric",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "若該系統使用 Prometheus 作為後端，這種做法會引發什麼嚴重的維運風險？",
+        "en": "If the system uses Prometheus as the backend, what serious operational risk does this practice pose?",
+        "wg": [
+          {
+            "t": "維運風險",
+            "en": "operational risk",
+            "ps": "NP"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 執行緒阻塞：記錄大量 Tag 會導致請求處理延遲。",
+        "en": "(A) Thread Blocking: Recording a large number of Tags causes request processing delays.",
+        "wg": [
+          {
+            "t": "執行緒阻塞",
+            "en": "thread blocking",
+            "ps": "NP"
+          }
+        ]
+      },
+      {
+        "t": "(B) 基數爆炸：無限增長的 Tag 組合會耗盡監控系統的記憶體。",
+        "en": "(B) Cardinality Explosion: Unbounded Tag combinations will exhaust the monitoring system's memory.",
+        "wg": [
+          {
+            "t": "基數爆炸",
+            "en": "cardinality explosion",
+            "ps": "NP"
+          },
+          {
+            "t": "耗盡",
+            "en": "exhaust",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(C) 資料不一致：Prometheus 無法處理字串類型的 Tag。",
+        "en": "(C) Data Inconsistency: Prometheus cannot handle String type Tags.",
+        "wg": []
+      },
+      {
+        "t": "(D) 安全漏洞：`userId` 會被明文寫入應用程式日誌中。",
+        "en": "(D) Security Vulnerability: `userId` will be written to application logs in plain text.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "Prometheus 是時間序列資料庫，會為每一組獨特的 Tag 組合（如 `userId=1`, `userId=2`...）建立一個新的時間序列。由於 `userId` 的數量是無限的（Unbounded），這會導致「基數爆炸」（Cardinality Explosion），迅速耗盡 Prometheus 的記憶體並導致其崩潰。",
+      "en": "Prometheus is a Time Series Database that creates a new time series for every unique combination of Tags (e.g., `userId=1`, `userId=2`...). Since the number of `userIds` is unbounded, this leads to 'Cardinality Explosion', rapidly exhausting Prometheus's memory and causing it to crash.",
+      "wg": [
+        {
+          "t": "時間序列",
+          "en": "time series",
+          "ps": "NP"
+        },
+        {
+          "t": "無限的",
+          "en": "unbounded",
+          "ps": "Adj"
+        }
+      ]
+    }
+  },
+  {
+    "no": "3",
+    "level": "intermediate",
+    "keywords": "Spring Boot 3, Distributed Tracing, Sleuth, Migration",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您的團隊正在將微服務從 Spring Boot 2.7 升級到 Spring Boot 3.x。",
+        "en": "Your team is upgrading microservices from Spring Boot 2.7 to Spring Boot 3.x.",
+        "wg": []
+      },
+      {
+        "t": "原本使用 `spring-cloud-starter-sleuth` 來處理分散式追蹤，但在升級後發現該依賴已不再支援。",
+        "en": "You were using `spring-cloud-starter-sleuth` for distributed tracing, but found that this dependency is no longer supported after the upgrade.",
+        "wg": [
+          {
+            "t": "分散式追蹤",
+            "en": "distributed tracing",
+            "ps": "NP"
+          },
+          {
+            "t": "不再支援",
+            "en": "no longer supported",
+            "ps": "AdjP"
+          }
+        ]
+      },
+      {
+        "t": "為了維持追蹤功能並符合 Spring Boot 3 的標準，您應該替換為哪個核心專案？",
+        "en": "To maintain tracing functionality and align with Spring Boot 3 standards, which core project should you switch to?",
+        "wg": [
+          {
+            "t": "符合",
+            "en": "align with",
+            "ps": "V"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) Spring Cloud Tracing",
+        "en": "(A) Spring Cloud Tracing",
+        "wg": []
+      },
+      {
+        "t": "(B) Micrometer Tracing",
+        "en": "(B) Micrometer Tracing",
+        "wg": []
+      },
+      {
+        "t": "(C) Spring Boot Admin",
+        "en": "(C) Spring Boot Admin",
+        "wg": []
+      },
+      {
+        "t": "(D) Log4j2 Tracing Bridge",
+        "en": "(D) Log4j2 Tracing Bridge",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "在 Spring Boot 3.x 中，Spring Cloud Sleuth 專案已停止維護，其核心功能被遷移並整合到了 Micrometer Tracing 中。這使得 Metrics 與 Tracing 統一在 Micrometer 的 API 下。",
+      "en": "In Spring Boot 3.x, the Spring Cloud Sleuth project is no longer maintained, and its core functionality has been migrated and integrated into Micrometer Tracing. This unifies Metrics and Tracing under the Micrometer API.",
+      "wg": [
+        {
+          "t": "遷移",
+          "en": "migrated",
+          "ps": "V"
+        },
+        {
+          "t": "整合",
+          "en": "integrated",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "4",
+    "level": "intermediate",
+    "keywords": "Logging, MDC, Trace ID, Debugging",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "logging.pattern.level=%5p [${spring.application.name:},%X{traceId:-},%X{spanId:-}]",
+    "question": [
+      {
+        "t": "在分散式系統中排查問題時，能夠將同一請求跨越多個服務的日誌串聯起來至關重要。",
+        "en": "When troubleshooting in a distributed system, it is crucial to correlate logs for the same request across multiple services.",
+        "wg": [
+          {
+            "t": "排查",
+            "en": "troubleshoot",
+            "ps": "V"
+          },
+          {
+            "t": "串聯",
+            "en": "correlate",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "在 Spring Boot 搭配 Micrometer Tracing 的架構下，Trace ID 是透過什麼機制被加入到日誌輸出中的？",
+        "en": "In an architecture using Spring Boot with Micrometer Tracing, by what mechanism is the Trace ID added to the log output?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 透過 AOP 攔截每個方法並手動列印。",
+        "en": "(A) By intercepting every method via AOP and manually printing it.",
+        "wg": [
+          {
+            "t": "攔截",
+            "en": "intercepting",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(B) 透過注入 MDC (Mapped Diagnostic Context) 並配置日誌 Pattern。",
+        "en": "(B) By injecting into MDC (Mapped Diagnostic Context) and configuring the log Pattern.",
+        "wg": [
+          {
+            "t": "注入",
+            "en": "injecting",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(C) 透過 Actuator 的 `/logfile` 端點自動聚合。",
+        "en": "(C) By automatically aggregating via the Actuator `/logfile` endpoint.",
+        "wg": [
+          {
+            "t": "聚合",
+            "en": "aggregating",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(D) 透過 Sidecar 容器在網路層封包中讀取。",
+        "en": "(D) By reading from network packets via a Sidecar container.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "Micrometer Tracing (以及過去的 Sleuth) 會自動將 Trace ID 與 Span ID 放入 SLF4J 的 MDC 中。只要在 `logging.pattern` 中設定 `%X{traceId}`，日誌框架（如 Logback）就會自動將其輸出，實現日誌關聯。",
+      "en": "Micrometer Tracing (and formerly Sleuth) automatically places the Trace ID and Span ID into the SLF4J MDC. As long as `%X{traceId}` is configured in the `logging.pattern`, the logging framework (e.g., Logback) will automatically output it, achieving log correlation.",
+      "wg": [
+        {
+          "t": "日誌關聯",
+          "en": "log correlation",
+          "ps": "NP"
+        }
+      ]
+    }
+  },
+  {
+    "no": "5",
+    "level": "intermediate",
+    "keywords": "Security, Actuator, Configuration, Best Practices",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "management.endpoints.web.exposure.include=*",
+    "question": [
+      {
+        "t": "您在檢查生產環境的 `application.properties` 時發現了上述設定。",
+        "en": "You discover the above configuration while checking the `application.properties` in the production environment.",
+        "wg": []
+      },
+      {
+        "t": "這項設定最主要的安全隱憂是什麼？",
+        "en": "What is the primary security concern with this configuration?",
+        "wg": [
+          {
+            "t": "安全隱憂",
+            "en": "security concern",
+            "ps": "NP"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 它會導致應用程式記憶體洩漏。",
+        "en": "(A) It will cause application memory leaks.",
+        "wg": []
+      },
+      {
+        "t": "(B) 它暴露了所有 Actuator 端點，可能洩漏環境變數（含密碼）或允許未經授權的 Shutdown。",
+        "en": "(B) It exposes all Actuator endpoints, potentially leaking environment variables (including passwords) or allowing unauthorized Shutdown.",
+        "wg": [
+          {
+            "t": "暴露",
+            "en": "exposes",
+            "ps": "V"
+          },
+          {
+            "t": "未經授權的",
+            "en": "unauthorized",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "(C) 它會關閉所有的健康檢查探針。",
+        "en": "(C) It will disable all health check probes.",
+        "wg": []
+      },
+      {
+        "t": "(D) 它會強制開啟 Debug 級別的日誌記錄。",
+        "en": "(D) It will force Debug level logging to be enabled.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "使用 `*` 會暴露所有端點，包括 `/env` (可能含 API Keys/DB 密碼)、`/heapdump` (含記憶體資料) 與 `/shutdown`。在生產環境中，應採「最小權限原則」，僅明確列出需要的端點（如 `health`, `prometheus`）。",
+      "en": "Using `*` exposes all endpoints, including `/env` (potentially containing API Keys/DB passwords), `/heapdump` (containing memory data), and `/shutdown`. In production, the 'Principle of Least Privilege' should be applied, explicitly listing only necessary endpoints (e.g., `health`, `prometheus`).",
+      "wg": [
+        {
+          "t": "最小權限原則",
+          "en": "Principle of Least Privilege",
+          "ps": "NP"
+        }
+      ]
+    }
+  }
+]

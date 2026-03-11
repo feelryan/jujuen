@@ -1,0 +1,512 @@
+[
+  {
+    "no": "1",
+    "level": "intermediate",
+    "keywords": "Event Loop, Blocking, Performance, Netty",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "public Mono<User> getUser(String id) {\n    return Mono.just(id)\n        .map(userId -> {\n            // JPA Repository (Blocking I/O)\n            return userRepository.findById(userId).orElse(null);\n        });\n}",
+    "question": [
+      {
+        "t": "在 Code Review 過程中，您發現資淺工程師提交了上述 Spring WebFlux 程式碼。",
+        "en": "During a Code Review, you noticed a junior engineer submitted the above Spring WebFlux code.",
+        "wg": [
+          {
+            "t": "提交",
+            "en": "submitted",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "請指出這段程式碼在生產環境高負載下會導致的最嚴重問題是什麼？",
+        "en": "Please identify the most critical issue this code would cause under high load in a production environment.",
+        "wg": [
+          {
+            "t": "高負載",
+            "en": "high load",
+            "ps": "N"
+          },
+          {
+            "t": "最嚴重問題",
+            "en": "most critical issue",
+            "ps": "NP"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 會導致編譯錯誤，因為 map 操作符不支援回傳 null。",
+        "en": "(A) It will cause a compilation error because the map operator does not support returning null.",
+        "wg": []
+      },
+      {
+        "t": "(B) 會阻塞 Netty Event Loop 執行緒，導致整個 CPU 核心停擺，大幅降低系統吞吐量。",
+        "en": "(B) It will block the Netty Event Loop thread, causing the entire CPU core to halt and drastically reducing system throughput.",
+        "wg": [
+          {
+            "t": "阻塞",
+            "en": "block",
+            "ps": "V"
+          },
+          {
+            "t": "吞吐量",
+            "en": "throughput",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) 會建立過多的執行緒 (Thread Explosion)，導致記憶體溢出 (OOM)。",
+        "en": "(C) It will create too many threads (Thread Explosion), leading to Out of Memory (OOM).",
+        "wg": []
+      },
+      {
+        "t": "(D) 程式碼邏輯正確，Spring WebFlux 會自動將阻塞操作切換到虛擬執行緒 (Virtual Threads) 執行。",
+        "en": "(D) The code logic is correct; Spring WebFlux will automatically switch the blocking operation to Virtual Threads.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "Spring WebFlux 預設使用少量 Event Loop 執行緒（通常等於核心數）。在 Event Loop 中執行阻塞操作（如 JDBC 查詢）會卡住該執行緒，使其無法處理其他請求，這是 Reactive Programming 中的反模式。",
+      "en": "Spring WebFlux uses a small number of Event Loop threads (usually equal to the core count) by default. Executing blocking operations (like JDBC queries) in the Event Loop freezes the thread, preventing it from handling other requests, which is an anti-pattern in Reactive Programming.",
+      "wg": [
+        {
+          "t": "反模式",
+          "en": "anti-pattern",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "2",
+    "level": "advanced",
+    "keywords": "Backpressure, Reactive Streams, Flow Control",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在設計高吞吐量的資料串流系統時，下游服務的處理速度遠慢於上游資料產生的速度。",
+        "en": "When designing a high-throughput data streaming system, the downstream service processes data much slower than the upstream produces it.",
+        "wg": [
+          {
+            "t": "資料串流",
+            "en": "data streaming",
+            "ps": "N"
+          },
+          {
+            "t": "下游",
+            "en": "downstream",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "為了避免下游服務發生記憶體溢出 (OOM)，Reactive Streams 規範引入了什麼機制？",
+        "en": "To prevent Out of Memory (OOM) errors in the downstream service, what mechanism does the Reactive Streams specification introduce?",
+        "wg": [
+          {
+            "t": "記憶體溢出",
+            "en": "Out of Memory",
+            "ps": "N"
+          },
+          {
+            "t": "規範",
+            "en": "specification",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) Circuit Breaker (斷路器)：當錯誤率過高時切斷連線。",
+        "en": "(A) Circuit Breaker: Cuts the connection when the error rate is too high.",
+        "wg": []
+      },
+      {
+        "t": "(B) Backpressure (背壓)：下游透過 `request(n)` 告知上游目前能處理的資料量。",
+        "en": "(B) Backpressure: The downstream informs the upstream of the amount of data it can handle via `request(n)`.",
+        "wg": [
+          {
+            "t": "背壓",
+            "en": "Backpressure",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) Load Balancing (負載平衡)：將流量分散到更多實例。",
+        "en": "(C) Load Balancing: Distributes traffic across more instances.",
+        "wg": []
+      },
+      {
+        "t": "(D) Auto-scaling (自動擴展)：增加下游服務的 CPU 資源。",
+        "en": "(D) Auto-scaling: Increases CPU resources for the downstream service.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "Backpressure 是 Reactive Streams 的核心機制，它將傳統的 Push 模型轉變為 Pull-Push 混合模型，允許消費者（Subscriber）根據自身能力控制生產者（Publisher）的發送速率。",
+      "en": "Backpressure is the core mechanism of Reactive Streams. It transforms the traditional Push model into a hybrid Pull-Push model, allowing the consumer (Subscriber) to control the producer's (Publisher) emission rate based on its capacity.",
+      "wg": [
+        {
+          "t": "核心機制",
+          "en": "core mechanism",
+          "ps": "N"
+        },
+        {
+          "t": "發送速率",
+          "en": "emission rate",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "3",
+    "level": "intermediate",
+    "keywords": "Operators, map vs flatMap, Asynchronous",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "public Mono<UserDetail> getUserDetail(String userId) {\n    return userRepository.findById(userId) // returns Mono<User>\n        .______ (user -> {\n            return userDetailClient.fetchDetails(user.getDetailId()); // returns Mono<UserDetail>\n        });\n}",
+    "question": [
+      {
+        "t": "您正在實作一個聚合服務，需要先查詢使用者 ID，再依據該 ID 非同步呼叫另一個微服務獲取詳細資料。",
+        "en": "You are implementing an aggregation service that needs to query a user ID first, and then asynchronously call another microservice based on that ID to get details.",
+        "wg": [
+          {
+            "t": "聚合服務",
+            "en": "aggregation service",
+            "ps": "N"
+          },
+          {
+            "t": "非同步",
+            "en": "asynchronously",
+            "ps": "Adv"
+          }
+        ]
+      },
+      {
+        "t": "為了避免產生 `Mono<Mono<UserDetail>>` 這種巢狀結構，上述程式碼的空格處應填入哪個運算子？",
+        "en": "To avoid creating a nested structure like `Mono<Mono<UserDetail>>`, which operator should be filled in the blank in the code above?",
+        "wg": [
+          {
+            "t": "巢狀結構",
+            "en": "nested structure",
+            "ps": "N"
+          },
+          {
+            "t": "運算子",
+            "en": "operator",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) map",
+        "en": "(A) map",
+        "wg": []
+      },
+      {
+        "t": "(B) flatMap",
+        "en": "(B) flatMap",
+        "wg": []
+      },
+      {
+        "t": "(C) filter",
+        "en": "(C) filter",
+        "wg": []
+      },
+      {
+        "t": "(D) zipWith",
+        "en": "(D) zipWith",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "`map` 用於同步的一對一轉換；當轉換函數本身回傳一個 Publisher (如 Mono) 時，必須使用 `flatMap` 來將內層的 Mono 攤平，否則會得到雙層包裹的物件。",
+      "en": "`map` is used for synchronous 1-to-1 transformation. When the transformation function itself returns a Publisher (like Mono), `flatMap` must be used to flatten the inner Mono; otherwise, you will get a double-wrapped object.",
+      "wg": [
+        {
+          "t": "攤平",
+          "en": "flatten",
+          "ps": "V"
+        },
+        {
+          "t": "雙層包裹",
+          "en": "double-wrapped",
+          "ps": "Adj"
+        }
+      ]
+    }
+  },
+  {
+    "no": "4",
+    "level": "advanced",
+    "keywords": "System Design, Trade-offs, CPU-bound, Architecture",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您的團隊正在評估是否將一個「高解析度影片轉檔服務」從 Spring MVC 遷移到 Spring WebFlux。",
+        "en": "Your team is evaluating whether to migrate a 'High-Resolution Video Transcoding Service' from Spring MVC to Spring WebFlux.",
+        "wg": [
+          {
+            "t": "影片轉檔",
+            "en": "video transcoding",
+            "ps": "N"
+          },
+          {
+            "t": "遷移",
+            "en": "migrate",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "該服務主要進行密集的 CPU 運算。身為架構師，您的建議應為何？",
+        "en": "The service primarily performs intensive CPU computations. As an architect, what should be your recommendation?",
+        "wg": [
+          {
+            "t": "密集的",
+            "en": "intensive",
+            "ps": "Adj"
+          },
+          {
+            "t": "架構師",
+            "en": "architect",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 強烈建議遷移，因為 WebFlux 的非阻塞特性可以加快影片轉檔的運算速度。",
+        "en": "(A) Strongly recommend migration, as WebFlux's non-blocking nature can speed up video transcoding computations.",
+        "wg": []
+      },
+      {
+        "t": "(B) 建議遷移，但必須將轉檔邏輯放在 Controller 的 Event Loop 中執行以減少 Context Switch。",
+        "en": "(B) Recommend migration, but the transcoding logic must be executed in the Controller's Event Loop to reduce Context Switching.",
+        "wg": []
+      },
+      {
+        "t": "(C) 不建議遷移，WebFlux 適合 I/O 密集型任務；CPU 密集型任務會阻塞 Event Loop，導致效能比傳統 Thread Pool 模型更差。",
+        "en": "(C) Do not recommend migration. WebFlux is suitable for I/O-bound tasks; CPU-bound tasks will block the Event Loop, resulting in worse performance than the traditional Thread Pool model.",
+        "wg": [
+          {
+            "t": "I/O 密集型",
+            "en": "I/O-bound",
+            "ps": "Adj"
+          },
+          {
+            "t": "CPU 密集型",
+            "en": "CPU-bound",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "(D) 兩者皆可，因為 Spring Boot 會自動偵測 CPU 負載並動態調整架構。",
+        "en": "(D) Either is fine, as Spring Boot will automatically detect CPU load and adjust the architecture dynamically.",
+        "wg": []
+      }
+    ],
+    "answer": "(C)",
+    "why": {
+      "t": "WebFlux 的優勢在於以少量執行緒處理大量 I/O 等待。對於 CPU 密集型任務，單一執行緒被長時間佔用會導致其他請求無法被處理。此類場景傳統的 Thread Pool 模型（或將運算卸載到專用 Worker Pool）更為合適。",
+      "en": "WebFlux's advantage lies in handling massive I/O waits with few threads. For CPU-intensive tasks, occupying a single thread for a long time prevents other requests from being processed. The traditional Thread Pool model (or offloading computation to a dedicated Worker Pool) is more suitable for such scenarios.",
+      "wg": [
+        {
+          "t": "佔用",
+          "en": "occupy",
+          "ps": "V"
+        },
+        {
+          "t": "卸載",
+          "en": "offload",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "5",
+    "level": "advanced",
+    "keywords": "Schedulers, subscribeOn, Legacy Integration",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "public Mono<String> processLegacyData(String id) {\n    return Mono.fromCallable(() -> {\n            // Legacy blocking JDBC call (e.g., 200ms)\n            return legacyRepo.findById(id);\n        })\n        .____________________________; // How to handle this?\n}",
+    "question": [
+      {
+        "t": "您必須在 WebFlux 專案中整合一個舊有的 Blocking JDBC 函式庫。",
+        "en": "You must integrate a legacy Blocking JDBC library into a WebFlux project.",
+        "wg": [
+          {
+            "t": "整合",
+            "en": "integrate",
+            "ps": "V"
+          },
+          {
+            "t": "舊有的",
+            "en": "legacy",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "為了將阻塞操作從 Netty Event Loop 移開，確保系統穩定性，您應該在空格處填入什麼？",
+        "en": "To move the blocking operation away from the Netty Event Loop and ensure system stability, what should you fill in the blank?",
+        "wg": [
+          {
+            "t": "移開",
+            "en": "move away",
+            "ps": "V"
+          },
+          {
+            "t": "穩定性",
+            "en": "stability",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) subscribeOn(Schedulers.boundedElastic())",
+        "en": "(A) subscribeOn(Schedulers.boundedElastic())",
+        "wg": []
+      },
+      {
+        "t": "(B) publishOn(Schedulers.parallel())",
+        "en": "(B) publishOn(Schedulers.parallel())",
+        "wg": []
+      },
+      {
+        "t": "(C) subscribeOn(Schedulers.single())",
+        "en": "(C) subscribeOn(Schedulers.single())",
+        "wg": []
+      },
+      {
+        "t": "(D) runAsync(Schedulers.immediate())",
+        "en": "(D) runAsync(Schedulers.immediate())",
+        "wg": []
+      }
+    ],
+    "answer": "(A)",
+    "why": {
+      "t": "`subscribeOn` 影響資料源頭的執行環境。`boundedElastic` 是專為阻塞 I/O 設計的彈性執行緒池，能避免阻塞主要的 Event Loop。`publishOn` 只影響後續運算子，且 `parallel` 適用於 CPU 運算而非阻塞 I/O。",
+      "en": "`subscribeOn` affects the execution context of the data source. `boundedElastic` is an elastic thread pool designed for blocking I/O, preventing blockage of the main Event Loop. `publishOn` only affects downstream operators, and `parallel` is for CPU computation, not blocking I/O.",
+      "wg": [
+        {
+          "t": "資料源頭",
+          "en": "data source",
+          "ps": "N"
+        },
+        {
+          "t": "彈性執行緒池",
+          "en": "elastic thread pool",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "6",
+    "level": "intermediate",
+    "keywords": "Parallel Execution, Mono.zip, Aggregation",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "Mono<User> user = client.getUser(id);\nMono<List<Order>> orders = client.getOrders(id);\nMono<List<Rec>> recs = client.getRecommendations(id);\n\n// Goal: Execute all 3 in parallel and combine results\nreturn ____________________\n       .map(tuple -> new Dashboard(tuple.getT1(), tuple.getT2(), tuple.getT3()));",
+    "question": [
+      {
+        "t": "您需要設計一個 Dashboard API，同時呼叫三個獨立的微服務（User, Orders, Recommendations）。",
+        "en": "You need to design a Dashboard API that calls three independent microservices (User, Orders, Recommendations) simultaneously.",
+        "wg": [
+          {
+            "t": "獨立的",
+            "en": "independent",
+            "ps": "Adj"
+          },
+          {
+            "t": "同時",
+            "en": "simultaneously",
+            "ps": "Adv"
+          }
+        ]
+      },
+      {
+        "t": "為了最小化總響應時間，應使用哪個運算子來並行執行這些請求？",
+        "en": "To minimize the total response time, which operator should be used to execute these requests in parallel?",
+        "wg": [
+          {
+            "t": "最小化",
+            "en": "minimize",
+            "ps": "V"
+          },
+          {
+            "t": "並行執行",
+            "en": "execute in parallel",
+            "ps": "VP"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) Mono.concat(user, orders, recs)",
+        "en": "(A) Mono.concat(user, orders, recs)",
+        "wg": []
+      },
+      {
+        "t": "(B) user.flatMap(u -> orders.flatMap(o -> recs.map(r -> ...)))",
+        "en": "(B) user.flatMap(u -> orders.flatMap(o -> recs.map(r -> ...)))",
+        "wg": []
+      },
+      {
+        "t": "(C) Mono.zip(user, orders, recs)",
+        "en": "(C) Mono.zip(user, orders, recs)",
+        "wg": []
+      },
+      {
+        "t": "(D) Flux.merge(user, orders, recs)",
+        "en": "(D) Flux.merge(user, orders, recs)",
+        "wg": []
+      }
+    ],
+    "answer": "(C)",
+    "why": {
+      "t": "`Mono.zip` 會同時訂閱（subscribe）所有來源，實現並行執行，並等待所有結果返回後組合成一個 Tuple。`concat` 和巢狀 `flatMap` 都是順序執行（Sequential），無法縮短總耗時。",
+      "en": "`Mono.zip` subscribes to all sources simultaneously, achieving parallel execution, and waits for all results to return before combining them into a Tuple. `concat` and nested `flatMap` are sequential and cannot reduce the total duration.",
+      "wg": [
+        {
+          "t": "順序執行",
+          "en": "sequential execution",
+          "ps": "N"
+        },
+        {
+          "t": "縮短",
+          "en": "reduce",
+          "ps": "V"
+        }
+      ]
+    }
+  }
+]

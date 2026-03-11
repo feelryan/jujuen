@@ -1,0 +1,1272 @@
+[
+  {
+    "no": "13",
+    "level": "intermediate",
+    "keywords": "Argo Rollouts, Blue/Green, Preview Service, Testing Strategy",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "apiVersion: argoproj.io/v1alpha1\nkind: Rollout\nspec:\n  strategy:\n    blueGreen:\n      activeService: my-app-active\n      # Missing Configuration Here\n      autoPromotionEnabled: false",
+    "question": [
+      {
+        "t": "您的團隊正在使用 Argo Rollouts 實作 Blue/Green 部署策略。",
+        "en": "Your team is implementing a Blue/Green deployment strategy using Argo Rollouts.",
+        "wg": []
+      },
+      {
+        "t": "在切換正式流量之前，QA 團隊需要在獨立的網路端點上對新版本（Green）進行冒煙測試（Smoke Test）。",
+        "en": "Before switching production traffic, the QA team needs to perform smoke tests on the new version (Green) on a separate network endpoint.",
+        "wg": [
+          {
+            "t": "冒煙測試",
+            "en": "smoke test",
+            "ps": "N"
+          },
+          {
+            "t": "端點",
+            "en": "endpoint",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "您應該如何在 `Rollout` 規範中設定此機制？",
+        "en": "How should you configure this mechanism in the `Rollout` specification?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 在 `blueGreen` 策略中定義 `previewService`，並指向新版本的 ReplicaSet。",
+        "en": "(A) Define a `previewService` in the `blueGreen` strategy that points to the new version's ReplicaSet.",
+        "wg": [
+          {
+            "t": "預覽服務",
+            "en": "previewService",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(B) 將策略改為 `canary` 並設定 `setWeight: 0` 以防止流量進入。",
+        "en": "(B) Change the strategy to `canary` and set `setWeight: 0` to prevent traffic entry.",
+        "wg": []
+      },
+      {
+        "t": "(C) 依賴 ArgoCD 的 UI 手動進行 Port Forward 到新產生的 Pod。",
+        "en": "(C) Rely on ArgoCD's UI to manually Port Forward to the newly created Pod.",
+        "wg": []
+      },
+      {
+        "t": "(D) 在 `analysis` 步驟中使用 `kubectl exec` 進入容器內部測試。",
+        "en": "(D) Use `kubectl exec` in the `analysis` step to enter the container for testing.",
+        "wg": []
+      }
+    ],
+    "answer": "(A)",
+    "why": {
+      "t": "在 Argo Rollouts 的 Blue/Green 策略中，`activeService` 指向當前正式版本（Blue），而 `previewService` 專門用於指向新部署的版本（Green）。這允許測試人員在切換流量前，透過預覽服務的 Service IP/DNS 驗證新版本功能。",
+      "en": "In Argo Rollouts' Blue/Green strategy, `activeService` points to the current live version (Blue), while `previewService` is specifically designed to point to the newly deployed version (Green). This allows testers to verify the new version via the preview service's IP/DNS before switching traffic.",
+      "wg": [
+        {
+          "t": "驗證",
+          "en": "verify",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "14",
+    "level": "advanced",
+    "keywords": "Canary Deployment, Traffic Splitting, Service Mesh, Header-based Routing",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "行銷部門希望在向公眾發布新功能前，先讓內部員工（透過特定的 HTTP Header 識別）試用新版本。",
+        "en": "The marketing department wants to let internal employees (identified by a specific HTTP Header) try out the new version before releasing it to the public.",
+        "wg": [
+          {
+            "t": "識別",
+            "en": "identified",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "您的團隊目前僅使用標準的 Argo Rollouts 搭配原生 Kubernetes Service（無 Service Mesh）。",
+        "en": "Your team is currently using standard Argo Rollouts with native Kubernetes Services (no Service Mesh).",
+        "wg": []
+      },
+      {
+        "t": "為什麼目前的架構無法滿足此需求？",
+        "en": "Why can't the current architecture meet this requirement?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 原生 Kubernetes Service 只能進行 Layer 4 負載平衡，無法解析 HTTP Header 進行路由。",
+        "en": "(A) Native Kubernetes Services only perform Layer 4 load balancing and cannot parse HTTP Headers for routing.",
+        "wg": [
+          {
+            "t": "負載平衡",
+            "en": "load balancing",
+            "ps": "N"
+          },
+          {
+            "t": "解析",
+            "en": "parse",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(B) Argo Rollouts 不支援任何形式的 Canary 部署，僅支援 Blue/Green。",
+        "en": "(B) Argo Rollouts does not support any form of Canary deployment, only Blue/Green.",
+        "wg": []
+      },
+      {
+        "t": "(C) HTTP Header 在傳輸過程中會被 Kubernetes 加密，導致無法讀取。",
+        "en": "(C) HTTP Headers are encrypted by Kubernetes during transmission and cannot be read.",
+        "wg": []
+      },
+      {
+        "t": "(D) 需要手動修改 Pod 的 `/etc/hosts` 檔案才能實現特定路由。",
+        "en": "(D) You need to manually modify the Pod's `/etc/hosts` file to achieve specific routing.",
+        "wg": []
+      }
+    ],
+    "answer": "(A)",
+    "why": {
+      "t": "標準 Argo Rollouts 在沒有 Service Mesh (如 Istio, Linkerd) 或進階 Ingress Controller (如 Nginx, ALB) 的支援下，是透過調整 Replica 數量來控制流量比例（例如 1 個新版 Pod vs 9 個舊版 Pod = 10% 流量）。這種方式基於機率，無法針對特定請求特徵（如 Header）進行精確路由。",
+      "en": "Standard Argo Rollouts, without the support of a Service Mesh (e.g., Istio, Linkerd) or advanced Ingress Controller (e.g., Nginx, ALB), controls traffic percentage by adjusting Replica counts (e.g., 1 new Pod vs 9 old Pods = 10% traffic). This method is probability-based and cannot route precisely based on request characteristics (like Headers).",
+      "wg": [
+        {
+          "t": "機率",
+          "en": "probability",
+          "ps": "N"
+        },
+        {
+          "t": "精確路由",
+          "en": "precise routing",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "15",
+    "level": "intermediate",
+    "keywords": "GitOps, Repository Structure, Kustomize, Best Practices",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在規劃 GitOps 的 Repository 結構時，您需要管理 Dev、Staging 與 Prod 三個環境。",
+        "en": "When planning the GitOps Repository structure, you need to manage three environments: Dev, Staging, and Prod.",
+        "wg": []
+      },
+      {
+        "t": "為了最大化配置的可視性並減少環境間的漂移（Drift），下列哪種結構通常被視為最佳實務？",
+        "en": "To maximize configuration visibility and minimize drift between environments, which of the following structures is generally considered a best practice?",
+        "wg": [
+          {
+            "t": "可視性",
+            "en": "visibility",
+            "ps": "N"
+          },
+          {
+            "t": "漂移",
+            "en": "drift",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) **Directory per Environment**：使用 Kustomize 的 Base/Overlays 結構，每個環境有獨立的資料夾（如 `overlays/prod`）。",
+        "en": "(A) **Directory per Environment**: Use Kustomize Base/Overlays structure, where each environment has a separate folder (e.g., `overlays/prod`).",
+        "wg": [
+          {
+            "t": "資料夾",
+            "en": "folder/directory",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(B) **Branch per Environment**：使用 Git 分支區隔環境（如 `master` 對應 Prod，`develop` 對應 Dev），透過 Merge 推送變更。",
+        "en": "(B) **Branch per Environment**: Use Git branches to separate environments (e.g., `master` for Prod, `develop` for Dev), promoting changes via Merge.",
+        "wg": []
+      },
+      {
+        "t": "(C) **Runtime Injection**：Git 中只保留通用模板，所有環境差異變數都儲存在外部資料庫，部署時注入。",
+        "en": "(C) **Runtime Injection**: Keep only generic templates in Git; store all environmental variables in an external database and inject them at deployment.",
+        "wg": []
+      },
+      {
+        "t": "(D) **Copy-Paste Repos**：為每個環境建立完全獨立的 Git Repository，不共享任何程式碼。",
+        "en": "(D) **Copy-Paste Repos**: Create completely independent Git Repositories for each environment, sharing no code.",
+        "wg": []
+      }
+    ],
+    "answer": "(A)",
+    "why": {
+      "t": "使用目錄（Directory/Overlays）區分環境是 GitOps 的主流最佳實務。這樣可以清楚地在檔案系統中看到每個環境的差異，且易於使用 `diff` 工具比較。分支策略（Branching）容易隱藏環境間的配置差異，且在處理特定環境的 Hotfix 或配置漂移時較為複雜。",
+      "en": "Using directories (Directory/Overlays) to distinguish environments is a mainstream GitOps best practice. It allows clear visibility of differences between environments in the file system and easy comparison using `diff` tools. Branching strategies can hide configuration differences and make handling environment-specific hotfixes or configuration drift more complex.",
+      "wg": [
+        {
+          "t": "最佳實務",
+          "en": "best practice",
+          "ps": "N"
+        },
+        {
+          "t": "隱藏",
+          "en": "hide",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "4",
+    "level": "intermediate",
+    "keywords": "GitOps, Drift Detection, Reconciliation, Self-Healing",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您的團隊採用 ArgoCD 進行 GitOps 部署，並啟用了自動同步 (Auto-Sync) 與自我修復 (Self-Heal) 功能。",
+        "en": "Your team uses ArgoCD for GitOps deployment with Auto-Sync and Self-Heal enabled.",
+        "wg": [
+          {
+            "t": "自動同步",
+            "en": "Auto-Sync",
+            "ps": "N"
+          },
+          {
+            "t": "自我修復",
+            "en": "Self-Heal",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "某位初階工程師為了應對突發流量，直接使用 `kubectl scale` 命令手動將生產環境的 Deployment 副本數從 3 調整為 10。",
+        "en": "To handle a traffic spike, a junior engineer manually scales the production Deployment replicas from 3 to 10 using the `kubectl scale` command.",
+        "wg": [
+          {
+            "t": "突發流量",
+            "en": "traffic spike",
+            "ps": "N"
+          },
+          {
+            "t": "副本數",
+            "en": "replicas",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "請問 ArgoCD 會如何反應？",
+        "en": "How will ArgoCD react?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) ArgoCD 會自動更新 Git 儲存庫中的副本數為 10，以符合目前的叢集狀態。",
+        "en": "(A) ArgoCD will automatically update the replica count in the Git repository to 10 to match the current cluster state.",
+        "wg": []
+      },
+      {
+        "t": "(B) ArgoCD 會偵測到配置漂移 (Drift)，並立即將副本數縮減回 3，以符合 Git 中的定義。",
+        "en": "(B) ArgoCD will detect the configuration drift and immediately scale the replicas back to 3 to match the definition in Git.",
+        "wg": [
+          {
+            "t": "配置漂移",
+            "en": "configuration drift",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) ArgoCD 會忽略此變更，直到下一次 Git 儲存庫有新的 Commit 推送時才會覆蓋。",
+        "en": "(C) ArgoCD will ignore this change and only overwrite it when a new Commit is pushed to the Git repository.",
+        "wg": []
+      },
+      {
+        "t": "(D) ArgoCD 會將應用程式標記為 `OutOfSync`，但不會採取任何行動，直到管理員手動介入。",
+        "en": "(D) ArgoCD will mark the application as `OutOfSync` but will not take any action until an administrator manually intervenes.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "GitOps 的核心原則是 Git 為「單一事實來源」。當啟用了 Self-Heal 時，Controller 會持續調和 (Reconcile) 狀態；一旦偵測到叢集狀態 (Actual) 與 Git (Desired) 不符，會自動將其還原。",
+      "en": "The core principle of GitOps is that Git is the 'Single Source of Truth'. When Self-Heal is enabled, the Controller continuously reconciles the state; once it detects that the cluster state (Actual) differs from Git (Desired), it automatically reverts it.",
+      "wg": [
+        {
+          "t": "單一事實來源",
+          "en": "Single Source of Truth",
+          "ps": "N"
+        },
+        {
+          "t": "調和",
+          "en": "reconcile",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "5",
+    "level": "advanced",
+    "keywords": "Database Migration, Backward Compatibility, Expand and Contract, Rollback",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您正在使用 GitOps 管理一個包含關聯式資料庫的微服務。",
+        "en": "You are managing a microservice with a relational database using GitOps.",
+        "wg": [
+          {
+            "t": "關聯式資料庫",
+            "en": "relational database",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "新版本 (v2) 的資料庫遷移腳本將一個名為 `address` 的欄位重新命名為 `full_address`。",
+        "en": "The new version (v2) database migration script renames a column `address` to `full_address`.",
+        "wg": [
+          {
+            "t": "遷移腳本",
+            "en": "migration script",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "部署 v2 後發現嚴重 Bug，ArgoCD 自動執行回滾 (Rollback) 至 v1。請問這會導致什麼後果？",
+        "en": "After deploying v2, a critical bug is found, and ArgoCD automatically triggers a rollback to v1. What is the consequence?",
+        "wg": [
+          {
+            "t": "回滾",
+            "en": "rollback",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "應採用何種策略避免此問題？",
+        "en": "What strategy should be adopted to avoid this problem?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) v1 服務會崩潰，因為資料庫欄位已被更名。應採用「擴充與收縮 (Expand and Contract)」模式，確保資料庫變更向後相容。",
+        "en": "(A) The v1 service will crash because the database column has been renamed. The 'Expand and Contract' pattern should be used to ensure backward compatibility.",
+        "wg": [
+          {
+            "t": "擴充與收縮",
+            "en": "Expand and Contract",
+            "ps": "N"
+          },
+          {
+            "t": "向後相容",
+            "en": "backward compatibility",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(B) GitOps 會自動回滾資料庫 Schema，因此 v1 服務能正常運作。無需額外策略。",
+        "en": "(B) GitOps will automatically rollback the database schema, so the v1 service will work fine. No extra strategy is needed.",
+        "wg": []
+      },
+      {
+        "t": "(C) v1 服務會自動偵測 Schema 變更並使用新欄位。應使用 ORM 的自動遷移功能。",
+        "en": "(C) The v1 service will automatically detect the schema change and use the new column. Use ORM auto-migration features.",
+        "wg": []
+      },
+      {
+        "t": "(D) 資料庫會鎖定直到 v2 修復完成。應使用 Blue/Green 部署來避免此問題。",
+        "en": "(D) The database will lock until v2 is fixed. Use Blue/Green deployment to avoid this issue.",
+        "wg": []
+      }
+    ],
+    "answer": "(A)",
+    "why": {
+      "t": "GitOps 只能回滾 Kubernetes Manifests (如 Deployment YAML)，無法自動回滾資料庫 Schema。直接更名欄位會破壞向後相容性，導致舊版程式碼 (v1) 查詢失敗。正確做法是先新增欄位 (Expand)，待所有版本更新後再刪除舊欄位 (Contract)。",
+      "en": "GitOps can only rollback Kubernetes Manifests (e.g., Deployment YAML), not the database schema. Renaming a column directly breaks backward compatibility, causing the old code (v1) to fail queries. The correct approach is to add the column first (Expand) and remove the old one only after all versions are updated (Contract).",
+      "wg": [
+        {
+          "t": "資料庫綱要",
+          "en": "database schema",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "6",
+    "level": "intermediate",
+    "keywords": "Security, Secrets Management, Sealed Secrets, External Secrets",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "為了遵循 GitOps 原則，您希望將所有的 Kubernetes 配置都放入 Git 儲存庫中。",
+        "en": "To follow GitOps principles, you want to put all Kubernetes configurations into a Git repository.",
+        "wg": []
+      },
+      {
+        "t": "然而，應用程式需要存取敏感的 API Keys。直接將 Kubernetes `Secret` YAML (包含 Base64 編碼的字串) 提交到 Git 是不安全的。",
+        "en": "However, the application needs to access sensitive API Keys. Committing Kubernetes `Secret` YAML (containing Base64 encoded strings) directly to Git is insecure.",
+        "wg": [
+          {
+            "t": "敏感的",
+            "en": "sensitive",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "請問下列哪種做法最符合 GitOps 的安全最佳實踐？",
+        "en": "Which of the following practices best aligns with GitOps security best practices?",
+        "wg": [
+          {
+            "t": "最佳實踐",
+            "en": "best practices",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 將 Secret 儲存在私有的 Git Repository 中，並限制只有 CI Server 可以存取。",
+        "en": "(A) Store Secrets in a private Git Repository and restrict access to only the CI Server.",
+        "wg": []
+      },
+      {
+        "t": "(B) 使用 Sealed Secrets 或 External Secrets Operator，在 Git 中僅儲存加密後的資料或對外部金庫的參照。",
+        "en": "(B) Use Sealed Secrets or External Secrets Operator, storing only encrypted data or references to external vaults in Git.",
+        "wg": [
+          {
+            "t": "加密後的",
+            "en": "encrypted",
+            "ps": "Adj"
+          },
+          {
+            "t": "外部金庫",
+            "en": "external vaults",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) 在 CI Pipeline 執行期間，透過環境變數將 Secret 注入到 Deployment YAML 中，不要提交到 Git。",
+        "en": "(C) Inject Secrets into the Deployment YAML via environment variables during the CI Pipeline execution, and do not commit to Git.",
+        "wg": []
+      },
+      {
+        "t": "(D) 手動登入叢集使用 `kubectl create secret` 建立 Secret，並在 Git 的 Deployment 中引用它。",
+        "en": "(D) Manually log in to the cluster to create the Secret using `kubectl create secret`, and reference it in the Deployment in Git.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "選項 (B) 允許將 Secret 的管理納入 GitOps 流程 (Infrastructure as Code)，同時確保敏感資料不會以明文 (或易破解的 Base64) 暴露在 Git 中。選項 (C) 和 (D) 破壞了 GitOps 的「單一事實來源」原則或依賴手動操作。",
+      "en": "Option (B) allows Secret management to be part of the GitOps process (Infrastructure as Code) while ensuring sensitive data is not exposed in plain text (or easily decoded Base64) in Git. Options (C) and (D) violate the 'Single Source of Truth' principle of GitOps or rely on manual operations.",
+      "wg": [
+        {
+          "t": "暴露",
+          "en": "expose",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "7",
+    "level": "advanced",
+    "keywords": "Argo Rollouts, AnalysisTemplate, Automated Rollback, Metrics",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您使用 Argo Rollouts 進行 Canary 部署，並配置了 `AnalysisTemplate` 來監控 HTTP 500 錯誤率。",
+        "en": "You are using Argo Rollouts for Canary deployment and have configured an `AnalysisTemplate` to monitor HTTP 500 error rates.",
+        "wg": [
+          {
+            "t": "監控",
+            "en": "monitor",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "在 Rollout 過程中，新版本的錯誤率飆升，導致 Analysis 連續失敗次數達到 `failureLimit`。",
+        "en": "During the rollout, the error rate of the new version spikes, causing the Analysis to fail consecutively until it hits the `failureLimit`.",
+        "wg": [
+          {
+            "t": "飆升",
+            "en": "spike",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "請問 Argo Rollouts 控制器接下來會自動採取什麼行動？",
+        "en": "What action will the Argo Rollouts controller automatically take next?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 暫停 Rollout 並保持當前權重，等待人工介入確認。",
+        "en": "(A) Pause the Rollout and maintain the current weight, waiting for human intervention.",
+        "wg": []
+      },
+      {
+        "t": "(B) 忽略錯誤並繼續增加權重，直到達到 100%。",
+        "en": "(B) Ignore the errors and continue increasing the weight until it reaches 100%.",
+        "wg": []
+      },
+      {
+        "t": "(C) 立即中止 (Abort) 部署，將 Canary 版本的權重設為 0，並將 Rollout 狀態標記為 Degraded。",
+        "en": "(C) Immediately abort the deployment, set the Canary version weight to 0, and mark the Rollout status as Degraded.",
+        "wg": [
+          {
+            "t": "中止",
+            "en": "abort",
+            "ps": "V"
+          },
+          {
+            "t": "降級",
+            "en": "Degraded",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "(D) 自動重新啟動 (Restart) 新版本的 Pods 以嘗試修復錯誤。",
+        "en": "(D) Automatically restart the new version's Pods to attempt to fix the error.",
+        "wg": []
+      }
+    ],
+    "answer": "(C)",
+    "why": {
+      "t": "當 Analysis 失敗次數達到 `failureLimit` 時，Argo Rollouts 的預設行為是進行自動回滾：它會中止升級，將流量切回穩定版 (Stable)，並標記狀態為 Degraded，以防止錯誤擴大。",
+      "en": "When Analysis failures hit the `failureLimit`, the default behavior of Argo Rollouts is to perform an automated rollback: it aborts the upgrade, cuts traffic back to the Stable version, and marks the status as Degraded to prevent the error from spreading.",
+      "wg": [
+        {
+          "t": "預設行為",
+          "en": "default behavior",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "8",
+    "level": "advanced",
+    "keywords": "GitOps, Hotfix, Emergency Procedure, Break Glass",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "生產環境發生嚴重故障，需要立即修改配置參數來止血。",
+        "en": "A critical failure occurs in the production environment, requiring immediate configuration parameter changes to stop the bleeding.",
+        "wg": [
+          {
+            "t": "止血",
+            "en": "stop the bleeding",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "然而，您的 Git 託管服務 (如 GitHub/GitLab) 正好發生當機，無法推送代碼或合併 PR。",
+        "en": "However, your Git hosting service (e.g., GitHub/GitLab) is currently down, making it impossible to push code or merge PRs.",
+        "wg": [
+          {
+            "t": "託管服務",
+            "en": "hosting service",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "在 GitOps 架構下，應如何執行這種「緊急破窗 (Break Glass)」程序？",
+        "en": "In a GitOps architecture, how should you execute this 'Break Glass' procedure?",
+        "wg": [
+          {
+            "t": "緊急破窗",
+            "en": "Break Glass",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 暫時在 ArgoCD 中停用「自動同步 (Auto-Sync)」，手動使用 `kubectl` 修改叢集配置，待 Git 恢復後立即補上 Commit 並恢復同步。",
+        "en": "(A) Temporarily disable 'Auto-Sync' in ArgoCD, manually modify cluster configuration using `kubectl`, and immediately backfill the Commit and restore sync once Git is back online.",
+        "wg": [
+          {
+            "t": "補上",
+            "en": "backfill",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(B) 什麼都不做，必須等待 Git 服務恢復，因為 GitOps 禁止任何手動操作。",
+        "en": "(B) Do nothing and wait for the Git service to recover, as GitOps forbids any manual operations.",
+        "wg": []
+      },
+      {
+        "t": "(C) 將 Docker Image 的 Tag 修改為 `latest`，強制 K8s 拉取舊版映像檔。",
+        "en": "(C) Change the Docker Image Tag to `latest` to force K8s to pull the old image.",
+        "wg": []
+      },
+      {
+        "t": "(D) 直接登入 ArgoCD Server 的 Pod 內部修改其資料庫。",
+        "en": "(D) Directly log into the ArgoCD Server Pod and modify its database.",
+        "wg": []
+      }
+    ],
+    "answer": "(A)",
+    "why": {
+      "t": "這是標準的緊急應變程序。雖然 GitOps 強調 Git 為唯一來源，但在 Git 不可用且生產環境危急時，必須先暫停自動同步 (否則 ArgoCD 會還原你的手動修改)，手動修復問題，事後再將變更同步回 Git 以維持一致性。",
+      "en": "This is the standard emergency response procedure. Although GitOps emphasizes Git as the single source, when Git is unavailable and production is critical, you must pause auto-sync (otherwise ArgoCD will revert your manual changes), fix the issue manually, and sync the changes back to Git afterwards to maintain consistency.",
+      "wg": [
+        {
+          "t": "緊急應變",
+          "en": "emergency response",
+          "ps": "N"
+        },
+        {
+          "t": "一致性",
+          "en": "consistency",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "9",
+    "level": "intermediate",
+    "keywords": "Multi-Cluster, Scalability, ApplicationSets, Generators",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您的組織擴展迅速，需要管理分佈在全球的 50 個 Kubernetes 叢集。",
+        "en": "Your organization is scaling rapidly and needs to manage 50 Kubernetes clusters distributed globally.",
+        "wg": [
+          {
+            "t": "分佈在",
+            "en": "distributed",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "若為每個叢集手動設定 ArgoCD Application 會非常繁瑣且易錯。",
+        "en": "Manually configuring ArgoCD Applications for each cluster would be tedious and error-prone.",
+        "wg": [
+          {
+            "t": "繁瑣",
+            "en": "tedious",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "請問應使用哪項 ArgoCD 功能來自動化生成這些應用程式配置？",
+        "en": "Which ArgoCD feature should be used to automate the generation of these application configurations?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) ApplicationSets (搭配 Generators)",
+        "en": "(A) ApplicationSets (with Generators)",
+        "wg": [
+          {
+            "t": "生成器",
+            "en": "Generators",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(B) Helm Charts",
+        "en": "(B) Helm Charts",
+        "wg": []
+      },
+      {
+        "t": "(C) Kustomize Overlays",
+        "en": "(C) Kustomize Overlays",
+        "wg": []
+      },
+      {
+        "t": "(D) Jenkins Shared Libraries",
+        "en": "(D) Jenkins Shared Libraries",
+        "wg": []
+      }
+    ],
+    "answer": "(A)",
+    "why": {
+      "t": "ApplicationSets 是專為多叢集管理設計的控制器。它可以透過 Generators (如 List, Git, Cluster generator) 自動偵測叢集或資料夾結構，並為每個目標動態產生對應的 ArgoCD Application 物件。",
+      "en": "ApplicationSets is a controller designed for multi-cluster management. It can use Generators (such as List, Git, Cluster generator) to automatically detect clusters or folder structures and dynamically generate corresponding ArgoCD Application objects for each target.",
+      "wg": [
+        {
+          "t": "動態產生",
+          "en": "dynamically generate",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "10",
+    "level": "intermediate",
+    "keywords": "Deployment Strategy, Cost Optimization, Canary, Blue/Green",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您的新創公司資源有限，希望在 Kubernetes 上實作漸進式部署以降低發布風險。",
+        "en": "Your startup has limited resources and wants to implement progressive deployment on Kubernetes to reduce release risk.",
+        "wg": [
+          {
+            "t": "資源有限",
+            "en": "limited resources",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "應用程式可以容忍極少量的錯誤請求，但無法承擔同時運行兩套完整環境的成本。",
+        "en": "The application can tolerate a very small number of error requests but cannot afford the cost of running two full environments simultaneously.",
+        "wg": [
+          {
+            "t": "容忍",
+            "en": "tolerate",
+            "ps": "V"
+          },
+          {
+            "t": "承擔",
+            "en": "afford",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "請問您應選擇哪種部署策略？",
+        "en": "Which deployment strategy should you choose?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) Canary Deployment (金絲雀部署)",
+        "en": "(A) Canary Deployment",
+        "wg": [
+          {
+            "t": "金絲雀部署",
+            "en": "Canary Deployment",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(B) Blue/Green Deployment (藍綠部署)",
+        "en": "(B) Blue/Green Deployment",
+        "wg": [
+          {
+            "t": "藍綠部署",
+            "en": "Blue/Green Deployment",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) Big Bang Deployment (一次性部署)",
+        "en": "(C) Big Bang Deployment",
+        "wg": []
+      },
+      {
+        "t": "(D) Recreate Strategy (重建策略)",
+        "en": "(D) Recreate Strategy",
+        "wg": []
+      }
+    ],
+    "answer": "(A)",
+    "why": {
+      "t": "Canary 部署只需額外啟動少量 Pods (例如 5-10%) 來驗證新版本，適合資源受限的場景。相比之下，Blue/Green 需要同時維持兩套完整環境 (200% 資源)，成本較高。",
+      "en": "Canary deployment only requires spinning up a small number of extra Pods (e.g., 5-10%) to validate the new version, making it suitable for resource-constrained scenarios. In contrast, Blue/Green requires maintaining two full environments simultaneously (200% resources), which is more costly.",
+      "wg": [
+        {
+          "t": "資源受限",
+          "en": "resource-constrained",
+          "ps": "Adj"
+        }
+      ]
+    }
+  },
+  {
+    "no": "11",
+    "level": "advanced",
+    "keywords": "GitOps, Repository Strategy, CI Loop, Monorepo, Polyrepo",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您的團隊正在建立 GitOps 流程，並決定將應用程式原始碼 (Source Code) 與 Kubernetes 配置清單 (Manifests) 存放在同一個 Git 儲存庫中。",
+        "en": "Your team is setting up a GitOps workflow and decides to store both the application source code and Kubernetes manifests in the same Git repository.",
+        "wg": [
+          {
+            "t": "原始碼",
+            "en": "source code",
+            "ps": "N"
+          },
+          {
+            "t": "配置清單",
+            "en": "manifests",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "CI Pipeline 被設定為：當程式碼變更時建置 Image，並自動更新該儲存庫中的 `deployment.yaml` Image Tag。",
+        "en": "The CI pipeline is configured to build an image upon code changes and automatically update the `deployment.yaml` image tag in the same repository.",
+        "wg": [
+          {
+            "t": "建置",
+            "en": "build",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "這種做法最可能導致下列哪種嚴重問題？",
+        "en": "Which of the following critical issues is this approach most likely to cause?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 導致無限的 CI 觸發迴圈 (Infinite CI Loops)。",
+        "en": "(A) Cause infinite CI trigger loops.",
+        "wg": [
+          {
+            "t": "無限的",
+            "en": "infinite",
+            "ps": "Adj"
+          },
+          {
+            "t": "迴圈",
+            "en": "loops",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(B) ArgoCD 無法讀取與原始碼混合的 Manifests。",
+        "en": "(B) ArgoCD cannot read manifests mixed with source code.",
+        "wg": []
+      },
+      {
+        "t": "(C) 違反了 GitOps 的 Pull 模型原則，因為 CI 正在推送變更。",
+        "en": "(C) Violates the GitOps Pull model principle because CI is pushing changes.",
+        "wg": []
+      },
+      {
+        "t": "(D) 無法使用 Helm 或 Kustomize 進行樣板化。",
+        "en": "(D) Cannot use Helm or Kustomize for templating.",
+        "wg": []
+      }
+    ],
+    "answer": "(A)",
+    "why": {
+      "t": "當 CI 更新 Manifest 並提交 (Commit) 回同一個儲存庫時，這個新的 Commit 會再次觸發 CI Pipeline，導致無限迴圈。最佳實務是將原始碼與配置檔分開存放 (Polyrepo)，或精確設定 CI 觸發條件。",
+      "en": "When CI updates the manifest and commits back to the same repository, this new commit triggers the CI pipeline again, causing an infinite loop. Best practice is to separate source code and configuration (Polyrepo) or precisely configure CI trigger conditions.",
+      "wg": [
+        {
+          "t": "最佳實務",
+          "en": "best practice",
+          "ps": "N"
+        },
+        {
+          "t": "觸發條件",
+          "en": "trigger conditions",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "12",
+    "level": "intermediate",
+    "keywords": "GitOps, Database Migration, Hooks, PreSync, Synchronization",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您正在部署一個新版本的微服務，該版本依賴於資料庫 Schema 的變更（例如新增一個欄位）。",
+        "en": "You are deploying a new version of a microservice that depends on a database schema change (e.g., adding a new column).",
+        "wg": [
+          {
+            "t": "依賴於",
+            "en": "depends on",
+            "ps": "V"
+          },
+          {
+            "t": "欄位",
+            "en": "column",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "為了確保應用程式啟動時資料庫已準備就緒，您應該如何設定 ArgoCD 的同步策略？",
+        "en": "To ensure the database is ready when the application starts, how should you configure ArgoCD's synchronization strategy?",
+        "wg": [
+          {
+            "t": "同步策略",
+            "en": "synchronization strategy",
+            "ps": "N"
+          },
+          {
+            "t": "準備就緒",
+            "en": "ready",
+            "ps": "Adj"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 將資料庫遷移腳本包裝為 Kubernetes Job，並使用 `PreSync` Hook。",
+        "en": "(A) Package the database migration script as a Kubernetes Job and use a `PreSync` Hook.",
+        "wg": [
+          {
+            "t": "腳本",
+            "en": "script",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(B) 依靠 Kubernetes 的 `CrashLoopBackOff` 機制，讓應用程式重試直到資料庫遷移完成。",
+        "en": "(B) Rely on Kubernetes' `CrashLoopBackOff` mechanism to let the application retry until the database migration is complete.",
+        "wg": []
+      },
+      {
+        "t": "(C) 在 Deployment 中使用 `PostSync` Hook 來執行遷移。",
+        "en": "(C) Use a `PostSync` Hook in the Deployment to execute the migration.",
+        "wg": []
+      },
+      {
+        "t": "(D) 手動登入資料庫執行 SQL，然後再觸發 ArgoCD 同步。",
+        "en": "(D) Manually log in to the database to execute SQL, then trigger ArgoCD sync.",
+        "wg": []
+      }
+    ],
+    "answer": "(A)",
+    "why": {
+      "t": "使用 `PreSync` Hook 可以確保在應用程式的新版本 Pod 啟動之前，資料庫遷移 Job 已經執行成功。這是 GitOps 處理相依性順序的標準做法。",
+      "en": "Using a `PreSync` Hook ensures that the database migration Job executes successfully before the new version Pods of the application start. This is the standard GitOps practice for handling dependency ordering.",
+      "wg": [
+        {
+          "t": "相依性",
+          "en": "dependency",
+          "ps": "N"
+        },
+        {
+          "t": "順序",
+          "en": "ordering",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "13",
+    "level": "intermediate",
+    "keywords": "Argo Rollouts, Canary, Manual Approval, Pause, Strategy",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "steps:\n- setWeight: 20\n- pause: {duration: 1m}\n- setWeight: 50\n- pause: {}\n- setWeight: 100",
+    "question": [
+      {
+        "t": "請參考上方的 Argo Rollouts `steps` 配置。",
+        "en": "Please refer to the Argo Rollouts `steps` configuration above.",
+        "wg": []
+      },
+      {
+        "t": "當 Rollout 執行到權重為 50% 後的 `pause: {}` 步驟時，系統會有什麼行為？",
+        "en": "What will the system do when the Rollout reaches the `pause: {}` step after setting the weight to 50%?",
+        "wg": [
+          {
+            "t": "行為",
+            "en": "behavior",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 無限期暫停，直到有人工介入（手動 Promote）才會繼續。",
+        "en": "(A) Pause indefinitely until manual intervention (manual Promote) occurs.",
+        "wg": [
+          {
+            "t": "無限期",
+            "en": "indefinitely",
+            "ps": "Adv"
+          },
+          {
+            "t": "介入",
+            "en": "intervention",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(B) 暫停 1 分鐘，因為它會繼承上一個 pause 的設定。",
+        "en": "(B) Pause for 1 minute, as it inherits the setting from the previous pause.",
+        "wg": [
+          {
+            "t": "繼承",
+            "en": "inherit",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(C) 立即繼續執行下一步，因為沒有指定 `duration`。",
+        "en": "(C) Proceed to the next step immediately because no `duration` is specified.",
+        "wg": []
+      },
+      {
+        "t": "(D) 觸發自動回滾，因為空的 pause 被視為配置錯誤。",
+        "en": "(D) Trigger an automatic rollback because an empty pause is considered a configuration error.",
+        "wg": []
+      }
+    ],
+    "answer": "(A)",
+    "why": {
+      "t": "在 Argo Rollouts 中，若 `pause` 步驟未指定 `duration`，則代表無限期暫停，這通常用於實作「人工審核 (Manual Gate)」機制。",
+      "en": "In Argo Rollouts, if a `pause` step does not specify a `duration`, it signifies an indefinite pause, typically used to implement a 'Manual Gate' mechanism.",
+      "wg": [
+        {
+          "t": "人工審核",
+          "en": "manual gate/approval",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "14",
+    "level": "advanced",
+    "keywords": "Argo Rollouts, AnalysisTemplate, Rollback, Degraded, Failure Handling",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在 Canary 部署過程中，`AnalysisTemplate` 偵測到錯誤率飆升，且失敗次數超過了 `failureLimit`。",
+        "en": "During a Canary deployment, the `AnalysisTemplate` detects a spike in error rates, and the failure count exceeds the `failureLimit`.",
+        "wg": [
+          {
+            "t": "飆升",
+            "en": "spike",
+            "ps": "V"
+          },
+          {
+            "t": "失敗次數",
+            "en": "failure count",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "此時 Argo Rollouts 控制器會採取什麼預設行動？",
+        "en": "What default action will the Argo Rollouts controller take at this point?",
+        "wg": [
+          {
+            "t": "預設行動",
+            "en": "default action",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 立即將金絲雀版本的流量權重降為 0%，並將 Rollout 狀態標記為 `Degraded`。",
+        "en": "(A) Immediately cut the Canary version traffic weight to 0% and mark the Rollout status as `Degraded`.",
+        "wg": [
+          {
+            "t": "權重",
+            "en": "weight",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(B) 暫停部署並保持當前權重，等待人工排查。",
+        "en": "(B) Pause the deployment and maintain the current weight, waiting for manual investigation.",
+        "wg": []
+      },
+      {
+        "t": "(C) 自動重啟新版本的 Pods 以嘗試修復問題。",
+        "en": "(C) Automatically restart the new version's Pods to attempt to fix the issue.",
+        "wg": []
+      },
+      {
+        "t": "(D) 忽略錯誤並繼續增加流量，直到達到 100%。",
+        "en": "(D) Ignore the errors and continue increasing traffic until it reaches 100%.",
+        "wg": []
+      }
+    ],
+    "answer": "(A)",
+    "why": {
+      "t": "當 Analysis 失敗達到限制時，Argo Rollouts 的安全機制會立即切斷新版本流量（權重歸零）以止血，並將狀態設為 Degraded，防止錯誤擴大。",
+      "en": "When Analysis failures hit the limit, Argo Rollouts' safety mechanism immediately cuts traffic to the new version (zero weight) to stop the bleeding and sets the status to Degraded to prevent the error from spreading.",
+      "wg": [
+        {
+          "t": "止血",
+          "en": "stop the bleeding",
+          "ps": "V"
+        },
+        {
+          "t": "擴大",
+          "en": "spreading",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "15",
+    "level": "advanced",
+    "keywords": "Traffic Routing, Service Mesh, Header-based Routing, Argo Rollouts, Limitations",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您的產品經理希望新版本發布時，能先僅針對帶有特定 HTTP Header（如 `User-Agent: Internal-Tester`）的請求進行測試。",
+        "en": "Your Product Manager wants the new version release to be tested first only on requests with a specific HTTP Header (e.g., `User-Agent: Internal-Tester`).",
+        "wg": [
+          {
+            "t": "特定",
+            "en": "specific",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "目前的架構僅使用 Argo Rollouts 配合標準 Kubernetes Service。請問這是否可行？",
+        "en": "The current architecture uses only Argo Rollouts with standard Kubernetes Services. Is this feasible?",
+        "wg": [
+          {
+            "t": "可行",
+            "en": "feasible",
+            "ps": "Adj"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 不可行。標準 Kubernetes Service 僅支援基於權重（百分比）的流量分配，需整合 Service Mesh（如 Istio）才能實現 Header-based Routing。",
+        "en": "(A) No. Standard Kubernetes Services only support weight-based (percentage) traffic distribution; Service Mesh (e.g., Istio) integration is needed for Header-based Routing.",
+        "wg": [
+          {
+            "t": "流量分配",
+            "en": "traffic distribution",
+            "ps": "N"
+          },
+          {
+            "t": "整合",
+            "en": "integration",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(B) 可行。可以在 Argo Rollouts 的 `steps` 中定義 `matchHeaders` 規則。",
+        "en": "(B) Yes. You can define `matchHeaders` rules within the `steps` of Argo Rollouts.",
+        "wg": []
+      },
+      {
+        "t": "(C) 可行。Kubernetes 原生 Service 已經支援 Layer 7 的流量路由。",
+        "en": "(C) Yes. Native Kubernetes Services already support Layer 7 traffic routing.",
+        "wg": []
+      },
+      {
+        "t": "(D) 不可行。Argo Rollouts 不支援任何形式的流量控制，必須全靠手動切換。",
+        "en": "(D) No. Argo Rollouts does not support any form of traffic control and relies entirely on manual switching.",
+        "wg": []
+      }
+    ],
+    "answer": "(A)",
+    "why": {
+      "t": "標準 Kubernetes Service (Layer 4) 無法解析 HTTP Headers。要實現基於 Header 的精細路由，必須引入 Service Mesh (如 Istio, Linkerd) 或進階 Ingress Controller，並讓 Argo Rollouts 控制相關的 VirtualService 或 TrafficSplit 物件。",
+      "en": "Standard Kubernetes Services (Layer 4) cannot parse HTTP Headers. To implement fine-grained Header-based routing, you must introduce a Service Mesh (e.g., Istio, Linkerd) or an advanced Ingress Controller, and let Argo Rollouts control the relevant VirtualService or TrafficSplit objects.",
+      "wg": [
+        {
+          "t": "解析",
+          "en": "parse",
+          "ps": "V"
+        },
+        {
+          "t": "精細",
+          "en": "fine-grained",
+          "ps": "Adj"
+        }
+      ]
+    }
+  }
+]

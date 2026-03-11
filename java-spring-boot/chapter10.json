@@ -1,0 +1,1383 @@
+[
+  {
+    "no": "1",
+    "level": "advanced",
+    "keywords": "Resilience, Bulkhead Pattern, Thread Pool Isolation, Microservices",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在一個基於 Spring Boot 的微服務架構中，服務 A 同時依賴資料庫與外部服務 B。",
+        "en": "In a Spring Boot-based microservices architecture, Service A depends on both a database and an external Service B.",
+        "wg": [
+          {
+            "t": "微服務架構",
+            "en": "microservices architecture",
+            "ps": "N"
+          },
+          {
+            "t": "依賴",
+            "en": "depends on",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "當服務 B 回應極度緩慢時，您發現服務 A 對資料庫的請求也開始逾時，最終導致服務 A 完全無法回應任何請求（包含與服務 B 無關的請求）。",
+        "en": "When Service B responds extremely slowly, you notice that Service A's requests to the database also start timing out, eventually causing Service A to become completely unresponsive to any requests (including those unrelated to Service B).",
+        "wg": [
+          {
+            "t": "逾時",
+            "en": "timing out",
+            "ps": "V"
+          },
+          {
+            "t": "無法回應",
+            "en": "unresponsive",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "請問造成此現象最可能的原因是什麼？應採用何種模式解決？",
+        "en": "What is the most likely cause of this phenomenon, and which pattern should be adopted to solve it?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 資料庫連線洩漏 (Connection Leak)；應使用 Spring Data JPA 的連線回收機制。",
+        "en": "(A) Database Connection Leak; should use Spring Data JPA's connection reclamation mechanism.",
+        "wg": [
+          {
+            "t": "連線洩漏",
+            "en": "Connection Leak",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(B) 缺乏執行緒池隔離 (Thread Pool Isolation)；應採用 Bulkhead 模式為不同依賴配置獨立的執行緒池。",
+        "en": "(B) Lack of Thread Pool Isolation; should adopt the Bulkhead pattern to configure independent thread pools for different dependencies.",
+        "wg": [
+          {
+            "t": "執行緒池隔離",
+            "en": "Thread Pool Isolation",
+            "ps": "N"
+          },
+          {
+            "t": "艙壁模式",
+            "en": "Bulkhead pattern",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) 記憶體溢出 (OOM)；應增加 JVM Heap Size 並啟用 Garbage Collection Log。",
+        "en": "(C) Out of Memory (OOM); should increase JVM Heap Size and enable Garbage Collection Logs.",
+        "wg": []
+      },
+      {
+        "t": "(D) 網路頻寬不足；應升級負載平衡器 (Load Balancer) 的規格。",
+        "en": "(D) Insufficient network bandwidth; should upgrade the Load Balancer specifications.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "這是典型的資源耗盡問題。當所有依賴共用同一個 Tomcat 執行緒池時，服務 B 的延遲會佔用所有可用執行緒，導致服務 A 無法處理其他請求。Bulkhead 模式透過隔離資源（如執行緒池或號誌），確保單一依賴故障不會拖垮整個系統。",
+      "en": "This is a typical resource exhaustion issue. When all dependencies share the same Tomcat thread pool, latency in Service B occupies all available threads, preventing Service A from processing other requests. The Bulkhead pattern isolates resources (like thread pools or semaphores) to ensure a single dependency failure does not bring down the entire system.",
+      "wg": [
+        {
+          "t": "資源耗盡",
+          "en": "resource exhaustion",
+          "ps": "N"
+        },
+        {
+          "t": "拖垮",
+          "en": "bring down",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "2",
+    "level": "advanced",
+    "keywords": "High Concurrency, Redis, Lua Script, Atomicity, Flash Sale",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "String luaScript = \n    \"if tonumber(redis.call('get', KEYS[1])) >= tonumber(ARGV[1]) then \" +\n    \"   return redis.call('decrby', KEYS[1], ARGV[1]) \" +\n    \"else \" +\n    \"   return -1 \" +\n    \"end\";",
+    "question": [
+      {
+        "t": "在設計一個 QPS 高達 100k 的秒殺 (Flash Sale) 系統時，您決定將庫存扣減邏輯移至 Redis。",
+        "en": "When designing a Flash Sale system with a QPS of up to 100k, you decide to move the inventory deduction logic to Redis.",
+        "wg": [
+          {
+            "t": "秒殺",
+            "en": "Flash Sale",
+            "ps": "N"
+          },
+          {
+            "t": "庫存扣減",
+            "en": "inventory deduction",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "參考上方的 Lua Script 程式碼片段，為什麼在這種高併發場景下，使用 Lua Script 比單純使用 Redis 的 `get` 和 `decrby` 指令更好？",
+        "en": "Referring to the Lua Script code snippet above, why is using Lua Script better than simply using Redis `get` and `decrby` commands in this high-concurrency scenario?",
+        "wg": [
+          {
+            "t": "高併發",
+            "en": "high-concurrency",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) Lua Script 執行速度比原生 Redis 指令快，可以減少 CPU 使用率。",
+        "en": "(A) Lua Script executes faster than native Redis commands and can reduce CPU usage.",
+        "wg": []
+      },
+      {
+        "t": "(B) Lua Script 保證了操作的原子性 (Atomicity)，避免了檢查與扣減之間的 Race Condition。",
+        "en": "(B) Lua Script ensures the atomicity of the operation, avoiding Race Conditions between checking and deducting.",
+        "wg": [
+          {
+            "t": "原子性",
+            "en": "Atomicity",
+            "ps": "N"
+          },
+          {
+            "t": "競爭條件",
+            "en": "Race Condition",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) Lua Script 可以自動將資料同步寫入資料庫，確保資料一致性。",
+        "en": "(C) Lua Script can automatically synchronize data writes to the database to ensure data consistency.",
+        "wg": []
+      },
+      {
+        "t": "(D) Lua Script 支援分散式鎖 (Distributed Lock)，可以防止多個 Redis 節點同時寫入。",
+        "en": "(D) Lua Script supports Distributed Locks, preventing multiple Redis nodes from writing simultaneously.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "在高併發下，若分開執行 `get` (檢查庫存) 與 `decrby` (扣減)，兩個指令之間可能會插入其他請求，導致超賣。Redis 執行 Lua Script 是原子的，保證了「檢查並扣減」是一個不可分割的操作。",
+      "en": "Under high concurrency, if `get` (check stock) and `decrby` (deduct) are executed separately, other requests might intervene between the two commands, leading to overselling. Redis executes Lua Scripts atomically, ensuring that 'check and deduct' is an indivisible operation.",
+      "wg": [
+        {
+          "t": "超賣",
+          "en": "overselling",
+          "ps": "V"
+        },
+        {
+          "t": "不可分割的",
+          "en": "indivisible",
+          "ps": "Adj"
+        }
+      ]
+    }
+  },
+  {
+    "no": "3",
+    "level": "intermediate",
+    "keywords": "Spring Boot, Transaction Management, Anti-pattern, Performance",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "@Transactional\npublic void processOrder(Order order) {\n    repository.save(order);\n    // External API call to payment gateway (takes 2-5 seconds)\n    paymentService.charge(order);\n    order.setStatus(\"PAID\");\n    repository.save(order);\n}",
+    "question": [
+      {
+        "t": "資深工程師在 Code Review 時指出了上述程式碼存在嚴重的效能隱患。",
+        "en": "A senior engineer pointed out a serious performance hazard in the above code during Code Review.",
+        "wg": [
+          {
+            "t": "效能隱患",
+            "en": "performance hazard",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "請問這段程式碼的主要問題是什麼？",
+        "en": "What is the main problem with this code?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) `repository.save` 被呼叫了兩次，會導致資料庫產生重複的 Primary Key 錯誤。",
+        "en": "(A) `repository.save` is called twice, which will cause a duplicate Primary Key error in the database.",
+        "wg": []
+      },
+      {
+        "t": "(B) 在 `@Transactional` 範圍內執行耗時的外部 API 呼叫，會長時間佔用資料庫連線 (DB Connection)。",
+        "en": "(B) Executing a time-consuming external API call within the `@Transactional` scope will hold the database connection for a long time.",
+        "wg": [
+          {
+            "t": "耗時的",
+            "en": "time-consuming",
+            "ps": "Adj"
+          },
+          {
+            "t": "佔用",
+            "en": "hold/occupy",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(C) `paymentService.charge` 應該標註 `@Async`，否則會阻塞主執行緒。",
+        "en": "(C) `paymentService.charge` should be annotated with `@Async`, otherwise it will block the main thread.",
+        "wg": [
+          {
+            "t": "阻塞",
+            "en": "block",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(D) Spring 的 Transaction Manager 不支援在同一個方法中進行兩次寫入操作。",
+        "en": "(D) Spring's Transaction Manager does not support two write operations in the same method.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "當方法標註 `@Transactional` 時，資料庫連線通常在交易開始時取得，並在交易結束時釋放。若在交易中包含耗時的外部 I/O (如 2-5 秒的 API 呼叫)，該 DB 連線會一直被佔用，導致 Connection Pool 迅速耗盡，進而拖垮整個應用程式。",
+      "en": "When a method is annotated with `@Transactional`, a database connection is usually acquired at the start of the transaction and released at the end. If the transaction includes time-consuming external I/O (like a 2-5 second API call), the DB connection is held for that duration, causing the Connection Pool to exhaust quickly and bringing down the entire application.",
+      "wg": [
+        {
+          "t": "釋放",
+          "en": "release",
+          "ps": "V"
+        },
+        {
+          "t": "耗盡",
+          "en": "exhaust",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "4",
+    "level": "intermediate",
+    "keywords": "Spring WebFlux, Spring MVC, Blocking vs Non-blocking, System Design",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您正在設計一個 API Gateway 服務，該服務主要負責請求路由 (Routing)、聚合 (Aggregation) 與權限驗證。",
+        "en": "You are designing an API Gateway service primarily responsible for request routing, aggregation, and authentication.",
+        "wg": [
+          {
+            "t": "請求路由",
+            "en": "request routing",
+            "ps": "N"
+          },
+          {
+            "t": "聚合",
+            "en": "aggregation",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "該服務需要處理大量的併發連線，但每個請求的 CPU 計算量很低。請問下列哪種技術堆疊最適合此場景？",
+        "en": "The service needs to handle a large number of concurrent connections, but the CPU computation per request is very low. Which of the following technology stacks is most suitable for this scenario?",
+        "wg": [
+          {
+            "t": "併發連線",
+            "en": "concurrent connections",
+            "ps": "N"
+          },
+          {
+            "t": "技術堆疊",
+            "en": "technology stack",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) Spring MVC + Tomcat (Thread-per-request 模型)。",
+        "en": "(A) Spring MVC + Tomcat (Thread-per-request model).",
+        "wg": []
+      },
+      {
+        "t": "(B) Spring WebFlux + Netty (Event-loop 模型)。",
+        "en": "(B) Spring WebFlux + Netty (Event-loop model).",
+        "wg": []
+      },
+      {
+        "t": "(C) Spring Batch + JdbcTemplate。",
+        "en": "(C) Spring Batch + JdbcTemplate.",
+        "wg": []
+      },
+      {
+        "t": "(D) Spring Boot + Hibernate (Session-per-request)。",
+        "en": "(D) Spring Boot + Hibernate (Session-per-request).",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "API Gateway 是典型的 I/O-bound 場景，需要維持大量連線並等待下游回應。Spring WebFlux 基於非阻塞 I/O (Non-blocking I/O) 與 Event Loop，能以極少量的執行緒處理大量併發連線，資源利用率遠高於 Thread-per-request 的 Spring MVC。",
+      "en": "An API Gateway is a typical I/O-bound scenario, requiring the maintenance of many connections while waiting for downstream responses. Spring WebFlux, based on Non-blocking I/O and Event Loop, can handle massive concurrent connections with very few threads, offering much higher resource utilization than Spring MVC's Thread-per-request model.",
+      "wg": [
+        {
+          "t": "非阻塞",
+          "en": "Non-blocking",
+          "ps": "Adj"
+        },
+        {
+          "t": "資源利用率",
+          "en": "resource utilization",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "5",
+    "level": "advanced",
+    "keywords": "Distributed Transactions, Saga Pattern, Microservices, Consistency",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在微服務架構中，您需要實作一個跨服務的商業流程（例如：訂單服務 -> 庫存服務 -> 金流服務）。",
+        "en": "In a microservices architecture, you need to implement a cross-service business process (e.g., Order Service -> Inventory Service -> Payment Service).",
+        "wg": [
+          {
+            "t": "跨服務",
+            "en": "cross-service",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "為了避免分散式交易 (Distributed Transaction) 帶來的效能問題與鎖定風險，您決定放棄 2PC (Two-Phase Commit)。",
+        "en": "To avoid the performance issues and locking risks associated with Distributed Transactions, you decide to abandon 2PC (Two-Phase Commit).",
+        "wg": [
+          {
+            "t": "鎖定風險",
+            "en": "locking risks",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "請問最推薦的替代方案是什麼？其核心機制為何？",
+        "en": "What is the most recommended alternative, and what is its core mechanism?",
+        "wg": [
+          {
+            "t": "替代方案",
+            "en": "alternative",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 使用 Saga Pattern；透過一連串的本地交易 (Local Transactions) 與補償交易 (Compensating Transactions) 來達成最終一致性。",
+        "en": "(A) Use Saga Pattern; achieve eventual consistency through a series of Local Transactions and Compensating Transactions.",
+        "wg": [
+          {
+            "t": "補償交易",
+            "en": "Compensating Transactions",
+            "ps": "N"
+          },
+          {
+            "t": "最終一致性",
+            "en": "eventual consistency",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(B) 使用全域鎖 (Global Lock)；在 Redis 中設定一個全域鎖，確保所有服務依序執行。",
+        "en": "(B) Use Global Lock; set a global lock in Redis to ensure all services execute sequentially.",
+        "wg": []
+      },
+      {
+        "t": "(C) 使用 Spring `@Transactional(propagation = REQUIRES_NEW)`；強制開啟新的交易來隔離錯誤。",
+        "en": "(C) Use Spring `@Transactional(propagation = REQUIRES_NEW)`; force a new transaction to isolate errors.",
+        "wg": []
+      },
+      {
+        "t": "(D) 將所有服務合併回一個單體式應用 (Monolith) 以使用 ACID 交易。",
+        "en": "(D) Merge all services back into a Monolith application to use ACID transactions.",
+        "wg": [
+          {
+            "t": "單體式應用",
+            "en": "Monolith application",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "answer": "(A)",
+    "why": {
+      "t": "Saga Pattern 是微服務中處理長流程的標準解法。它將長交易拆解為多個本地交易，若中途失敗，則執行定義好的補償邏輯 (Compensating Logic) 來復原狀態（如退款、補庫存），而非依賴資料庫層級的長時間鎖定。",
+      "en": "The Saga Pattern is the standard solution for handling long processes in microservices. It breaks a long transaction into multiple local transactions. If a failure occurs midway, it executes defined Compensating Logic to revert the state (e.g., refund, restock), rather than relying on long-term database-level locking.",
+      "wg": [
+        {
+          "t": "復原",
+          "en": "revert/restore",
+          "ps": "V"
+        },
+        {
+          "t": "拆解",
+          "en": "break down",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "6",
+    "level": "intermediate",
+    "keywords": "Stateless, Session Management, Horizontal Scaling, Spring Session",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "為了讓 Spring Boot 應用程式能夠在 Kubernetes 上進行水平自動擴展 (Horizontal Autoscaling)，應用程式必須設計為「無狀態 (Stateless)」。",
+        "en": "To enable Horizontal Autoscaling for a Spring Boot application on Kubernetes, the application must be designed as 'Stateless'.",
+        "wg": [
+          {
+            "t": "水平自動擴展",
+            "en": "Horizontal Autoscaling",
+            "ps": "N"
+          },
+          {
+            "t": "無狀態",
+            "en": "Stateless",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "如果您的舊系統依賴 `HttpSession` 來儲存使用者登入資訊，下列哪種做法最符合無狀態設計原則？",
+        "en": "If your legacy system relies on `HttpSession` to store user login information, which of the following approaches best aligns with stateless design principles?",
+        "wg": [
+          {
+            "t": "符合",
+            "en": "aligns with",
+            "ps": "V"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 設定 Load Balancer 使用 Sticky Session (Session Affinity)。",
+        "en": "(A) Configure the Load Balancer to use Sticky Session (Session Affinity).",
+        "wg": [
+          {
+            "t": "黏性會話",
+            "en": "Sticky Session",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(B) 使用 Spring Session 將 Session 資料儲存到外部的 Redis 中。",
+        "en": "(B) Use Spring Session to store Session data in an external Redis.",
+        "wg": []
+      },
+      {
+        "t": "(C) 增加單一實例的記憶體 (Vertical Scaling) 以容納更多 Session。",
+        "en": "(C) Increase the memory of a single instance (Vertical Scaling) to accommodate more Sessions.",
+        "wg": [
+          {
+            "t": "垂直擴展",
+            "en": "Vertical Scaling",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(D) 將 Session 資料序列化並寫入使用者的 LocalStorage。",
+        "en": "(D) Serialize Session data and write it to the user's LocalStorage.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "將 Session 狀態外包 (Externalize) 給 Redis 是實現無狀態的關鍵。這樣任何一個 Spring Boot 實例都可以處理來自同一用戶的請求，而不必依賴 Sticky Session（這會導致負載不均與擴展困難）。",
+      "en": "Externalizing Session state to Redis is key to achieving statelessness. This allows any Spring Boot instance to handle requests from the same user without relying on Sticky Sessions (which can cause uneven load and scaling difficulties).",
+      "wg": [
+        {
+          "t": "外包",
+          "en": "Externalize",
+          "ps": "V"
+        },
+        {
+          "t": "負載不均",
+          "en": "uneven load",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "7",
+    "level": "intermediate",
+    "keywords": "Observability, Spring Boot Actuator, Metrics, Monitoring",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您的微服務在生產環境中偶爾會出現回應延遲，懷疑是資料庫連線池 (Connection Pool) 耗盡所致。",
+        "en": "Your microservice occasionally experiences response latency in the production environment, and you suspect it is caused by Database Connection Pool exhaustion.",
+        "wg": [
+          {
+            "t": "連線池",
+            "en": "Connection Pool",
+            "ps": "N"
+          },
+          {
+            "t": "耗盡",
+            "en": "exhaustion",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "為了在不登入伺服器或重啟應用的情況下確認此假設，您應該優先檢查哪一個 Spring Boot Actuator 端點提供的指標？",
+        "en": "To verify this hypothesis without logging into the server or restarting the application, which Spring Boot Actuator endpoint metrics should you prioritize checking?",
+        "wg": [
+          {
+            "t": "端點",
+            "en": "endpoint",
+            "ps": "N"
+          },
+          {
+            "t": "指標",
+            "en": "metrics",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 檢查 /actuator/health 以確認資料庫是否連線成功。",
+        "en": "(A) Check /actuator/health to confirm if the database connection is successful.",
+        "wg": []
+      },
+      {
+        "t": "(B) 檢查 /actuator/metrics 中的 jdbc.connections.active 或 hikari.connections.active。",
+        "en": "(B) Check jdbc.connections.active or hikari.connections.active in /actuator/metrics.",
+        "wg": []
+      },
+      {
+        "t": "(C) 檢查 /actuator/env 以確認連線池的大小設定。",
+        "en": "(C) Check /actuator/env to confirm the connection pool size configuration.",
+        "wg": []
+      },
+      {
+        "t": "(D) 檢查 /actuator/loggers 以查看是否有連線錯誤的日誌。",
+        "en": "(D) Check /actuator/loggers to see if there are any connection error logs.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "雖然 /health 可以顯示資料庫是否存活，但無法顯示連線池的使用率。/metrics 端點結合 Micrometer 能夠提供即時的數值監控（如當前活躍連線數），這是判斷資源是否耗盡的關鍵依據。",
+      "en": "While /health shows if the database is alive, it does not show connection pool usage. The /metrics endpoint, combined with Micrometer, provides real-time numerical monitoring (such as current active connections), which is crucial for determining if resources are exhausted.",
+      "wg": [
+        {
+          "t": "即時",
+          "en": "real-time",
+          "ps": "Adj"
+        },
+        {
+          "t": "依據",
+          "en": "basis",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "8",
+    "level": "advanced",
+    "keywords": "Resilience, Circuit Breaker, State Machine, Resilience4j",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在使用 Resilience4j 實作 Circuit Breaker 模式時，當斷路器處於 OPEN 狀態一段時間後，會自動切換到 HALF_OPEN 狀態。",
+        "en": "When implementing the Circuit Breaker pattern using Resilience4j, the circuit breaker automatically switches to the HALF_OPEN state after being in the OPEN state for a period of time.",
+        "wg": [
+          {
+            "t": "斷路器",
+            "en": "Circuit Breaker",
+            "ps": "N"
+          },
+          {
+            "t": "處於",
+            "en": "in (a state)",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "在此 HALF_OPEN 狀態下，系統的行為特徵為何？",
+        "en": "What is the behavioral characteristic of the system in this HALF_OPEN state?",
+        "wg": [
+          {
+            "t": "行為特徵",
+            "en": "behavioral characteristic",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 拒絕所有請求，直到管理員手動重置為 CLOSED。",
+        "en": "(A) Reject all requests until an administrator manually resets it to CLOSED.",
+        "wg": []
+      },
+      {
+        "t": "(B) 允許所有請求通過，若失敗率仍高則切回 OPEN。",
+        "en": "(B) Allow all requests to pass, and switch back to OPEN if the failure rate remains high.",
+        "wg": []
+      },
+      {
+        "t": "(C) 允許固定數量的請求通過以探測下游服務，若成功率達標則切換至 CLOSED，否則回到 OPEN。",
+        "en": "(C) Allow a fixed number of requests to pass to probe the downstream service; if the success rate meets the target, switch to CLOSED, otherwise return to OPEN.",
+        "wg": [
+          {
+            "t": "探測",
+            "en": "probe",
+            "ps": "V"
+          },
+          {
+            "t": "達標",
+            "en": "meets the target",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(D) 將請求導向 Fallback 方法，並在背景非同步重試連線。",
+        "en": "(D) Redirect requests to the Fallback method and retry the connection asynchronously in the background.",
+        "wg": []
+      }
+    ],
+    "answer": "(C)",
+    "why": {
+      "t": "HALF_OPEN 是斷路器的「探測」狀態。它只允許有限數量的請求（Permitted Number of Calls）通過，用來驗證下游服務是否已恢復健康，避免瞬間大量流量再次打垮剛恢復的服務。",
+      "en": "HALF_OPEN is the 'probing' state of the circuit breaker. It only allows a limited number of requests (Permitted Number of Calls) to pass, verifying if the downstream service has recovered, thus avoiding overwhelming a newly recovered service with a sudden burst of traffic.",
+      "wg": [
+        {
+          "t": "恢復",
+          "en": "recover",
+          "ps": "V"
+        },
+        {
+          "t": "打垮",
+          "en": "overwhelm",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "9",
+    "level": "intermediate",
+    "keywords": "Kubernetes, JIT, Readiness Probe, Warm-up",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您將一個 Spring Boot 應用程式部署到 Kubernetes 叢集。",
+        "en": "You deploy a Spring Boot application to a Kubernetes cluster.",
+        "wg": []
+      },
+      {
+        "t": "您發現每當新 Pod 啟動並開始接收流量的最初幾秒內，回應時間極長甚至逾時，但隨後恢復正常。",
+        "en": "You notice that whenever a new Pod starts and begins receiving traffic, response times are extremely long or even time out for the first few seconds, but then return to normal.",
+        "wg": [
+          {
+            "t": "逾時",
+            "en": "time out",
+            "ps": "V"
+          },
+          {
+            "t": "隨後",
+            "en": "subsequently",
+            "ps": "Adv"
+          }
+        ]
+      },
+      {
+        "t": "這最可能是 JVM JIT 編譯尚未完成所致。為了避免此問題影響用戶，最佳的解決方案是？",
+        "en": "This is most likely due to JVM JIT compilation not yet completing. To avoid this issue affecting users, what is the best solution?",
+        "wg": [
+          {
+            "t": "編譯",
+            "en": "compilation",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 增加 Pod 的 CPU 資源限制 (CPU Limits)。",
+        "en": "(A) Increase the CPU resource limits (CPU Limits) of the Pod.",
+        "wg": []
+      },
+      {
+        "t": "(B) 設定 Kubernetes 的 Readiness Probe，並在該檢查端點中實作快取預熱或邏輯暖機。",
+        "en": "(B) Configure a Kubernetes Readiness Probe and implement cache pre-warming or logic warm-up in that check endpoint.",
+        "wg": [
+          {
+            "t": "預熱",
+            "en": "pre-warming",
+            "ps": "N"
+          },
+          {
+            "t": "暖機",
+            "en": "warm-up",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) 將 Spring Boot 的啟動模式改為 Lazy Initialization。",
+        "en": "(C) Change the Spring Boot startup mode to Lazy Initialization.",
+        "wg": []
+      },
+      {
+        "t": "(D) 使用 @Async 註解來非同步處理所有初始請求。",
+        "en": "(D) Use the @Async annotation to process all initial requests asynchronously.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "Readiness Probe 決定了 K8s 何時將 Pod 加入 Service 的 Load Balancer。透過在 Probe 通過前進行暖機（執行幾次關鍵路徑代碼以觸發 JIT），可確保流量進入時應用已處於高效能狀態。",
+      "en": "The Readiness Probe determines when K8s adds the Pod to the Service's Load Balancer. By warming up (executing critical path code a few times to trigger JIT) before the Probe passes, you ensure the application is in a high-performance state when traffic arrives.",
+      "wg": [
+        {
+          "t": "觸發",
+          "en": "trigger",
+          "ps": "V"
+        },
+        {
+          "t": "關鍵路徑",
+          "en": "critical path",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "10",
+    "level": "intermediate",
+    "keywords": "Spring AOP, @Async, Proxy Pattern, Pitfalls",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "public class OrderService {\n    public void createOrder() {\n        // ... logic ...\n        sendNotification();\n    }\n\n    @Async\n    public void sendNotification() {\n        // heavy task\n    }\n}",
+    "question": [
+      {
+        "t": "在上述程式碼中，當外部呼叫 `createOrder()` 方法時，`sendNotification()` 方法將會如何執行？",
+        "en": "In the code above, when the `createOrder()` method is called externally, how will the `sendNotification()` method be executed?",
+        "wg": [
+          {
+            "t": "外部呼叫",
+            "en": "called externally",
+            "ps": "V"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 在獨立的執行緒中非同步執行。",
+        "en": "(A) Executed asynchronously in a separate thread.",
+        "wg": []
+      },
+      {
+        "t": "(B) 在同一個執行緒中同步執行 (Synchronously)。",
+        "en": "(B) Executed synchronously in the same thread.",
+        "wg": []
+      },
+      {
+        "t": "(C) 拋出 RuntimeException，因為 @Async 不能用於 public 方法。",
+        "en": "(C) Throws a RuntimeException because @Async cannot be used on public methods.",
+        "wg": []
+      },
+      {
+        "t": "(D) 視 Thread Pool 的飽和度決定是同步還是非同步。",
+        "en": "(D) Depends on the saturation of the Thread Pool to decide whether it is synchronous or asynchronous.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "這是 Spring AOP 的經典陷阱。Spring 的 `@Async` 依賴代理物件 (Proxy) 來攔截呼叫。當在同一個類別內部呼叫方法 (Self-invocation) 時，會繞過代理機制直接呼叫原方法，導致非同步失效。",
+      "en": "This is a classic Spring AOP pitfall. Spring's `@Async` relies on a proxy object to intercept calls. When calling a method within the same class (Self-invocation), the proxy mechanism is bypassed and the original method is called directly, causing the asynchronous behavior to fail.",
+      "wg": [
+        {
+          "t": "陷阱",
+          "en": "pitfall",
+          "ps": "N"
+        },
+        {
+          "t": "攔截",
+          "en": "intercept",
+          "ps": "V"
+        },
+        {
+          "t": "繞過",
+          "en": "bypass",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "11",
+    "level": "intermediate",
+    "keywords": "Configuration Management, Spring Cloud, Operations, Hot Reload",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您的 Spring Boot 應用程式在生產環境中遇到緊急狀況，需要立即調整 HTTP Client 的 Timeout 設定。",
+        "en": "Your Spring Boot application encounters an emergency in the production environment and needs to immediately adjust the HTTP Client Timeout settings.",
+        "wg": [
+          {
+            "t": "緊急狀況",
+            "en": "emergency",
+            "ps": "N"
+          },
+          {
+            "t": "調整",
+            "en": "adjust",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "由於重新建置與部署 (Re-deploy) 需要 20 分鐘，您希望能在不重啟 JVM 的情況下套用新設定。",
+        "en": "Since rebuilding and redeploying takes 20 minutes, you want to apply the new settings without restarting the JVM.",
+        "wg": [
+          {
+            "t": "套用",
+            "en": "apply",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "下列哪種架構設計最能滿足此需求？",
+        "en": "Which of the following architectural designs best meets this requirement?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 將設定檔打包在 Jar 檔外部，並使用 File Watcher 自動重啟應用。",
+        "en": "(A) Package the configuration file outside the Jar file and use a File Watcher to automatically restart the application.",
+        "wg": []
+      },
+      {
+        "t": "(B) 使用 Spring Cloud Config 配合 @RefreshScope Bean，並呼叫 /actuator/refresh 端點。",
+        "en": "(B) Use Spring Cloud Config with @RefreshScope Bean, and call the /actuator/refresh endpoint.",
+        "wg": []
+      },
+      {
+        "t": "(C) 使用 System.setProperty() 在 Runtime 修改環境變數。",
+        "en": "(C) Use System.setProperty() to modify environment variables at runtime.",
+        "wg": []
+      },
+      {
+        "t": "(D) 依賴 Kubernetes 的 ConfigMap 自動更新，無需應用程式做任何配合。",
+        "en": "(D) Rely on Kubernetes ConfigMap auto-update without any application-side coordination.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "Spring Cloud Config 支援外部化配置，結合 `@RefreshScope` 註解的 Bean，可以在呼叫 Actuator 的 refresh 端點（或透過 Spring Cloud Bus）時，動態重新載入配置並更新 Bean 的屬性，無需重啟程序。",
+      "en": "Spring Cloud Config supports externalized configuration. Combined with Beans annotated with `@RefreshScope`, it can dynamically reload configuration and update Bean properties when the Actuator refresh endpoint is called (or via Spring Cloud Bus), without restarting the process.",
+      "wg": [
+        {
+          "t": "外部化",
+          "en": "externalized",
+          "ps": "Adj"
+        },
+        {
+          "t": "重新載入",
+          "en": "reload",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "12",
+    "level": "advanced",
+    "keywords": "Idempotency, Message Queue, Distributed Systems, Consumer",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在設計一個監聽 Message Queue 的庫存扣減服務 (Consumer) 時，必須考慮到「訊息可能被重複傳遞 (At-least-once delivery)」的情況。",
+        "en": "When designing an inventory deduction service (Consumer) that listens to a Message Queue, you must consider the scenario where 'messages may be delivered more than once (At-least-once delivery)'.",
+        "wg": [
+          {
+            "t": "重複傳遞",
+            "en": "delivered more than once",
+            "ps": "V"
+          },
+          {
+            "t": "監聽",
+            "en": "listen to",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "為了確保資料正確性，下列哪種實作方式是實現「冪等性 (Idempotency)」的最佳實務？",
+        "en": "To ensure data correctness, which of the following implementation methods is the best practice for achieving 'Idempotency'?",
+        "wg": [
+          {
+            "t": "冪等性",
+            "en": "Idempotency",
+            "ps": "N"
+          },
+          {
+            "t": "最佳實務",
+            "en": "best practice",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 在 Consumer 端使用 synchronized 關鍵字鎖定處理方法。",
+        "en": "(A) Use the synchronized keyword to lock the processing method on the Consumer side.",
+        "wg": []
+      },
+      {
+        "t": "(B) 依賴 Message Queue 的 Exactly-once delivery 保證，忽略應用層處理。",
+        "en": "(B) Rely on the Message Queue's Exactly-once delivery guarantee and ignore application-layer handling.",
+        "wg": []
+      },
+      {
+        "t": "(C) 在資料庫建立一張去重表 (Deduplication Table) 或利用 Unique Key 限制，利用交易原子性來防止重複寫入。",
+        "en": "(C) Create a Deduplication Table in the database or use a Unique Key constraint, leveraging transaction atomicity to prevent duplicate writes.",
+        "wg": [
+          {
+            "t": "去重表",
+            "en": "Deduplication Table",
+            "ps": "N"
+          },
+          {
+            "t": "原子性",
+            "en": "atomicity",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(D) 在處理訊息前先檢查 Redis 是否有該訊息 ID，若無則寫入並設定 1 秒過期時間。",
+        "en": "(D) Check if the message ID exists in Redis before processing; if not, write it and set a 1-second expiration time.",
+        "wg": []
+      }
+    ],
+    "answer": "(C)",
+    "why": {
+      "t": "依賴資料庫的 Unique Key (如 OrderId 或 MessageId) 是最可靠的冪等實作。即使多個相同的訊息同時到達，資料庫層級的約束 (Constraint) 會確保只有一筆能寫入成功，其餘失敗並回滾，從而保證業務邏輯只執行一次。",
+      "en": "Relying on a database Unique Key (such as OrderId or MessageId) is the most reliable idempotency implementation. Even if multiple identical messages arrive simultaneously, the database-level constraint ensures that only one write succeeds, while others fail and roll back, guaranteeing that the business logic is executed only once.",
+      "wg": [
+        {
+          "t": "約束",
+          "en": "constraint",
+          "ps": "N"
+        },
+        {
+          "t": "回滾",
+          "en": "roll back",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "13",
+    "level": "advanced",
+    "keywords": "Scalability, Database, Read/Write Splitting, AbstractRoutingDataSource, Spring Data",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您的系統面臨極高的讀取流量，資料庫架構已調整為「一主多從 (Primary-Replica)」模式。",
+        "en": "Your system is facing extremely high read traffic, and the database architecture has been adjusted to a 'Primary-Replica' model.",
+        "wg": [
+          {
+            "t": "一主多從",
+            "en": "Primary-Replica",
+            "ps": "N"
+          },
+          {
+            "t": "讀取流量",
+            "en": "read traffic",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "您希望在 Spring Boot 應用程式層級實現讀寫分離，讓標記為 `@Transactional(readOnly = true)` 的查詢自動路由至 Replica 資料庫，而寫入操作則路由至 Primary 資料庫。",
+        "en": "You want to implement read/write splitting at the Spring Boot application level, so that queries marked with `@Transactional(readOnly = true)` are automatically routed to Replica databases, while write operations go to the Primary database.",
+        "wg": [
+          {
+            "t": "讀寫分離",
+            "en": "read/write splitting",
+            "ps": "N"
+          },
+          {
+            "t": "路由",
+            "en": "route",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "下列哪一種實作方式是 Spring 生態系中最標準且侵入性最低的解決方案？",
+        "en": "Which of the following implementation approaches is the most standard and least intrusive solution in the Spring ecosystem?",
+        "wg": [
+          {
+            "t": "侵入性",
+            "en": "intrusive",
+            "ps": "Adj"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 繼承 `AbstractRoutingDataSource`，並根據 `TransactionSynchronizationManager` 的唯讀狀態來決定 DataSource Key。",
+        "en": "(A) Extend `AbstractRoutingDataSource` and determine the DataSource Key based on the read-only status from `TransactionSynchronizationManager`.",
+        "wg": [
+          {
+            "t": "繼承",
+            "en": "extend",
+            "ps": "V"
+          },
+          {
+            "t": "唯讀狀態",
+            "en": "read-only status",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(B) 使用 Spring AOP 攔截所有 Repository 方法，手動切換 JDBC Connection 的 `setReadOnly(true)` 屬性。",
+        "en": "(B) Use Spring AOP to intercept all Repository methods and manually toggle the `setReadOnly(true)` property of the JDBC Connection.",
+        "wg": [
+          {
+            "t": "攔截",
+            "en": "intercept",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(C) 配置兩個獨立的 `EntityManagerFactory`，並在 Controller 層根據業務邏輯手動注入不同的 Repository Bean。",
+        "en": "(C) Configure two separate `EntityManagerFactory` beans and manually inject different Repository beans in the Controller layer based on business logic.",
+        "wg": [
+          {
+            "t": "注入",
+            "en": "inject",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(D) 依賴資料庫驅動程式 (Driver) 的 Load Balancing 功能，應用程式端無需進行任何配置。",
+        "en": "(D) Rely on the Load Balancing feature of the database driver, requiring no configuration on the application side.",
+        "wg": []
+      }
+    ],
+    "answer": "(A)",
+    "why": {
+      "t": "`AbstractRoutingDataSource` 是 Spring 提供的標準機制，允許在 Runtime 動態切換 DataSource。結合 `TransactionSynchronizationManager.isCurrentTransactionReadOnly()`，可以優雅地根據交易屬性自動路由流量，完全不需要修改業務程式碼。",
+      "en": "`AbstractRoutingDataSource` is the standard mechanism provided by Spring to switch DataSources dynamically at runtime. Combined with `TransactionSynchronizationManager.isCurrentTransactionReadOnly()`, it gracefully routes traffic based on transaction attributes without modifying business code.",
+      "wg": [
+        {
+          "t": "動態切換",
+          "en": "switch dynamically",
+          "ps": "V"
+        },
+        {
+          "t": "業務程式碼",
+          "en": "business code",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "14",
+    "level": "intermediate",
+    "keywords": "Spring WebFlux, Event Loop, Blocking I/O, Performance, Reactor",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "public Mono<User> getUser(String id) {\n    return Mono.fromCallable(() -> {\n        // Legacy JDBC call or heavy computation\n        return legacyRepository.findById(id);\n    }).subscribeOn(Schedulers.boundedElastic());\n}",
+    "question": [
+      {
+        "t": "您的團隊正在將一個高流量的 API Gateway 遷移至 Spring WebFlux 以提升吞吐量。",
+        "en": "Your team is migrating a high-traffic API Gateway to Spring WebFlux to improve throughput.",
+        "wg": [
+          {
+            "t": "遷移",
+            "en": "migrating",
+            "ps": "V"
+          },
+          {
+            "t": "吞吐量",
+            "en": "throughput",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "但在 Code Review 時，您發現有開發者直接在 WebFlux 的 Controller 中呼叫了傳統的 Blocking JDBC API，且沒有進行任何執行緒切換處理。",
+        "en": "However, during Code Review, you noticed a developer calling a traditional Blocking JDBC API directly within a WebFlux Controller without any thread switching.",
+        "wg": [
+          {
+            "t": "執行緒切換",
+            "en": "thread switching",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "這種做法會導致什麼嚴重的後果？",
+        "en": "What serious consequence will this practice cause?",
+        "wg": [
+          {
+            "t": "後果",
+            "en": "consequence",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 阻塞 Event Loop 執行緒，導致整個服務無法處理其他併發請求，吞吐量急劇下降。",
+        "en": "(A) Block the Event Loop thread, causing the entire service to be unable to handle other concurrent requests, leading to a drastic drop in throughput.",
+        "wg": [
+          {
+            "t": "阻塞",
+            "en": "block",
+            "ps": "V"
+          },
+          {
+            "t": "急劇下降",
+            "en": "drop drastically",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(B) Spring WebFlux 會自動檢測並將該請求切換到虛擬執行緒 (Virtual Threads) 執行，效能不受影響。",
+        "en": "(B) Spring WebFlux will automatically detect and switch the request to Virtual Threads, so performance is unaffected.",
+        "wg": []
+      },
+      {
+        "t": "(C) 該請求會拋出 `BlockingOperationError` 並中斷執行，但不會影響其他請求。",
+        "en": "(C) The request will throw a `BlockingOperationError` and abort, but other requests will not be affected.",
+        "wg": [
+          {
+            "t": "中斷",
+            "en": "abort",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(D) 會導致記憶體洩漏 (Memory Leak)，因為 JDBC Connection 無法在 Reactive Context 中正確釋放。",
+        "en": "(D) It will cause a Memory Leak because the JDBC Connection cannot be properly released in a Reactive Context.",
+        "wg": [
+          {
+            "t": "記憶體洩漏",
+            "en": "Memory Leak",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "answer": "(A)",
+    "why": {
+      "t": "Spring WebFlux 預設使用極少量的 Event Loop 執行緒（通常等於 CPU 核心數）。如果在這些執行緒上執行 Blocking I/O，該執行緒將無法處理其他請求，導致嚴重的效能瓶頸（Head-of-Line Blocking）。正確做法應如程式碼片段所示，使用 `subscribeOn(Schedulers.boundedElastic())` 將阻塞操作移至專用執行緒池。",
+      "en": "Spring WebFlux uses a very small number of Event Loop threads (usually equal to CPU cores) by default. Performing Blocking I/O on these threads prevents them from handling other requests, causing severe performance bottlenecks (Head-of-Line Blocking). The correct approach, as shown in the snippet, is to offload blocking operations to a dedicated thread pool using `subscribeOn(Schedulers.boundedElastic())`.",
+      "wg": [
+        {
+          "t": "專用執行緒池",
+          "en": "dedicated thread pool",
+          "ps": "N"
+        },
+        {
+          "t": "效能瓶頸",
+          "en": "performance bottleneck",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "15",
+    "level": "advanced",
+    "keywords": "Observability, Distributed Tracing, Multithreading, Context Propagation, Micrometer",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "@Async\npublic void processAsync() {\n    log.info(\"Processing async task...\");\n}",
+    "question": [
+      {
+        "t": "在微服務架構中，您使用 Micrometer Tracing 與 Zipkin 進行分佈式追蹤。",
+        "en": "In a microservices architecture, you are using Micrometer Tracing and Zipkin for distributed tracing.",
+        "wg": [
+          {
+            "t": "分佈式追蹤",
+            "en": "distributed tracing",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "您發現當 Controller 呼叫標註 `@Async` 的方法時，日誌中的 Trace ID 在非同步執行緒中遺失或變更了，導致無法串聯完整的請求鏈路。",
+        "en": "You notice that when a Controller calls a method annotated with `@Async`, the Trace ID in the logs is lost or changed in the asynchronous thread, making it impossible to correlate the full request chain.",
+        "wg": [
+          {
+            "t": "遺失",
+            "en": "lost",
+            "ps": "V"
+          },
+          {
+            "t": "串聯",
+            "en": "correlate",
+            "ps": "V"
+          },
+          {
+            "t": "請求鏈路",
+            "en": "request chain",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "這是什麼原因造成的，以及該如何解決？",
+        "en": "What is the cause of this, and how should it be resolved?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 這是因為 Trace Context 儲存在 `ThreadLocal` 中，預設不會傳遞給執行緒池中的新執行緒。需裝飾 TaskExecutor 以支援 Context Propagation。",
+        "en": "(A) This is because the Trace Context is stored in `ThreadLocal`, which is not propagated to new threads in the pool by default. You need to decorate the TaskExecutor to support Context Propagation.",
+        "wg": [
+          {
+            "t": "傳遞",
+            "en": "propagate",
+            "ps": "V"
+          },
+          {
+            "t": "裝飾",
+            "en": "decorate",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(B) `@Async` 方法預設會開啟一個全新的 Trace，這是 Spring Boot 的設計行為，無法更改。",
+        "en": "(B) `@Async` methods start a brand new Trace by default; this is Spring Boot's designed behavior and cannot be changed.",
+        "wg": []
+      },
+      {
+        "t": "(C) 這是因為日誌框架 (Logback/Log4j2) 的配置錯誤，需要在 `pattern` 中手動加入 `%X{traceId}`。",
+        "en": "(C) This is due to a misconfiguration in the logging framework (Logback/Log4j2); you need to manually add `%X{traceId}` to the `pattern`.",
+        "wg": []
+      },
+      {
+        "t": "(D) 必須在 `@Async` 方法內手動呼叫 `Tracer.currentSpan()` 來重新綁定 Context。",
+        "en": "(D) You must manually call `Tracer.currentSpan()` inside the `@Async` method to re-bind the Context.",
+        "wg": [
+          {
+            "t": "重新綁定",
+            "en": "re-bind",
+            "ps": "V"
+          }
+        ]
+      }
+    ],
+    "answer": "(A)",
+    "why": {
+      "t": "Tracing 資訊 (MDC) 通常綁定在當前執行緒的 `ThreadLocal`。當切換到 `@Async` 使用的執行緒池時，這些資訊不會自動複製。解決方案是使用 `ContextSnapshotFactory` 或 Spring Boot 的 `TaskDecorator` 機制來包裝 `Runnable`，確保 Context 在跨執行緒時被正確傳遞。",
+      "en": "Tracing information (MDC) is usually bound to the `ThreadLocal` of the current thread. When switching to the thread pool used by `@Async`, this information is not automatically copied. The solution is to use `ContextSnapshotFactory` or Spring Boot's `TaskDecorator` mechanism to wrap the `Runnable`, ensuring the Context is correctly propagated across threads.",
+      "wg": [
+        {
+          "t": "複製",
+          "en": "copy",
+          "ps": "V"
+        },
+        {
+          "t": "跨執行緒",
+          "en": "across threads",
+          "ps": "Adv"
+        }
+      ]
+    }
+  }
+]

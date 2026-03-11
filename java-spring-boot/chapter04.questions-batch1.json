@@ -1,0 +1,557 @@
+[
+  {
+    "no": "1",
+    "level": "intermediate",
+    "keywords": "Spring Boot, @Transactional, AOP, Proxy Pattern, Self-invocation",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "```java\n@Service\npublic class OrderService {\n\n    @Transactional\n    public void createOrder(Order order) {\n        // logic to save order\n        processPayment(order);\n    }\n\n    @Transactional(propagation = Propagation.REQUIRES_NEW)\n    public void processPayment(Order order) {\n        // logic to process payment\n    }\n\n    public void batchProcess(List<Order> orders) {\n        for (Order order : orders) {\n            createOrder(order);\n        }\n    }\n}\n\n// In Controller:\n// orderService.batchProcess(orders);\n```",
+    "question": [
+      {
+        "t": "請分析上述程式碼。當 Controller 呼叫 `batchProcess` 方法時，關於交易管理的行為，下列敘述何者正確？",
+        "en": "Please analyze the code above. When the Controller calls the `batchProcess` method, which of the following statements about transaction management is correct?",
+        "wg": [
+          {
+            "t": "交易管理",
+            "en": "transaction management",
+            "ps": "N"
+          },
+          {
+            "t": "敘述",
+            "en": "statement",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) `createOrder` 會開啟一個新交易，且 `processPayment` 會在獨立的巢狀交易中執行。",
+        "en": "(A) `createOrder` will start a new transaction, and `processPayment` will execute in an independent nested transaction.",
+        "wg": []
+      },
+      {
+        "t": "(B) `batchProcess` 會自動開啟交易，因此所有操作都在同一個交易中完成。",
+        "en": "(B) `batchProcess` will automatically start a transaction, so all operations are completed within the same transaction.",
+        "wg": []
+      },
+      {
+        "t": "(C) 由於 `batchProcess` 沒有標註 `@Transactional`，且發生了類別內部方法呼叫 (Self-invocation)，`createOrder` 與 `processPayment` 的交易設定皆會失效，不會開啟任何交易。",
+        "en": "(C) Since `batchProcess` is not annotated with `@Transactional` and an internal method call (Self-invocation) occurs, the transaction settings for `createOrder` and `processPayment` will be ignored, and no transaction will be started.",
+        "wg": [
+          {
+            "t": "內部方法呼叫",
+            "en": "internal method call / self-invocation",
+            "ps": "N"
+          },
+          {
+            "t": "失效",
+            "en": "ignored / ineffective",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(D) `createOrder` 的交易會生效，但 `processPayment` 的 `REQUIRES_NEW` 設定會被忽略。",
+        "en": "(D) The transaction for `createOrder` will be effective, but the `REQUIRES_NEW` setting of `processPayment` will be ignored.",
+        "wg": []
+      }
+    ],
+    "answer": "(C)",
+    "why": {
+      "t": "Spring 的 `@Transactional` 是基於 AOP 代理 (Proxy) 機制運作的。當從外部 (Controller) 呼叫 `batchProcess` 時，因為該方法沒有標註 `@Transactional`，所以沒有開啟交易。接著，`batchProcess` 內部使用 `this.createOrder()` 呼叫同類別的方法，這屬於「內部呼叫 (Self-invocation)」，會直接執行原始物件的方法而繞過 Spring 的代理攔截器 (Interceptor)，導致 `createOrder` 與 `processPayment` 上的交易註解完全失效。",
+      "en": "Spring's `@Transactional` works based on the AOP Proxy mechanism. When `batchProcess` is called from the outside (Controller), no transaction is started because the method lacks the `@Transactional` annotation. Subsequently, `batchProcess` calls `this.createOrder()`, which is an 'internal call (Self-invocation)'. This bypasses the Spring Proxy Interceptor and directly executes the method on the target object, causing the transaction annotations on `createOrder` and `processPayment` to be completely ignored.",
+      "wg": [
+        {
+          "t": "代理機制",
+          "en": "Proxy mechanism",
+          "ps": "N"
+        },
+        {
+          "t": "攔截器",
+          "en": "Interceptor",
+          "ps": "N"
+        },
+        {
+          "t": "繞過",
+          "en": "bypass",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "2",
+    "level": "intermediate",
+    "keywords": "Hibernate, N+1 Problem, Performance Optimization, JOIN FETCH",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "```java\n@Entity\npublic class Department {\n    @Id private Long id;\n    private String name;\n    \n    @OneToMany(mappedBy = \"department\", fetch = FetchType.LAZY)\n    private List<Employee> employees;\n}\n\n// Service Layer\npublic List<DepartmentDTO> getAllDepartments() {\n    List<Department> depts = departmentRepository.findAll(); // (1)\n    \n    return depts.stream().map(d -> \n        new DepartmentDTO(d.getName(), d.getEmployees().size()) // (2)\n    ).collect(Collectors.toList());\n}\n```",
+    "question": [
+      {
+        "t": "上述程式碼在資料庫中有 50 個部門時，會引發嚴重的效能問題。",
+        "en": "The code above causes serious performance issues when there are 50 departments in the database.",
+        "wg": []
+      },
+      {
+        "t": "請問這是什麼問題？以及下列哪種修改方式最能有效解決此問題？",
+        "en": "What is this problem? And which of the following modifications is the most effective solution?",
+        "wg": [
+          {
+            "t": "修改方式",
+            "en": "modification",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 這是 Dirty Read 問題；應將交易隔離層級改為 `REPEATABLE_READ`。",
+        "en": "(A) This is a Dirty Read problem; the transaction isolation level should be changed to `REPEATABLE_READ`.",
+        "wg": []
+      },
+      {
+        "t": "(B) 這是 N+1 問題；應將 `FetchType.LAZY` 改為 `FetchType.EAGER`。",
+        "en": "(B) This is an N+1 problem; `FetchType.LAZY` should be changed to `FetchType.EAGER`.",
+        "wg": []
+      },
+      {
+        "t": "(C) 這是 N+1 問題；應在 Repository 使用 JPQL `JOIN FETCH` 或 `EntityGraph` 一次載入部門與員工。",
+        "en": "(C) This is an N+1 problem; use JPQL `JOIN FETCH` or `EntityGraph` in the Repository to load departments and employees at once.",
+        "wg": [
+          {
+            "t": "一次載入",
+            "en": "load at once",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(D) 這是 Connection Starvation 問題；應增加 HikariCP 的 `maximum-pool-size`。",
+        "en": "(D) This is a Connection Starvation problem; increase HikariCP's `maximum-pool-size`.",
+        "wg": []
+      }
+    ],
+    "answer": "(C)",
+    "why": {
+      "t": "這是典型的 N+1 問題：`findAll()` 執行 1 次查詢撈出所有部門，隨後在迴圈中呼叫 `d.getEmployees().size()` 觸發 Lazy Loading，導致對每個部門額外執行 1 次查詢 (共 1 + 50 次)。雖然將 FetchType 改為 EAGER (選項 B) 也能解決 Lazy Loading 錯誤，但它通常會導致不可控的資料載入與記憶體問題，並非最佳實務。最佳解法是使用 `JOIN FETCH` 讓 Hibernate 產生單一 SQL JOIN 語句一次撈回所需資料。",
+      "en": "This is a classic N+1 problem: `findAll()` executes 1 query to fetch all departments, and then calling `d.getEmployees().size()` inside the loop triggers Lazy Loading, causing an additional query for each department (total 1 + 50 queries). While changing FetchType to EAGER (Option B) solves the Lazy Loading error, it often leads to uncontrollable data loading and memory issues, so it is not best practice. The best solution is to use `JOIN FETCH` to force Hibernate to generate a single SQL JOIN statement to fetch all required data at once.",
+      "wg": [
+        {
+          "t": "觸發",
+          "en": "trigger",
+          "ps": "V"
+        },
+        {
+          "t": "不可控的",
+          "en": "uncontrollable",
+          "ps": "Adj"
+        }
+      ]
+    }
+  },
+  {
+    "no": "3",
+    "level": "advanced",
+    "keywords": "Open Session In View (OSIV), Anti-pattern, Connection Pool, Performance",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在高併發且網路延遲較高 (High Latency) 的微服務架構中，Spring Boot 預設開啟的 `Open Session In View (OSIV)` 模式可能會帶來什麼負面影響？",
+        "en": "In a high-concurrency microservices architecture with high network latency, what negative impact might the default `Open Session In View (OSIV)` pattern in Spring Boot cause?",
+        "wg": [
+          {
+            "t": "高併發",
+            "en": "high-concurrency",
+            "ps": "N"
+          },
+          {
+            "t": "網路延遲",
+            "en": "network latency",
+            "ps": "N"
+          },
+          {
+            "t": "負面影響",
+            "en": "negative impact",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 會導致 Hibernate 無法使用 L1 Cache，增加資料庫查詢次數。",
+        "en": "(A) It prevents Hibernate from using L1 Cache, increasing the number of database queries.",
+        "wg": []
+      },
+      {
+        "t": "(B) 資料庫連線 (DB Connection) 會一直被佔用直到 HTTP 回應完全寫入客戶端，容易導致 Connection Pool 耗盡。",
+        "en": "(B) The database connection is held until the HTTP response is fully written to the client, which can easily lead to Connection Pool exhaustion.",
+        "wg": [
+          {
+            "t": "佔用",
+            "en": "held / occupied",
+            "ps": "V"
+          },
+          {
+            "t": "耗盡",
+            "en": "exhaustion",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) 會強制將所有交易隔離層級提升為 `SERIALIZABLE`，大幅降低吞吐量。",
+        "en": "(C) It forces all transaction isolation levels to be upgraded to `SERIALIZABLE`, significantly reducing throughput.",
+        "wg": []
+      },
+      {
+        "t": "(D) 會導致 `LazyInitializationException` 在 Controller 層頻繁拋出。",
+        "en": "(D) It causes `LazyInitializationException` to be frequently thrown in the Controller layer.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "OSIV 的設計是為了讓 View 層 (如 Controller) 也能進行 Lazy Loading，因此它會將 Hibernate Session (以及底層的 DB Connection) 保持開啟，直到整個 HTTP Request 結束 (包含將回應寫回給 Client 的時間)。在網路慢的環境下，這意味著 DB Connection 被閒置佔用的時間大幅增加，極易導致 Connection Pool 資源耗盡，進而拖垮整個系統。",
+      "en": "OSIV is designed to allow Lazy Loading in the View layer (e.g., Controller), so it keeps the Hibernate Session (and the underlying DB Connection) open until the entire HTTP Request is finished (including the time taken to write the response to the Client). In a slow network environment, this means the DB Connection is held idle for a significantly longer time, which can easily exhaust Connection Pool resources and crash the system.",
+      "wg": [
+        {
+          "t": "閒置",
+          "en": "idle",
+          "ps": "Adj"
+        },
+        {
+          "t": "拖垮",
+          "en": "crash / bring down",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "4",
+    "level": "advanced",
+    "keywords": "Propagation, REQUIRES_NEW, Deadlock, Connection Pool",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您正在審查一段程式碼，發現開發者在一個 `@Transactional` 的主方法中，呼叫了另一個標註為 `@Transactional(propagation = Propagation.REQUIRES_NEW)` 的子方法。",
+        "en": "You are reviewing code and notice a developer calls a sub-method annotated with `@Transactional(propagation = Propagation.REQUIRES_NEW)` from within a main method annotated with `@Transactional`.",
+        "wg": [
+          {
+            "t": "審查",
+            "en": "reviewing",
+            "ps": "V"
+          },
+          {
+            "t": "標註",
+            "en": "annotated",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "若 HikariCP 的連線池大小 (Pool Size) 設定過小，這種寫法最可能導致什麼風險？",
+        "en": "If the HikariCP pool size is set too small, what is the most likely risk of this approach?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 髒讀 (Dirty Read)：子交易尚未提交，主交易就讀到了數據。",
+        "en": "(A) Dirty Read: The main transaction reads data before the sub-transaction commits.",
+        "wg": []
+      },
+      {
+        "t": "(B) 死鎖 (Deadlock)：主交易掛起並佔用一個連線，等待子交易完成；若所有執行緒都佔滿了連線且都在等待新連線來執行子交易，系統將卡死。",
+        "en": "(B) Deadlock: The main transaction is suspended holding one connection, waiting for the sub-transaction. If all threads occupy connections and wait for a new connection for the sub-transaction, the system freezes.",
+        "wg": [
+          {
+            "t": "掛起",
+            "en": "suspended",
+            "ps": "V"
+          },
+          {
+            "t": "卡死",
+            "en": "freeze / deadlock",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(C) 幻讀 (Phantom Read)：子交易插入的資料導致主交易讀取結果不一致。",
+        "en": "(C) Phantom Read: Data inserted by the sub-transaction causes inconsistent read results in the main transaction.",
+        "wg": []
+      },
+      {
+        "t": "(D) StackOverflowError：因為建立了過多的代理物件。",
+        "en": "(D) StackOverflowError: Due to creating too many proxy objects.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "使用 `REQUIRES_NEW` 會掛起 (Suspend) 當前交易 (佔用 Connection A)，並嘗試開啟一個新交易 (請求 Connection B)。如果 Connection Pool 大小不足 (例如小於 `2 * 並發請求數`)，可能發生所有執行緒都持有 Connection A 並在等待 Connection B 的情況，導致應用程式層級的死鎖 (Pool Exhaustion Deadlock)。",
+      "en": "Using `REQUIRES_NEW` suspends the current transaction (holding Connection A) and attempts to start a new transaction (requesting Connection B). If the Connection Pool size is insufficient (e.g., less than `2 * concurrent requests`), a situation may arise where all threads hold Connection A and are waiting for Connection B, leading to an application-level deadlock (Pool Exhaustion Deadlock).",
+      "wg": [
+        {
+          "t": "應用程式層級",
+          "en": "application-level",
+          "ps": "Adj"
+        },
+        {
+          "t": "請求",
+          "en": "requesting",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "5",
+    "level": "advanced",
+    "keywords": "HikariCP, Connection Pool Sizing, Performance Tuning, Context Switching",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "關於資料庫連線池 (Connection Pool) 的大小設定，許多資深工程師常有誤解。",
+        "en": "Many senior engineers have misconceptions about configuring the Database Connection Pool size.",
+        "wg": [
+          {
+            "t": "誤解",
+            "en": "misconception",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "假設您的應用程式部署在 4 核心 CPU 的伺服器上，使用 HDD 硬碟。下列關於 HikariCP `maximum-pool-size` 的建議，何者最符合最佳實務？",
+        "en": "Assuming your application is deployed on a server with a 4-core CPU and uses HDD storage. Which of the following recommendations for HikariCP `maximum-pool-size` best aligns with best practices?",
+        "wg": [
+          {
+            "t": "最佳實務",
+            "en": "best practices",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 設定為 100 或更高，以確保高併發時有足夠的連線可用。",
+        "en": "(A) Set it to 100 or higher to ensure enough connections are available during high concurrency.",
+        "wg": []
+      },
+      {
+        "t": "(B) 設定為 `Core Count * 2 + Spindle Count` (約 10-20)，過大的 Pool 會導致 CPU 頻繁 Context Switching 而降低效能。",
+        "en": "(B) Set it to `Core Count * 2 + Spindle Count` (approx. 10-20). An oversized pool causes frequent CPU Context Switching, degrading performance.",
+        "wg": [
+          {
+            "t": "頻繁",
+            "en": "frequent",
+            "ps": "Adj"
+          },
+          {
+            "t": "降低效能",
+            "en": "degrading performance",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(C) 設定為 1，因為資料庫寫入是序列化的，多連線沒有幫助。",
+        "en": "(C) Set it to 1, because database writes are serialized, so multiple connections don't help.",
+        "wg": []
+      },
+      {
+        "t": "(D) 設定為與 Tomcat `max-threads` (預設 200) 相同，以達成 1:1 的執行緒對應。",
+        "en": "(D) Set it to match Tomcat `max-threads` (default 200) to achieve a 1:1 thread mapping.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "連線池並非越大越好。對於 CPU 運算與 I/O 等待的混合負載，過多的連線會導致 CPU 花費大量時間在執行緒切換 (Context Switching) 上，而非執行實際工作。HikariCP 官方建議的公式是 `connections = ((core_count * 2) + effective_spindle_count)`。對於 4 核心機器，設定 10-20 個連線通常就能達到最佳吞吐量。",
+      "en": "Bigger is not always better for connection pools. For mixed workloads of CPU computation and I/O waiting, too many connections cause the CPU to spend excessive time on Context Switching rather than actual work. The formula recommended by HikariCP is `connections = ((core_count * 2) + effective_spindle_count)`. For a 4-core machine, setting 10-20 connections usually achieves optimal throughput.",
+      "wg": [
+        {
+          "t": "混合負載",
+          "en": "mixed workloads",
+          "ps": "N"
+        },
+        {
+          "t": "吞吐量",
+          "en": "throughput",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "6",
+    "level": "intermediate",
+    "keywords": "Hibernate, Dirty Checking, Performance, ReadOnly",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在執行大量資料讀取 (例如產生報表) 的 Service 方法中，為什麼加上 `@Transactional(readOnly = true)` 可以提升效能？",
+        "en": "In a Service method that performs large data reads (e.g., generating reports), why does adding `@Transactional(readOnly = true)` improve performance?",
+        "wg": [
+          {
+            "t": "大量資料讀取",
+            "en": "large data reads",
+            "ps": "N"
+          },
+          {
+            "t": "提升效能",
+            "en": "improve performance",
+            "ps": "V"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 它會讓資料庫完全不加鎖，允許讀取到未提交的資料 (Dirty Read)。",
+        "en": "(A) It prevents the database from locking at all, allowing reads of uncommitted data (Dirty Read).",
+        "wg": []
+      },
+      {
+        "t": "(B) 它會告訴 Hibernate 不需要維護實體的快照 (Snapshot) 來進行 Dirty Checking，節省記憶體與 CPU 計算。",
+        "en": "(B) It tells Hibernate not to maintain entity snapshots for Dirty Checking, saving memory and CPU cycles.",
+        "wg": [
+          {
+            "t": "快照",
+            "en": "snapshot",
+            "ps": "N"
+          },
+          {
+            "t": "維護",
+            "en": "maintain",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(C) 它會自動開啟二級快取 (L2 Cache)。",
+        "en": "(C) It automatically enables the Second Level Cache (L2 Cache).",
+        "wg": []
+      },
+      {
+        "t": "(D) 它會強制使用 JDBC 直接連線，繞過 Hibernate Session。",
+        "en": "(D) It forces the use of direct JDBC connections, bypassing the Hibernate Session.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "Hibernate 預設會使用 Dirty Checking 機制：在載入實體時保存一份快照，並在交易結束時比對當前狀態與快照，若有差異則自動更新。當標註 `readOnly = true` 時，Spring 會設定 Hibernate 的 FlushMode 為 MANUAL，Hibernate 知道這些實體不會被修改，因此會跳過快照建立與比對的過程，這在處理大量物件時能顯著減少記憶體消耗與 CPU 負載。",
+      "en": "Hibernate uses a Dirty Checking mechanism by default: it saves a snapshot when loading an entity and compares the current state with the snapshot at the end of the transaction, automatically updating if there are differences. When annotated with `readOnly = true`, Spring sets Hibernate's FlushMode to MANUAL. Hibernate knows these entities won't be modified, so it skips the snapshot creation and comparison process, significantly reducing memory consumption and CPU load when processing large numbers of objects.",
+      "wg": [
+        {
+          "t": "比對",
+          "en": "compare",
+          "ps": "V"
+        },
+        {
+          "t": "顯著",
+          "en": "significantly",
+          "ps": "Adv"
+        }
+      ]
+    }
+  },
+  {
+    "no": "7",
+    "level": "intermediate",
+    "keywords": "Optimistic Locking, Pessimistic Locking, Concurrency Control, @Version",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在設計一個「搶購限量商品」的功能時，為了避免超賣 (Over-selling) 同時保持較高的系統吞吐量，下列哪種併發控制策略最為合適？",
+        "en": "When designing a 'flash sale' feature for limited items, which of the following concurrency control strategies is most suitable to avoid over-selling while maintaining high system throughput?",
+        "wg": [
+          {
+            "t": "搶購",
+            "en": "flash sale / panic buying",
+            "ps": "N"
+          },
+          {
+            "t": "超賣",
+            "en": "over-selling",
+            "ps": "N"
+          },
+          {
+            "t": "吞吐量",
+            "en": "throughput",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 使用 `Isolation.SERIALIZABLE` 隔離層級，確保絕對安全。",
+        "en": "(A) Use `Isolation.SERIALIZABLE` isolation level to ensure absolute safety.",
+        "wg": []
+      },
+      {
+        "t": "(B) 使用悲觀鎖 (Pessimistic Locking)，例如 `SELECT ... FOR UPDATE`，鎖住商品列直到交易結束。",
+        "en": "(B) Use Pessimistic Locking, such as `SELECT ... FOR UPDATE`, to lock the item row until the transaction ends.",
+        "wg": []
+      },
+      {
+        "t": "(C) 使用樂觀鎖 (Optimistic Locking) 搭配 `@Version` 欄位，若更新失敗則重試或回傳錯誤給使用者。",
+        "en": "(C) Use Optimistic Locking with a `@Version` field; if the update fails, retry or return an error to the user.",
+        "wg": [
+          {
+            "t": "重試",
+            "en": "retry",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(D) 使用 Java 的 `synchronized` 關鍵字鎖住 Service 方法。",
+        "en": "(D) Use Java's `synchronized` keyword to lock the Service method.",
+        "wg": []
+      }
+    ],
+    "answer": "(C)",
+    "why": {
+      "t": "在高併發場景下，悲觀鎖 (B) 會導致大量資料庫鎖競爭 (Lock Contention)，嚴重拖慢效能。`SERIALIZABLE` (A) 效能最差，通常不考慮。`synchronized` (D) 在分散式或多實例環境下無效。樂觀鎖 (C) 透過版本號控制，不佔用資料庫鎖，僅在提交時檢查衝突，最適合「讀多寫少」或需要高吞吐量的搶購場景 (雖然在極端競爭下可能導致高失敗率，但通常會搭配 Redis 預扣庫存來優化)。",
+      "en": "In high-concurrency scenarios, Pessimistic Locking (B) causes significant database lock contention, severely slowing down performance. `SERIALIZABLE` (A) has the worst performance and is rarely considered. `synchronized` (D) is ineffective in distributed or multi-instance environments. Optimistic Locking (C) uses version numbers and does not hold database locks, checking for conflicts only at commit time. It is best suited for 'read-heavy, write-light' or high-throughput flash sale scenarios (though it may lead to high failure rates under extreme contention, it is often optimized with Redis for inventory pre-deduction).",
+      "wg": [
+        {
+          "t": "鎖競爭",
+          "en": "lock contention",
+          "ps": "N"
+        },
+        {
+          "t": "分散式",
+          "en": "distributed",
+          "ps": "Adj"
+        }
+      ]
+    }
+  }
+]

@@ -1,0 +1,1239 @@
+[
+  {
+    "no": "chapter10-q07",
+    "level": "advanced",
+    "keywords": "Schema Migration, Breaking Change, Int32, Int64, Dual-write",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您的系統面臨 `User ID` 即將超過 `Int32` 上限的問題，需要遷移至 `Int64`。",
+        "en": "Your system is facing an issue where `User ID` is about to exceed the `Int32` limit and needs to be migrated to `Int64`.",
+        "wg": [
+          {
+            "t": "上限",
+            "en": "limit",
+            "ps": "N"
+          },
+          {
+            "t": "遷移",
+            "en": "migrate",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "該 ID 被數十個資料表作為外鍵 (Foreign Key) 引用，且系統無法接受停機維護。",
+        "en": "This ID is referenced as a Foreign Key by dozens of tables, and the system cannot tolerate downtime for maintenance.",
+        "wg": [
+          {
+            "t": "外鍵",
+            "en": "Foreign Key",
+            "ps": "N"
+          },
+          {
+            "t": "停機維護",
+            "en": "downtime maintenance",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "下列哪一種遷移策略風險最低且符合無停機原則？",
+        "en": "Which of the following migration strategies has the lowest risk and adheres to the zero-downtime principle?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 使用 `ALTER TABLE` 直接修改欄位型別，依賴資料庫的 Online DDL 功能。",
+        "en": "(A) Use `ALTER TABLE` to directly modify the column type, relying on the database's Online DDL capabilities.",
+        "wg": []
+      },
+      {
+        "t": "(B) 新增 `user_id_v2` (Int64) 欄位，透過應用層「雙寫」同時寫入新舊欄位，並逐步回填與切換讀取。",
+        "en": "(B) Add a `user_id_v2` (Int64) column, use application-level 'dual-write' to write to both new and old columns, and gradually backfill and switch reads.",
+        "wg": [
+          {
+            "t": "雙寫",
+            "en": "dual-write",
+            "ps": "N"
+          },
+          {
+            "t": "回填",
+            "en": "backfill",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(C) 建立一個全新的資料庫叢集，將資料匯出並匯入新結構後，修改 DNS 指向新庫。",
+        "en": "(C) Create a brand new database cluster, export and import data into the new structure, then change DNS to point to the new DB.",
+        "wg": []
+      },
+      {
+        "t": "(D) 在資料庫層級建立 Trigger，當舊 ID 寫入時自動轉換並寫入新表，應用程式無需修改。",
+        "en": "(D) Create Triggers at the database level to automatically convert and write to a new table when the old ID is written, requiring no application changes.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "選項 (B) 是處理「破壞性變更 (Breaking Change)」的標準模式。修改 ID 型別涉及大量外鍵關聯，直接 ALTER 風險極高且可能鎖表過久。新增欄位並配合雙寫模式，允許新舊邏輯並存，能安全地進行過渡與回滾。",
+      "en": "Option (B) is the standard pattern for handling 'Breaking Changes'. Modifying ID types involves many foreign keys; a direct ALTER carries high risk and potential long table locks. Adding a new column combined with a dual-write pattern allows old and new logic to coexist, enabling safe transition and rollback.",
+      "wg": [
+        {
+          "t": "破壞性變更",
+          "en": "Breaking Change",
+          "ps": "N"
+        },
+        {
+          "t": "並存",
+          "en": "coexist",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "chapter10-q08",
+    "level": "intermediate",
+    "keywords": "ORM, Production Readiness, Anti-pattern, Locking",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在審查一個新服務的 Production 設定時，您發現開發者啟用了 ORM (如 TypeORM/Hibernate) 的 `synchronize: true` 或 `auto-migrate` 功能。",
+        "en": "While reviewing the production configuration for a new service, you notice the developer has enabled the ORM's (e.g., TypeORM/Hibernate) `synchronize: true` or `auto-migrate` feature.",
+        "wg": [
+          {
+            "t": "審查",
+            "en": "review",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "為什麼這被視為嚴重的反模式 (Anti-pattern)？",
+        "en": "Why is this considered a serious Anti-pattern?",
+        "wg": [
+          {
+            "t": "反模式",
+            "en": "Anti-pattern",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 因為 ORM 產生的 SQL 語句通常效能較差，無法利用索引。",
+        "en": "(A) Because ORM-generated SQL statements usually have poor performance and cannot utilize indexes.",
+        "wg": []
+      },
+      {
+        "t": "(B) 因為這會導致應用程式啟動速度變慢，影響 Auto-scaling 的效率。",
+        "en": "(B) Because this slows down application startup speed, affecting Auto-scaling efficiency.",
+        "wg": []
+      },
+      {
+        "t": "(C) 因為多個實例 (Instance) 同時啟動時可能導致 Race Condition，且對大表執行自動 ALTER 可能造成長時間鎖表。",
+        "en": "(C) Because multiple instances starting simultaneously can cause Race Conditions, and automatic ALTER on large tables can cause long table locks.",
+        "wg": [
+          {
+            "t": "實例",
+            "en": "instance",
+            "ps": "N"
+          },
+          {
+            "t": "鎖表",
+            "en": "table lock",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(D) 因為 ORM 無法處理複雜的關聯式資料庫約束 (Constraints)。",
+        "en": "(D) Because ORMs cannot handle complex relational database constraints.",
+        "wg": []
+      }
+    ],
+    "answer": "(C)",
+    "why": {
+      "t": "在 Production 環境中，Schema 變更必須是可控且可預測的。ORM 自動同步可能在服務啟動瞬間觸發不可預期的 DDL 操作，若表很大會鎖住資料庫，或因多個 Pod 同時啟動而導致競爭衝突。",
+      "en": "In a Production environment, Schema changes must be controlled and predictable. ORM auto-sync can trigger unexpected DDL operations at startup. If the table is large, it can lock the database, or cause race conditions if multiple Pods start simultaneously.",
+      "wg": [
+        {
+          "t": "可控",
+          "en": "controlled",
+          "ps": "Adj"
+        },
+        {
+          "t": "競爭衝突",
+          "en": "race condition/conflict",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "chapter10-q09",
+    "level": "intermediate",
+    "keywords": "Connection Pool, Outage, Table Lock, Cascading Failure",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "某次部署中，一個針對大表的 `ALTER TABLE` 操作意外鎖住了資料表。",
+        "en": "During a deployment, an `ALTER TABLE` operation on a large table accidentally locked the table.",
+        "wg": [
+          {
+            "t": "部署",
+            "en": "deployment",
+            "ps": "N"
+          },
+          {
+            "t": "意外",
+            "en": "accidentally",
+            "ps": "Adv"
+          }
+        ]
+      },
+      {
+        "t": "隨後，API Server 的監控顯示「連線池耗盡 (Connection Pool Exhausted)」，導致整個服務對外回應 503。",
+        "en": "Subsequently, API Server monitoring showed 'Connection Pool Exhausted', causing the entire service to return 503 errors.",
+        "wg": [
+          {
+            "t": "連線池耗盡",
+            "en": "Connection Pool Exhausted",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "請解釋這兩者之間的因果關係。",
+        "en": "Please explain the causal relationship between the two.",
+        "wg": [
+          {
+            "t": "因果關係",
+            "en": "causal relationship",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 資料庫鎖表導致 CPU 飆高，API Server 為了保護資料庫主動斷開連線。",
+        "en": "(A) The database table lock caused a CPU spike, and the API Server proactively disconnected to protect the database.",
+        "wg": []
+      },
+      {
+        "t": "(B) 鎖表導致寫入請求阻塞 (Block)，API 執行緒等待回應而不釋放連線，新請求無可用連線，最終耗盡資源。",
+        "en": "(B) The table lock caused write requests to block; API threads waited for responses without releasing connections. New requests found no available connections, eventually exhausting resources.",
+        "wg": [
+          {
+            "t": "阻塞",
+            "en": "block",
+            "ps": "V"
+          },
+          {
+            "t": "釋放",
+            "en": "release",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(C) `ALTER TABLE` 會強制重置所有現有的 TCP 連線，導致 API Server 需要重新建立大量連線。",
+        "en": "(C) `ALTER TABLE` forcibly resets all existing TCP connections, causing the API Server to re-establish a large number of connections.",
+        "wg": []
+      },
+      {
+        "t": "(D) 資料庫在鎖表期間會拒絕所有新的連線請求 (Connection Refused)。",
+        "en": "(D) The database refuses all new connection requests during the table lock.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "這是典型的「級聯故障 (Cascading Failure)」。當 DB 鎖住時，應用程式的執行緒會卡在等待 DB 回應的狀態，導致持有的連線無法歸還給 Pool。隨著請求持續進入，Pool 中的連線迅速被拿光，導致服務無法處理任何新請求。",
+      "en": "This is a typical 'Cascading Failure'. When the DB is locked, application threads get stuck waiting for a DB response, preventing them from returning connections to the Pool. As requests continue to arrive, connections in the Pool are quickly depleted, rendering the service unable to handle any new requests.",
+      "wg": [
+        {
+          "t": "級聯故障",
+          "en": "Cascading Failure",
+          "ps": "N"
+        },
+        {
+          "t": "歸還",
+          "en": "return",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "chapter10-q10",
+    "level": "intermediate",
+    "keywords": "Validation, Data Consistency, Shadow Traffic, Latency",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在雙寫遷移的「驗證階段 (Validation Phase)」，您希望比較新舊資料庫的讀取結果是否一致 (Read Diff)。",
+        "en": "During the 'Validation Phase' of a dual-write migration, you want to compare read results from the old and new databases (Read Diff) to ensure consistency.",
+        "wg": [
+          {
+            "t": "驗證階段",
+            "en": "Validation Phase",
+            "ps": "N"
+          },
+          {
+            "t": "一致",
+            "en": "consistent",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "為了避免影響使用者體驗 (User Latency)，下列哪種實作方式最合適？",
+        "en": "To avoid impacting User Latency, which of the following implementation approaches is most appropriate?",
+        "wg": [
+          {
+            "t": "使用者體驗",
+            "en": "User Latency/Experience",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 同步 (Synchronously) 讀取兩個資料庫，比較結果後再回傳給使用者。",
+        "en": "(A) Synchronously read from both databases, compare the results, and then return to the user.",
+        "wg": []
+      },
+      {
+        "t": "(B) 僅讀取舊資料庫回傳給使用者，並以「非同步 (Asynchronous)」方式讀取新資料庫進行比較與記錄。",
+        "en": "(B) Read only from the old database to return to the user, and read from the new database 'asynchronously' for comparison and logging.",
+        "wg": [
+          {
+            "t": "非同步",
+            "en": "asynchronous",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "(C) 暫停寫入功能，確保資料靜止後，執行全量資料比對腳本。",
+        "en": "(C) Pause write functionality to ensure data is static, then run a full data comparison script.",
+        "wg": []
+      },
+      {
+        "t": "(D) 讓使用者隨機讀取新或舊資料庫，若發現錯誤請使用者回報。",
+        "en": "(D) Let users randomly read from either the new or old database, and ask them to report errors if found.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "選項 (A) 會增加延遲（最慢的 DB 決定回應時間）；選項 (B) 將驗證邏輯移出主路徑 (Critical Path)，確保使用者體驗不受新 DB 效能波動或比較邏輯的影響，是驗證階段的最佳實務。",
+      "en": "Option (A) increases latency (response time is determined by the slowest DB); Option (B) moves the validation logic out of the Critical Path, ensuring user experience is not affected by new DB performance fluctuations or comparison logic, making it the best practice for the validation phase.",
+      "wg": [
+        {
+          "t": "主路徑",
+          "en": "Critical Path",
+          "ps": "N"
+        },
+        {
+          "t": "波動",
+          "en": "fluctuation",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "chapter10-q11",
+    "level": "advanced",
+    "keywords": "gh-ost, Triggers, Write Amplification, Binlog",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在為高寫入負載 (High Write Load) 的 MySQL 資料庫選擇 Online Schema Change 工具時，為何 `gh-ost` 通常比基於 Trigger 的工具 (如 `pt-online-schema-change`) 更受青睞？",
+        "en": "When choosing an Online Schema Change tool for a High Write Load MySQL database, why is `gh-ost` often preferred over Trigger-based tools (like `pt-online-schema-change`)?",
+        "wg": [
+          {
+            "t": "高寫入負載",
+            "en": "High Write Load",
+            "ps": "N"
+          },
+          {
+            "t": "受青睞",
+            "en": "preferred",
+            "ps": "V"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 因為 gh-ost 支援自動回滾 (Auto-rollback) 功能，而 Trigger 工具不支援。",
+        "en": "(A) Because gh-ost supports Auto-rollback, while Trigger tools do not.",
+        "wg": []
+      },
+      {
+        "t": "(B) 因為 Trigger 會造成「寫入放大 (Write Amplification)」，每筆寫入都需要同步更新影子表，增加 Primary DB 負擔；而 gh-ost 透過讀取 Binlog 非同步重放，對主庫影響較小。",
+        "en": "(B) Because Triggers cause 'Write Amplification', requiring synchronous updates to the shadow table for every write, increasing load on the Primary DB; whereas gh-ost replays asynchronously by reading Binlogs, minimizing impact on the primary.",
+        "wg": [
+          {
+            "t": "寫入放大",
+            "en": "Write Amplification",
+            "ps": "N"
+          },
+          {
+            "t": "重放",
+            "en": "replay",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(C) 因為 gh-ost 不需要建立影子表 (Shadow Table)，直接在原表上修改。",
+        "en": "(C) Because gh-ost does not need to create a Shadow Table and modifies the original table directly.",
+        "wg": []
+      },
+      {
+        "t": "(D) 因為 gh-ost 可以完全避免 Replication Lag，保證從庫即時更新。",
+        "en": "(D) Because gh-ost can completely avoid Replication Lag, ensuring immediate updates on replicas.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "Trigger 模式強迫每次寫入都要在同一個 Transaction 中寫入兩份資料（原表 + 影子表），這在高併發下極易導致鎖競爭與效能下降。`gh-ost` 模擬成一個 Replica 讀取 Binlog，將負載解耦，並可根據主庫負載動態暫停，安全性更高。",
+      "en": "Trigger mode forces every write to update two sets of data (original + shadow table) within the same transaction, which easily leads to lock contention and performance degradation under high concurrency. `gh-ost` mimics a Replica reading Binlogs, decoupling the load and allowing dynamic pausing based on primary DB load, offering higher safety.",
+      "wg": [
+        {
+          "t": "解耦",
+          "en": "decouple",
+          "ps": "V"
+        },
+        {
+          "t": "鎖競爭",
+          "en": "lock contention",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "chapter10-q12",
+    "level": "intermediate",
+    "keywords": "Canary Release, Cold Cache, Performance, Feature Flag",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在遷移的「切換讀取 (Switch Reads)」階段，即使資料已經驗證一致，為何仍建議採用「金絲雀發布 (Canary Release)」逐步增加流量 (如 1% -> 10% -> 100%)，而非一次性切換？",
+        "en": "During the 'Switch Reads' phase of migration, even if data is verified to be consistent, why is it recommended to use 'Canary Release' to gradually increase traffic (e.g., 1% -> 10% -> 100%) instead of switching all at once?",
+        "wg": [
+          {
+            "t": "金絲雀發布",
+            "en": "Canary Release",
+            "ps": "N"
+          },
+          {
+            "t": "一次性",
+            "en": "all at once",
+            "ps": "Adv"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 為了讓新資料庫的快取 (Cache/Buffer Pool) 有時間預熱，避免冷啟動導致 CPU/IO 瞬間飆升。",
+        "en": "(A) To allow time for the new database's cache (Cache/Buffer Pool) to warm up, avoiding a sudden spike in CPU/IO due to cold start.",
+        "wg": [
+          {
+            "t": "預熱",
+            "en": "warm up",
+            "ps": "V"
+          },
+          {
+            "t": "冷啟動",
+            "en": "cold start",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(B) 因為 Feature Flag 工具通常不支援一次性切換 100% 流量。",
+        "en": "(B) Because Feature Flag tools usually do not support switching 100% traffic at once.",
+        "wg": []
+      },
+      {
+        "t": "(C) 為了等待 DNS 傳播 (Propagation) 完成。",
+        "en": "(C) To wait for DNS propagation to complete.",
+        "wg": []
+      },
+      {
+        "t": "(D) 為了讓開發人員有時間手動檢查每一筆交易。",
+        "en": "(D) To give developers time to manually check every transaction.",
+        "wg": []
+      }
+    ],
+    "answer": "(A)",
+    "why": {
+      "t": "新資料庫通常是「冷」的 (Cold Cache)，記憶體中沒有熱門資料頁 (Data Pages)。若瞬間導入全量流量，會導致大量的磁碟 I/O 讀取，極可能壓垮資料庫。逐步切換能讓 Cache 慢慢建立 (Warm up)，同時也能及早發現索引缺失等效能問題。",
+      "en": "A new database is usually 'cold' (Cold Cache), meaning memory lacks hot Data Pages. Instantly directing full traffic will cause massive disk I/O reads, likely overwhelming the database. Gradual switching allows the Cache to build up (Warm up) and helps detect performance issues like missing indexes early.",
+      "wg": [
+        {
+          "t": "壓垮",
+          "en": "overwhelm",
+          "ps": "V"
+        },
+        {
+          "t": "索引缺失",
+          "en": "missing indexes",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "chapter10-q13",
+    "level": "intermediate",
+    "keywords": "Slow Query, Troubleshooting, EXPLAIN, Indexing",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您發現 Production 資料庫有一條查詢語句執行時間超過 2 秒。為了優化它，您首先應該採取什麼行動？",
+        "en": "You discover a query in the Production database taking over 2 seconds to execute. What is the first action you should take to optimize it?",
+        "wg": [
+          {
+            "t": "優化",
+            "en": "optimize",
+            "ps": "V"
+          },
+          {
+            "t": "執行時間",
+            "en": "execution time",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 立即為查詢中的所有欄位建立索引 (Index)。",
+        "en": "(A) Immediately create indexes for all columns in the query.",
+        "wg": []
+      },
+      {
+        "t": "(B) 使用 `EXPLAIN` 或 `EXPLAIN ANALYZE` 檢視查詢執行計畫 (Execution Plan)，確認是否發生全表掃描 (Full Table Scan)。",
+        "en": "(B) Use `EXPLAIN` or `EXPLAIN ANALYZE` to view the query Execution Plan and confirm if a Full Table Scan is occurring.",
+        "wg": [
+          {
+            "t": "執行計畫",
+            "en": "Execution Plan",
+            "ps": "N"
+          },
+          {
+            "t": "全表掃描",
+            "en": "Full Table Scan",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) 增加資料庫的記憶體與 CPU 資源 (Vertical Scaling)。",
+        "en": "(C) Increase the database's memory and CPU resources (Vertical Scaling).",
+        "wg": []
+      },
+      {
+        "t": "(D) 將該查詢改寫為 NoSQL 查詢。",
+        "en": "(D) Rewrite the query as a NoSQL query.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "盲目加索引或升級硬體並非對症下藥。使用 `EXPLAIN` 分析資料庫如何執行查詢（例如使用了哪個索引、掃描了多少行、排序方式等）是診斷慢查詢的標準第一步，能精準找出效能瓶頸。",
+      "en": "Blindly adding indexes or upgrading hardware is not the right cure. Using `EXPLAIN` to analyze how the database executes the query (e.g., which index was used, how many rows were scanned, sorting method) is the standard first step in diagnosing slow queries, allowing precise identification of performance bottlenecks.",
+      "wg": [
+        {
+          "t": "對症下藥",
+          "en": "address the root cause",
+          "ps": "Idiom"
+        },
+        {
+          "t": "瓶頸",
+          "en": "bottleneck",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "chapter10-q14",
+    "level": "advanced",
+    "keywords": "Backfill, Idempotency, Scripting, Reliability",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您正在撰寫一個「歷史資料回填 (Backfill)」腳本，負責將 5TB 的資料複製到新庫。",
+        "en": "You are writing a 'Historical Data Backfill' script responsible for copying 5TB of data to a new database.",
+        "wg": [
+          {
+            "t": "腳本",
+            "en": "script",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "考慮到腳本可能會中途失敗並需要重跑，下列哪項特性是該腳本最重要的設計原則？",
+        "en": "Considering the script might fail midway and need to be rerun, which of the following characteristics is the most important design principle?",
+        "wg": [
+          {
+            "t": "中途失敗",
+            "en": "fail midway",
+            "ps": "V"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 冪等性 (Idempotency)：確保同一筆資料被重複處理多次，結果仍然正確且不會產生重複資料。",
+        "en": "(A) Idempotency: Ensuring that processing the same data multiple times yields the correct result without creating duplicates.",
+        "wg": [
+          {
+            "t": "冪等性",
+            "en": "Idempotency",
+            "ps": "N"
+          },
+          {
+            "t": "重複",
+            "en": "duplicate",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "(B) 極致效能 (Maximum Performance)：必須使用多執行緒將 CPU 跑滿以縮短時間。",
+        "en": "(B) Maximum Performance: Must use multi-threading to max out CPU usage to shorten time.",
+        "wg": []
+      },
+      {
+        "t": "(C) 一次性交易 (Single Transaction)：將 5TB 資料包在一個 Transaction 中，確保全有或全無。",
+        "en": "(C) Single Transaction: Wrap 5TB of data in a single transaction to ensure all-or-nothing.",
+        "wg": []
+      },
+      {
+        "t": "(D) 隨機讀取 (Random Read)：隨機挑選資料進行複製以避免熱點。",
+        "en": "(D) Random Read: Randomly select data to copy to avoid hotspots.",
+        "wg": []
+      }
+    ],
+    "answer": "(A)",
+    "why": {
+      "t": "在大規模資料遷移中，失敗是常態。腳本必須設計為可重入 (Re-entrant) 與冪等 (Idempotent)，例如使用 `INSERT IGNORE` 或 `UPSERT`，並記錄 Checkpoint。這樣當腳本重啟時，可以安全地接續工作而不會破壞資料一致性。",
+      "en": "In large-scale data migration, failure is the norm. Scripts must be designed to be Re-entrant and Idempotent, for example using `INSERT IGNORE` or `UPSERT`, and logging Checkpoints. This allows the script to safely resume work upon restart without compromising data consistency.",
+      "wg": [
+        {
+          "t": "可重入",
+          "en": "Re-entrant",
+          "ps": "Adj"
+        },
+        {
+          "t": "接續",
+          "en": "resume",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "chapter10-q15",
+    "level": "intermediate",
+    "keywords": "Cleanup, Rollback, Safety, Migration Lifecycle",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "遷移專案看似完成了：雙寫已停止，讀取流量已 100% 切換至新資料庫。",
+        "en": "The migration project seems complete: dual-write has stopped, and read traffic is 100% switched to the new database.",
+        "wg": [
+          {
+            "t": "看似",
+            "en": "seemingly",
+            "ps": "Adv"
+          }
+        ]
+      },
+      {
+        "t": "此時，關於「刪除舊資料表/欄位 (Cleanup)」的最佳實務是什麼？",
+        "en": "At this point, what is the best practice regarding 'Cleanup' (deleting the old table/column)?",
+        "wg": [
+          {
+            "t": "最佳實務",
+            "en": "best practice",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 立即刪除舊表以釋放儲存空間，節省成本。",
+        "en": "(A) Immediately delete the old table to free up storage space and save costs.",
+        "wg": []
+      },
+      {
+        "t": "(B) 保留舊表數週至數月，並先進行備份 (Backup) 或封存 (Archive)，確認無任何隱藏的相依性或長期 Bug 後再刪除。",
+        "en": "(B) Keep the old table for weeks to months, back it up or archive it first, and delete only after confirming there are no hidden dependencies or long-term bugs.",
+        "wg": [
+          {
+            "t": "封存",
+            "en": "archive",
+            "ps": "V"
+          },
+          {
+            "t": "相依性",
+            "en": "dependency",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) 將舊表重新命名 (Rename) 即可，不需要刪除。",
+        "en": "(C) Just rename the old table; no need to delete it.",
+        "wg": []
+      },
+      {
+        "t": "(D) 只有在資料庫硬碟滿了的時候才刪除舊表。",
+        "en": "(D) Delete the old table only when the database disk is full.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "「立即刪除」是危險的操作。某些低頻率的報表排程或遺留程式碼可能仍依賴舊表。保留一段觀察期 (Cool-down period) 並做好備份，是防止災難性資料遺失的最後一道防線。",
+      "en": "'Immediate deletion' is a dangerous operation. Some low-frequency reporting schedules or legacy code might still rely on the old table. Keeping a cool-down period and ensuring backups is the final line of defense against catastrophic data loss.",
+      "wg": [
+        {
+          "t": "遺留程式碼",
+          "en": "legacy code",
+          "ps": "N"
+        },
+        {
+          "t": "防線",
+          "en": "line of defense",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "chapter10-q10",
+    "level": "advanced",
+    "keywords": "Validation, Latency, Sampling, Read Diff",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在雙寫遷移的「資料驗證 (Validation)」階段，您開啟了「讀取比較 (Read Diff)」模式，讓應用程式同時讀取新舊資料庫並比較結果。",
+        "en": "In the 'Validation' phase of a dual-write migration, you enabled 'Read Diff' mode, allowing the application to read from both old and new databases and compare the results.",
+        "wg": [
+          {
+            "t": "讀取比較",
+            "en": "Read Diff",
+            "ps": "N"
+          },
+          {
+            "t": "資料驗證",
+            "en": "Validation",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "然而，監控顯示 API 的 P99 延遲 (Latency) 增加了近一倍，影響了使用者體驗。",
+        "en": "However, monitoring shows that the API P99 latency has nearly doubled, impacting user experience.",
+        "wg": [
+          {
+            "t": "延遲",
+            "en": "latency",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "為了在不犧牲驗證覆蓋率太多的前提下改善效能，下列哪種策略最為合適？",
+        "en": "To improve performance without sacrificing too much validation coverage, which of the following strategies is most appropriate?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 僅對 1% ~ 5% 的請求進行隨機採樣比較 (Sampling)，其餘請求只讀取舊資料庫。",
+        "en": "(A) Perform random sampling comparison on only 1% ~ 5% of requests; other requests read only from the old database.",
+        "wg": [
+          {
+            "t": "採樣",
+            "en": "sampling",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(B) 暫停雙寫 (Dual Write)，先專注於修復延遲問題。",
+        "en": "(B) Pause Dual Write and focus on fixing the latency issue first.",
+        "wg": []
+      },
+      {
+        "t": "(C) 強制所有讀取請求改為非同步執行 (Async/Await)。",
+        "en": "(C) Force all read requests to be executed asynchronously (Async/Await).",
+        "wg": []
+      },
+      {
+        "t": "(D) 直接切換 100% 流量到新資料庫，讓使用者回報錯誤。",
+        "en": "(D) Switch 100% of traffic to the new database immediately and let users report errors.",
+        "wg": []
+      }
+    ],
+    "answer": "(A)",
+    "why": {
+      "t": "同步讀取兩個資料庫勢必會增加延遲。透過採樣 (Sampling) 可以在統計上驗證資料一致性，同時將對整體效能的影響降至最低，這是生產環境中常見的折衷方案。",
+      "en": "Reading from two databases synchronously inevitably increases latency. Sampling allows for statistical verification of data consistency while minimizing the impact on overall performance, which is a common trade-off in production environments.",
+      "wg": [
+        {
+          "t": "折衷方案",
+          "en": "trade-off",
+          "ps": "N"
+        },
+        {
+          "t": "統計上",
+          "en": "statistically",
+          "ps": "Adv"
+        }
+      ]
+    }
+  },
+  {
+    "no": "chapter10-q11",
+    "level": "intermediate",
+    "keywords": "Rollback, Feature Flags, Reliability, Source of Truth",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您正在進行「切換讀取 (Switch Reads)」階段，目前已將 50% 的讀取流量切換至新資料庫。",
+        "en": "You are in the 'Switch Reads' phase and have currently switched 50% of the read traffic to the new database.",
+        "wg": [
+          {
+            "t": "切換讀取",
+            "en": "Switch Reads",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "此時客服收到大量投訴，指出部分訂單資料在新介面上遺失。您應該立即採取什麼行動？",
+        "en": "At this point, customer support receives numerous complaints stating that some order data is missing on the new interface. What immediate action should you take?",
+        "wg": [
+          {
+            "t": "遺失",
+            "en": "missing",
+            "ps": "Adj"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 透過 Feature Flag 將讀取流量切回 100% 舊資料庫 (Rollback)。",
+        "en": "(A) Switch read traffic back to 100% old database via Feature Flag (Rollback).",
+        "wg": [
+          {
+            "t": "回滾",
+            "en": "rollback",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(B) 立即停止雙寫 (Stop Dual Write) 以避免錯誤擴散。",
+        "en": "(B) Immediately stop Dual Write to prevent the error from spreading.",
+        "wg": []
+      },
+      {
+        "t": "(C) 緊急執行一次新的資料回填 (Backfill) 腳本。",
+        "en": "(C) Urgently execute a new data backfill script.",
+        "wg": []
+      },
+      {
+        "t": "(D) 暫停服務 (Maintenance Mode) 直到修復資料為止。",
+        "en": "(D) Suspend the service (Maintenance Mode) until the data is fixed.",
+        "wg": []
+      }
+    ],
+    "answer": "(A)",
+    "why": {
+      "t": "由於雙寫 (Dual Write) 仍在運作，舊資料庫 (Old DB) 依然擁有最完整的最新資料 (Source of Truth)。切回舊資料庫是最快恢復服務且風險最低的手段。",
+      "en": "Since Dual Write is still active, the Old DB still holds the most complete and up-to-date data (Source of Truth). Switching back to the old database is the fastest and lowest-risk way to restore service.",
+      "wg": [
+        {
+          "t": "單一真值來源",
+          "en": "Source of Truth",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "chapter10-q12",
+    "level": "intermediate",
+    "keywords": "Cleanup, SRE, Scream Test, Rename Table",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "遷移已順利完成，新資料庫運行穩定。現在進入「清理 (Cleanup)」階段，您準備刪除舊的 `Orders` 表。",
+        "en": "The migration is successfully completed, and the new database is running stably. Now entering the 'Cleanup' phase, you are preparing to drop the old `Orders` table.",
+        "wg": [
+          {
+            "t": "清理",
+            "en": "Cleanup",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "為了防止有未被發現的 Legacy Code 仍在使用該表，最安全的做法是什麼？",
+        "en": "To prevent undiscovered legacy code from still using the table, what is the safest practice?",
+        "wg": [
+          {
+            "t": "遺留代碼",
+            "en": "legacy code",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 先將表重新命名 (Rename)，觀察一段時間是否有錯誤日誌產生，確認無誤後再刪除。",
+        "en": "(A) Rename the table first, observe for error logs for a period, and drop it only after confirming there are no errors.",
+        "wg": [
+          {
+            "t": "重新命名",
+            "en": "rename",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(B) 直接執行 `DROP TABLE`，因為已經通過了完整的測試。",
+        "en": "(B) Execute `DROP TABLE` directly, as full testing has already been passed.",
+        "wg": []
+      },
+      {
+        "t": "(C) 清空表內資料 (TRUNCATE) 但保留表結構。",
+        "en": "(C) Clear the data in the table (TRUNCATE) but keep the table structure.",
+        "wg": []
+      },
+      {
+        "t": "(D) 移除資料庫使用者的讀取權限，若有報錯再加回來。",
+        "en": "(D) Remove the database user's read permission, and add it back if errors occur.",
+        "wg": []
+      }
+    ],
+    "answer": "(A)",
+    "why": {
+      "t": "這被稱為「尖叫測試 (Scream Test)」。重新命名 (Rename) 是一個可逆的操作，若有服務因此崩潰 (Scream)，可以立即改回原名。直接 Drop 或 Truncate 則難以快速復原。",
+      "en": "This is known as a 'Scream Test'. Renaming is a reversible operation; if a service crashes (screams) because of it, you can immediately rename it back. Direct Drop or Truncate is difficult to recover from quickly.",
+      "wg": [
+        {
+          "t": "可逆的",
+          "en": "reversible",
+          "ps": "Adj"
+        },
+        {
+          "t": "尖叫測試",
+          "en": "Scream Test",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "chapter10-q13",
+    "level": "intermediate",
+    "keywords": "CI/CD, SQL Linter, EXPLAIN, Prevention",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您的團隊發現 Production 環境常因「缺少索引 (Missing Index)」的查詢導致效能問題。",
+        "en": "Your team found that the production environment often suffers from performance issues due to queries with 'Missing Index'.",
+        "wg": [
+          {
+            "t": "缺少索引",
+            "en": "missing index",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "為了在程式碼部署前系統化地預防此類問題，下列哪項措施最有效？",
+        "en": "To systematically prevent such issues before code deployment, which of the following measures is most effective?",
+        "wg": [
+          {
+            "t": "系統化地",
+            "en": "systematically",
+            "ps": "Adv"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 在 CI/CD 流程中引入 SQL Linter 或自動化 `EXPLAIN` 檢查。",
+        "en": "(A) Introduce SQL Linters or automated `EXPLAIN` checks in the CI/CD pipeline.",
+        "wg": [
+          {
+            "t": "管線",
+            "en": "pipeline",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(B) 增加資料庫的 CPU 資源以應對全表掃描。",
+        "en": "(B) Increase database CPU resources to handle full table scans.",
+        "wg": []
+      },
+      {
+        "t": "(C) 每週人工審查一次慢查詢日誌 (Slow Query Log)。",
+        "en": "(C) Manually review the Slow Query Log once a week.",
+        "wg": []
+      },
+      {
+        "t": "(D) 依賴 ORM 框架自動建立索引。",
+        "en": "(D) Rely on the ORM framework to automatically create indexes.",
+        "wg": []
+      }
+    ],
+    "answer": "(A)",
+    "why": {
+      "t": "預防勝於治療。在 CI 階段透過工具自動檢查 SQL 語句的執行計畫 (Execution Plan) 或語法規範，能將問題攔截在開發階段，而非流入 Production。",
+      "en": "Prevention is better than cure. Automatically checking the SQL execution plan or syntax standards via tools during the CI stage can intercept issues in the development phase rather than letting them flow into Production.",
+      "wg": [
+        {
+          "t": "執行計畫",
+          "en": "execution plan",
+          "ps": "N"
+        },
+        {
+          "t": "攔截",
+          "en": "intercept",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "chapter10-q14",
+    "level": "advanced",
+    "keywords": "Sharding, Dual-write, Replication, Topology",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "當您需要將單體資料庫遷移至「分片架構 (Sharded Architecture)」時，為何通常無法直接使用資料庫內建的 Replication (如 MySQL Replication) 來完成遷移？",
+        "en": "When you need to migrate a monolithic database to a 'Sharded Architecture', why is it usually impossible to use built-in database Replication (e.g., MySQL Replication) directly to complete the migration?",
+        "wg": [
+          {
+            "t": "分片架構",
+            "en": "sharded architecture",
+            "ps": "N"
+          },
+          {
+            "t": "內建的",
+            "en": "built-in",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "請選出最核心的原因。",
+        "en": "Please select the most core reason.",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 因為資料拓撲 (Topology) 改變了，需要根據 Sharding Key 重新分配資料邏輯，而非單純的鏡像複製。",
+        "en": "(A) Because the data topology has changed, requiring data redistribution based on the Sharding Key, rather than simple mirroring.",
+        "wg": [
+          {
+            "t": "拓撲",
+            "en": "topology",
+            "ps": "N"
+          },
+          {
+            "t": "重新分配",
+            "en": "redistribution",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(B) 因為 Replication 會造成過大的網路延遲。",
+        "en": "(B) Because Replication causes excessive network latency.",
+        "wg": []
+      },
+      {
+        "t": "(C) 因為分片資料庫通常不支援 SQL 語法。",
+        "en": "(C) Because sharded databases usually do not support SQL syntax.",
+        "wg": []
+      },
+      {
+        "t": "(D) 因為內建 Replication 無法處理大於 1TB 的資料。",
+        "en": "(D) Because built-in Replication cannot handle data larger than 1TB.",
+        "wg": []
+      }
+    ],
+    "answer": "(A)",
+    "why": {
+      "t": "資料庫內建的 Replication 通常是實例級別 (Instance-level) 的全量複製。分片 (Sharding) 涉及將一張表的資料依據特定邏輯 (Sharding Key) 拆分到多個不同的實例中，這需要應用層介入進行邏輯雙寫或使用專門的 ETL 工具。",
+      "en": "Built-in database Replication is usually instance-level full copying. Sharding involves splitting data from one table into multiple different instances based on specific logic (Sharding Key), which requires application-level intervention for logical dual-write or specialized ETL tools.",
+      "wg": [
+        {
+          "t": "實例",
+          "en": "instance",
+          "ps": "N"
+        },
+        {
+          "t": "介入",
+          "en": "intervention",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "chapter10-q15",
+    "level": "intermediate",
+    "keywords": "Atomic Rename, OSC, Shadow Table, Consistency",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在使用 Online Schema Change (如 `gh-ost` 或 `pt-online-schema-change`) 工具時，最後一步是如何將流量從原表切換到新表的？",
+        "en": "When using Online Schema Change tools (like `gh-ost` or `pt-online-schema-change`), how is traffic switched from the original table to the new table in the final step?",
+        "wg": [
+          {
+            "t": "切換",
+            "en": "switch",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "請選出確保請求不遺失的關鍵機制。",
+        "en": "Please select the key mechanism that ensures no requests are lost.",
+        "wg": [
+          {
+            "t": "機制",
+            "en": "mechanism",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 原子重新命名 (Atomic Rename)。",
+        "en": "(A) Atomic Rename.",
+        "wg": [
+          {
+            "t": "原子",
+            "en": "atomic",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "(B) 停止資料庫服務並更改設定檔。",
+        "en": "(B) Stop the database service and change the configuration file.",
+        "wg": []
+      },
+      {
+        "t": "(C) 透過 HTTP Load Balancer 切換路徑。",
+        "en": "(C) Switch paths via HTTP Load Balancer.",
+        "wg": []
+      },
+      {
+        "t": "(D) 刪除舊表，然後將新表改名為舊表名 (分兩步執行)。",
+        "en": "(D) Drop the old table, then rename the new table to the old table name (executed in two steps).",
+        "wg": []
+      }
+    ],
+    "answer": "(A)",
+    "why": {
+      "t": "OSC 工具利用資料庫的原子性操作 (如 `RENAME TABLE old TO backup, new TO old`)，在極短的時間內完成切換。這確保了在切換瞬間，所有連線要嘛看到舊表，要嘛看到新表，不會出現「找不到表」的空窗期。",
+      "en": "OSC tools leverage the database's atomic operations (like `RENAME TABLE old TO backup, new TO old`) to complete the switch in a very short time. This ensures that at the moment of the switch, all connections see either the old table or the new table, avoiding a 'table not found' gap.",
+      "wg": [
+        {
+          "t": "空窗期",
+          "en": "gap/window",
+          "ps": "N"
+        },
+        {
+          "t": "原子性",
+          "en": "atomicity",
+          "ps": "N"
+        }
+      ]
+    }
+  }
+]

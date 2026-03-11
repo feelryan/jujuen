@@ -1,0 +1,605 @@
+[
+  {
+    "no": "6",
+    "level": "advanced",
+    "keywords": "Structured Concurrency, StructuredTaskScope, Error Handling, Java 21",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "try (var scope = new StructuredTaskScope.ShutdownOnFailure()) {\n    var taskA = scope.fork(() -> serviceA.fetch()); // takes 200ms\n    var taskB = scope.fork(() -> serviceB.fetch()); // throws Exception immediately\n    var taskC = scope.fork(() -> serviceC.fetch()); // takes 200ms\n\n    scope.join();\n    scope.throwIfFailed();\n}",
+    "question": [
+      {
+        "t": "請分析上述使用 `StructuredTaskScope.ShutdownOnFailure` 的程式碼片段。",
+        "en": "Analyze the code snippet above using `StructuredTaskScope.ShutdownOnFailure`.",
+        "wg": []
+      },
+      {
+        "t": "假設 `taskB` 立即拋出異常，關於 `taskA` 與 `taskC` 的狀態以及最終結果，下列敘述何者正確？",
+        "en": "Assuming `taskB` throws an exception immediately, which of the following statements is correct regarding the state of `taskA`, `taskC`, and the final result?",
+        "wg": [
+          {
+            "t": "立即",
+            "en": "immediately",
+            "ps": "Adv"
+          },
+          {
+            "t": "拋出異常",
+            "en": "throws an exception",
+            "ps": "Verb Phrase"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "`taskA` 與 `taskC` 會繼續執行直到完成，`scope.throwIfFailed()` 會在所有任務結束後拋出 `taskB` 的異常。",
+        "en": "`taskA` and `taskC` will continue to execute until completion, and `scope.throwIfFailed()` will throw `taskB`'s exception after all tasks finish.",
+        "wg": []
+      },
+      {
+        "t": "`taskA` 與 `taskC` 會收到中斷訊號（Interruption）並被取消，`scope.throwIfFailed()` 會拋出 `taskB` 的異常。",
+        "en": "`taskA` and `taskC` will receive an interruption signal and be cancelled, and `scope.throwIfFailed()` will throw `taskB`'s exception.",
+        "wg": [
+          {
+            "t": "中斷訊號",
+            "en": "interruption signal",
+            "ps": "N"
+          },
+          {
+            "t": "取消",
+            "en": "cancelled",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "整個 try-with-resources 區塊會立即終止，不會拋出任何異常，因為這是虛擬執行緒的預設行為。",
+        "en": "The entire try-with-resources block will terminate immediately without throwing any exception, as this is the default behavior of virtual threads.",
+        "wg": []
+      },
+      {
+        "t": "`taskB` 的異常會被吞沒（Swallowed），`scope.join()` 會正常返回，需手動檢查 Future 狀態。",
+        "en": "`taskB`'s exception will be swallowed, `scope.join()` will return normally, and you must manually check the Future state.",
+        "wg": [
+          {
+            "t": "吞沒",
+            "en": "swallowed",
+            "ps": "V"
+          }
+        ]
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "`ShutdownOnFailure` 的策略是「只要有一個失敗，就終止整個 Scope」。因此當 `taskB` 失敗時，Scope 會自動對其他正在運行的執行緒（taskA, taskC）發送中斷請求以節省資源，並透過 `throwIfFailed()` 傳播第一個捕獲到的異常。",
+      "en": "The strategy of `ShutdownOnFailure` is 'if one fails, terminate the whole scope'. Therefore, when `taskB` fails, the Scope automatically sends interrupt requests to other running threads (taskA, taskC) to conserve resources and propagates the first captured exception via `throwIfFailed()`.",
+      "wg": [
+        {
+          "t": "策略",
+          "en": "strategy",
+          "ps": "N"
+        },
+        {
+          "t": "傳播",
+          "en": "propagate",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "7",
+    "level": "intermediate",
+    "keywords": "ThreadLocal, Memory Leak, Virtual Threads, Heap Memory",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您將一個依賴 `ThreadLocal` 儲存大量使用者 Context 的應用程式，從傳統 Thread Pool 模型遷移至 Virtual Threads。",
+        "en": "You migrate an application that relies on `ThreadLocal` to store large user Contexts from a traditional Thread Pool model to Virtual Threads.",
+        "wg": [
+          {
+            "t": "依賴",
+            "en": "relies on",
+            "ps": "V"
+          },
+          {
+            "t": "遷移",
+            "en": "migrate",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "在高併發負載測試下，您觀察到 Heap Memory 使用量暴增並導致 OutOfMemoryError (OOM)。最可能的原因是什麼？",
+        "en": "Under high concurrency load testing, you observe a spike in Heap Memory usage leading to an OutOfMemoryError (OOM). What is the most likely cause?",
+        "wg": [
+          {
+            "t": "暴增",
+            "en": "spike / surge",
+            "ps": "V"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "虛擬執行緒的 Stack Size 預設比平台執行緒大，導致記憶體不足。",
+        "en": "The default Stack Size of virtual threads is larger than platform threads, causing insufficient memory.",
+        "wg": []
+      },
+      {
+        "t": "虛擬執行緒數量極多（如數十萬），每個執行緒都複製了一份 `ThreadLocal` 資料，造成嚴重的 Memory Bloat。",
+        "en": "The number of virtual threads is massive (e.g., hundreds of thousands), and each thread copies the `ThreadLocal` data, causing severe Memory Bloat.",
+        "wg": [
+          {
+            "t": "記憶體膨脹",
+            "en": "Memory Bloat",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "虛擬執行緒無法被 Garbage Collector 回收。",
+        "en": "Virtual threads cannot be collected by the Garbage Collector.",
+        "wg": []
+      },
+      {
+        "t": "Spring Boot 3.2 的虛擬執行緒實作存在已知的記憶體洩漏 Bug。",
+        "en": "The virtual thread implementation in Spring Boot 3.2 has a known memory leak bug.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "傳統模型中執行緒少（如 200 個），`ThreadLocal` 佔用有限。但在虛擬執行緒模型下，執行緒數量可能達數十萬，若每個都持有大型物件，會導致 Heap 迅速耗盡。Java 21 引入 `ScopedValues` 作為更輕量的替代方案。",
+      "en": "In the traditional model, threads are few (e.g., 200), so `ThreadLocal` usage is limited. However, with virtual threads, the count can reach hundreds of thousands. If each holds large objects, the Heap will be exhausted quickly. Java 21 introduces `ScopedValues` as a lighter alternative.",
+      "wg": [
+        {
+          "t": "耗盡",
+          "en": "exhausted",
+          "ps": "V"
+        },
+        {
+          "t": "替代方案",
+          "en": "alternative",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "8",
+    "level": "intermediate",
+    "keywords": "Double-Checked Locking, volatile, Instruction Reordering, Singleton",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "public class Singleton {\n    private static Singleton instance; // Missing volatile\n\n    public static Singleton getInstance() {\n        if (instance == null) {\n            synchronized (Singleton.class) {\n                if (instance == null) {\n                    instance = new Singleton();\n                }\n            }\n        }\n        return instance;\n    }\n}",
+    "question": [
+      {
+        "t": "在實作 Double-Checked Locking Singleton 模式時（如上方程式碼所示），若遺漏 `volatile` 關鍵字，可能會導致什麼嚴重的併發問題？",
+        "en": "When implementing the Double-Checked Locking Singleton pattern (as shown in the code above), what serious concurrency issue can arise if the `volatile` keyword is omitted?",
+        "wg": [
+          {
+            "t": "遺漏",
+            "en": "omitted",
+            "ps": "V"
+          },
+          {
+            "t": "併發問題",
+            "en": "concurrency issue",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "多個執行緒可能同時進入 `synchronized` 區塊，導致建立多個實例。",
+        "en": "Multiple threads might enter the `synchronized` block simultaneously, creating multiple instances.",
+        "wg": []
+      },
+      {
+        "t": "由於指令重排（Instruction Reordering），其他執行緒可能取得一個「非 null 但尚未完全初始化」的物件。",
+        "en": "Due to Instruction Reordering, other threads might obtain a 'non-null but not yet fully initialized' object.",
+        "wg": [
+          {
+            "t": "指令重排",
+            "en": "Instruction Reordering",
+            "ps": "N"
+          },
+          {
+            "t": "尚未完全初始化",
+            "en": "not yet fully initialized",
+            "ps": "Adj Phrase"
+          }
+        ]
+      },
+      {
+        "t": "會導致 Deadlock，因為 `synchronized` 鎖無法被正確釋放。",
+        "en": "It will cause a Deadlock because the `synchronized` lock cannot be released correctly.",
+        "wg": []
+      },
+      {
+        "t": "`instance` 變數會被快取在暫存器中，導致其他執行緒永遠讀不到更新後的值（永遠為 null）。",
+        "en": "The `instance` variable will be cached in registers, causing other threads to never see the updated value (always null).",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "`new Singleton()` 包含三個步驟：分配記憶體、初始化物件、賦值給 reference。若無 `volatile`，CPU 可能重排為 1->3->2。此時 `instance` 已非 null，但物件尚未初始化，導致其他執行緒拿到損壞的物件。",
+      "en": "`new Singleton()` involves three steps: allocate memory, initialize object, assign to reference. Without `volatile`, the CPU might reorder to 1->3->2. At this point, `instance` is non-null but the object is uninitialized, causing other threads to get a corrupted object.",
+      "wg": [
+        {
+          "t": "賦值",
+          "en": "assign",
+          "ps": "V"
+        },
+        {
+          "t": "損壞",
+          "en": "corrupted",
+          "ps": "Adj"
+        }
+      ]
+    }
+  },
+  {
+    "no": "9",
+    "level": "intermediate",
+    "keywords": "Carrier Threads, Blocking I/O, Unmounting, Project Loom",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "當一個虛擬執行緒（Virtual Thread）執行阻塞式 I/O 操作（例如 `InputStream.read()`）時，底層的 Carrier Thread（平台執行緒）會發生什麼事？",
+        "en": "When a Virtual Thread performs a blocking I/O operation (e.g., `InputStream.read()`), what happens to the underlying Carrier Thread (Platform Thread)?",
+        "wg": [
+          {
+            "t": "阻塞式",
+            "en": "blocking",
+            "ps": "Adj"
+          },
+          {
+            "t": "底層",
+            "en": "underlying",
+            "ps": "Adj"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "Carrier Thread 會被作業系統阻塞（Blocked），直到 I/O 完成。",
+        "en": "The Carrier Thread is blocked by the OS until the I/O completes.",
+        "wg": []
+      },
+      {
+        "t": "虛擬執行緒會從 Carrier Thread 上「卸載（Unmount）」，Carrier Thread 隨即轉去執行其他虛擬執行緒。",
+        "en": "The Virtual Thread is 'unmounted' from the Carrier Thread, and the Carrier Thread immediately moves to execute other Virtual Threads.",
+        "wg": [
+          {
+            "t": "卸載",
+            "en": "unmount",
+            "ps": "V"
+          },
+          {
+            "t": "隨即",
+            "en": "immediately",
+            "ps": "Adv"
+          }
+        ]
+      },
+      {
+        "t": "Carrier Thread 會進入 Busy Spin 迴圈等待 I/O 完成，以減少 Context Switch。",
+        "en": "The Carrier Thread enters a Busy Spin loop waiting for I/O completion to reduce Context Switch.",
+        "wg": []
+      },
+      {
+        "t": "JVM 會建立一個新的 Carrier Thread 來補償被阻塞的執行緒。",
+        "en": "The JVM creates a new Carrier Thread to compensate for the blocked thread.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "這是虛擬執行緒的核心機制。當遇到 Blocking I/O 時，JVM 會將虛擬執行緒的 Stack 暫存到 Heap 中（Unmount），釋放 Carrier Thread 去處理其他任務，實現非阻塞的高吞吐量。",
+      "en": "This is the core mechanism of Virtual Threads. When Blocking I/O is encountered, the JVM saves the Virtual Thread's stack to the Heap (Unmount), freeing the Carrier Thread to handle other tasks, achieving non-blocking high throughput.",
+      "wg": [
+        {
+          "t": "核心機制",
+          "en": "core mechanism",
+          "ps": "N"
+        },
+        {
+          "t": "暫存",
+          "en": "save/park",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "10",
+    "level": "intermediate",
+    "keywords": "Pinning, ReentrantLock, synchronized, Performance",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "public void processData() {\n    // Causing Virtual Thread Pinning\n    synchronized (lock) {\n        blockingDatabaseCall();\n    }\n}",
+    "question": [
+      {
+        "t": "您發現上述程式碼在虛擬執行緒環境下導致了嚴重的效能問題（Pinning）。",
+        "en": "You discover that the code above causes severe performance issues (Pinning) in a Virtual Thread environment.",
+        "wg": [
+          {
+            "t": "效能問題",
+            "en": "performance issues",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "為了讓虛擬執行緒在等待鎖或 I/O 時能夠正確卸載（Unmount），您應該如何修改這段程式碼？",
+        "en": "To allow the Virtual Thread to correctly unmount while waiting for the lock or I/O, how should you modify this code?",
+        "wg": [
+          {
+            "t": "修改",
+            "en": "modify",
+            "ps": "V"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "將 `synchronized` 替換為 `ReentrantLock`。",
+        "en": "Replace `synchronized` with `ReentrantLock`.",
+        "wg": []
+      },
+      {
+        "t": "將 `synchronized` 替換為 `volatile`。",
+        "en": "Replace `synchronized` with `volatile`.",
+        "wg": []
+      },
+      {
+        "t": "使用 `CompletableFuture.runAsync()` 來包裹資料庫呼叫。",
+        "en": "Wrap the database call using `CompletableFuture.runAsync()`.",
+        "wg": []
+      },
+      {
+        "t": "增加 JVM 參數 `-Djdk.tracePinnedThreads=full` 來解決問題。",
+        "en": "Add the JVM parameter `-Djdk.tracePinnedThreads=full` to fix the issue.",
+        "wg": []
+      }
+    ],
+    "answer": "(A)",
+    "why": {
+      "t": "目前的虛擬執行緒實作中，在 `synchronized` 區塊內進行 Blocking 操作會導致 Pinning（無法卸載）。`ReentrantLock` 是 J.U.C 包的一部分，已針對虛擬執行緒優化，允許在等待鎖時卸載。",
+      "en": "In the current Virtual Thread implementation, performing Blocking operations inside a `synchronized` block causes Pinning (inability to unmount). `ReentrantLock`, being part of the J.U.C package, is optimized for Virtual Threads and allows unmounting while waiting for the lock.",
+      "wg": [
+        {
+          "t": "優化",
+          "en": "optimized",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "11",
+    "level": "intermediate",
+    "keywords": "Observability, Stack Trace, Debugging, Reactive vs Virtual Threads",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在可觀測性（Observability）與除錯方面，相較於 Reactive Programming (如 WebFlux)，使用 Virtual Threads 的主要優勢為何？",
+        "en": "Regarding Observability and Debugging, what is the main advantage of using Virtual Threads compared to Reactive Programming (e.g., WebFlux)?",
+        "wg": [
+          {
+            "t": "可觀測性",
+            "en": "Observability",
+            "ps": "N"
+          },
+          {
+            "t": "除錯",
+            "en": "Debugging",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "Virtual Threads 提供完整且連續的 Stack Trace，容易追蹤錯誤源頭。",
+        "en": "Virtual Threads provide complete and continuous Stack Traces, making it easy to trace the source of errors.",
+        "wg": [
+          {
+            "t": "連續的",
+            "en": "continuous",
+            "ps": "Adj"
+          },
+          {
+            "t": "源頭",
+            "en": "source",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "Virtual Threads 不需要任何 Logging 工具即可自動記錄所有請求。",
+        "en": "Virtual Threads automatically log all requests without needing any Logging tools.",
+        "wg": []
+      },
+      {
+        "t": "Reactive Programming 完全不支援 Stack Trace。",
+        "en": "Reactive Programming does not support Stack Traces at all.",
+        "wg": []
+      },
+      {
+        "t": "Virtual Threads 可以直接在瀏覽器中進行斷點除錯。",
+        "en": "Virtual Threads allow breakpoint debugging directly in the browser.",
+        "wg": []
+      }
+    ],
+    "answer": "(A)",
+    "why": {
+      "t": "Reactive Programming 由於非同步回呼的特性，Stack Trace 往往是破碎的（Disjointed），難以看出呼叫鏈。Virtual Threads 雖然底層非同步，但保留了同步程式碼的結構，因此異常發生時能提供完整且有意義的 Stack Trace。",
+      "en": "Due to the nature of asynchronous callbacks, Reactive Programming often results in disjointed Stack Traces, making it hard to see the call chain. Virtual Threads, while asynchronous under the hood, retain the structure of synchronous code, thus providing complete and meaningful Stack Traces when exceptions occur.",
+      "wg": [
+        {
+          "t": "破碎的",
+          "en": "disjointed / fragmented",
+          "ps": "Adj"
+        },
+        {
+          "t": "呼叫鏈",
+          "en": "call chain",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "12",
+    "level": "intermediate",
+    "keywords": "JMM, Monitor Lock, Happens-Before, Synchronization",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "根據 Java Memory Model (JMM) 的 Happens-Before 原則，下列關於 Monitor Lock（鎖）的敘述何者正確？",
+        "en": "According to the Java Memory Model (JMM) Happens-Before principle, which of the following statements about Monitor Lock is correct?",
+        "wg": [
+          {
+            "t": "原則",
+            "en": "principle",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "對一個鎖的解鎖（Unlock）Happens-Before 後續對同一個鎖的加鎖（Lock）。",
+        "en": "An unlock on a monitor happens-before every subsequent lock on that same monitor.",
+        "wg": [
+          {
+            "t": "後續",
+            "en": "subsequent",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "加鎖（Lock）Happens-Before 解鎖（Unlock）。",
+        "en": "A lock happens-before an unlock.",
+        "wg": []
+      },
+      {
+        "t": "Monitor Lock 不保證記憶體可見性，只保證互斥性。",
+        "en": "Monitor Lock does not guarantee memory visibility, only mutual exclusion.",
+        "wg": [
+          {
+            "t": "互斥性",
+            "en": "mutual exclusion",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "只有 `volatile` 變數才具備 Happens-Before 關係，鎖沒有。",
+        "en": "Only `volatile` variables have Happens-Before relationships, locks do not.",
+        "wg": []
+      }
+    ],
+    "answer": "(A)",
+    "why": {
+      "t": "這是 JMM 確保執行緒間記憶體可見性的關鍵規則之一。執行緒 A 解鎖前寫入的資料，對於隨後取得同一個鎖的執行緒 B 來說是可見的。",
+      "en": "This is one of the key rules in JMM ensuring memory visibility between threads. Data written by Thread A before unlocking is visible to Thread B when it subsequently acquires the same lock.",
+      "wg": [
+        {
+          "t": "可見性",
+          "en": "visibility",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "13",
+    "level": "intermediate",
+    "keywords": "ScopedValues, Java 21, ThreadLocal, Preview Feature",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "Java 21 引入了哪一個預覽功能（Preview Feature），旨在解決虛擬執行緒環境下 `ThreadLocal` 導致的記憶體膨脹與管理複雜度問題？",
+        "en": "Which preview feature did Java 21 introduce to address the memory bloat and management complexity issues caused by `ThreadLocal` in a Virtual Thread environment?",
+        "wg": [
+          {
+            "t": "旨在",
+            "en": "aims to",
+            "ps": "V"
+          },
+          {
+            "t": "複雜度",
+            "en": "complexity",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "ScopedValues",
+        "en": "ScopedValues",
+        "wg": []
+      },
+      {
+        "t": "StructuredConcurrency",
+        "en": "StructuredConcurrency",
+        "wg": []
+      },
+      {
+        "t": "Vector API",
+        "en": "Vector API",
+        "wg": []
+      },
+      {
+        "t": "Foreign Function & Memory API",
+        "en": "Foreign Function & Memory API",
+        "wg": []
+      }
+    ],
+    "answer": "(A)",
+    "why": {
+      "t": "`ScopedValues` 允許在方法呼叫鏈中安全且高效地共享不可變資料。與 `ThreadLocal` 不同，它不會無限制地複製到每個執行緒，且生命週期嚴格綁定在 Scope 內，非常適合大量虛擬執行緒的場景。",
+      "en": "`ScopedValues` allow safe and efficient sharing of immutable data across a method call chain. Unlike `ThreadLocal`, it does not copy limitlessly to every thread, and its lifecycle is strictly bound within a Scope, making it ideal for scenarios with massive virtual threads.",
+      "wg": [
+        {
+          "t": "不可變",
+          "en": "immutable",
+          "ps": "Adj"
+        },
+        {
+          "t": "綁定",
+          "en": "bound",
+          "ps": "V"
+        }
+      ]
+    }
+  }
+]

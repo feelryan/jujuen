@@ -1,0 +1,1414 @@
+[
+  {
+    "no": "7",
+    "level": "intermediate",
+    "keywords": "Sharding, Cross-Shard Joins, Global Tables, Denormalization",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您正在設計一個已分片的電子商務資料庫，其中 `Orders`（訂單）資料表已根據 `user_id` 進行分片。",
+        "en": "You are designing a sharded e-commerce database where the `Orders` table is sharded by `user_id`.",
+        "wg": [
+          {
+            "t": "分片",
+            "en": "sharded",
+            "ps": "Adj"
+          },
+          {
+            "t": "資料表",
+            "en": "table",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "系統中有一個極少變動的小型資料表 `Tax_Rates`（稅率），包含各國家的稅率資訊（約 200 列）。",
+        "en": "There is a small, rarely changing table called `Tax_Rates` containing tax rate information for various countries (about 200 rows).",
+        "wg": [
+          {
+            "t": "極少變動",
+            "en": "rarely changing",
+            "ps": "Adj"
+          },
+          {
+            "t": "列",
+            "en": "rows",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "當計算訂單總額時，您需要將 `Orders` 與 `Tax_Rates` 進行關聯 (Join)。為了避免跨分片查詢並保持高效能，最佳的策略是什麼？",
+        "en": "When calculating order totals, you need to join `Orders` with `Tax_Rates`. To avoid cross-shard queries and maintain high performance, what is the best strategy?",
+        "wg": [
+          {
+            "t": "關聯",
+            "en": "join",
+            "ps": "V"
+          },
+          {
+            "t": "跨分片",
+            "en": "cross-shard",
+            "ps": "Adj"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 將 `Tax_Rates` 也根據 `user_id` 進行分片，以確保資料位於同一節點。",
+        "en": "(A) Shard `Tax_Rates` by `user_id` as well to ensure data resides on the same node.",
+        "wg": []
+      },
+      {
+        "t": "(B) 在應用程式層分別查詢 `Orders` 與 `Tax_Rates`，然後在記憶體中執行關聯。",
+        "en": "(B) Query `Orders` and `Tax_Rates` separately in the application layer and perform the join in memory.",
+        "wg": [
+          {
+            "t": "應用程式層",
+            "en": "application layer",
+            "ps": "N"
+          },
+          {
+            "t": "記憶體",
+            "en": "memory",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) 將 `Tax_Rates` 視為全域資料表 (Global Table)，複製一份到每一個分片節點中。",
+        "en": "(C) Treat `Tax_Rates` as a Global Table and replicate a copy to every shard node.",
+        "wg": [
+          {
+            "t": "全域資料表",
+            "en": "Global Table",
+            "ps": "N"
+          },
+          {
+            "t": "複製",
+            "en": "replicate",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(D) 使用分散式交易 (2PC) 來鎖定兩個資料表並執行即時關聯。",
+        "en": "(D) Use distributed transactions (2PC) to lock both tables and perform a real-time join.",
+        "wg": []
+      }
+    ],
+    "answer": "(C)",
+    "why": {
+      "t": "對於小型且靜態的資料表，將其複製到所有分片（全域資料表）是消除跨分片關聯的最佳解法，這允許資料庫在本地執行 Join，避免了昂貴的網路傳輸或應用層處理。",
+      "en": "For small and static tables, replicating them to all shards (Global Tables) is the best solution to eliminate cross-shard joins. This allows the database to perform the join locally, avoiding expensive network transfers or application-layer processing.",
+      "wg": [
+        {
+          "t": "靜態的",
+          "en": "static",
+          "ps": "Adj"
+        },
+        {
+          "t": "消除",
+          "en": "eliminate",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "8",
+    "level": "advanced",
+    "keywords": "Leaderless Replication, Quorum, Consistency, CAP Theorem",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您正在設定一個無主 (Leaderless) 架構的資料庫（如 Cassandra 或 DynamoDB），副本因子 (N) 設為 3。",
+        "en": "You are configuring a Leaderless architecture database (like Cassandra or DynamoDB) with a replication factor (N) of 3.",
+        "wg": [
+          {
+            "t": "無主",
+            "en": "Leaderless",
+            "ps": "Adj"
+          },
+          {
+            "t": "副本因子",
+            "en": "replication factor",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "業務需求要求極高的寫入速度，因此您將寫入法定人數 (W) 設定為 1。",
+        "en": "Business requirements demand extremely high write speeds, so you set the Write Quorum (W) to 1.",
+        "wg": [
+          {
+            "t": "寫入速度",
+            "en": "write speeds",
+            "ps": "N"
+          },
+          {
+            "t": "法定人數",
+            "en": "Quorum",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "為了確保強一致性 (Strong Consistency)，即讀取操作必定能讀到最新的寫入，您的讀取法定人數 (R) 至少應設為多少？",
+        "en": "To ensure Strong Consistency, meaning read operations are guaranteed to see the latest write, what must your Read Quorum (R) be set to at a minimum?",
+        "wg": [
+          {
+            "t": "強一致性",
+            "en": "Strong Consistency",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 1",
+        "en": "(A) 1",
+        "wg": []
+      },
+      {
+        "t": "(B) 2",
+        "en": "(B) 2",
+        "wg": []
+      },
+      {
+        "t": "(C) 3",
+        "en": "(C) 3",
+        "wg": []
+      },
+      {
+        "t": "(D) 無法達成，因為 W=1 時必定是最終一致性。",
+        "en": "(D) Impossible to achieve, as W=1 implies Eventual Consistency.",
+        "wg": [
+          {
+            "t": "最終一致性",
+            "en": "Eventual Consistency",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "answer": "(C)",
+    "why": {
+      "t": "根據法定人數公式 $W + R > N$，若 $N=3$ 且 $W=1$，則 $R$ 必須大於 $3 - 1 = 2$，因此 $R$ 至少需為 3 才能確保讀取到最新的寫入（強一致性）。這會導致讀取效能極差且可用性低。",
+      "en": "According to the Quorum formula $W + R > N$, if $N=3$ and $W=1$, then $R$ must be greater than $3 - 1 = 2$. Therefore, $R$ must be at least 3 to ensure reading the latest write (Strong Consistency). This results in very poor read performance and low availability.",
+      "wg": [
+        {
+          "t": "公式",
+          "en": "formula",
+          "ps": "N"
+        },
+        {
+          "t": "可用性",
+          "en": "availability",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "9",
+    "level": "intermediate",
+    "keywords": "Multi-Leader, Write Conflicts, Replication, Distributed Systems",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您的團隊決定採用多主複製 (Multi-Leader Replication) 策略，以便在美國與歐洲的資料中心都能進行低延遲的寫入。",
+        "en": "Your team decides to adopt a Multi-Leader Replication strategy to allow low-latency writes in both US and European datacenters.",
+        "wg": [
+          {
+            "t": "多主複製",
+            "en": "Multi-Leader Replication",
+            "ps": "N"
+          },
+          {
+            "t": "低延遲",
+            "en": "low-latency",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "這種架構最主要的缺點或挑戰是什麼？",
+        "en": "What is the primary disadvantage or challenge of this architecture?",
+        "wg": [
+          {
+            "t": "缺點",
+            "en": "disadvantage",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "請從下列選項中選出最核心的技術難題。",
+        "en": "Please select the most core technical challenge from the following options.",
+        "wg": [
+          {
+            "t": "核心的",
+            "en": "core",
+            "ps": "Adj"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 讀取延遲會顯著增加。",
+        "en": "(A) Read latency will increase significantly.",
+        "wg": []
+      },
+      {
+        "t": "(B) 必須處理寫入衝突 (Write Conflicts)。",
+        "en": "(B) Must handle Write Conflicts.",
+        "wg": [
+          {
+            "t": "寫入衝突",
+            "en": "Write Conflicts",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) 無法支援任何形式的備份。",
+        "en": "(C) Cannot support any form of backups.",
+        "wg": []
+      },
+      {
+        "t": "(D) 單一資料中心故障會導致全域停機。",
+        "en": "(D) Failure of a single datacenter will cause global downtime.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "多主複製允許在不同節點同時修改同一筆資料，這不可避免地會導致寫入衝突（例如兩個使用者同時修改同一欄位）。系統必須設計衝突解決機制（如最後寫入者勝 LWW 或向量時鐘）。",
+      "en": "Multi-Leader replication allows simultaneous modification of the same data on different nodes, which inevitably leads to Write Conflicts (e.g., two users modifying the same field at the same time). The system must design conflict resolution mechanisms (such as Last Write Wins or Vector Clocks).",
+      "wg": [
+        {
+          "t": "不可避免地",
+          "en": "inevitably",
+          "ps": "Adv"
+        },
+        {
+          "t": "解決機制",
+          "en": "resolution mechanisms",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "10",
+    "level": "advanced",
+    "keywords": "Consistent Hashing, Ring Topology, Node Removal, Rebalancing",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在一個使用一致性雜湊 (Consistent Hashing) 的環狀拓撲中，節點按雜湊值順序排列為 A, B, C, D。",
+        "en": "In a ring topology using Consistent Hashing, nodes are arranged in hash order as A, B, C, D.",
+        "wg": [
+          {
+            "t": "環狀拓撲",
+            "en": "ring topology",
+            "ps": "N"
+          },
+          {
+            "t": "順序",
+            "en": "order",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "若節點 C 發生故障並被移除，原本屬於節點 C 的資料流量將會轉移到哪個節點？",
+        "en": "If node C fails and is removed, to which node will the data traffic originally belonging to node C be transferred?",
+        "wg": [
+          {
+            "t": "故障",
+            "en": "fails",
+            "ps": "V"
+          },
+          {
+            "t": "轉移",
+            "en": "transferred",
+            "ps": "V"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 節點 A (環的起始節點)",
+        "en": "(A) Node A (The start of the ring)",
+        "wg": []
+      },
+      {
+        "t": "(B) 節點 B (C 的前一個節點)",
+        "en": "(B) Node B (The predecessor of C)",
+        "wg": [
+          {
+            "t": "前一個節點",
+            "en": "predecessor",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) 節點 D (C 的順時針下一個節點)",
+        "en": "(C) Node D (The next node clockwise from C)",
+        "wg": [
+          {
+            "t": "順時針",
+            "en": "clockwise",
+            "ps": "Adv"
+          }
+        ]
+      },
+      {
+        "t": "(D) 平均分散到 A, B, D",
+        "en": "(D) Evenly distributed across A, B, and D",
+        "wg": []
+      }
+    ],
+    "answer": "(C)",
+    "why": {
+      "t": "在一致性雜湊中，Key 會被分配給順時針方向遇到的第一個節點。原本映射到 C 的 Key（位於 B 與 C 之間的雜湊範圍），在 C 移除後，順時針遇到的第一個節點變成了 D，因此流量會轉移給 D。",
+      "en": "In Consistent Hashing, a Key is assigned to the first node encountered moving clockwise. Keys originally mapped to C (in the hash range between B and C) will encounter D as the first node clockwise after C is removed, so the traffic shifts to D.",
+      "wg": [
+        {
+          "t": "映射",
+          "en": "mapped",
+          "ps": "V"
+        },
+        {
+          "t": "範圍",
+          "en": "range",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "11",
+    "level": "advanced",
+    "keywords": "Distributed Transactions, 2PC, ACID, Performance",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在分片資料庫架構中，為什麼通常不建議使用兩階段提交 (Two-Phase Commit, 2PC) 來處理跨分片的轉帳交易？",
+        "en": "In a sharded database architecture, why is it generally not recommended to use Two-Phase Commit (2PC) for cross-shard transfer transactions?",
+        "wg": [
+          {
+            "t": "兩階段提交",
+            "en": "Two-Phase Commit",
+            "ps": "N"
+          },
+          {
+            "t": "轉帳交易",
+            "en": "transfer transactions",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "請選出對系統效能影響最大的原因。",
+        "en": "Please select the reason that has the greatest impact on system performance.",
+        "wg": [
+          {
+            "t": "影響",
+            "en": "impact",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 2PC 無法保證資料的一致性。",
+        "en": "(A) 2PC cannot guarantee data consistency.",
+        "wg": []
+      },
+      {
+        "t": "(B) 協調者 (Coordinator) 是單點故障風險，但不會影響效能。",
+        "en": "(B) The Coordinator is a single point of failure risk, but does not affect performance.",
+        "wg": []
+      },
+      {
+        "t": "(C) 2PC 需要在網路往返期間持有鎖 (Locks)，嚴重降低吞吐量。",
+        "en": "(C) 2PC requires holding locks during network round-trips, severely reducing throughput.",
+        "wg": [
+          {
+            "t": "持有鎖",
+            "en": "holding locks",
+            "ps": "V"
+          },
+          {
+            "t": "吞吐量",
+            "en": "throughput",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(D) 現代資料庫不再支援 2PC 協議。",
+        "en": "(D) Modern databases no longer support the 2PC protocol.",
+        "wg": []
+      }
+    ],
+    "answer": "(C)",
+    "why": {
+      "t": "2PC 是一個阻塞協議 (Blocking Protocol)。在準備與提交階段，參與的節點必須持有鎖並等待協調者的指令。這意味著鎖的持有時間包含了網路延遲，這會大幅降低資料庫的並發處理能力與效能。",
+      "en": "2PC is a blocking protocol. During the prepare and commit phases, participating nodes must hold locks and wait for instructions from the coordinator. This means lock duration includes network latency, which drastically reduces the database's concurrency and performance.",
+      "wg": [
+        {
+          "t": "阻塞協議",
+          "en": "Blocking Protocol",
+          "ps": "N"
+        },
+        {
+          "t": "並發處理能力",
+          "en": "concurrency",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "12",
+    "level": "intermediate",
+    "keywords": "Scaling Strategy, Read Replicas, Caching, Optimization",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您的團隊負責維護一個讀寫比為 95:5 的內容管理系統 (CMS)，目前單一關聯式資料庫的 CPU 使用率已持續達到 90%。",
+        "en": "Your team maintains a Content Management System (CMS) with a 95:5 read-write ratio, and the single relational database's CPU usage consistently hits 90%.",
+        "wg": [
+          {
+            "t": "讀寫比",
+            "en": "read-write ratio",
+            "ps": "N"
+          },
+          {
+            "t": "關聯式資料庫",
+            "en": "relational database",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "團隊成員提議立即進行資料庫分片 (Sharding) 以解決效能問題。",
+        "en": "A team member proposes immediately sharding the database to resolve the performance issues.",
+        "wg": [
+          {
+            "t": "提議",
+            "en": "proposes",
+            "ps": "V"
+          },
+          {
+            "t": "立即",
+            "en": "immediately",
+            "ps": "Adv"
+          }
+        ]
+      },
+      {
+        "t": "根據擴展性最佳實務，在考慮分片之前，您應該優先評估哪一項策略？",
+        "en": "According to scalability best practices, which strategy should you evaluate first before considering sharding?",
+        "wg": [
+          {
+            "t": "最佳實務",
+            "en": "best practices",
+            "ps": "N"
+          },
+          {
+            "t": "優先評估",
+            "en": "evaluate first",
+            "ps": "V"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 實作一致性雜湊 (Consistent Hashing) 以重新分配請求。",
+        "en": "(A) Implement Consistent Hashing to redistribute requests.",
+        "wg": []
+      },
+      {
+        "t": "(B) 引入讀取副本 (Read Replicas) 與快取層 (Caching) 以分擔讀取流量。",
+        "en": "(B) Introduce Read Replicas and a Caching layer to offload read traffic.",
+        "wg": [
+          {
+            "t": "讀取副本",
+            "en": "Read Replicas",
+            "ps": "N"
+          },
+          {
+            "t": "分擔",
+            "en": "offload",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(C) 將資料庫遷移至無主 (Leaderless) 架構。",
+        "en": "(C) Migrate the database to a Leaderless architecture.",
+        "wg": []
+      },
+      {
+        "t": "(D) 使用兩階段提交 (2PC) 來優化交易處理。",
+        "en": "(D) Use Two-Phase Commit (2PC) to optimize transaction processing.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "分片會大幅增加系統複雜度，通常是最後手段。由於系統是讀取密集型 (95% reads)，優先使用讀取副本與快取通常能以較低的成本解決 CPU 瓶頸。",
+      "en": "Sharding significantly increases system complexity and should be a last resort. Since the system is read-heavy (95% reads), prioritizing Read Replicas and Caching can usually resolve CPU bottlenecks with lower cost.",
+      "wg": [
+        {
+          "t": "最後手段",
+          "en": "last resort",
+          "ps": "N"
+        },
+        {
+          "t": "讀取密集型",
+          "en": "read-heavy",
+          "ps": "Adj"
+        }
+      ]
+    }
+  },
+  {
+    "no": "13",
+    "level": "intermediate",
+    "keywords": "Consistent Hashing, Code Reading, Ring Topology, Binary Search",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "def get_node(self, key):\n    if not self.ring:\n        return None\n    hash_val = self._hash(key)\n    idx = bisect.bisect(self.sorted_keys, hash_val)\n    \n    if idx == len(self.sorted_keys):\n        idx = 0  # <--- Focus on this line\n        \n    return self.ring[self.sorted_keys[idx]]",
+    "question": [
+      {
+        "t": "請參考上述一致性雜湊 (Consistent Hashing) 的 Python 實作片段。",
+        "en": "Please refer to the Python implementation snippet of Consistent Hashing above.",
+        "wg": [
+          {
+            "t": "實作片段",
+            "en": "implementation snippet",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "程式碼中 `if idx == len(self.sorted_keys): idx = 0` 這行邏輯的主要目的為何？",
+        "en": "What is the primary purpose of the logic `if idx == len(self.sorted_keys): idx = 0` in the code?",
+        "wg": [
+          {
+            "t": "主要目的",
+            "en": "primary purpose",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 處理雜湊碰撞 (Hash Collision) 的情況。",
+        "en": "(A) Handle Hash Collision scenarios.",
+        "wg": []
+      },
+      {
+        "t": "(B) 實作環狀拓撲的繞回 (Wrap-around) 機制，將請求導向環上的第一個節點。",
+        "en": "(B) Implement the wrap-around mechanism of the ring topology, directing requests to the first node on the ring.",
+        "wg": [
+          {
+            "t": "環狀拓撲",
+            "en": "ring topology",
+            "ps": "N"
+          },
+          {
+            "t": "繞回",
+            "en": "wrap-around",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) 當節點數量為零時，防止程式崩潰。",
+        "en": "(C) Prevent the program from crashing when the number of nodes is zero.",
+        "wg": []
+      },
+      {
+        "t": "(D) 觸發虛擬節點 (Virtual Nodes) 的重新平衡。",
+        "en": "(D) Trigger the rebalancing of Virtual Nodes.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "一致性雜湊將空間視為一個環。當雜湊值大於環上所有現有節點的鍵值時（即 `idx` 超出陣列範圍），必須繞回起點（索引 0），將請求分配給環上的第一個節點。",
+      "en": "Consistent Hashing treats the space as a ring. When the hash value is greater than all existing node keys on the ring (i.e., `idx` is out of bounds), it must wrap around to the start (index 0) to assign the request to the first node on the ring.",
+      "wg": [
+        {
+          "t": "超出範圍",
+          "en": "out of bounds",
+          "ps": "Adj"
+        },
+        {
+          "t": "分配",
+          "en": "assign",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "14",
+    "level": "advanced",
+    "keywords": "Vector Clocks, Conflict Resolution, Causality, Leaderless",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在無主 (Leaderless) 或多主 (Multi-Leader) 架構中，使用向量時鐘 (Vector Clocks) 相較於單純使用實體時間戳 (Last Write Wins) 的主要優勢為何？",
+        "en": "In a Leaderless or Multi-Leader architecture, what is the primary advantage of using Vector Clocks compared to simply using physical timestamps (Last Write Wins)?",
+        "wg": [
+          {
+            "t": "向量時鐘",
+            "en": "Vector Clocks",
+            "ps": "N"
+          },
+          {
+            "t": "實體時間戳",
+            "en": "physical timestamps",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "特別是在處理並發寫入 (Concurrent Writes) 的情境下。",
+        "en": "Especially in the context of handling Concurrent Writes.",
+        "wg": [
+          {
+            "t": "並發寫入",
+            "en": "Concurrent Writes",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 向量時鐘可以大幅減少儲存空間的需求。",
+        "en": "(A) Vector Clocks significantly reduce storage space requirements.",
+        "wg": []
+      },
+      {
+        "t": "(B) 向量時鐘能保證全域的絕對時間順序，消除所有衝突。",
+        "en": "(B) Vector Clocks guarantee global absolute time ordering, eliminating all conflicts.",
+        "wg": []
+      },
+      {
+        "t": "(C) 向量時鐘能識別事件的因果關係，區分「並發」與「覆蓋」，讓應用層能正確合併衝突。",
+        "en": "(C) Vector Clocks can identify causal relationships between events, distinguishing between \"concurrent\" and \"overwrite,\" allowing the application layer to correctly merge conflicts.",
+        "wg": [
+          {
+            "t": "因果關係",
+            "en": "causal relationships",
+            "ps": "N"
+          },
+          {
+            "t": "覆蓋",
+            "en": "overwrite",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(D) 向量時鐘允許在網路分區期間維持強一致性 (Strong Consistency)。",
+        "en": "(D) Vector Clocks allow maintaining Strong Consistency during network partitions.",
+        "wg": []
+      }
+    ],
+    "answer": "(C)",
+    "why": {
+      "t": "實體時間戳 (LWW) 會盲目地丟棄舊資料，可能導致資料遺失。向量時鐘透過邏輯計數器來追蹤因果關係，能偵測出兩個寫入是否同時發生（無因果關係），從而保留兩者供後續解決。",
+      "en": "Physical timestamps (LWW) blindly discard old data, potentially leading to data loss. Vector Clocks track causality via logical counters, enabling the detection of whether two writes happened simultaneously (no causal relationship), thus preserving both for later resolution.",
+      "wg": [
+        {
+          "t": "盲目地",
+          "en": "blindly",
+          "ps": "Adv"
+        },
+        {
+          "t": "丟棄",
+          "en": "discard",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "15",
+    "level": "intermediate",
+    "keywords": "Sharding, ACID, Foreign Keys, Consistency",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "當您將單體關聯式資料庫遷移至分片 (Sharding) 架構後，下列哪一項功能通常會因為跨分片驗證成本過高而無法使用或必須停用？",
+        "en": "When migrating a monolithic relational database to a sharded architecture, which of the following features is usually unavailable or must be disabled due to the prohibitive cost of cross-shard validation?",
+        "wg": [
+          {
+            "t": "跨分片",
+            "en": "cross-shard",
+            "ps": "Adj"
+          },
+          {
+            "t": "驗證成本",
+            "en": "validation cost",
+            "ps": "N"
+          },
+          {
+            "t": "過高",
+            "en": "prohibitive",
+            "ps": "Adj"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 主鍵約束 (Primary Key Constraints)。",
+        "en": "(A) Primary Key Constraints.",
+        "wg": []
+      },
+      {
+        "t": "(B) 外鍵約束 (Foreign Key Constraints)。",
+        "en": "(B) Foreign Key Constraints.",
+        "wg": [
+          {
+            "t": "外鍵約束",
+            "en": "Foreign Key Constraints",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) 欄位型別檢查 (Column Type Checking)。",
+        "en": "(C) Column Type Checking.",
+        "wg": []
+      },
+      {
+        "t": "(D) 單一分片內的索引 (Local Indexes)。",
+        "en": "(D) Local Indexes within a single shard.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "外鍵約束需要資料庫在插入或更新時檢查另一個資料表是否存在對應的值。在分片架構中，該資料表可能位於不同的伺服器上，跨網路進行這種即時檢查會嚴重拖累寫入效能，因此通常不支援。",
+      "en": "Foreign Key constraints require the database to check for the existence of a corresponding value in another table during insertion or update. In a sharded architecture, that table may reside on a different server; performing this real-time check across the network severely degrades write performance and is thus usually unsupported.",
+      "wg": [
+        {
+          "t": "拖累",
+          "en": "degrade",
+          "ps": "V"
+        },
+        {
+          "t": "即時檢查",
+          "en": "real-time check",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "10",
+    "level": "intermediate",
+    "keywords": "Optimization, Caching, Vertical Scaling, Read Replicas",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您的團隊正在管理一個單體關聯式資料庫，目前的資料量約為 800 GB，且讀取延遲逐漸增加。",
+        "en": "Your team is managing a monolithic relational database with approximately 800 GB of data, and read latency is gradually increasing.",
+        "wg": [
+          {
+            "t": "單體",
+            "en": "monolithic",
+            "ps": "Adj"
+          },
+          {
+            "t": "關聯式資料庫",
+            "en": "relational database",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "一位資淺工程師建議立即進行資料庫分片 (Sharding) 以解決效能問題。",
+        "en": "A junior engineer suggests immediately sharding the database to resolve the performance issues.",
+        "wg": [
+          {
+            "t": "資淺",
+            "en": "junior",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "根據系統設計的最佳實務，在考慮分片之前，您應該優先評估下列哪一系列的最佳化措施？",
+        "en": "According to system design best practices, which sequence of optimization measures should you evaluate first before considering sharding?",
+        "wg": [
+          {
+            "t": "最佳實務",
+            "en": "best practices",
+            "ps": "N"
+          },
+          {
+            "t": "優先評估",
+            "en": "prioritize evaluating",
+            "ps": "V"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 實作兩階段提交 (2PC) 與分散式交易。",
+        "en": "(A) Implement Two-Phase Commit (2PC) and distributed transactions.",
+        "wg": []
+      },
+      {
+        "t": "(B) 索引最佳化、引入快取 (Caching)、垂直擴展 (Vertical Scaling)、增加讀取副本 (Read Replicas)。",
+        "en": "(B) Index optimization, introducing Caching, Vertical Scaling, and adding Read Replicas.",
+        "wg": [
+          {
+            "t": "垂直擴展",
+            "en": "Vertical Scaling",
+            "ps": "N"
+          },
+          {
+            "t": "讀取副本",
+            "en": "Read Replicas",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) 將資料庫遷移至無主 (Leaderless) 架構的 NoSQL 系統。",
+        "en": "(C) Migrate the database to a Leaderless NoSQL system.",
+        "wg": []
+      },
+      {
+        "t": "(D) 立即將資料表按 `created_at` 進行分片，以分散寫入壓力。",
+        "en": "(D) Immediately shard the tables by `created_at` to distribute write pressure.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "分片會大幅增加系統複雜度（如無法進行跨分片 Join、交易處理困難）。在資料量未達瓶頸（通常 > 2-4 TB）或寫入未達極限前，應優先採用索引、快取、垂直升級或讀取副本等成本較低且風險較小的手段。",
+      "en": "Sharding significantly increases system complexity (e.g., no cross-shard joins, difficult transaction handling). Before data volume hits a bottleneck (usually > 2-4 TB) or writes hit limits, lower-cost and lower-risk measures like indexing, caching, vertical scaling, or read replicas should be prioritized.",
+      "wg": [
+        {
+          "t": "複雜度",
+          "en": "complexity",
+          "ps": "N"
+        },
+        {
+          "t": "瓶頸",
+          "en": "bottleneck",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "11",
+    "level": "intermediate",
+    "keywords": "Replication Lag, Single-Leader, Consistency, Read-Your-Own-Writes",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您正在維護一個使用「單主複製 (Single-Leader Replication)」的社群網站。",
+        "en": "You are maintaining a social networking site that uses 'Single-Leader Replication'.",
+        "wg": [
+          {
+            "t": "單主複製",
+            "en": "Single-Leader Replication",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "使用者回報，當他們更新個人簡介並立即重新整理頁面時，看到的仍然是舊資料。",
+        "en": "Users report that when they update their profile and immediately refresh the page, they still see the old data.",
+        "wg": [
+          {
+            "t": "個人簡介",
+            "en": "profile",
+            "ps": "N"
+          },
+          {
+            "t": "重新整理",
+            "en": "refresh",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "這是什麼現象？通常建議如何解決此類使用者體驗問題？",
+        "en": "What is this phenomenon? How is it usually recommended to solve this user experience issue?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 這是寫入衝突 (Write Conflict)；應改用多主複製 (Multi-Leader) 架構。",
+        "en": "(A) This is a Write Conflict; you should switch to a Multi-Leader architecture.",
+        "wg": []
+      },
+      {
+        "t": "(B) 這是複製延遲 (Replication Lag)；應確保使用者讀取自己的資料時，強制從 Leader 節點讀取。",
+        "en": "(B) This is Replication Lag; ensure that when users read their own data, they are forced to read from the Leader node.",
+        "wg": [
+          {
+            "t": "複製延遲",
+            "en": "Replication Lag",
+            "ps": "N"
+          },
+          {
+            "t": "強制",
+            "en": "force",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(C) 這是網路分區 (Network Partition)；應增加 Quorum 的 W 參數。",
+        "en": "(C) This is a Network Partition; you should increase the W parameter of the Quorum.",
+        "wg": []
+      },
+      {
+        "t": "(D) 這是資料傾斜 (Data Skew)；應重新設計分片鍵 (Shard Key)。",
+        "en": "(D) This is Data Skew; you should redesign the Shard Key.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "在單主架構中，寫入 Leader 後非同步複製到 Follower 會產生時間差，導致讀取到舊資料。解決方案是實作「讀取自己的寫入 (Read-your-own-writes)」一致性，例如將該使用者的讀取請求在寫入後的一段時間內導向 Leader。",
+      "en": "In a Single-Leader architecture, asynchronous replication from Leader to Follower creates a delay, leading to stale reads. The solution is to implement 'Read-your-own-writes' consistency, such as routing the user's read requests to the Leader for a period after a write.",
+      "wg": [
+        {
+          "t": "非同步",
+          "en": "asynchronous",
+          "ps": "Adj"
+        },
+        {
+          "t": "時間差",
+          "en": "lag/delay",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "12",
+    "level": "advanced",
+    "keywords": "Modulo Sharding, Resharding, Data Migration, Consistent Hashing",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "hash(key) % N",
+    "question": [
+      {
+        "t": "在早期的分片設計中，您使用了簡單的模數分片策略 `hash(key) % N`，其中 N 為資料庫節點數量。",
+        "en": "In an early sharding design, you used a simple modulo sharding strategy `hash(key) % N`, where N is the number of database nodes.",
+        "wg": [
+          {
+            "t": "模數分片",
+            "en": "modulo sharding",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "當您需要擴充容量，將 N 從 10 增加到 11 時，會發生什麼主要問題？",
+        "en": "When you need to scale capacity and increase N from 10 to 11, what major problem will occur?",
+        "wg": [
+          {
+            "t": "擴充容量",
+            "en": "scale capacity",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "這與一致性雜湊 (Consistent Hashing) 相比有何不同？",
+        "en": "How does this differ from Consistent Hashing?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 只有 1/11 的資料需要遷移；這與一致性雜湊的表現相同。",
+        "en": "(A) Only 1/11 of the data needs to be migrated; this performs the same as Consistent Hashing.",
+        "wg": []
+      },
+      {
+        "t": "(B) 幾乎所有的鍵 (Keys) 都會重新對應到不同的節點，導致大規模資料遷移與快取失效。",
+        "en": "(B) Almost all Keys will be remapped to different nodes, causing massive data migration and cache invalidation.",
+        "wg": [
+          {
+            "t": "重新對應",
+            "en": "remap",
+            "ps": "V"
+          },
+          {
+            "t": "快取失效",
+            "en": "cache invalidation",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) 系統會自動產生虛擬節點 (Virtual Nodes) 來平衡負載，不需要手動遷移。",
+        "en": "(C) The system will automatically generate Virtual Nodes to balance the load, requiring no manual migration.",
+        "wg": []
+      },
+      {
+        "t": "(D) 新節點只會接收新的寫入請求，舊資料會保留在原處。",
+        "en": "(D) The new node will only receive new write requests, and old data will remain in place.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "模數運算的結果對 N 非常敏感。當 N 改變時，絕大多數的 `hash(key) % N` 結果都會改變，這意味著幾乎整個資料庫都需要重新搬移 (Resharding Storm)。一致性雜湊則確保只有約 `1/N` (或 `1/(N+1)`) 的資料需要移動。",
+      "en": "Modulo operation results are very sensitive to N. When N changes, the result of `hash(key) % N` changes for the vast majority of keys, meaning almost the entire database needs to be moved (Resharding Storm). Consistent Hashing ensures that only about `1/N` (or `1/(N+1)`) of the data needs to move.",
+      "wg": [
+        {
+          "t": "敏感",
+          "en": "sensitive",
+          "ps": "Adj"
+        },
+        {
+          "t": "重新搬移",
+          "en": "reshuffle/move",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "13",
+    "level": "advanced",
+    "keywords": "Consistent Hashing, Virtual Nodes, Load Balancing, Failure Recovery",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在實作一致性雜湊 (Consistent Hashing) 時，若不使用「虛擬節點 (Virtual Nodes)」，僅將實體節點映射到雜湊環上。",
+        "en": "When implementing Consistent Hashing, if you map only physical nodes to the hash ring without using 'Virtual Nodes'.",
+        "wg": [
+          {
+            "t": "映射",
+            "en": "map",
+            "ps": "V"
+          },
+          {
+            "t": "雜湊環",
+            "en": "hash ring",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "當某個實體節點發生故障並被移除時，會對系統負載造成什麼具體影響？",
+        "en": "What specific impact does it have on system load when a physical node fails and is removed?",
+        "wg": [
+          {
+            "t": "故障",
+            "en": "failure",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "請選出最準確的描述。",
+        "en": "Please select the most accurate description.",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 故障節點的負載會均勻分散給剩餘的所有節點。",
+        "en": "(A) The load of the failed node will be evenly distributed among all remaining nodes.",
+        "wg": []
+      },
+      {
+        "t": "(B) 故障節點的負載會全部轉移給環上順時針方向的下一個鄰居節點，容易造成該鄰居過載。",
+        "en": "(B) The load of the failed node will be entirely transferred to the next neighbor node clockwise on the ring, likely causing that neighbor to overload.",
+        "wg": [
+          {
+            "t": "順時針",
+            "en": "clockwise",
+            "ps": "Adv"
+          },
+          {
+            "t": "過載",
+            "en": "overload",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(C) 系統會暫停服務，直到故障節點恢復上線。",
+        "en": "(C) The system will suspend service until the failed node comes back online.",
+        "wg": []
+      },
+      {
+        "t": "(D) 資料會自動複製到反熵 (Anti-Entropy) 檢查點，不會有負載變化的問題。",
+        "en": "(D) Data will be automatically replicated to Anti-Entropy checkpoints, with no load change issues.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "在沒有虛擬節點的標準雜湊環中，一個節點負責的範圍是其自身與逆時針方向前一個節點之間的區段。當該節點移除時，這個區段會合併到順時針方向的下一個節點，導致該鄰居承受雙倍負載。虛擬節點將一台機器映射為環上的多個點，使故障負載能分散給多台機器。",
+      "en": "In a standard hash ring without virtual nodes, a node is responsible for the segment between itself and the preceding node counter-clockwise. When that node is removed, this segment merges into the next node clockwise, causing that neighbor to bear double the load. Virtual nodes map one machine to multiple points on the ring, allowing the failed load to be spread across multiple machines.",
+      "wg": [
+        {
+          "t": "區段",
+          "en": "segment",
+          "ps": "N"
+        },
+        {
+          "t": "合併",
+          "en": "merge",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "14",
+    "level": "advanced",
+    "keywords": "Distributed Transactions, ACID, 2PC, Sharding",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您正在設計一個已分片的銀行帳戶系統。當需要將資金從 User A (Shard 1) 轉帳給 User B (Shard 2) 時，",
+        "en": "You are designing a sharded bank account system. When funds need to be transferred from User A (Shard 1) to User B (Shard 2),",
+        "wg": [
+          {
+            "t": "轉帳",
+            "en": "transfer",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "若要嚴格保證 ACID 中的原子性 (Atomicity)，通常需要採用什麼機制？以及該機制的主要缺點為何？",
+        "en": "To strictly guarantee Atomicity in ACID, what mechanism is usually required? And what is the main drawback of this mechanism?",
+        "wg": [
+          {
+            "t": "原子性",
+            "en": "Atomicity",
+            "ps": "N"
+          },
+          {
+            "t": "缺點",
+            "en": "drawback",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 使用兩階段提交 (2PC)；缺點是效能極差且協調者 (Coordinator) 故障會導致系統阻塞。",
+        "en": "(A) Use Two-Phase Commit (2PC); the drawback is extremely poor performance and system blocking if the Coordinator fails.",
+        "wg": [
+          {
+            "t": "兩階段提交",
+            "en": "Two-Phase Commit",
+            "ps": "N"
+          },
+          {
+            "t": "阻塞",
+            "en": "blocking",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(B) 使用最終一致性 (Eventual Consistency)；缺點是資料可能會永久遺失。",
+        "en": "(B) Use Eventual Consistency; the drawback is that data may be permanently lost.",
+        "wg": []
+      },
+      {
+        "t": "(C) 使用一致性雜湊 (Consistent Hashing)；缺點是無法處理跨分片請求。",
+        "en": "(C) Use Consistent Hashing; the drawback is the inability to handle cross-shard requests.",
+        "wg": []
+      },
+      {
+        "t": "(D) 使用反正規化 (Denormalization)；缺點是儲存成本加倍。",
+        "en": "(D) Use Denormalization; the drawback is doubled storage costs.",
+        "wg": []
+      }
+    ],
+    "answer": "(A)",
+    "why": {
+      "t": "跨分片的原子性交易需要分散式交易協定，最常見的是 2PC。它需要所有參與節點鎖定資源並等待協調者指令，這會大幅增加延遲並降低可用性。因此在高併發系統中通常會避免使用，改採 Saga 模式或最終一致性。",
+      "en": "Cross-shard atomic transactions require distributed transaction protocols, most commonly 2PC. It requires all participating nodes to lock resources and wait for coordinator instructions, significantly increasing latency and reducing availability. Therefore, it is usually avoided in high-concurrency systems in favor of Saga patterns or eventual consistency.",
+      "wg": [
+        {
+          "t": "協定",
+          "en": "protocol",
+          "ps": "N"
+        },
+        {
+          "t": "鎖定",
+          "en": "lock",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "15",
+    "level": "advanced",
+    "keywords": "Vector Clocks, Leaderless, Conflict Resolution, Causality",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在 Dynamo 風格的無主 (Leaderless) 資料庫中，兩個客戶端幾乎同時修改了同一個 Key 的資料。",
+        "en": "In a Dynamo-style Leaderless database, two clients modify the data of the same Key almost simultaneously.",
+        "wg": [
+          {
+            "t": "幾乎同時",
+            "en": "almost simultaneously",
+            "ps": "Adv"
+          }
+        ]
+      },
+      {
+        "t": "系統需要判斷這兩個寫入是「因果相關 (Causal)」還是「並發 (Concurrent)」，以便決定是覆蓋還是保留衝突。",
+        "en": "The system needs to determine whether these two writes are 'Causal' or 'Concurrent' to decide whether to overwrite or preserve the conflict.",
+        "wg": [
+          {
+            "t": "因果相關",
+            "en": "Causal",
+            "ps": "Adj"
+          },
+          {
+            "t": "並發",
+            "en": "Concurrent",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "下列哪種技術最適合用來偵測這種因果關係？",
+        "en": "Which of the following techniques is best suited for detecting this causality?",
+        "wg": [
+          {
+            "t": "偵測",
+            "en": "detect",
+            "ps": "V"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 實體時鐘 (Physical Wall-clock Timestamp)。",
+        "en": "(A) Physical Wall-clock Timestamp.",
+        "wg": []
+      },
+      {
+        "t": "(B) 向量時鐘 (Vector Clocks)。",
+        "en": "(B) Vector Clocks.",
+        "wg": [
+          {
+            "t": "向量時鐘",
+            "en": "Vector Clocks",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) 一致性雜湊 (Consistent Hashing)。",
+        "en": "(C) Consistent Hashing.",
+        "wg": []
+      },
+      {
+        "t": "(D) 預寫式日誌 (Write-Ahead Log, WAL)。",
+        "en": "(D) Write-Ahead Log (WAL).",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "實體時鐘在分散式系統中不可靠（時鐘偏移）。向量時鐘透過維護每個節點的邏輯計數器，能夠準確捕捉事件的因果關係。若兩個向量時鐘無法比較大小（即互不包含），則視為並發衝突，需要應用層解決。",
+      "en": "Physical clocks are unreliable in distributed systems (clock skew). Vector Clocks accurately capture the causality of events by maintaining logical counters for each node. If two vector clocks cannot be compared (i.e., neither includes the other), they are treated as concurrent conflicts requiring application-layer resolution.",
+      "wg": [
+        {
+          "t": "時鐘偏移",
+          "en": "clock skew",
+          "ps": "N"
+        },
+        {
+          "t": "互不包含",
+          "en": "neither includes the other",
+          "ps": "Phrase"
+        }
+      ]
+    }
+  }
+]

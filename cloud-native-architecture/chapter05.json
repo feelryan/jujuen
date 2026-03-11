@@ -1,0 +1,785 @@
+[
+  {
+    "no": "7",
+    "level": "intermediate",
+    "keywords": "Idempotency, At-least-once delivery, Consumer Design, Duplicate Messages",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在設計一個處理付款扣款的消費者服務（Consumer）時，您必須假設訊息傳遞保證為「至少一次（At-least-once）」。",
+        "en": "When designing a consumer service for payment deduction, you must assume the message delivery guarantee is 'At-least-once'.",
+        "wg": [
+          {
+            "t": "至少一次",
+            "en": "At-least-once",
+            "ps": "N"
+          },
+          {
+            "t": "訊息傳遞保證",
+            "en": "message delivery guarantee",
+            "ps": "NP"
+          }
+        ]
+      },
+      {
+        "t": "如果消費者成功更新了資料庫，但在向 Message Broker 發送確認（Ack）前發生網路超時，Broker 將會重新發送該訊息。",
+        "en": "If the consumer successfully updates the database but a network timeout occurs before sending an acknowledgment (Ack) to the Message Broker, the Broker will redeliver the message.",
+        "wg": [
+          {
+            "t": "確認",
+            "en": "acknowledgment (Ack)",
+            "ps": "N"
+          },
+          {
+            "t": "重新發送",
+            "en": "redeliver",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "為了防止重複扣款，下列哪種實作方式最為標準且強韌？",
+        "en": "To prevent double deductions, which of the following implementations is the most standard and robust?",
+        "wg": [
+          {
+            "t": "重複扣款",
+            "en": "double deductions",
+            "ps": "NP"
+          },
+          {
+            "t": "強韌",
+            "en": "robust",
+            "ps": "Adj"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 增加 Broker 的 Ack 超時設定，確保有足夠時間回應。",
+        "en": "(A) Increase the Broker's Ack timeout setting to ensure enough time for response.",
+        "wg": []
+      },
+      {
+        "t": "(B) 在消費者端實作冪等性（Idempotency），例如使用交易 ID 檢查是否已處理過。",
+        "en": "(B) Implement Idempotency on the consumer side, such as checking if the transaction ID has already been processed.",
+        "wg": [
+          {
+            "t": "冪等性",
+            "en": "Idempotency",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) 使用分散式交易（XA/2PC）來同步 Broker 與資料庫的狀態。",
+        "en": "(C) Use distributed transactions (XA/2PC) to synchronize the state of the Broker and the database.",
+        "wg": []
+      },
+      {
+        "t": "(D) 依賴 Message Broker 的「Exactly-once」傳遞設定。",
+        "en": "(D) Rely on the Message Broker's 'Exactly-once' delivery setting.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "在分散式系統中，網路失敗是常態。唯一可靠的方法是讓消費者具備「冪等性」，即無論收到同一條訊息多少次，處理結果都相同（例如透過檢查 `processed_ids` 表）。依賴超時設定或 Broker 的 Exactly-once（通常有特定限制或效能代價）並不足以處理所有邊緣情況。",
+      "en": "In distributed systems, network failures are the norm. The only reliable method is to make the consumer 'Idempotent', meaning the result is the same regardless of how many times the same message is received (e.g., by checking a `processed_ids` table). Relying on timeouts or Broker's Exactly-once (which often has constraints or performance costs) is insufficient for all edge cases.",
+      "wg": [
+        {
+          "t": "邊緣情況",
+          "en": "edge cases",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "8",
+    "level": "advanced",
+    "keywords": "Message Ordering, Race Condition, Kafka, State Machine",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您的系統使用 Kafka 傳遞訂單狀態變更事件。理論上 `OrderCreated` 應該在 `OrderCancelled` 之前發生。",
+        "en": "Your system uses Kafka to propagate order state change events. Theoretically, `OrderCreated` should occur before `OrderCancelled`.",
+        "wg": [
+          {
+            "t": "傳遞",
+            "en": "propagate",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "但在高併發與網路延遲的影響下，消費者偶爾會先收到 `OrderCancelled` 事件，導致處理失敗。",
+        "en": "However, due to high concurrency and network latency, the consumer occasionally receives the `OrderCancelled` event first, causing processing failure.",
+        "wg": [
+          {
+            "t": "偶爾",
+            "en": "occasionally",
+            "ps": "Adv"
+          }
+        ]
+      },
+      {
+        "t": "除了確保生產者使用正確的 Partition Key 之外，消費者端應如何設計以最佳化此問題？",
+        "en": "Besides ensuring the producer uses the correct Partition Key, how should the consumer be designed to best handle this issue?",
+        "wg": [
+          {
+            "t": "最佳化",
+            "en": "optimize",
+            "ps": "V"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 實作狀態機檢查；若收到順序錯誤的事件（如未找到訂單就收到取消），則暫存該訊息或拋出可重試的錯誤。",
+        "en": "(A) Implement state machine checks; if an out-of-order event is received (e.g., cancellation received before order found), buffer the message or throw a retryable error.",
+        "wg": [
+          {
+            "t": "狀態機",
+            "en": "state machine",
+            "ps": "N"
+          },
+          {
+            "t": "暫存",
+            "en": "buffer",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(B) 忽略順序錯誤，直接在資料庫中建立一個狀態為 Cancelled 的空訂單。",
+        "en": "(B) Ignore the order error and directly create an empty order with Cancelled state in the database.",
+        "wg": []
+      },
+      {
+        "t": "(C) 強制所有消費者改為單執行緒（Single Thread）處理，以確保全域順序。",
+        "en": "(C) Force all consumers to process in a Single Thread to ensure global ordering.",
+        "wg": [
+          {
+            "t": "全域順序",
+            "en": "global ordering",
+            "ps": "NP"
+          }
+        ]
+      },
+      {
+        "t": "(D) 要求生產者在發送 Cancelled 事件前，必須同步等待 Created 事件被消費。",
+        "en": "(D) Require the producer to synchronously wait for the Created event to be consumed before sending the Cancelled event.",
+        "wg": []
+      }
+    ],
+    "answer": "(A)",
+    "why": {
+      "t": "即使使用了 Partition Key 確保順序，應用程式層面的競爭條件仍可能發生（例如多個消費者實例或重試機制導致）。最佳實務是消費者具備狀態意識（State-aware），當發現前置狀態缺失時，選擇稍後重試（讓訊息回到 Queue）或暫存，而不是直接失敗或破壞資料完整性。",
+      "en": "Even with Partition Keys ensuring order, application-level race conditions can still occur (e.g., due to multiple consumer instances or retries). The best practice is for the consumer to be State-aware. When a prerequisite state is missing, it should choose to retry later (returning the message to the Queue) or buffer it, rather than failing outright or compromising data integrity.",
+      "wg": [
+        {
+          "t": "競爭條件",
+          "en": "race conditions",
+          "ps": "N"
+        },
+        {
+          "t": "狀態意識",
+          "en": "State-aware",
+          "ps": "Adj"
+        }
+      ]
+    }
+  },
+  {
+    "no": "9",
+    "level": "intermediate",
+    "keywords": "Poison Pill, Dead Letter Queue, Error Handling, Reliability",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在生產環境中，您發現 Message Queue 的處理延遲急劇上升。經調查，發現有一條格式錯誤的 JSON 訊息導致消費者程式崩潰（Crash）。",
+        "en": "In production, you notice a sharp increase in Message Queue processing latency. Investigation reveals a malformed JSON message is causing the consumer application to crash.",
+        "wg": [
+          {
+            "t": "急劇上升",
+            "en": "sharp increase",
+            "ps": "NP"
+          },
+          {
+            "t": "崩潰",
+            "en": "crash",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "當消費者重啟後，又再次讀取到同一條訊息並崩潰，形成了無窮迴圈（Poison Pill）。",
+        "en": "When the consumer restarts, it reads the same message again and crashes, forming an infinite loop (Poison Pill).",
+        "wg": [
+          {
+            "t": "無窮迴圈",
+            "en": "infinite loop",
+            "ps": "NP"
+          }
+        ]
+      },
+      {
+        "t": "您應該引入什麼機制來自動解決此類阻塞問題？",
+        "en": "What mechanism should you introduce to automatically resolve such blocking issues?",
+        "wg": [
+          {
+            "t": "阻塞",
+            "en": "blocking",
+            "ps": "Adj"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 在消費者程式中加入 `try-catch`，捕捉所有例外並直接丟棄錯誤訊息。",
+        "en": "(A) Add a `try-catch` block in the consumer to catch all exceptions and silently discard the erroneous message.",
+        "wg": []
+      },
+      {
+        "t": "(B) 設定重試次數上限（Max Retries），超過後將訊息移至 Dead Letter Queue (DLQ)。",
+        "en": "(B) Configure a Maximum Retries limit, and move the message to a Dead Letter Queue (DLQ) after exceeding it.",
+        "wg": [
+          {
+            "t": "重試次數上限",
+            "en": "Maximum Retries",
+            "ps": "NP"
+          }
+        ]
+      },
+      {
+        "t": "(C) 增加消費者的記憶體與 CPU 資源，以處理更復雜的訊息。",
+        "en": "(C) Increase the consumer's memory and CPU resources to handle more complex messages.",
+        "wg": []
+      },
+      {
+        "t": "(D) 暫停 Message Broker，手動刪除該條訊息後再重啟。",
+        "en": "(D) Pause the Message Broker, manually delete the message, and then restart.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "這是處理「毒丸訊息（Poison Pill）」的標準模式。無限重試會阻塞佇列（Head-of-line blocking），而直接丟棄會導致資料遺失且難以除錯。DLQ 能將無法處理的訊息隔離，供後續人工分析或修復後重播，同時讓系統繼續處理其他正常訊息。",
+      "en": "This is the standard pattern for handling 'Poison Pill' messages. Infinite retries cause Head-of-line blocking, while silent discarding leads to data loss and difficult debugging. A DLQ isolates unprocessable messages for later manual analysis or replay after a fix, allowing the system to continue processing other normal messages.",
+      "wg": [
+        {
+          "t": "隔離",
+          "en": "isolate",
+          "ps": "V"
+        },
+        {
+          "t": "重播",
+          "en": "replay",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "10",
+    "level": "intermediate",
+    "keywords": "Coupling, Message vs Event, Intent, Decoupling",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在微服務架構中，區分「訊息（Message/Command）」與「事件（Event）」對於解耦至關重要。",
+        "en": "In microservices architecture, distinguishing between 'Message/Command' and 'Event' is crucial for decoupling.",
+        "wg": [
+          {
+            "t": "解耦",
+            "en": "decoupling",
+            "ps": "N"
+          },
+          {
+            "t": "至關重要",
+            "en": "crucial",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "假設您正在開發「結帳服務（Checkout Service）」，當訂單完成時，需要觸發庫存扣減、發送 Email 與更新分析數據。",
+        "en": "Suppose you are developing a 'Checkout Service'. When an order is completed, it needs to trigger inventory deduction, email sending, and analytics updates.",
+        "wg": []
+      },
+      {
+        "t": "下列哪種設計最符合「事件驅動（Event-Driven）」的精神？",
+        "en": "Which of the following designs best aligns with the spirit of 'Event-Driven' architecture?",
+        "wg": [
+          {
+            "t": "精神",
+            "en": "spirit",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 發送 `DeductInventory`, `SendEmail`, `UpdateAnalytics` 三個指令訊息給各自的服務。",
+        "en": "(A) Send three command messages: `DeductInventory`, `SendEmail`, and `UpdateAnalytics` to their respective services.",
+        "wg": []
+      },
+      {
+        "t": "(B) 發送一個 `OrderCompleted` 事件，讓庫存、Email、分析服務各自訂閱並做出反應。",
+        "en": "(B) Publish a single `OrderCompleted` event, letting Inventory, Email, and Analytics services subscribe and react independently.",
+        "wg": [
+          {
+            "t": "訂閱",
+            "en": "subscribe",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(C) 呼叫庫存服務的 gRPC 介面，若成功則再發送非同步訊息給 Email 與分析服務。",
+        "en": "(C) Call the Inventory service's gRPC interface, and if successful, send asynchronous messages to Email and Analytics services.",
+        "wg": []
+      },
+      {
+        "t": "(D) 將所有邏輯寫在 Message Broker 的路由規則中，由 Broker 決定轉發給誰。",
+        "en": "(D) Write all logic within the Message Broker's routing rules, letting the Broker decide whom to forward to.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "選項 (A) 是 Command 模式，發送者必須知道接收者是誰，耦合度高。選項 (B) 是 Event 模式，發送者只負責廣播「發生了什麼事」，不關心誰會處理。這符合「生產者對消費者一無所知」的解耦原則，且未來新增服務（如發送優惠券）時無需修改結帳服務。",
+      "en": "Option (A) is the Command pattern, where the sender must know the receiver, leading to high coupling. Option (B) is the Event pattern, where the sender only broadcasts 'what happened' without caring who processes it. This aligns with the decoupling principle of 'producer knowing nothing about consumers', and allows adding new services (e.g., sending coupons) in the future without modifying the Checkout Service.",
+      "wg": [
+        {
+          "t": "廣播",
+          "en": "broadcast",
+          "ps": "V"
+        },
+        {
+          "t": "一無所知",
+          "en": "know nothing about",
+          "ps": "VP"
+        }
+      ]
+    }
+  },
+  {
+    "no": "11",
+    "level": "advanced",
+    "keywords": "Saga Pattern, Distributed Transaction, Compensating Transaction, Consistency",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您正在設計一個旅遊預訂系統，該交易涉及三個微服務：1. 預訂機票 -> 2. 預訂飯店 -> 3. 租車。",
+        "en": "You are designing a travel booking system where a transaction involves three microservices: 1. Book Flight -> 2. Book Hotel -> 3. Rent Car.",
+        "wg": []
+      },
+      {
+        "t": "如果步驟 1 和 2 成功，但在執行步驟 3（租車）時失敗了，您應該如何確保系統的一致性？",
+        "en": "If steps 1 and 2 succeed, but step 3 (Rent Car) fails, how should you ensure system consistency?",
+        "wg": [
+          {
+            "t": "一致性",
+            "en": "consistency",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "請選擇最適合微服務架構的解決方案。",
+        "en": "Please select the solution most suitable for microservices architecture.",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 使用 Two-Phase Commit (2PC) 鎖定所有資源，直到三個步驟都確認可執行才提交。",
+        "en": "(A) Use Two-Phase Commit (2PC) to lock all resources until all three steps are confirmed executable before committing.",
+        "wg": []
+      },
+      {
+        "t": "(B) 觸發「補償交易（Compensating Transactions）」，依序發送取消飯店與取消機票的事件。",
+        "en": "(B) Trigger 'Compensating Transactions' by sequentially sending events to cancel the hotel and cancel the flight.",
+        "wg": [
+          {
+            "t": "補償交易",
+            "en": "Compensating Transactions",
+            "ps": "NP"
+          }
+        ]
+      },
+      {
+        "t": "(C) 讓使用者手動去取消機票與飯店，系統僅提示租車失敗。",
+        "en": "(C) Let the user manually cancel the flight and hotel; the system only notifies that car rental failed.",
+        "wg": []
+      },
+      {
+        "t": "(D) 定期執行一個批次作業（Batch Job）來掃描並修復不一致的訂單。",
+        "en": "(D) Periodically run a Batch Job to scan and fix inconsistent orders.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "這是 Saga Pattern 的核心概念。在微服務中，2PC (XA) 因效能差且鎖定資源通常被視為反模式。正確做法是透過「補償交易」來復原已完成的步驟（Undo），以達到最終一致性（Eventual Consistency）。",
+      "en": "This is the core concept of the Saga Pattern. In microservices, 2PC (XA) is generally considered an anti-pattern due to poor performance and resource locking. The correct approach is to use 'Compensating Transactions' to undo completed steps, achieving Eventual Consistency.",
+      "wg": [
+        {
+          "t": "反模式",
+          "en": "anti-pattern",
+          "ps": "N"
+        },
+        {
+          "t": "復原",
+          "en": "undo/revert",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "12",
+    "level": "advanced",
+    "keywords": "CDC, Debezium, Transactional Outbox, Database Log",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "為了實作 Transactional Outbox 模式，您需要一個機制將 `outbox` 資料表中的事件轉發到 Kafka。",
+        "en": "To implement the Transactional Outbox pattern, you need a mechanism to relay events from the `outbox` table to Kafka.",
+        "wg": [
+          {
+            "t": "轉發",
+            "en": "relay",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "您希望避免撰寫一個不斷輪詢（Polling）資料庫的應用程式，因為這會增加資料庫負載且延遲較高。",
+        "en": "You want to avoid writing an application that constantly polls the database, as this increases database load and latency.",
+        "wg": [
+          {
+            "t": "輪詢",
+            "en": "polling",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "下列哪種技術最適合用來解決此問題？",
+        "en": "Which of the following technologies is best suited to solve this problem?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) Change Data Capture (CDC) 工具（如 Debezium）。",
+        "en": "(A) Change Data Capture (CDC) tools (e.g., Debezium).",
+        "wg": []
+      },
+      {
+        "t": "(B) 資料庫觸發器（Database Triggers）直接呼叫 Kafka API。",
+        "en": "(B) Database Triggers calling Kafka API directly.",
+        "wg": []
+      },
+      {
+        "t": "(C) 使用 Redis 作為中間快取層。",
+        "en": "(C) Use Redis as an intermediate caching layer.",
+        "wg": []
+      },
+      {
+        "t": "(D) 在應用程式層使用 `ScheduledExecutorService` 每秒查詢一次。",
+        "en": "(D) Use `ScheduledExecutorService` in the application layer to query every second.",
+        "wg": []
+      }
+    ],
+    "answer": "(A)",
+    "why": {
+      "t": "CDC 工具（如 Debezium）透過讀取資料庫的 Transaction Log（如 MySQL binlog, PostgreSQL WAL）來捕捉變更，這對資料庫效能影響最小，且能保證捕捉到所有變更，是實作 Outbox Pattern 的最佳實務。DB Trigger 呼叫外部 API 是危險的，可能導致資料庫交易卡住。",
+      "en": "CDC tools (like Debezium) capture changes by reading the database Transaction Log (e.g., MySQL binlog, PostgreSQL WAL). This has minimal impact on database performance and guarantees capturing all changes, making it the best practice for implementing the Outbox Pattern. DB Triggers calling external APIs is dangerous and can cause database transactions to hang.",
+      "wg": [
+        {
+          "t": "捕捉",
+          "en": "capture",
+          "ps": "V"
+        },
+        {
+          "t": "交易日誌",
+          "en": "Transaction Log",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "13",
+    "level": "intermediate",
+    "keywords": "Kafka, Partition Key, Ordering, Scalability",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您正在使用 Kafka 收集數百萬個 IoT 裝置的感測器數據。",
+        "en": "You are using Kafka to collect sensor data from millions of IoT devices.",
+        "wg": [
+          {
+            "t": "感測器",
+            "en": "sensor",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "業務需求要求：針對「同一個裝置」的數據必須嚴格按照時間順序處理，但不同裝置之間無需保證順序。",
+        "en": "Business requirement: Data for the 'same device' must be processed in strict chronological order, but ordering between different devices is not required.",
+        "wg": [
+          {
+            "t": "嚴格",
+            "en": "strict",
+            "ps": "Adj"
+          },
+          {
+            "t": "時間順序",
+            "en": "chronological order",
+            "ps": "NP"
+          }
+        ]
+      },
+      {
+        "t": "您應該如何在生產者（Producer）端設定訊息？",
+        "en": "How should you configure the messages on the Producer side?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 將 `device_id` 設定為 Partition Key。",
+        "en": "(A) Set `device_id` as the Partition Key.",
+        "wg": []
+      },
+      {
+        "t": "(B) 將 `timestamp` 設定為 Partition Key。",
+        "en": "(B) Set `timestamp` as the Partition Key.",
+        "wg": []
+      },
+      {
+        "t": "(C) 不設定 Key，讓 Kafka 使用 Round-robin 策略以達到最大吞吐量。",
+        "en": "(C) Do not set a Key; let Kafka use a Round-robin strategy for maximum throughput.",
+        "wg": [
+          {
+            "t": "吞吐量",
+            "en": "throughput",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(D) 僅使用單一個 Partition 的 Topic。",
+        "en": "(D) Use a Topic with only a single Partition.",
+        "wg": []
+      }
+    ],
+    "answer": "(A)",
+    "why": {
+      "t": "Kafka 僅保證在同一個 Partition 內的訊息順序。設定 `device_id` 為 Partition Key 可以確保同一裝置的所有訊息都被路由到同一個 Partition，從而保證順序。選項 (D) 雖然能保證全域順序，但無法擴展（Scalability），不適合數百萬裝置的場景。",
+      "en": "Kafka only guarantees message ordering within a single Partition. Setting `device_id` as the Partition Key ensures that all messages from the same device are routed to the same Partition, thereby guaranteeing order. Option (D) guarantees global order but is not scalable and is unsuitable for millions of devices.",
+      "wg": [
+        {
+          "t": "路由",
+          "en": "route",
+          "ps": "V"
+        },
+        {
+          "t": "全域順序",
+          "en": "global order",
+          "ps": "NP"
+        }
+      ]
+    }
+  },
+  {
+    "no": "14",
+    "level": "intermediate",
+    "keywords": "Smart Endpoints, Dumb Pipes, ESB, Anti-pattern",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您的公司有一個中介軟體團隊，建議在 Message Broker 中實作複雜的 XML 到 JSON 轉換邏輯，並根據內容動態路由到不同的微服務。",
+        "en": "Your company's middleware team suggests implementing complex XML-to-JSON transformation logic within the Message Broker and dynamically routing to different microservices based on content.",
+        "wg": [
+          {
+            "t": "中介軟體",
+            "en": "middleware",
+            "ps": "N"
+          },
+          {
+            "t": "動態路由",
+            "en": "dynamically routing",
+            "ps": "VP"
+          }
+        ]
+      },
+      {
+        "t": "身為資深工程師，您反對這個提議。請問這違反了微服務的哪個核心原則？",
+        "en": "As a senior engineer, you oppose this proposal. Which core microservices principle does this violate?",
+        "wg": [
+          {
+            "t": "反對",
+            "en": "oppose",
+            "ps": "V"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) Smart Endpoints and Dumb Pipes（智慧端點與啞管）。",
+        "en": "(A) Smart Endpoints and Dumb Pipes.",
+        "wg": []
+      },
+      {
+        "t": "(B) Database per Service（每個服務一個資料庫）。",
+        "en": "(B) Database per Service.",
+        "wg": []
+      },
+      {
+        "t": "(C) Circuit Breaker Pattern（斷路器模式）。",
+        "en": "(C) Circuit Breaker Pattern.",
+        "wg": []
+      },
+      {
+        "t": "(D) Infrastructure as Code（基礎設施即程式碼）。",
+        "en": "(D) Infrastructure as Code.",
+        "wg": []
+      }
+    ],
+    "answer": "(A)",
+    "why": {
+      "t": "微服務架構強調「智慧端點與啞管」，即業務邏輯與轉換應該發生在服務內部（Endpoints），而傳輸層（Pipes/Broker）應保持單純，只負責傳遞訊息。在 Broker 中放入過多邏輯是 ESB（Enterprise Service Bus）時代的反模式，會導致 Middleware 變成難以維護的單點瓶頸。",
+      "en": "Microservices architecture emphasizes 'Smart Endpoints and Dumb Pipes', meaning business logic and transformations should occur within the services (Endpoints), while the transport layer (Pipes/Broker) should remain simple and only transport messages. Putting too much logic in the Broker is an anti-pattern from the ESB (Enterprise Service Bus) era, turning Middleware into a hard-to-maintain single point of failure.",
+      "wg": [
+        {
+          "t": "單純",
+          "en": "simple/dumb",
+          "ps": "Adj"
+        },
+        {
+          "t": "單點瓶頸",
+          "en": "single point of failure/bottleneck",
+          "ps": "NP"
+        }
+      ]
+    }
+  },
+  {
+    "no": "15",
+    "level": "intermediate",
+    "keywords": "Eventual Consistency, UX Design, Asynchronous",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在一個採用「最終一致性（Eventual Consistency）」的社群平台中，使用者發布貼文後，系統將寫入請求放入 Queue 並立即回傳 `202 Accepted`。",
+        "en": "In a social platform adopting 'Eventual Consistency', after a user posts content, the system puts the write request into a Queue and immediately returns `202 Accepted`.",
+        "wg": [
+          {
+            "t": "最終一致性",
+            "en": "Eventual Consistency",
+            "ps": "NP"
+          }
+        ]
+      },
+      {
+        "t": "然而，使用者隨即重新整理頁面，卻發現新貼文尚未出現（因為尚未被消費者處理寫入 DB）。",
+        "en": "However, the user immediately refreshes the page and finds the new post missing (because it hasn't been processed and written to the DB by the consumer yet).",
+        "wg": [
+          {
+            "t": "重新整理",
+            "en": "refreshes",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "為了提供最佳的使用者體驗（UX），前端應該採取什麼策略？",
+        "en": "To provide the best User Experience (UX), what strategy should the frontend adopt?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 實作樂觀 UI（Optimistic UI），在收到伺服器確認前先將貼文顯示在畫面上。",
+        "en": "(A) Implement Optimistic UI, displaying the post on the screen before receiving server confirmation.",
+        "wg": [
+          {
+            "t": "樂觀 UI",
+            "en": "Optimistic UI",
+            "ps": "NP"
+          }
+        ]
+      },
+      {
+        "t": "(B) 顯示錯誤訊息，告訴使用者系統忙碌中。",
+        "en": "(B) Show an error message telling the user the system is busy.",
+        "wg": []
+      },
+      {
+        "t": "(C) 強制使用者等待 Loading Spinner，直到後端透過 WebSocket 通知寫入完成。",
+        "en": "(C) Force the user to wait with a Loading Spinner until the backend notifies write completion via WebSocket.",
+        "wg": []
+      },
+      {
+        "t": "(D) 什麼都不做，教育使用者這是分散式系統的特性。",
+        "en": "(D) Do nothing and educate the user that this is a characteristic of distributed systems.",
+        "wg": []
+      }
+    ],
+    "answer": "(A)",
+    "why": {
+      "t": "在非同步架構下，為了隱藏系統延遲（Latency），「樂觀 UI」是常見的模式。它假設請求會成功，並立即更新介面，讓使用者感覺系統反應即時。若後續失敗，再透過通知或回滾介面來處理。選項 (C) 雖然可行，但會降低感知的效能。",
+      "en": "In asynchronous architectures, 'Optimistic UI' is a common pattern to hide system latency. It assumes the request will succeed and updates the interface immediately, making the system feel responsive. If it fails later, it can be handled via notification or UI rollback. Option (C) is viable but degrades perceived performance.",
+      "wg": [
+        {
+          "t": "隱藏",
+          "en": "hide/mask",
+          "ps": "V"
+        },
+        {
+          "t": "感知的效能",
+          "en": "perceived performance",
+          "ps": "NP"
+        }
+      ]
+    }
+  }
+]

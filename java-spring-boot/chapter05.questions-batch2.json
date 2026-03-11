@@ -1,0 +1,420 @@
+[
+  {
+    "no": "7",
+    "level": "intermediate",
+    "keywords": "Lazy Evaluation, Subscribe, Pitfalls, Reactive Streams",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "public void logUserAccess(String userId) {\n    auditRepository.save(new AuditLog(userId, LocalDateTime.now()));\n    log.info(\"Audit log created for user: \" + userId);\n}",
+    "question": [
+      {
+        "t": "在 Code Review 期間，您注意到上述方法被用來記錄使用者存取日誌。",
+        "en": "During a Code Review, you notice the above method is used to record user access logs.",
+        "wg": [
+          {
+            "t": "存取日誌",
+            "en": "access logs",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "雖然日誌訊息有成功印出，但資料庫中卻始終沒有寫入任何紀錄。",
+        "en": "Although the log message is printed successfully, no records are ever written to the database.",
+        "wg": [
+          {
+            "t": "始終",
+            "en": "ever",
+            "ps": "Adv"
+          }
+        ]
+      },
+      {
+        "t": "假設 `auditRepository` 是一個標準的 Reactive Repository，請問造成此現象最可能的原因是什麼？",
+        "en": "Assuming `auditRepository` is a standard Reactive Repository, what is the most likely cause of this phenomenon?",
+        "wg": [
+          {
+            "t": "現象",
+            "en": "phenomenon",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "Reactive Streams 是惰性 (Lazy) 的，因為沒有對 `save` 回傳的 Mono 進行訂閱 (subscribe)，所以資料庫操作從未執行。",
+        "en": "Reactive Streams are Lazy; since there is no subscription to the Mono returned by `save`, the database operation is never executed.",
+        "wg": [
+          {
+            "t": "惰性",
+            "en": "Lazy",
+            "ps": "Adj"
+          },
+          {
+            "t": "訂閱",
+            "en": "subscribe",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "方法宣告為 `void`，導致 Spring WebFlux 無法攔截並注入交易管理員 (Transaction Manager)。",
+        "en": "The method is declared as `void`, causing Spring WebFlux to fail in intercepting and injecting the Transaction Manager.",
+        "wg": []
+      },
+      {
+        "t": "資料庫寫入操作發生在另一個執行緒，且在主執行緒結束前尚未完成。",
+        "en": "The database write operation occurs on another thread and does not complete before the main thread finishes.",
+        "wg": []
+      },
+      {
+        "t": "缺少 `@Transactional` 註釋，導致寫入操作被自動 rollback。",
+        "en": "Missing `@Transactional` annotation causes the write operation to be automatically rolled back.",
+        "wg": []
+      }
+    ],
+    "answer": "Option 1",
+    "why": {
+      "t": "Reactive Programming 的核心特性之一是惰性執行 (Lazy Execution)。定義流程 (如 `repository.save(...)`) 僅是建構管線，若沒有終端操作 (Terminal Operation) 如 `subscribe()`，整個流程將不會被觸發。這被稱為 'Nothing Happens' 陷阱。",
+      "en": "One of the core features of Reactive Programming is Lazy Execution. Defining a flow (like `repository.save(...)`) only constructs the pipeline; without a terminal operation like `subscribe()`, the entire flow is never triggered. This is known as the 'Nothing Happens' pitfall.",
+      "wg": [
+        {
+          "t": "終端操作",
+          "en": "Terminal Operation",
+          "ps": "N"
+        },
+        {
+          "t": "觸發",
+          "en": "triggered",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "8",
+    "level": "intermediate",
+    "keywords": "Error Handling, Resilience, Graceful Degradation, onErrorReturn",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "return webClient.get().uri(\"/remote-service\")\n    .retrieve()\n    .bodyToMono(String.class)\n    // TODO: Handle error here\n    .map(response -> \"Result: \" + response);",
+    "question": [
+      {
+        "t": "您正在開發一個聚合服務，該服務依賴一個不穩定的外部 API。",
+        "en": "You are developing an aggregation service that depends on an unstable external API.",
+        "wg": [
+          {
+            "t": "聚合服務",
+            "en": "aggregation service",
+            "ps": "N"
+          },
+          {
+            "t": "不穩定的",
+            "en": "unstable",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "當外部 API 失敗時，您希望系統能回傳一個預設值 \"Default\"，而不是直接拋出例外中斷整個請求。",
+        "en": "When the external API fails, you want the system to return a default value \"Default\" instead of throwing an exception and interrupting the entire request.",
+        "wg": [
+          {
+            "t": "預設值",
+            "en": "default value",
+            "ps": "N"
+          },
+          {
+            "t": "中斷",
+            "en": "interrupting",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "請問應該在 TODO 處使用哪個 Operator？",
+        "en": "Which operator should be used at the TODO position?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": ".onErrorReturn(\"Default\")",
+        "en": ".onErrorReturn(\"Default\")",
+        "wg": []
+      },
+      {
+        "t": ".doOnError(e -> \"Default\")",
+        "en": ".doOnError(e -> \"Default\")",
+        "wg": []
+      },
+      {
+        "t": ".switchIfEmpty(Mono.just(\"Default\"))",
+        "en": ".switchIfEmpty(Mono.just(\"Default\"))",
+        "wg": []
+      },
+      {
+        "t": ".subscribeOn(Schedulers.immediate())",
+        "en": ".subscribeOn(Schedulers.immediate())",
+        "wg": []
+      }
+    ],
+    "answer": "Option 1",
+    "why": {
+      "t": "`onErrorReturn` 用於捕捉例外並回傳一個靜態的預設值，實現優雅降級 (Graceful Degradation)。`doOnError` 僅用於副作用 (如 log) 而不改變流；`switchIfEmpty` 是在資料流為空時觸發，而非發生錯誤時。",
+      "en": "`onErrorReturn` is used to catch exceptions and return a static default value, implementing Graceful Degradation. `doOnError` is only for side effects (like logging) and does not change the flow; `switchIfEmpty` is triggered when the stream is empty, not when an error occurs.",
+      "wg": [
+        {
+          "t": "優雅降級",
+          "en": "Graceful Degradation",
+          "ps": "N"
+        },
+        {
+          "t": "副作用",
+          "en": "side effects",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "9",
+    "level": "advanced",
+    "keywords": "Schedulers, publishOn, Thread Switching, CPU-bound",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "return repository.findById(id) // (1) I/O bound\n    .map(data -> heavyComputation(data)) // (2) CPU bound\n    .map(result -> formatResult(result));",
+    "question": [
+      {
+        "t": "在上述流程中，`heavyComputation` 是一個極度消耗 CPU 的加密演算法。",
+        "en": "In the above flow, `heavyComputation` is an extremely CPU-intensive encryption algorithm.",
+        "wg": [
+          {
+            "t": "消耗 CPU",
+            "en": "CPU-intensive",
+            "ps": "Adj"
+          },
+          {
+            "t": "加密演算法",
+            "en": "encryption algorithm",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "為了避免阻塞負責 I/O 的 Netty Event Loop，您應該如何修改程式碼以切換執行緒？",
+        "en": "To avoid blocking the Netty Event Loop responsible for I/O, how should you modify the code to switch threads?",
+        "wg": [
+          {
+            "t": "切換",
+            "en": "switch",
+            "ps": "V"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "在 (1) 與 (2) 之間插入 `.publishOn(Schedulers.parallel())`。",
+        "en": "Insert `.publishOn(Schedulers.parallel())` between (1) and (2).",
+        "wg": []
+      },
+      {
+        "t": "在 (1) 之前插入 `.subscribeOn(Schedulers.parallel())`。",
+        "en": "Insert `.subscribeOn(Schedulers.parallel())` before (1).",
+        "wg": []
+      },
+      {
+        "t": "在 (2) 之後插入 `.publishOn(Schedulers.boundedElastic())`。",
+        "en": "Insert `.publishOn(Schedulers.boundedElastic())` after (2).",
+        "wg": []
+      },
+      {
+        "t": "將 `heavyComputation` 包裝在 `CompletableFuture` 中並呼叫 `.block()`。",
+        "en": "Wrap `heavyComputation` in a `CompletableFuture` and call `.block()`.",
+        "wg": []
+      }
+    ],
+    "answer": "Option 1",
+    "why": {
+      "t": "`publishOn` 影響其**後續**運算子的執行緒。將其放在 I/O 操作之後、CPU 密集操作之前，可以確保 `heavyComputation` 在並行執行緒池 (Parallel Scheduler) 中執行，釋放 Event Loop 去處理其他請求。",
+      "en": "`publishOn` affects the execution thread of **subsequent** operators. Placing it after the I/O operation and before the CPU-intensive operation ensures that `heavyComputation` runs in the Parallel Scheduler, freeing up the Event Loop to handle other requests.",
+      "wg": [
+        {
+          "t": "後續",
+          "en": "subsequent",
+          "ps": "Adj"
+        },
+        {
+          "t": "釋放",
+          "en": "freeing up",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "10",
+    "level": "advanced",
+    "keywords": "Scalability, Memory Footprint, Thread Model, Architecture",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在高併發場景下 (例如 10,000 個同時連線)，Spring WebFlux 通常比 Spring MVC 消耗更少的記憶體。",
+        "en": "In high-concurrency scenarios (e.g., 10,000 simultaneous connections), Spring WebFlux typically consumes less memory than Spring MVC.",
+        "wg": [
+          {
+            "t": "高併發",
+            "en": "high-concurrency",
+            "ps": "N"
+          },
+          {
+            "t": "消耗",
+            "en": "consumes",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "造成這種差異的主要架構原因是什麼？",
+        "en": "What is the primary architectural reason for this difference?",
+        "wg": [
+          {
+            "t": "架構原因",
+            "en": "architectural reason",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "WebFlux 不需要為每個請求分配獨立的執行緒堆疊 (Thread Stack)，而是共用少量的 Event Loop 執行緒。",
+        "en": "WebFlux does not need to allocate a separate Thread Stack for each request; instead, it shares a small number of Event Loop threads.",
+        "wg": [
+          {
+            "t": "執行緒堆疊",
+            "en": "Thread Stack",
+            "ps": "N"
+          },
+          {
+            "t": "共用",
+            "en": "shares",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "WebFlux 自動壓縮了 HTTP 請求與回應的封包大小。",
+        "en": "WebFlux automatically compresses the packet size of HTTP requests and responses.",
+        "wg": []
+      },
+      {
+        "t": "WebFlux 使用了更高效的 Garbage Collection 演算法。",
+        "en": "WebFlux uses a more efficient Garbage Collection algorithm.",
+        "wg": []
+      },
+      {
+        "t": "Spring MVC 強制將所有 Session 資料儲存在記憶體中，而 WebFlux 預設不使用 Session。",
+        "en": "Spring MVC forces all Session data to be stored in memory, whereas WebFlux does not use Sessions by default.",
+        "wg": []
+      }
+    ],
+    "answer": "Option 1",
+    "why": {
+      "t": "在 Blocking 模型 (MVC) 中，每個連線通常對應一個執行緒，每個執行緒預設需佔用約 1MB 的堆疊記憶體 (Stack Memory)。10,000 個連線意味著巨大的記憶體開銷。WebFlux 的 Event Loop 模型僅需極少數執行緒即可處理大量連線，大幅降低記憶體佔用。",
+      "en": "In the Blocking model (MVC), each connection typically corresponds to a thread, and each thread occupies about 1MB of Stack Memory by default. 10,000 connections imply huge memory overhead. WebFlux's Event Loop model handles massive connections with very few threads, significantly reducing memory footprint.",
+      "wg": [
+        {
+          "t": "堆疊記憶體",
+          "en": "Stack Memory",
+          "ps": "N"
+        },
+        {
+          "t": "開銷",
+          "en": "overhead",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "11",
+    "level": "intermediate",
+    "keywords": "Netty, Event Loop, Configuration, Performance Tuning",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您將一個 Spring WebFlux 應用程式部署到一個擁有 4 個 vCPU 的容器環境中。",
+        "en": "You deploy a Spring WebFlux application to a container environment with 4 vCPUs.",
+        "wg": [
+          {
+            "t": "容器環境",
+            "en": "container environment",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "在未進行額外設定的情況下，Netty 預設會啟動多少個 Event Loop Worker 執行緒來處理請求？",
+        "en": "Without additional configuration, how many Event Loop Worker threads will Netty start by default to handle requests?",
+        "wg": [
+          {
+            "t": "額外設定",
+            "en": "additional configuration",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "4 個 (通常等於 CPU 核心數)",
+        "en": "4 (Typically equals the number of CPU cores)",
+        "wg": []
+      },
+      {
+        "t": "1 個 (Single Threaded)",
+        "en": "1 (Single Threaded)",
+        "wg": []
+      },
+      {
+        "t": "200 個 (類似 Tomcat 的預設值)",
+        "en": "200 (Similar to Tomcat's default)",
+        "wg": []
+      },
+      {
+        "t": "8 個 (CPU 核心數的兩倍)",
+        "en": "8 (Double the number of CPU cores)",
+        "wg": []
+      }
+    ],
+    "answer": "Option 1",
+    "why": {
+      "t": "Netty 的 Event Loop 預設執行緒數量通常等於可用處理器核心數 (Available Processors)。這是因為 Event Loop 設計為 Non-blocking 且 CPU 密集 (處理 I/O 事件)，過多的執行緒只會導致 Context Switch 降低效能。",
+      "en": "The default number of Netty Event Loop threads is typically equal to the number of available processor cores. This is because the Event Loop is designed to be Non-blocking and CPU-intensive (handling I/O events); too many threads would only cause Context Switching and degrade performance.",
+      "wg": [
+        {
+          "t": "可用處理器核心數",
+          "en": "Available Processors",
+          "ps": "N"
+        },
+        {
+          "t": "降低效能",
+          "en": "degrade performance",
+          "ps": "V"
+        }
+      ]
+    }
+  }
+]
