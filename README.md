@@ -27,6 +27,6 @@ Every sentence with pinyin/zhuyin and English.
   * B2: pointTo is type: "document", data: "youtube", dataLocation: "any_youtube_url"
   * C: pointTo is type: "document", data: "notion", dataLocation: "ayny_notion_embedded_url"
  
-- Https://JuJuEn.org/{Your_Branch}
+- Https://JuJuEn.org/Your_Branch
 
 One your branch has menu-path.json, then your banch can be presented by this url rule: Https://JuJuEn.org/Your_Branch
