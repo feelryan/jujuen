@@ -1,4 +1,4 @@
-# 句句韺 JuJuEn
+# [句句韺 JuJuEn](https://jujuen.org/) https://jujuen.org/
 Every sentence with pinyin/zhuyin and English.
 
 - 專給需要同時學習中文／英文的大小朋友之網站，用學校各科考題和中國古書，並提供拼音、注音和英文，讓你一邊閱讀或做題目，一邊把漢字的長相、讀音和英文意思記起來。
