@@ -7,3 +7,26 @@ Every sentence with pinyin/zhuyin and English.
 
 - A website specially designed for learners of all ages who need to study Chinese and English at the same time. It uses school exam questions from various subjects and classic Chinese books, and provides pinyin, zhuyin, and English so that you can read or work on questions while memorizing the appearance, pronunciation, and English meaning of Chinese characters.
 
+## 分支 Branches
+
+- [國中科目 Junior High Subjects](https://jujuen.org/junior-high)
+- [中國古書 Ancient Chinese Classics](https://jujuen.org/ancient-classics)
+
+## 如何自建分支 How to build your own branch
+
+- 查看["自建知識"](https://jujuen.org/self-built-knowledge)分支中的[How to build your own knowledge branch / 如何建立自己的知識分支]
+
+- 要求 Copilot AI 依照 site-components.md 的 MenuPath 格式來建立 menu-path.json, 項目關係可利用以下方式表達來快速建立:
+
+  * A -> B -> C
+  * B -> B1
+  * B -> B2
+  * A: pointTo is type: "document", data: "github/md", dataLocation: "https://github.com/.../xxx.md" (it can be any GitHub location)
+  * B: pointTo is type: "category", data: "github/json", dataLocation: "https://github.com/.../xxx.json" (it can be any GitHub location)
+  * B1: pointTo is type: "document", data: "web/page", dataLocation: "any_web_url"
+  * B2: pointTo is type: "document", data: "youtube", dataLocation: "any_youtube_url"
+  * C: pointTo is type: "document", data: "notion", dataLocation: "ayny_notion_embedded_url"
+ 
+- Https://JuJuEn.org/{Your_Branch}
+
+One your branch has menu-path.json, then your banch can be presented by this url rule: Https://JuJuEn.org/Your_Branch
