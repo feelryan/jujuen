@@ -1,0 +1,504 @@
+[
+  {
+    "no": "1",
+    "level": "intermediate",
+    "keywords": "OIDC, AWS, Security, CI/CD, Keyless Authentication",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在 GitHub Actions 中整合 AWS 部署時，使用 OpenID Connect (OIDC) 取代長期憑證 (Long-lived Credentials) 的主要安全優勢為何？",
+        "en": "What is the primary security advantage of using OpenID Connect (OIDC) instead of long-lived credentials when integrating AWS deployment in GitHub Actions?",
+        "wg": [
+          {
+            "t": "長期憑證",
+            "en": "long-lived credentials",
+            "ps": "NP"
+          },
+          {
+            "t": "整合",
+            "en": "integrating",
+            "ps": "V"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) OIDC 能顯著提升 GitHub Actions Runner 下載程式碼的速度。",
+        "en": "(A) OIDC significantly improves the speed at which GitHub Actions Runners download code.",
+        "wg": []
+      },
+      {
+        "t": "(B) OIDC 允許使用短效 Token，消除了儲存靜態金鑰與定期輪替金鑰的需求。",
+        "en": "(B) OIDC allows the use of short-lived tokens, eliminating the need to store static keys and rotate them regularly.",
+        "wg": [
+          {
+            "t": "短效",
+            "en": "short-lived",
+            "ps": "Adj"
+          },
+          {
+            "t": "輪替",
+            "en": "rotate",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(C) OIDC 會自動加密儲存庫中的所有原始碼，防止外部洩漏。",
+        "en": "(C) OIDC automatically encrypts all source code in the repository to prevent external leaks.",
+        "wg": []
+      },
+      {
+        "t": "(D) OIDC 讓開發者可以繞過 AWS IAM 的權限檢查直接進行部署。",
+        "en": "(D) OIDC allows developers to bypass AWS IAM permission checks and deploy directly.",
+        "wg": [
+          {
+            "t": "繞過",
+            "en": "bypass",
+            "ps": "V"
+          }
+        ]
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "OIDC 透過身分提供者 (GitHub) 與雲端供應商 (AWS) 之間的信任交換，簽發短效的 Access Token。這避免了在 GitHub Secrets 中儲存高風險的 `AWS_ACCESS_KEY_ID`，並降低了憑證洩漏後的攻擊面。",
+      "en": "OIDC exchanges trust between the Identity Provider (GitHub) and the Cloud Provider (AWS) to issue short-lived Access Tokens. This avoids storing high-risk `AWS_ACCESS_KEY_ID` in GitHub Secrets and reduces the attack surface if credentials are leaked.",
+      "wg": [
+        {
+          "t": "身分提供者",
+          "en": "Identity Provider",
+          "ps": "NP"
+        },
+        {
+          "t": "攻擊面",
+          "en": "attack surface",
+          "ps": "NP"
+        }
+      ]
+    }
+  },
+  {
+    "no": "2",
+    "level": "advanced",
+    "keywords": "OIDC, Terraform, IAM, Security Misconfiguration",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "resource \"aws_iam_role\" \"github_actions\" {\n  # ... (omitted)\n  assume_role_policy = jsonencode({\n    Statement = [\n      {\n        Action = \"sts:AssumeRoleWithWebIdentity\"\n        Condition = {\n          StringLike = {\n            \"token.actions.githubusercontent.com:sub\": \"repo:my-org/my-repo:*\"\n          }\n        }\n        # ... (omitted)\n      }\n    ]\n  })\n}",
+    "question": [
+      {
+        "t": "您正在審查一段用於設定 GitHub Actions OIDC 信任的 Terraform 程式碼（如上所示）。",
+        "en": "You are reviewing a Terraform snippet used to configure GitHub Actions OIDC trust (as shown above).",
+        "wg": [
+          {
+            "t": "審查",
+            "en": "reviewing",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "這段設定存在一個嚴重的安全隱患，請問是哪一個？",
+        "en": "There is a critical security vulnerability in this configuration. What is it?",
+        "wg": [
+          {
+            "t": "隱患",
+            "en": "vulnerability/risk",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) `StringLike` 語法錯誤，Terraform 無法執行。",
+        "en": "(A) The `StringLike` syntax is incorrect, and Terraform cannot execute it.",
+        "wg": []
+      },
+      {
+        "t": "(B) 權限過寬：該儲存庫中的任何分支或 Pull Request 都能取得此 IAM Role 的權限。",
+        "en": "(B) Over-privileged: Any branch or Pull Request in that repository can assume the permissions of this IAM Role.",
+        "wg": [
+          {
+            "t": "權限過寬",
+            "en": "over-privileged",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "(C) 缺少 `aws_region` 設定，會導致 OIDC 連線失敗。",
+        "en": "(C) Missing `aws_region` configuration will cause the OIDC connection to fail.",
+        "wg": []
+      },
+      {
+        "t": "(D) OIDC 不支援 `jsonencode` 函數，必須使用純字串。",
+        "en": "(D) OIDC does not support the `jsonencode` function; a raw string must be used.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "設定 `repo:my-org/my-repo:*` 表示該 Repo 的任何 Git ref（包含攻擊者建立的惡意分支或未經審核的 PR）都能通過驗證。應限制為特定分支（如 `ref:refs/heads/main`）。",
+      "en": "Setting `repo:my-org/my-repo:*` means any Git ref in that repo (including malicious branches created by attackers or unreviewed PRs) can pass verification. It should be restricted to specific branches (e.g., `ref:refs/heads/main`).",
+      "wg": [
+        {
+          "t": "惡意分支",
+          "en": "malicious branch",
+          "ps": "NP"
+        },
+        {
+          "t": "未經審核",
+          "en": "unreviewed",
+          "ps": "Adj"
+        }
+      ]
+    }
+  },
+  {
+    "no": "3",
+    "level": "intermediate",
+    "keywords": "CodeQL, SAST, Static Analysis, Code as Data",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "CodeQL 與傳統基於正規表達式 (Regex) 的靜態掃描工具相比，最大的區別與優勢為何？",
+        "en": "What is the biggest difference and advantage of CodeQL compared to traditional Regex-based static scanning tools?",
+        "wg": [
+          {
+            "t": "正規表達式",
+            "en": "Regular Expression (Regex)",
+            "ps": "NP"
+          },
+          {
+            "t": "靜態掃描",
+            "en": "static scanning",
+            "ps": "NP"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) CodeQL 執行速度比 Regex 快，因為它不檢查程式碼內容。",
+        "en": "(A) CodeQL is faster than Regex because it does not check code content.",
+        "wg": []
+      },
+      {
+        "t": "(B) CodeQL 將程式碼轉換為語意資料庫 (AST/CFG)，能追蹤跨函數的資料流向與邏輯漏洞。",
+        "en": "(B) CodeQL transforms code into a semantic database (AST/CFG), enabling tracking of data flow across functions and logical vulnerabilities.",
+        "wg": [
+          {
+            "t": "語意資料庫",
+            "en": "semantic database",
+            "ps": "NP"
+          },
+          {
+            "t": "資料流向",
+            "en": "data flow",
+            "ps": "NP"
+          }
+        ]
+      },
+      {
+        "t": "(C) CodeQL 只能掃描 GitHub 上的公開儲存庫，無法用於私有專案。",
+        "en": "(C) CodeQL can only scan public repositories on GitHub and cannot be used for private projects.",
+        "wg": []
+      },
+      {
+        "t": "(D) CodeQL 主要用於檢查程式碼排版與縮排風格，而非安全性。",
+        "en": "(D) CodeQL is primarily used to check code formatting and indentation style, not security.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "CodeQL 的核心概念是「Code as Data」，它建立語法樹與控制流圖，能識別「未經消毒的使用者輸入如何流向 SQL 執行點」這類複雜邏輯，而 Regex 只能進行簡單的文字匹配。",
+      "en": "The core concept of CodeQL is 'Code as Data'. It builds ASTs and Control Flow Graphs to identify complex logic like 'how unsanitized user input flows to a SQL execution point', whereas Regex can only do simple text matching.",
+      "wg": [
+        {
+          "t": "未經消毒",
+          "en": "unsanitized",
+          "ps": "Adj"
+        },
+        {
+          "t": "文字匹配",
+          "en": "text matching",
+          "ps": "NP"
+        }
+      ]
+    }
+  },
+  {
+    "no": "4",
+    "level": "intermediate",
+    "keywords": "Secret Scanning, Incident Response, Git History",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您的團隊發現一個有效的 AWS Secret Key 在三個月前被意外 commit 進了 Git 歷史紀錄。",
+        "en": "Your team discovered that a valid AWS Secret Key was accidentally committed to the Git history three months ago.",
+        "wg": [
+          {
+            "t": "意外",
+            "en": "accidentally",
+            "ps": "Adv"
+          }
+        ]
+      },
+      {
+        "t": "您已經使用 `git filter-repo` 從歷史中移除了該檔案並強制推送 (force push)。接下來最關鍵的步驟是什麼？",
+        "en": "You have used `git filter-repo` to remove the file from history and force pushed. What is the most critical next step?",
+        "wg": [
+          {
+            "t": "強制推送",
+            "en": "force push",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "請選擇最佳處置方式。",
+        "en": "Please select the best course of action.",
+        "wg": [
+          {
+            "t": "處置方式",
+            "en": "course of action",
+            "ps": "NP"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 什麼都不用做，因為歷史紀錄已經被清除，攻擊者無法看到了。",
+        "en": "(A) Do nothing, as the history has been cleared and attackers can no longer see it.",
+        "wg": []
+      },
+      {
+        "t": "(B) 立即在 AWS 端撤銷 (Revoke) 並輪替 (Rotate) 該金鑰，因為它已被視為洩漏。",
+        "en": "(B) Immediately revoke and rotate the key on the AWS side, as it is considered compromised.",
+        "wg": [
+          {
+            "t": "撤銷",
+            "en": "revoke",
+            "ps": "V"
+          },
+          {
+            "t": "視為洩漏",
+            "en": "considered compromised",
+            "ps": "VP"
+          }
+        ]
+      },
+      {
+        "t": "(C) 將儲存庫設為 Private，這樣外部人員就無法存取舊的 commit hash。",
+        "en": "(C) Make the repository Private so outsiders cannot access the old commit hashes.",
+        "wg": []
+      },
+      {
+        "t": "(D) 在 README 中公告該金鑰已無效，以防止攻擊者嘗試使用。",
+        "en": "(D) Announce in the README that the key is invalid to prevent attackers from trying to use it.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "一旦金鑰進入版本控制系統，就必須假設它已被攻擊者複製（例如透過 GitHub Events API 或 Fork）。僅修改 Git 歷史無法消除金鑰已被竊取的風險，必須立即作廢舊金鑰。",
+      "en": "Once a key enters the version control system, you must assume it has been cloned by attackers (e.g., via GitHub Events API or Forks). Modifying Git history alone does not eliminate the risk of theft; the old key must be invalidated immediately.",
+      "wg": [
+        {
+          "t": "作廢",
+          "en": "invalidate",
+          "ps": "V"
+        },
+        {
+          "t": "竊取",
+          "en": "theft",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "5",
+    "level": "advanced",
+    "keywords": "Supply Chain Security, Dependency Confusion, Package Management",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "什麼是「依賴混淆攻擊 (Dependency Confusion Attack)」，以及如何有效防禦？",
+        "en": "What is a 'Dependency Confusion Attack' and how can it be effectively prevented?",
+        "wg": [
+          {
+            "t": "依賴混淆",
+            "en": "Dependency Confusion",
+            "ps": "NP"
+          },
+          {
+            "t": "防禦",
+            "en": "prevent/defend",
+            "ps": "V"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 攻擊者修改 `package-lock.json` 造成版本衝突；防禦方式是鎖定依賴版本。",
+        "en": "(A) Attackers modify `package-lock.json` to cause version conflicts; prevention is locking dependency versions.",
+        "wg": []
+      },
+      {
+        "t": "(B) 攻擊者在公開 Registry 發布與內部私有套件同名的高版號套件；防禦方式是設定 Scope 與 Registry 的明確對應。",
+        "en": "(B) Attackers publish packages with the same name as internal private packages but higher versions on public registries; prevention is configuring explicit mapping between Scopes and Registries.",
+        "wg": [
+          {
+            "t": "公開 Registry",
+            "en": "public registry",
+            "ps": "NP"
+          },
+          {
+            "t": "明確對應",
+            "en": "explicit mapping",
+            "ps": "NP"
+          }
+        ]
+      },
+      {
+        "t": "(C) 攻擊者透過 SQL Injection 獲取資料庫權限；防禦方式是使用 CodeQL。",
+        "en": "(C) Attackers gain database access via SQL Injection; prevention is using CodeQL.",
+        "wg": []
+      },
+      {
+        "t": "(D) 攻擊者竊取開發者的 NPM Token；防禦方式是啟用 2FA。",
+        "en": "(D) Attackers steal the developer's NPM Token; prevention is enabling 2FA.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "依賴混淆利用了套件管理器（如 npm/pip）預設會去公開 Registry 尋找更高版號套件的特性。透過在 `.npmrc` 等設定檔中將公司 Scope（如 `@myorg`）強制指向私有 Registry，可避免此攻擊。",
+      "en": "Dependency Confusion exploits the behavior of package managers (like npm/pip) looking for higher versions on public registries by default. Forcing the company Scope (e.g., `@myorg`) to point to a private registry in config files like `.npmrc` prevents this.",
+      "wg": [
+        {
+          "t": "套件管理器",
+          "en": "package manager",
+          "ps": "NP"
+        },
+        {
+          "t": "強制指向",
+          "en": "force point to",
+          "ps": "VP"
+        }
+      ]
+    }
+  },
+  {
+    "no": "6",
+    "level": "senior",
+    "keywords": "DevSecOps, Alert Fatigue, Process, Dependabot",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在一個大型單體應用程式 (Monolith) 中初次啟用 Dependabot 後，產生了 500 多個警報，導致團隊產生「警報疲勞 (Alert Fatigue)」。",
+        "en": "After enabling Dependabot on a large Monolith application for the first time, over 500 alerts were generated, causing 'Alert Fatigue' within the team.",
+        "wg": [
+          {
+            "t": "單體應用程式",
+            "en": "Monolith application",
+            "ps": "NP"
+          },
+          {
+            "t": "警報疲勞",
+            "en": "Alert Fatigue",
+            "ps": "NP"
+          }
+        ]
+      },
+      {
+        "t": "作為資深工程師，下列哪項策略最能兼顧安全性與開發效率？",
+        "en": "As a Senior Engineer, which of the following strategies best balances security and development velocity?",
+        "wg": [
+          {
+            "t": "兼顧",
+            "en": "balance",
+            "ps": "V"
+          },
+          {
+            "t": "開發效率",
+            "en": "development velocity",
+            "ps": "NP"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 暫時關閉 Dependabot，等到專案重構為微服務後再重新開啟。",
+        "en": "(A) Temporarily disable Dependabot and re-enable it after refactoring the project into microservices.",
+        "wg": []
+      },
+      {
+        "t": "(B) 設定自動合併 (Auto-merge) 所有警報，無論嚴重程度為何，以快速清除積壓。",
+        "en": "(B) Configure auto-merge for all alerts regardless of severity to quickly clear the backlog.",
+        "wg": []
+      },
+      {
+        "t": "(C) 建立基準線 (Baseline)，優先處理 Critical/High 警報，並對通過測試的 Minor/Patch 更新設定自動合併。",
+        "en": "(C) Establish a baseline, prioritize Critical/High alerts, and configure auto-merge for Minor/Patch updates that pass tests.",
+        "wg": [
+          {
+            "t": "基準線",
+            "en": "baseline",
+            "ps": "N"
+          },
+          {
+            "t": "積壓",
+            "en": "backlog",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(D) 忽略舊有警報，僅針對本週以後新引入的依賴進行檢查。",
+        "en": "(D) Ignore legacy alerts and only check for dependencies introduced after this week.",
+        "wg": []
+      }
+    ],
+    "answer": "(C)",
+    "why": {
+      "t": "面對大量技術債，試圖一次解決或完全忽略都不是好方法。策略性地分流（Triage）：自動化處理低風險更新，人工專注於高風險漏洞，是維持 DevSecOps 運作的可持續模式。",
+      "en": "Facing massive technical debt, neither fixing everything at once nor ignoring it is viable. Strategic triage—automating low-risk updates and focusing human effort on high-risk vulnerabilities—is a sustainable model for DevSecOps.",
+      "wg": [
+        {
+          "t": "技術債",
+          "en": "technical debt",
+          "ps": "NP"
+        },
+        {
+          "t": "分流",
+          "en": "triage",
+          "ps": "V"
+        }
+      ]
+    }
+  }
+]

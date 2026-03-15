@@ -1,0 +1,893 @@
+[
+  {
+    "no": "1",
+    "level": "Medium",
+    "keywords": "Cache, Artifacts, Reliability, Anti-pattern",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "build_job:\n  stage: build\n  script: make build\n  cache:\n    paths:\n      - bin/app  # The compiled binary\n\ndeploy_job:\n  stage: deploy\n  script: ./bin/app deploy\n  cache:\n    paths:\n      - bin/app",
+    "question": [
+      {
+        "t": "一位工程師設計了如上的 CI/CD 配置，但在部署階段偶爾會發生「找不到二進位檔案 (binary not found)」的錯誤，即使建置階段顯示成功。",
+        "en": "An engineer designed the CI/CD configuration shown above, but the deployment stage occasionally fails with a 'binary not found' error, even though the build stage shows success.",
+        "wg": []
+      },
+      {
+        "t": "根據 GitLab 的最佳實務，這個問題的根本原因是什麼？",
+        "en": "According to GitLab best practices, what is the root cause of this issue?",
+        "wg": [
+          {
+            "t": "根本原因",
+            "en": "root cause",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "快取 (Cache) 的設計目的是為了加速，並不保證可靠性與持久性，跨 Job 傳遞檔案應使用產物 (Artifacts)。",
+        "en": "Caches are designed for speed and do not guarantee reliability or persistence; Artifacts should be used for passing files between jobs.",
+        "wg": [
+          {
+            "t": "可靠性",
+            "en": "reliability",
+            "ps": "noun"
+          },
+          {
+            "t": "持久性",
+            "en": "persistence",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "快取路徑設定錯誤，應該使用絕對路徑而非相對路徑。",
+        "en": "The cache path is configured incorrectly; absolute paths should be used instead of relative paths.",
+        "wg": []
+      },
+      {
+        "t": "這是 Runner 的網路問題，應該在 script 中加入重試邏輯。",
+        "en": "This is a Runner network issue, and retry logic should be added to the script.",
+        "wg": []
+      },
+      {
+        "t": "快取金鑰 (Cache Key) 未設定，導致不同分支之間的快取發生衝突。",
+        "en": "The Cache Key is not configured, causing cache conflicts between different branches.",
+        "wg": []
+      }
+    ],
+    "answer": "Option 1",
+    "why": {
+      "t": "快取 (Cache) 是「可有可無」的 (Disposable)，可能會被清除或在不同 Runner 間未同步。產物 (Artifacts) 才是設計用來在 Stage 之間可靠地傳遞建置結果的機制。",
+      "en": "Caches are 'disposable' and may be cleared or not synchronized across different Runners. Artifacts are the mechanism designed to reliably pass build results between stages.",
+      "wg": [
+        {
+          "t": "可有可無",
+          "en": "disposable",
+          "ps": "adjective"
+        },
+        {
+          "t": "傳遞",
+          "en": "pass/transfer",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "2",
+    "level": "Easy",
+    "keywords": "Performance Tuning, Optimization Hierarchy, Network I/O",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "根據手冊中的「優化層級 (Hierarchy of Optimization)」，當你著手優化一個緩慢的流水線時，應該優先檢查哪一個瓶頸？",
+        "en": "According to the 'Hierarchy of Optimization' in the handbook, which bottleneck should you check first when optimizing a slow pipeline?",
+        "wg": [
+          {
+            "t": "優化層級",
+            "en": "Hierarchy of Optimization",
+            "ps": "noun"
+          },
+          {
+            "t": "瓶頸",
+            "en": "bottleneck",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "計算效率 (Compute): 優化編譯器參數或測試程式碼的演算法。",
+        "en": "Compute: Optimizing compiler flags or test code algorithms.",
+        "wg": []
+      },
+      {
+        "t": "排程 (Scheduling): 檢查 Job 之間的相依性阻塞。",
+        "en": "Scheduling: Checking for blocking dependencies between jobs.",
+        "wg": []
+      },
+      {
+        "t": "網路 I/O (Network I/O): 下載 Image、上傳/下載快取與產物的時間。",
+        "en": "Network I/O: Time spent downloading images and uploading/downloading caches and artifacts.",
+        "wg": [
+          {
+            "t": "網路 I/O",
+            "en": "Network I/O",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "資料庫 (Database): 優化 CI 過程中對資料庫的查詢。",
+        "en": "Database: Optimizing database queries during the CI process.",
+        "wg": []
+      }
+    ],
+    "answer": "Option 3",
+    "why": {
+      "t": "網路 I/O (如下載 Docker Image 或傳輸 Cache/Artifacts) 通常是 CI/CD 中最大的效能殺手，因此應最先被檢視，其次才是排程與計算效率。",
+      "en": "Network I/O (such as downloading Docker images or transferring caches/artifacts) is usually the biggest performance killer in CI/CD, so it should be examined first, followed by scheduling and compute efficiency.",
+      "wg": [
+        {
+          "t": "效能殺手",
+          "en": "performance killer",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "3",
+    "level": "Medium",
+    "keywords": "Docker, Context, Performance, .dockerignore",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "job_log_output:\n  Sending build context to Docker daemon  500MB\n  Step 1/5 : FROM node:14\n  ...",
+    "question": [
+      {
+        "t": "你在檢視 Docker Build 的 Log 時發現 `Sending build context to Docker daemon` 佔用了大量時間且傳輸了 500MB 的資料。",
+        "en": "While reviewing the Docker Build log, you notice that `Sending build context to Docker daemon` takes a long time and transfers 500MB of data.",
+        "wg": [
+          {
+            "t": "傳輸",
+            "en": "transfers",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "這通常意味著什麼問題，以及該如何解決？",
+        "en": "What does this usually indicate, and how should it be resolved?",
+        "wg": []
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "Docker Daemon 記憶體不足，應增加 Runner 的 RAM 配置。",
+        "en": "The Docker Daemon is running out of memory; increase the Runner's RAM configuration.",
+        "wg": []
+      },
+      {
+        "t": "忽略了 Docker Context，應設定 `.dockerignore` 排除 `node_modules` 或產物等非必要檔案。",
+        "en": "Docker Context was ignored; configure `.dockerignore` to exclude unnecessary files like `node_modules` or artifacts.",
+        "wg": [
+          {
+            "t": "忽略",
+            "en": "ignored",
+            "ps": "verb"
+          },
+          {
+            "t": "排除",
+            "en": "exclude",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "網路頻寬不足，應升級網路連線速度。",
+        "en": "Network bandwidth is insufficient; upgrade the network connection speed.",
+        "wg": []
+      },
+      {
+        "t": "使用了過大的 Base Image，應更換為 Alpine 版本。",
+        "en": "A base image that is too large was used; switch to the Alpine version.",
+        "wg": []
+      }
+    ],
+    "answer": "Option 2",
+    "why": {
+      "t": "當執行 `docker build .` 時，Docker 會將當前目錄下的所有檔案作為 Context 傳送給 Daemon。若未設定 `.dockerignore` 排除大型資料夾 (如 `node_modules` 或 build artifacts)，會導致初始化極慢。",
+      "en": "When running `docker build .`, Docker sends all files in the current directory as context to the Daemon. If `.dockerignore` is not configured to exclude large folders (like `node_modules` or build artifacts), initialization will be extremely slow.",
+      "wg": [
+        {
+          "t": "初始化",
+          "en": "initialization",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "4",
+    "level": "Hard",
+    "keywords": "DAG, needs, Parallelization, Pipeline Efficiency",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "stages:\n  - prepare\n  - build\n  - test\n\ninstall:\n  stage: prepare\n  script: npm ci\n\nbuild_app:\n  stage: build\n  script: npm run build\n\nunit_test:\n  stage: test\n  script: npm run test",
+    "question": [
+      {
+        "t": "在上述配置中，`unit_test` 必須等待 `build_app` 完成後才能開始執行，即使測試工作其實只需要 `install` 階段的依賴套件。",
+        "en": "In the configuration above, `unit_test` must wait for `build_app` to finish before it can start, even though the test job actually only needs the dependencies from the `install` stage.",
+        "wg": [
+          {
+            "t": "依賴套件",
+            "en": "dependencies",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "若要優化此流程，讓測試與建置能並行處理 (Parallel)，應如何修改 `unit_test`？",
+        "en": "To optimize this workflow and allow testing and building to run in parallel, how should `unit_test` be modified?",
+        "wg": [
+          {
+            "t": "並行處理",
+            "en": "run in parallel",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "將 `unit_test` 的 stage 改為 `build`。",
+        "en": "Change the stage of `unit_test` to `build`.",
+        "wg": []
+      },
+      {
+        "t": "在 `unit_test` 中加入 `needs: [\"install\"]`。",
+        "en": "Add `needs: [\"install\"]` to `unit_test`.",
+        "wg": []
+      },
+      {
+        "t": "在 `unit_test` 中加入 `dependencies: []`。",
+        "en": "Add `dependencies: []` to `unit_test`.",
+        "wg": []
+      },
+      {
+        "t": "在 `unit_test` 中設定 `allow_failure: true`。",
+        "en": "Set `allow_failure: true` in `unit_test`.",
+        "wg": []
+      }
+    ],
+    "answer": "Option 2",
+    "why": {
+      "t": "使用 `needs` 關鍵字可以建立有向無環圖 (DAG)，打破 Stage 的序列限制。設定 `needs: [\"install\"]` 後，`unit_test` 只要 `install` 完成即可開始，無需等待 `build` 階段結束。",
+      "en": "Using the `needs` keyword creates a Directed Acyclic Graph (DAG), breaking the sequential constraints of stages. Setting `needs: [\"install\"]` allows `unit_test` to start as soon as `install` is complete, without waiting for the `build` stage to finish.",
+      "wg": [
+        {
+          "t": "有向無環圖",
+          "en": "Directed Acyclic Graph (DAG)",
+          "ps": "noun"
+        },
+        {
+          "t": "序列限制",
+          "en": "sequential constraints",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "5",
+    "level": "Medium",
+    "keywords": "Cache Keys, Smart Caching, Configuration",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "cache:\n  key: \"$CI_COMMIT_REF_SLUG\"\n  paths:\n    - node_modules/",
+    "question": [
+      {
+        "t": "使用 `$CI_COMMIT_REF_SLUG` (分支名稱) 作為快取金鑰 (Cache Key) 是一個常見的做法，但它有一個潛在的效能缺點。",
+        "en": "Using `$CI_COMMIT_REF_SLUG` (branch name) as the Cache Key is a common practice, but it has a potential performance drawback.",
+        "wg": [
+          {
+            "t": "潛在的",
+            "en": "potential",
+            "ps": "adjective"
+          },
+          {
+            "t": "缺點",
+            "en": "drawback",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "下列哪種情況描述了這個缺點，以及更好的替代方案是什麼？",
+        "en": "Which of the following describes this drawback and what is the better alternative?",
+        "wg": []
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "缺點：不同分支無法共享快取。替代方案：使用 `key: files: [package-lock.json]`。",
+        "en": "Drawback: Caches cannot be shared across different branches. Alternative: Use `key: files: [package-lock.json]`.",
+        "wg": [
+          {
+            "t": "共享",
+            "en": "share",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "缺點：快取會無限增長。替代方案：設定 `expire_in: 1 hour`。",
+        "en": "Drawback: The cache grows indefinitely. Alternative: Set `expire_in: 1 hour`.",
+        "wg": []
+      },
+      {
+        "t": "缺點：金鑰名稱太長。替代方案：使用 `$CI_JOB_ID`。",
+        "en": "Drawback: The key name is too long. Alternative: Use `$CI_JOB_ID`.",
+        "wg": []
+      },
+      {
+        "t": "缺點：不支援分散式快取。替代方案：使用 S3 Backend。",
+        "en": "Drawback: Distributed caching is not supported. Alternative: Use S3 Backend.",
+        "wg": []
+      }
+    ],
+    "answer": "Option 1",
+    "why": {
+      "t": "使用分支名稱作為 Key 會導致即使依賴檔案 (如 `package-lock.json`) 未變更，新分支也無法利用舊分支的快取。使用 `files` 能夠根據依賴定義檔的內容產生 Key，實現跨分支共享且精準的快取。",
+      "en": "Using the branch name as a key means new branches cannot utilize the cache from old branches even if dependency files (like `package-lock.json`) haven't changed. Using `files` generates a key based on the content of dependency definition files, enabling precise cache sharing across branches.",
+      "wg": [
+        {
+          "t": "精準的",
+          "en": "precise",
+          "ps": "adjective"
+        }
+      ]
+    }
+  },
+  {
+    "no": "6",
+    "level": "Hard",
+    "keywords": "Docker Layer Caching, CI/CD, Optimization",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "script:\n  - docker pull $LATEST_TAG || true\n  - docker build --cache-from $LATEST_TAG -t $IMAGE_TAG .",
+    "question": [
+      {
+        "t": "在 CI 環境中建置 Docker Image 時，為什麼建議先執行 `docker pull` 並配合 `--cache-from` 參數？",
+        "en": "When building Docker images in a CI environment, why is it recommended to run `docker pull` first and use the `--cache-from` flag?",
+        "wg": [
+          {
+            "t": "建議",
+            "en": "recommended",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "這主要解決了什麼問題？",
+        "en": "What problem does this primarily solve?",
+        "wg": []
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "解決 Docker Hub 的 Rate Limit 限制。",
+        "en": "Solves Docker Hub Rate Limit restrictions.",
+        "wg": []
+      },
+      {
+        "t": "解決 CI Runner 每次都在全新環境執行，缺乏本地 Docker Layer 快取的問題。",
+        "en": "Solves the issue where CI Runners execute in a fresh environment every time, lacking local Docker Layer cache.",
+        "wg": [
+          {
+            "t": "全新環境",
+            "en": "fresh environment",
+            "ps": "noun"
+          },
+          {
+            "t": "缺乏",
+            "en": "lacking",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "確保產生的 Image 標籤 (Tag) 具有唯一性。",
+        "en": "Ensures the generated Image Tag is unique.",
+        "wg": []
+      },
+      {
+        "t": "減少上傳 Image 到 Registry 的時間。",
+        "en": "Reduces the time to push the Image to the Registry.",
+        "wg": []
+      }
+    ],
+    "answer": "Option 2",
+    "why": {
+      "t": "在 Ephemeral (短暫存在的) Runner 環境中，本地沒有舊的 Image Layers。透過 `pull` 下載舊 Image 並指定 `--cache-from`，Docker 才能重用未變更的 Layers (如 OS base, 系統套件)，避免每次從頭建置。",
+      "en": "In Ephemeral Runner environments, there are no old Image Layers locally. By using `pull` to download the old image and specifying `--cache-from`, Docker can reuse unchanged layers (like OS base, system packages), avoiding a rebuild from scratch every time.",
+      "wg": [
+        {
+          "t": "短暫存在的",
+          "en": "ephemeral",
+          "ps": "adjective"
+        },
+        {
+          "t": "重用",
+          "en": "reuse",
+          "ps": "verb"
+        },
+        {
+          "t": "從頭建置",
+          "en": "rebuild from scratch",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "7",
+    "level": "Medium",
+    "keywords": "Cache Policy, pull-push, Optimization, Configuration",
+    "parentNo": null,
+    "images": "",
+    "codeSnippet": "stages:\n  - prepare\n  - test\n\ninstall_deps:\n  stage: prepare\n  script: npm ci\n  cache:\n    key: deps-key\n    paths: [node_modules/]\n    policy: pull-push\n\nunit_test:\n  stage: test\n  script: npm test\n  cache:\n    key: deps-key\n    paths: [node_modules/]\n    # Default policy is pull-push",
+    "question": [
+      {
+        "t": "在上述配置中，`unit_test` 工作 (Job) 雖然只需要讀取 `node_modules` 而不會修改它，但預設行為仍會在工作結束時重新壓縮並上傳快取。",
+        "en": "In the configuration above, the `unit_test` job only needs to read `node_modules` and does not modify it, yet the default behavior will still re-compress and upload the cache at the end of the job.",
+        "wg": [
+          {
+            "t": "工作",
+            "en": "Job",
+            "ps": "noun"
+          },
+          {
+            "t": "重新壓縮並上傳",
+            "en": "re-compress and upload",
+            "ps": "verb phrase"
+          }
+        ]
+      },
+      {
+        "t": "為了節省這段不必要的上傳時間，你應該如何在 `unit_test` 中調整快取策略？",
+        "en": "To save this unnecessary upload time, how should you adjust the cache policy in `unit_test`?",
+        "wg": [
+          {
+            "t": "快取策略",
+            "en": "cache policy",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "設定 `policy: pull`",
+        "en": "Set `policy: pull`",
+        "wg": []
+      },
+      {
+        "t": "設定 `policy: push`",
+        "en": "Set `policy: push`",
+        "wg": []
+      },
+      {
+        "t": "設定 `when: on_success`",
+        "en": "Set `when: on_success`",
+        "wg": []
+      },
+      {
+        "t": "移除 `paths` 定義",
+        "en": "Remove the `paths` definition",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "當 Job 不需要更新快取內容時，應將策略設為 `pull`。這樣 Runner 只會下載快取供 Job 使用，而不會在結束時執行耗時的壓縮與上傳動作，這是優化大型依賴快取的常見技巧。",
+      "en": "When a job does not need to update the cache content, the policy should be set to `pull`. This ensures the Runner only downloads the cache for use, skipping the time-consuming compression and upload steps at the end. This is a common technique for optimizing large dependency caches.",
+      "wg": [
+        {
+          "t": "耗時的",
+          "en": "time-consuming",
+          "ps": "adjective"
+        }
+      ]
+    }
+  },
+  {
+    "no": "8",
+    "level": "Hard",
+    "keywords": "Distributed Caching, Kubernetes, S3, MinIO, Runner Architecture",
+    "parentNo": null,
+    "images": "",
+    "codeSnippet": "",
+    "question": [
+      {
+        "t": "你的團隊將 GitLab Runner 從單一靜態 VM 遷移到了 Kubernetes 叢集 (使用 Kubernetes Executor 進行自動擴展)。",
+        "en": "Your team migrated GitLab Runners from a single static VM to a Kubernetes cluster (using Kubernetes Executor for auto-scaling).",
+        "wg": [
+          {
+            "t": "自動擴展",
+            "en": "auto-scaling",
+            "ps": "noun"
+          },
+          {
+            "t": "靜態 VM",
+            "en": "static VM",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "開發者回報雖然 YAML 中的快取金鑰 (Key) 設定正確，但快取命中率 (Hit Rate) 幾乎降為零，導致每次都要重新下載依賴。",
+        "en": "Developers report that although the cache keys in YAML are configured correctly, the cache hit rate has dropped to near zero, causing dependencies to be re-downloaded every time.",
+        "wg": [
+          {
+            "t": "快取命中率",
+            "en": "cache hit rate",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "根據手冊，最可能的根本原因與解決方案是什麼？",
+        "en": "According to the handbook, what is the most likely root cause and solution?",
+        "wg": []
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "Kubernetes Pod 是暫時性的，本地快取隨 Pod 銷毀而消失；應設定 S3 或 MinIO 作為分散式快取。",
+        "en": "Kubernetes Pods are ephemeral, and local cache is lost when the Pod is destroyed; you should configure S3 or MinIO as distributed cache.",
+        "wg": [
+          {
+            "t": "暫時性的",
+            "en": "ephemeral",
+            "ps": "adjective"
+          },
+          {
+            "t": "分散式快取",
+            "en": "distributed cache",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "Kubernetes Executor 不支援快取功能；應改回 Shell Executor。",
+        "en": "Kubernetes Executor does not support caching; you should switch back to Shell Executor.",
+        "wg": []
+      },
+      {
+        "t": "Docker Image 太大導致快取超時；應使用 Alpine Linux。",
+        "en": "The Docker Image is too large causing cache timeout; you should use Alpine Linux.",
+        "wg": []
+      },
+      {
+        "t": "快取路徑權限不足；應在 script 中執行 `chmod 777`。",
+        "en": "Insufficient permissions for cache paths; you should run `chmod 777` in the script.",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "在 Autoscaling 或 Kubernetes 環境中，每個 Job 都在全新的 Pod/Container 中執行，無法存取上一個 Job 留在本地檔案系統的快取。必須在 `config.toml` 中設定 `[runners.cache]` 使用 S3/MinIO 等物件儲存，才能實現跨 Pod 的共享快取。",
+      "en": "In Autoscaling or Kubernetes environments, each job runs in a brand new Pod/Container and cannot access the cache left on the local filesystem by previous jobs. You must configure `[runners.cache]` in `config.toml` to use object storage like S3/MinIO to achieve shared caching across Pods.",
+      "wg": [
+        {
+          "t": "物件儲存",
+          "en": "object storage",
+          "ps": "noun"
+        },
+        {
+          "t": "跨 Pod",
+          "en": "across Pods",
+          "ps": "prepositional phrase"
+        }
+      ]
+    }
+  },
+  {
+    "no": "9",
+    "level": "Easy",
+    "keywords": "Artifacts, expire_in, Storage Management, Cost Optimization",
+    "parentNo": null,
+    "images": "",
+    "codeSnippet": "",
+    "question": [
+      {
+        "t": "在審計 GitLab 儲存空間時，你發現數個月前的建置產物 (Artifacts) 仍佔用大量空間，但這些產物其實只需要在當次部署使用即可。",
+        "en": "While auditing GitLab storage usage, you notice that build artifacts from months ago are still consuming a lot of space, even though they are only needed for the immediate deployment.",
+        "wg": [
+          {
+            "t": "建置產物",
+            "en": "build artifacts",
+            "ps": "noun"
+          },
+          {
+            "t": "審計",
+            "en": "auditing",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "你應該在 `.gitlab-ci.yml` 的 `artifacts` 區塊中加入哪個關鍵字來自動清理這些檔案？",
+        "en": "Which keyword should you add to the `artifacts` section in `.gitlab-ci.yml` to automatically clean up these files?",
+        "wg": []
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "expire_in",
+        "en": "expire_in",
+        "wg": []
+      },
+      {
+        "t": "cleanup_after",
+        "en": "cleanup_after",
+        "wg": []
+      },
+      {
+        "t": "delete_on_success",
+        "en": "delete_on_success",
+        "wg": []
+      },
+      {
+        "t": "temporary: true",
+        "en": "temporary: true",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "`expire_in` 允許你設定產物的保留期限 (例如 `1 hour` 或 `1 week`)。過期後，GitLab 會自動刪除這些檔案以釋放儲存空間，這是產物瘦身 (Artifacts Slimming) 的最佳實務之一。",
+      "en": "`expire_in` allows you to set a retention period for artifacts (e.g., `1 hour` or `1 week`). After expiration, GitLab automatically deletes these files to free up storage space, which is one of the best practices for Artifacts Slimming.",
+      "wg": [
+        {
+          "t": "保留期限",
+          "en": "retention period",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "10",
+    "level": "Medium",
+    "keywords": "Anti-pattern, Monster Cache, Performance Analysis, Trade-off",
+    "parentNo": null,
+    "images": "",
+    "codeSnippet": "",
+    "question": [
+      {
+        "t": "你在分析一個執行緩慢的 Job Log 時，觀察到以下時間分佈：`Restoring cache` 耗時 3 分鐘，`npm ci` 耗時 45 秒，`Saving cache` 耗時 3 分鐘。",
+        "en": "While analyzing a slow job log, you observe the following timing distribution: `Restoring cache` takes 3 minutes, `npm ci` takes 45 seconds, and `Saving cache` takes 3 minutes.",
+        "wg": [
+          {
+            "t": "時間分佈",
+            "en": "timing distribution",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "這符合手冊中提到的哪種「反模式 (Anti-pattern)」，以及應如何處理？",
+        "en": "Which 'Anti-pattern' mentioned in the handbook does this match, and how should it be handled?",
+        "wg": [
+          {
+            "t": "反模式",
+            "en": "Anti-pattern",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "巨型快取 (Monster Cache)；快取帶來的開銷大於重新建置，應考慮停用快取或精簡快取內容。",
+        "en": "Monster Cache; the overhead of caching outweighs rebuilding, so you should consider disabling the cache or slimming down its content.",
+        "wg": [
+          {
+            "t": "開銷",
+            "en": "overhead",
+            "ps": "noun"
+          },
+          {
+            "t": "精簡",
+            "en": "slim down",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "網路頻寬不足 (Network Bottleneck)；應升級 Runner 的網路卡。",
+        "en": "Network Bottleneck; you should upgrade the Runner's network card.",
+        "wg": []
+      },
+      {
+        "t": "快取金鑰錯誤 (Cache Key Mismatch)；應修正 `key` 的定義。",
+        "en": "Cache Key Mismatch; you should fix the `key` definition.",
+        "wg": []
+      },
+      {
+        "t": "Docker Context 過大；應設定 `.dockerignore`。",
+        "en": "Docker Context is too large; you should configure `.dockerignore`.",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "當還原與儲存快取的時間遠超過實際安裝依賴的時間時，這就是「巨型快取」反模式。快取的目的是加速，如果它反而變慢，就應該只快取下載昂貴的部分，或者乾脆不快取。",
+      "en": "When the time to restore and save the cache far exceeds the actual time to install dependencies, this is the 'Monster Cache' anti-pattern. The purpose of caching is to speed things up; if it slows things down, you should only cache expensive-to-download parts or disable caching entirely.",
+      "wg": [
+        {
+          "t": "昂貴的",
+          "en": "expensive (computationally or time-wise)",
+          "ps": "adjective"
+        }
+      ]
+    }
+  },
+  {
+    "no": "11",
+    "level": "Hard",
+    "keywords": "Troubleshooting, Cache Miss, Upload Failure, Audit Workflow",
+    "parentNo": null,
+    "images": "",
+    "codeSnippet": "",
+    "question": [
+      {
+        "t": "根據手冊的「效能審計流程 (Audit Workflow)」，如果你發現 Job Log 每次都顯示 `Creating cache archive`，但從未出現 `Successfully extracted cache`。",
+        "en": "According to the 'Performance Audit Workflow' in the handbook, if you notice that the Job Log always shows `Creating cache archive` but never `Successfully extracted cache`.",
+        "wg": [
+          {
+            "t": "效能審計流程",
+            "en": "Performance Audit Workflow",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "即使你確定 `cache:key` (如 `package-lock.json`) 沒有變更，這通常暗示了什麼問題？",
+        "en": "Even if you are sure the `cache:key` (e.g., `package-lock.json`) has not changed, what problem does this usually imply?",
+        "wg": []
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "快取檔案過大導致上傳超時或失敗，因此下次執行時找不到快取。",
+        "en": "The cache file is too large, causing upload timeout or failure, so it cannot be found in the next run.",
+        "wg": [
+          {
+            "t": "上傳超時",
+            "en": "upload timeout",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "GitLab Runner 的版本過舊，不支援快取提取。",
+        "en": "The GitLab Runner version is too old and does not support cache extraction.",
+        "wg": []
+      },
+      {
+        "t": "這是正常現象，GitLab 總是會重新建立快取以確保新鮮度。",
+        "en": "This is normal behavior; GitLab always recreates the cache to ensure freshness.",
+        "wg": []
+      },
+      {
+        "t": "快取策略被錯誤地設定為 `policy: pull`。",
+        "en": "The cache policy is incorrectly set to `policy: pull`.",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "如果 Key 相同卻無法命中 (Extract)，通常代表上一次的 `Creating cache` 過程雖然開始了，但因為檔案過大導致上傳失敗或超時，所以快取伺服器上實際上沒有該份快取。",
+      "en": "If the Key is the same but cache is not hit (Extracted), it usually means the previous `Creating cache` process started but failed or timed out due to the file size, so the cache does not actually exist on the cache server.",
+      "wg": [
+        {
+          "t": "命中",
+          "en": "hit (cache hit)",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "12",
+    "level": "Easy",
+    "keywords": "Docker, latest tag, Anti-pattern, Network I/O",
+    "parentNo": null,
+    "images": "",
+    "codeSnippet": "",
+    "question": [
+      {
+        "t": "在 CI/CD 流水線中使用 `image: node:latest` 被視為一種反模式 (Anti-pattern)。",
+        "en": "Using `image: node:latest` in a CI/CD pipeline is considered an Anti-pattern.",
+        "wg": [
+          {
+            "t": "反模式",
+            "en": "Anti-pattern",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "除了版本不一致帶來的穩定性風險外，手冊特別指出了它對「效能」有什麼負面影響？",
+        "en": "Besides the stability risk from version inconsistency, what negative impact on 'Performance' does the handbook specifically point out?",
+        "wg": [
+          {
+            "t": "穩定性風險",
+            "en": "stability risk",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "每次執行都需要重新 Pull Image (若策略為 always)，浪費頻寬與時間。",
+        "en": "It requires re-pulling the image every execution (if policy is always), wasting bandwidth and time.",
+        "wg": [
+          {
+            "t": "浪費頻寬",
+            "en": "wasting bandwidth",
+            "ps": "verb phrase"
+          }
+        ]
+      },
+      {
+        "t": "latest 標籤的 Image 通常比特定版本的 Image 體積大很多。",
+        "en": "The image with the latest tag is usually much larger than specific version images.",
+        "wg": []
+      },
+      {
+        "t": "它會導致 Docker Layer Caching 完全失效。",
+        "en": "It causes Docker Layer Caching to fail completely.",
+        "wg": []
+      },
+      {
+        "t": "它會強制 Runner 使用較慢的 CPU 排程模式。",
+        "en": "It forces the Runner to use a slower CPU scheduling mode.",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "使用 `latest` 標籤時，為了確保真的是「最新版」，Runner 通常會被設定為 (或預設為) 每次都去 Registry 檢查並下載 Image，這增加了不必要的 Network I/O 開銷。",
+      "en": "When using the `latest` tag, to ensure it is truly the 'latest' version, the Runner is usually configured (or defaults) to check and download the image from the Registry every time, increasing unnecessary Network I/O overhead.",
+      "wg": [
+        {
+          "t": "開銷",
+          "en": "overhead",
+          "ps": "noun"
+        }
+      ]
+    }
+  }
+]

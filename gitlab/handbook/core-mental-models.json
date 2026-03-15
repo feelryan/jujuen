@@ -1,0 +1,940 @@
+[
+  {
+    "no": "1",
+    "level": "Medium",
+    "keywords": "Cache, Artifacts, CI/CD, Reliability",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "build_job:\n  stage: build\n  script: make build\n  cache:\n    paths: [\"bin/\"]\n\ndeploy_job:\n  stage: deploy\n  script: ./deploy.sh bin/app\n  cache:\n    paths: [\"bin/\"]",
+    "question": [
+      {
+        "t": "一位工程師為了加速流水線，將編譯後的二進位檔案 (Binary) 放入 `cache` 中，試圖在 `deploy_job` 中重複使用。然而，偶爾會發生 `deploy_job` 找不到檔案而失敗的情況。請問這是什麼原因造成的？",
+        "en": "An engineer tries to speed up the pipeline by placing the compiled binary into the `cache` to reuse it in the `deploy_job`. However, the `deploy_job` occasionally fails because the file is missing. What is the cause of this issue?",
+        "wg": [
+          {
+            "t": "二進位檔案",
+            "en": "Binary",
+            "ps": "noun"
+          },
+          {
+            "t": "流水線",
+            "en": "Pipeline",
+            "ps": "noun"
+          },
+          {
+            "t": "偶爾",
+            "en": "Occasionally",
+            "ps": "adverb"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "Cache 的過期時間設定太短，導致檔案被清除。",
+        "en": "The cache expiration time is set too short, causing the files to be cleared.",
+        "wg": []
+      },
+      {
+        "t": "這是 Cache 機制的本質，它屬於「盡力而為」的儲存，且通常不保證跨 Runner 共享。",
+        "en": "This is the nature of the Cache mechanism; it is 'best-effort' storage and is generally not guaranteed to be shared across Runners.",
+        "wg": [
+          {
+            "t": "盡力而為",
+            "en": "Best-effort",
+            "ps": "adjective"
+          },
+          {
+            "t": "跨 Runner",
+            "en": "Cross-Runner",
+            "ps": "adjective"
+          }
+        ]
+      },
+      {
+        "t": "應該使用 `artifacts`，但必須同時設定 `dependencies: []` 才能生效。",
+        "en": "You should use `artifacts`, but `dependencies: []` must be set simultaneously for it to work.",
+        "wg": []
+      },
+      {
+        "t": "這是 GitLab 的 Bug，應該升級 Runner 版本。",
+        "en": "This is a GitLab bug, and the Runner version should be upgraded.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "根據心智模型，Cache 是為了「加速」且不保證存在的 (Ephemeral)；Artifacts 才是為了「傳遞」且保證存在的 (Persistent)。若 Job 被調度到不同的 Runner，Cache 可能無法共享，導致檔案遺失。Job 間傳遞資料必須使用 Artifacts。",
+      "en": "According to the mental model, Cache is for 'acceleration' and is ephemeral (not guaranteed); Artifacts are for 'passing' data and are persistent (guaranteed). If jobs are scheduled on different Runners, the cache might not be shared, leading to missing files. Data passing between jobs must use Artifacts.",
+      "wg": [
+        {
+          "t": "保證存在",
+          "en": "Guaranteed/Persistent",
+          "ps": "adjective"
+        },
+        {
+          "t": "調度",
+          "en": "Scheduled",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "2",
+    "level": "Medium",
+    "keywords": "Variables, Inheritance, Group, Security",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你的公司有一個 `Backend` 團隊，底下管理著 20 個微服務專案。這些專案都需要使用同一組 AWS 憑證來部署到開發環境。根據「繼承樹模型」與最佳實務，你應該在哪裡設定這組變數？",
+        "en": "Your company has a `Backend` team managing 20 microservice projects. All these projects need to use the same set of AWS credentials to deploy to the development environment. According to the 'Inheritance Tree Model' and best practices, where should you define these variables?",
+        "wg": [
+          {
+            "t": "微服務",
+            "en": "Microservice",
+            "ps": "noun"
+          },
+          {
+            "t": "憑證",
+            "en": "Credentials",
+            "ps": "noun"
+          },
+          {
+            "t": "繼承樹模型",
+            "en": "Inheritance Tree Model",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "在每個專案的 CI/CD Settings 中分別設定，以確保隔離性。",
+        "en": "Set them individually in each project's CI/CD Settings to ensure isolation.",
+        "wg": []
+      },
+      {
+        "t": "在 Instance Level (全域) 設定，方便全公司使用。",
+        "en": "Set them at the Instance Level (Global) for company-wide use.",
+        "wg": []
+      },
+      {
+        "t": "在 `Backend` Sub-group Level 設定，讓底下所有專案自動繼承。",
+        "en": "Set them at the `Backend` Sub-group Level so all underlying projects inherit them automatically.",
+        "wg": [
+          {
+            "t": "子群組",
+            "en": "Sub-group",
+            "ps": "noun"
+          },
+          {
+            "t": "繼承",
+            "en": "Inherit",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "寫在 `.gitlab-ci.yml` 的 `variables` 區塊中並 commit 進去。",
+        "en": "Write them in the `variables` block of `.gitlab-ci.yml` and commit them.",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "變數是「由上而下」流動的。在 Sub-group 層級設定可以避免在 20 個專案重複設定 (DRY)，同時限制範圍僅在 Backend 團隊，符合最小權限原則。Instance Level 範圍太大，Project Level 維護成本太高。",
+      "en": "Variables cascade 'top-down'. Setting them at the Sub-group level prevents repetition across 20 projects (DRY) while limiting the scope to the Backend team, adhering to the principle of least privilege. Instance Level is too broad, and Project Level has high maintenance costs.",
+      "wg": [
+        {
+          "t": "最小權限原則",
+          "en": "Principle of least privilege",
+          "ps": "noun"
+        },
+        {
+          "t": "維護成本",
+          "en": "Maintenance costs",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "3",
+    "level": "Hard",
+    "keywords": "DAG, needs, stages, Optimization",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "stages: [build, test]\n\nbuild_a:\n  stage: build\n  script: sleep 10\n\nbuild_b:\n  stage: build\n  script: sleep 300 # Very slow\n\ntest_a:\n  stage: test\n  script: ./test_a\n  # Missing keyword here",
+    "question": [
+      {
+        "t": "在上述設定中，`test_a` 僅依賴 `build_a` 的產物。但在預設行為下，`test_a` 必須等待 `build_b` (耗時 300秒) 完成後才能開始。你應該在 `test_a` 加入什麼設定來打破這種同步阻塞，實作 DAG 模式？",
+        "en": "In the configuration above, `test_a` only depends on the artifacts of `build_a`. However, by default, `test_a` must wait for `build_b` (taking 300s) to finish before starting. What configuration should you add to `test_a` to break this synchronous blocking and implement the DAG pattern?",
+        "wg": [
+          {
+            "t": "同步阻塞",
+            "en": "Synchronous blocking",
+            "ps": "noun"
+          },
+          {
+            "t": "有向無環圖",
+            "en": "DAG (Directed Acyclic Graph)",
+            "ps": "noun"
+          },
+          {
+            "t": "依賴",
+            "en": "Depend on",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "dependencies: [\"build_a\"]",
+        "en": "dependencies: [\"build_a\"]",
+        "wg": []
+      },
+      {
+        "t": "needs: [\"build_a\"]",
+        "en": "needs: [\"build_a\"]",
+        "wg": []
+      },
+      {
+        "t": "rules: [{ when: always }]",
+        "en": "rules: [{ when: always }]",
+        "wg": []
+      },
+      {
+        "t": "stage: build",
+        "en": "stage: build",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "`needs` 關鍵字用於建立 Job 之間的執行依賴關係 (DAG)，允許 Job 在其依賴項完成後立即執行，而無需等待整個 Stage 完成。`dependencies` 僅控制 Artifacts 的下載，不影響執行順序。",
+      "en": "The `needs` keyword is used to establish execution dependencies between jobs (DAG), allowing a job to run immediately after its dependencies complete without waiting for the entire stage. `dependencies` only controls artifact downloading and does not affect execution order.",
+      "wg": [
+        {
+          "t": "執行順序",
+          "en": "Execution order",
+          "ps": "noun"
+        },
+        {
+          "t": "依賴關係",
+          "en": "Dependency relationship",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "4",
+    "level": "Medium",
+    "keywords": "Anti-pattern, Performance, Artifacts, dependencies",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "build_job:\n  stage: build\n  artifacts:\n    paths: [\"bin/\"] # Size: 1GB\n\nlinter_job:\n  stage: test\n  script: npm run lint",
+    "question": [
+      {
+        "t": "你的流水線中有一個 `linter_job`，它只需要檢查程式碼風格，不需要編譯後的二進位檔。然而你發現 `linter_job` 的初始化時間非常長，浪費了大量頻寬。這是觸犯了哪種 Anti-pattern？應如何修正？",
+        "en": "You have a `linter_job` in your pipeline that only checks code style and doesn't need compiled binaries. However, you notice the initialization time for `linter_job` is very long, wasting a lot of bandwidth. Which anti-pattern is this, and how should it be fixed?",
+        "wg": [
+          {
+            "t": "初始化時間",
+            "en": "Initialization time",
+            "ps": "noun"
+          },
+          {
+            "t": "頻寬",
+            "en": "Bandwidth",
+            "ps": "noun"
+          },
+          {
+            "t": "反模式",
+            "en": "Anti-pattern",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "Anti-pattern: Overusing dependencies. 修正：在 linter_job 加入 `dependencies: []`。",
+        "en": "Anti-pattern: Overusing dependencies. Fix: Add `dependencies: []` to linter_job.",
+        "wg": []
+      },
+      {
+        "t": "Anti-pattern: Cache as Artifacts. 修正：將 build_job 改用 cache。",
+        "en": "Anti-pattern: Cache as Artifacts. Fix: Use cache for build_job instead.",
+        "wg": []
+      },
+      {
+        "t": "Anti-pattern: God Group. 修正：將 linter_job 移到另一個 Stage。",
+        "en": "Anti-pattern: God Group. Fix: Move linter_job to another Stage.",
+        "wg": []
+      },
+      {
+        "t": "Anti-pattern: Hardcoded Secrets. 修正：檢查變數設定。",
+        "en": "Anti-pattern: Hardcoded Secrets. Fix: Check variable settings.",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "預設情況下，GitLab 的 Job 會下載前一階段「所有」Job 的 Artifacts。若未明確指定 `dependencies: []` (空陣列)，Linter 會下載不必要的 1GB 檔案，導致 I/O 與頻寬浪費。",
+      "en": "By default, GitLab jobs download artifacts from 'all' jobs in previous stages. If `dependencies: []` (empty array) is not explicitly specified, the Linter will download unnecessary 1GB files, causing I/O and bandwidth waste.",
+      "wg": [
+        {
+          "t": "預設情況下",
+          "en": "By default",
+          "ps": "adverb"
+        },
+        {
+          "t": "明確指定",
+          "en": "Explicitly specified",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "5",
+    "level": "Medium",
+    "keywords": "Merge Request Pipelines, rules, CI_PIPELINE_SOURCE",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "當開發者 Push 程式碼並建立 Merge Request 時，你發現系統同時觸發了兩條流水線（一條針對 Branch，一條針對 MR），造成資源浪費。為了只保留 Merge Request Pipeline，你應該在 `rules` 中檢查哪個變數？",
+        "en": "When a developer pushes code and creates a Merge Request, you notice the system triggers two pipelines simultaneously (one for the Branch, one for the MR), wasting resources. To keep only the Merge Request Pipeline, which variable should you check in `rules`?",
+        "wg": [
+          {
+            "t": "觸發",
+            "en": "Trigger",
+            "ps": "verb"
+          },
+          {
+            "t": "資源浪費",
+            "en": "Resource waste",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "$CI_COMMIT_BRANCH == 'main'",
+        "en": "$CI_COMMIT_BRANCH == 'main'",
+        "wg": []
+      },
+      {
+        "t": "$CI_PIPELINE_SOURCE == 'merge_request_event'",
+        "en": "$CI_PIPELINE_SOURCE == 'merge_request_event'",
+        "wg": []
+      },
+      {
+        "t": "$CI_MERGE_REQUEST_ID != null",
+        "en": "$CI_MERGE_REQUEST_ID != null",
+        "wg": []
+      },
+      {
+        "t": "$CI_PIPELINE_SOURCE == 'push'",
+        "en": "$CI_PIPELINE_SOURCE == 'push'",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "使用 `if: $CI_PIPELINE_SOURCE == 'merge_request_event'` 可以明確指定該 Job 僅在 MR 事件時執行。這是切換到 Detached Merge Request Pipelines 的標準做法，能避免重複執行並支援 Merged Results 測試。",
+      "en": "Using `if: $CI_PIPELINE_SOURCE == 'merge_request_event'` explicitly specifies that the job runs only on MR events. This is the standard practice for switching to Detached Merge Request Pipelines, avoiding duplicate runs and enabling Merged Results testing.",
+      "wg": [
+        {
+          "t": "標準做法",
+          "en": "Standard practice",
+          "ps": "noun"
+        },
+        {
+          "t": "重複執行",
+          "en": "Duplicate execution",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "6",
+    "level": "Easy",
+    "keywords": "Troubleshooting, Tags, Runner, Pending",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "deploy:\n  stage: deploy\n  script: ./deploy.sh\n  tags:\n    - aws-prod-runner",
+    "question": [
+      {
+        "t": "你的 Pipeline 一直卡在 `pending` 狀態，且顯示 'This job is stuck because the project doesn't have any runners online assigned to it.'。根據除錯流程，最可能的原因是什麼？",
+        "en": "Your pipeline is stuck in `pending` status, showing 'This job is stuck because the project doesn't have any runners online assigned to it.' According to the debugging workflow, what is the most likely cause?",
+        "wg": [
+          {
+            "t": "卡在",
+            "en": "Stuck in",
+            "ps": "verb"
+          },
+          {
+            "t": "除錯流程",
+            "en": "Debugging workflow",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "YAML 語法錯誤 (Syntax Error)。",
+        "en": "YAML Syntax Error.",
+        "wg": []
+      },
+      {
+        "t": "權限不足，User 無法存取 Protected Variables。",
+        "en": "Insufficient permissions; User cannot access Protected Variables.",
+        "wg": []
+      },
+      {
+        "t": "Job 設定的 `tags` (aws-prod-runner) 沒有對應的 Runner 在線上或已啟用。",
+        "en": "The `tags` (aws-prod-runner) configured for the Job do not match any Runner that is online or enabled.",
+        "wg": []
+      },
+      {
+        "t": "Artifacts 空間已滿。",
+        "en": "Artifacts storage is full.",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "當 Job 處於 Pending 且出現該錯誤訊息，通常是因為 Job 指定了特定的 `tags`，但 GitLab 找不到具備該 Tag 且處於 Online 狀態的 Runner 來承接任務。",
+      "en": "When a job is Pending with that error message, it usually means the job specified certain `tags`, but GitLab cannot find an Online Runner with those tags to pick up the task.",
+      "wg": [
+        {
+          "t": "承接任務",
+          "en": "Pick up the task",
+          "ps": "verb"
+        },
+        {
+          "t": "具備",
+          "en": "Possess/Have",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "7",
+    "level": "Easy",
+    "keywords": "Security, Secrets, Anti-pattern, CI/CD Variables",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "deploy_job:\n  script:\n    - docker login -u myuser -p \"super_secret_password_123\" registry.example.com\n    - docker push my-image",
+    "question": [
+      {
+        "t": "在 Code Review 過程中，你發現同事提交了上述的 `.gitlab-ci.yml` 設定。雖然這是一個 Private Repo，但你仍然拒絕了這個變更。",
+        "en": "During a Code Review, you noticed a colleague submitted the above `.gitlab-ci.yml` configuration. Although it is a Private Repo, you still rejected this change.",
+        "wg": [
+          {
+            "t": "拒絕",
+            "en": "rejected",
+            "ps": "verb"
+          },
+          {
+            "t": "變更",
+            "en": "change",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "根據 GitLab 的安全最佳實務，這個設定主要違反了哪一項原則？",
+        "en": "According to GitLab security best practices, which principle does this configuration primarily violate?",
+        "wg": []
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "腳本中不應使用 `docker login`，應該使用 SSH 金鑰進行驗證。",
+        "en": "The script should not use `docker login`; it should use SSH keys for authentication.",
+        "wg": []
+      },
+      {
+        "t": "密碼被硬編碼 (Hardcoded) 在檔案中，這會永久留存在 Git 歷史紀錄裡，即使是 Private Repo 也有洩漏風險。",
+        "en": "The password is hardcoded in the file, which will remain permanently in the Git history, posing a leakage risk even in a Private Repo.",
+        "wg": [
+          {
+            "t": "硬編碼",
+            "en": "hardcoded",
+            "ps": "adjective"
+          },
+          {
+            "t": "歷史紀錄",
+            "en": "history",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "應該將密碼放在 `cache` 中傳遞，而不是寫在 `script` 裡。",
+        "en": "The password should be passed via `cache` instead of being written in the `script`.",
+        "wg": []
+      },
+      {
+        "t": "Docker Registry 的 URL 必須使用變數，不能直接寫死。",
+        "en": "The Docker Registry URL must be a variable and cannot be hardcoded.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "這是典型的「硬編碼機密 (Hardcoded Secrets)」反模式。Git 的歷史紀錄是不可變的，一旦 Commit 進去，即使後來刪除，舊的 Commit 仍包含該密碼。正確做法是使用 GitLab CI/CD Variables (Masked & Protected)。",
+      "en": "This is a classic 'Hardcoded Secrets' anti-pattern. Git history is immutable; once committed, the password remains in old commits even if deleted later. The correct approach is to use GitLab CI/CD Variables (Masked & Protected).",
+      "wg": [
+        {
+          "t": "反模式",
+          "en": "anti-pattern",
+          "ps": "noun"
+        },
+        {
+          "t": "不可變的",
+          "en": "immutable",
+          "ps": "adjective"
+        }
+      ]
+    }
+  },
+  {
+    "no": "8",
+    "level": "Medium",
+    "keywords": "Governance, Group Structure, Scalability, Permissions",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "一家新創公司隨著業務擴張，專案數量從 10 個成長到 500 個。目前所有專案都直接存放在 Root Group (`my-company/`) 下，沒有使用任何 Sub-groups。",
+        "en": "A startup has grown from 10 to 500 projects. Currently, all projects are stored directly under the Root Group (`my-company/`) without using any Sub-groups.",
+        "wg": [
+          {
+            "t": "擴張",
+            "en": "expansion",
+            "ps": "noun"
+          },
+          {
+            "t": "存放在",
+            "en": "stored under",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "現在公司成立了一個 SRE 團隊，需要對所有基礎設施相關的 50 個專案擁有 `Maintainer` 權限，但不能存取業務邏輯專案。目前的「扁平化結構 (Flat Structure)」會導致什麼管理上的困難？",
+        "en": "The company now has an SRE team that needs `Maintainer` access to all 50 infrastructure-related projects but should not access business logic projects. What management difficulty will the current 'Flat Structure' cause?",
+        "wg": [
+          {
+            "t": "基礎設施",
+            "en": "infrastructure",
+            "ps": "noun"
+          },
+          {
+            "t": "扁平化結構",
+            "en": "Flat Structure",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "無法使用 Shared Runners，因為 Runner 只能註冊在 Sub-group 層級。",
+        "en": "Cannot use Shared Runners because Runners can only be registered at the Sub-group level.",
+        "wg": []
+      },
+      {
+        "t": "管理者必須逐一進入這 50 個專案手動添加 SRE 成員，維護成本極高且容易遺漏。",
+        "en": "Administrators must manually add SRE members to these 50 projects one by one, which has high maintenance costs and is prone to omissions.",
+        "wg": [
+          {
+            "t": "逐一",
+            "en": "one by one",
+            "ps": "adverb"
+          },
+          {
+            "t": "遺漏",
+            "en": "omissions",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "Root Group 無法設定 CI/CD 變數，導致所有專案必須重複設定 AWS 金鑰。",
+        "en": "The Root Group cannot configure CI/CD variables, requiring all projects to duplicate AWS key settings.",
+        "wg": []
+      },
+      {
+        "t": "GitLab 限制 Root Group 下最多只能有 100 個專案，系統將無法建立新專案。",
+        "en": "GitLab limits the Root Group to a maximum of 100 projects, so the system will not be able to create new projects.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "這就是「God Group (扁平化地獄)」反模式的後果。Group 是權限管理的邊界，正確做法是建立 `my-company/infrastructure` Sub-group，將相關專案移入，並在該 Sub-group 層級一次性賦予 SRE 團隊權限。",
+      "en": "This is the consequence of the 'God Group' anti-pattern. Groups are boundaries for permission management. The correct approach is to create a `my-company/infrastructure` Sub-group, move relevant projects there, and grant SRE permissions once at that Sub-group level.",
+      "wg": [
+        {
+          "t": "邊界",
+          "en": "boundary",
+          "ps": "noun"
+        },
+        {
+          "t": "賦予",
+          "en": "grant",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "9",
+    "level": "Medium",
+    "keywords": "Artifacts, Storage, Cost Optimization, expire_in",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你的 GitLab 伺服器發出儲存空間不足的警報。經檢查發現，Git Repository (程式碼) 的佔用空間很小，但 `artifacts` 的佔用空間卻呈現指數級增長。",
+        "en": "Your GitLab server alerts that storage space is running low. Inspection reveals that Git Repository (code) usage is small, but `artifacts` usage is growing exponentially.",
+        "wg": [
+          {
+            "t": "指數級",
+            "en": "exponentially",
+            "ps": "adverb"
+          },
+          {
+            "t": "佔用空間",
+            "en": "usage / footprint",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "為了最有效地解決此問題並防止未來復發，你應該在 `.gitlab-ci.yml` 中採取什麼策略？",
+        "en": "To most effectively resolve this issue and prevent recurrence, what strategy should you adopt in `.gitlab-ci.yml`?",
+        "wg": [
+          {
+            "t": "復發",
+            "en": "recurrence",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "完全停用 Artifacts，改用 Cache 來傳遞所有建置產物。",
+        "en": "Disable Artifacts completely and use Cache to pass all build outputs.",
+        "wg": []
+      },
+      {
+        "t": "對 Artifacts 設定明確的 `expire_in` (如 1 week) 並限制 `paths` 只包含必要的編譯檔案，而非整個目錄。",
+        "en": "Set a clear `expire_in` (e.g., 1 week) for Artifacts and limit `paths` to include only necessary compiled files, not the entire directory.",
+        "wg": [
+          {
+            "t": "明確的",
+            "en": "clear / explicit",
+            "ps": "adjective"
+          }
+        ]
+      },
+      {
+        "t": "將所有 Job 的 `stage` 合併為一個，這樣就不需要傳遞 Artifacts。",
+        "en": "Merge all Job `stages` into one so that Artifacts passing is not needed.",
+        "wg": []
+      },
+      {
+        "t": "使用 `git gc` 指令在每個 Job 結束後清理 Git 物件。",
+        "en": "Use the `git gc` command to clean up Git objects after each Job finishes.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "Artifacts 預設可能永久保存或包含過多檔案。透過設定 `expire_in` 讓舊產物自動刪除，並精確定義 `paths` (Artifacts 最小化策略)，是控制儲存成本的最佳實務。Cache 不保證持久性，不適合替代 Artifacts。",
+      "en": "Artifacts may be kept forever or contain too many files by default. Setting `expire_in` to automatically delete old artifacts and precisely defining `paths` (Artifacts Minimization Strategy) is the best practice for controlling storage costs. Cache does not guarantee persistence and is not a suitable replacement for Artifacts.",
+      "wg": [
+        {
+          "t": "持久性",
+          "en": "persistence",
+          "ps": "noun"
+        },
+        {
+          "t": "替代",
+          "en": "replacement",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "10",
+    "level": "Medium",
+    "keywords": "Variables, Inheritance, Precedence, Configuration",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在 GitLab 的變數繼承機制中，假設你在 Instance (全域)、Group (群組) 與 Project (專案) 三個層級都設定了同名的變數 `DEPLOY_TIMEOUT`，數值分別如下：",
+        "en": "In GitLab's variable inheritance mechanism, suppose you have configured a variable named `DEPLOY_TIMEOUT` at the Instance, Group, and Project levels with the following values:",
+        "wg": [
+          {
+            "t": "全域",
+            "en": "Instance / Global",
+            "ps": "noun"
+          },
+          {
+            "t": "繼承機制",
+            "en": "inheritance mechanism",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "- Instance: `30`\n- Group: `60`\n- Project: `10`\n\n當該專案的 Pipeline 執行時，`DEPLOY_TIMEOUT` 的實際生效值是多少？",
+        "en": "- Instance: `30`\n- Group: `60`\n- Project: `10`\n\nWhen the project's Pipeline runs, what is the actual effective value of `DEPLOY_TIMEOUT`?",
+        "wg": [
+          {
+            "t": "實際生效值",
+            "en": "actual effective value",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "60 (Group 層級優先，因為它是管理邊界)",
+        "en": "60 (Group level takes precedence because it is the management boundary)",
+        "wg": []
+      },
+      {
+        "t": "30 (Instance 層級優先，因為它是最高層級)",
+        "en": "30 (Instance level takes precedence because it is the highest level)",
+        "wg": []
+      },
+      {
+        "t": "10 (Project 層級優先，最接近執行單元)",
+        "en": "10 (Project level takes precedence, being closest to the execution unit)",
+        "wg": [
+          {
+            "t": "最接近",
+            "en": "closest to",
+            "ps": "adjective"
+          }
+        ]
+      },
+      {
+        "t": "100 (三個數值的總和)",
+        "en": "100 (The sum of the three values)",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "GitLab CI/CD 變數的優先順序 (Precedence) 是：Project > Group > Instance。越具體、越接近執行端的設定會覆寫上層的設定。因此專案層級的 `10` 會生效。",
+      "en": "The precedence for GitLab CI/CD variables is: Project > Group > Instance. The more specific setting, closer to the execution end, overrides the upper-level settings. Therefore, the project level value `10` will be effective.",
+      "wg": [
+        {
+          "t": "優先順序",
+          "en": "precedence",
+          "ps": "noun"
+        },
+        {
+          "t": "覆寫",
+          "en": "override",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "11",
+    "level": "Hard",
+    "keywords": "Merge Request, Reliability, Merged Results, CI Strategy",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你的團隊遇到一個問題：Feature Branch 的 Pipeline 全部通過，但合併到 Main Branch 後，Main 的 Pipeline 卻失敗了。經查發現是因為兩個 Branch 修改了不同檔案，合併後產生了邏輯衝突 (Semantic Conflict)。",
+        "en": "Your team faces an issue: Feature Branch pipelines all pass, but after merging to the Main Branch, the Main pipeline fails. Investigation shows that two branches modified different files, causing a logical conflict (Semantic Conflict) after merging.",
+        "wg": [
+          {
+            "t": "邏輯衝突",
+            "en": "logical conflict / semantic conflict",
+            "ps": "noun"
+          },
+          {
+            "t": "經查發現",
+            "en": "investigation shows",
+            "ps": "phrase"
+          }
+        ]
+      },
+      {
+        "t": "為了確保「Main Branch 永遠是綠的 (Always Green)」，你應該啟用哪項 GitLab 進階功能？",
+        "en": "To ensure the 'Main Branch is Always Green', which advanced GitLab feature should you enable?",
+        "wg": []
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "啟用 `Merged Results Pipelines`，讓 Pipeline 在「模擬合併後的程式碼」上執行測試。",
+        "en": "Enable `Merged Results Pipelines` to run tests on 'simulated merged code'.",
+        "wg": [
+          {
+            "t": "模擬",
+            "en": "simulated",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "將所有 Job 的 `allow_failure` 設為 `true`。",
+        "en": "Set `allow_failure` to `true` for all Jobs.",
+        "wg": []
+      },
+      {
+        "t": "強制所有開發者在本地執行 `git merge main` 後才能 Push。",
+        "en": "Force all developers to run `git merge main` locally before Pushing.",
+        "wg": []
+      },
+      {
+        "t": "使用 `DAG` 模式來加速流水線執行。",
+        "en": "Use `DAG` mode to accelerate pipeline execution.",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "標準的 MR Pipeline 預設是在 Feature Branch 的頂端 (Tip) 執行。`Merged Results Pipelines` 會在暫存的 Merge Commit 上執行 Pipeline，能提前發現只有在合併後才會出現的錯誤，是防止 Main Branch 損壞的最佳機制。",
+      "en": "Standard MR Pipelines run on the tip of the Feature Branch by default. `Merged Results Pipelines` run on a temporary Merge Commit, allowing early detection of errors that only appear after merging, making it the best mechanism to prevent Main Branch breakage.",
+      "wg": [
+        {
+          "t": "暫存的",
+          "en": "temporary / staging",
+          "ps": "adjective"
+        },
+        {
+          "t": "損壞",
+          "en": "breakage",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "12",
+    "level": "Medium",
+    "keywords": "Runners, Security, Infrastructure, Tags",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你負責管理一個處理敏感支付資料的專案 `payment-service`。資安規範要求該專案的程式碼絕對不能在與其他專案共用的 Shared Runners 上執行，必須使用專屬的隔離環境。",
+        "en": "You manage a `payment-service` project that handles sensitive payment data. Security regulations require that the project's code must never run on Shared Runners used by other projects; it must use a dedicated isolated environment.",
+        "wg": [
+          {
+            "t": "敏感",
+            "en": "sensitive",
+            "ps": "adjective"
+          },
+          {
+            "t": "隔離環境",
+            "en": "isolated environment",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "根據 GitLab Runner 的運作機制，你應該如何設定？",
+        "en": "Based on the operational mechanism of GitLab Runners, how should you configure this?",
+        "wg": []
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "在專案設定中停用 Shared Runners，註冊一個專屬 Runner 並賦予特定 `tags` (如 `secure`)，然後在 `.gitlab-ci.yml` 的 Job 中指定該 tag。",
+        "en": "Disable Shared Runners in project settings, register a dedicated Runner with specific `tags` (e.g., `secure`), and specify that tag in the `.gitlab-ci.yml` Jobs.",
+        "wg": [
+          {
+            "t": "停用",
+            "en": "disable",
+            "ps": "verb"
+          },
+          {
+            "t": "指定",
+            "en": "specify",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "在 `.gitlab-ci.yml` 中設定 `image: secure-image`，GitLab 會自動尋找安全的 Runner。",
+        "en": "Set `image: secure-image` in `.gitlab-ci.yml`, and GitLab will automatically find a secure Runner.",
+        "wg": []
+      },
+      {
+        "t": "將專案設定為 Private，這樣 Shared Runners 就會自動以隔離模式執行。",
+        "en": "Set the project to Private, so Shared Runners will automatically run in isolated mode.",
+        "wg": []
+      },
+      {
+        "t": "使用 `cache` 機制將 Runner 鎖定在特定的 IP 位址。",
+        "en": "Use the `cache` mechanism to lock the Runner to a specific IP address.",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "這是 Runner 隔離的標準做法。首先必須停用 Shared Runners 以防誤用，然後透過 `tags` 機制將 Job 路由 (Route) 到特定的專屬 Runner。Group/Project 是 Runner 的容器，Tags 是選擇器。",
+      "en": "This is the standard practice for Runner isolation. First, Shared Runners must be disabled to prevent misuse, and then Jobs are routed to a specific dedicated Runner via the `tags` mechanism. Group/Project is the container for Runners, and Tags are the selectors.",
+      "wg": [
+        {
+          "t": "路由",
+          "en": "route",
+          "ps": "verb"
+        },
+        {
+          "t": "選擇器",
+          "en": "selector",
+          "ps": "noun"
+        }
+      ]
+    }
+  }
+]

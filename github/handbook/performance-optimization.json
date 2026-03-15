@@ -1,0 +1,892 @@
+[
+  {
+    "no": "1",
+    "level": "Intermediate",
+    "keywords": "CI/CD, fetch-depth, shallow clone, git checkout",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "- uses: actions/checkout@v4\n  with:\n    fetch-depth: 1",
+    "question": [
+      {
+        "t": "在 GitHub Actions 的 `checkout` 步驟中，設定 `fetch-depth: 1` 的主要目的是什麼？",
+        "en": "What is the primary purpose of setting `fetch-depth: 1` in the `checkout` step of GitHub Actions?",
+        "wg": [
+          {
+            "t": "淺層複製",
+            "en": "Shallow Clone",
+            "ps": "noun"
+          },
+          {
+            "t": "頻寬",
+            "en": "Bandwidth",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "為了確保能存取所有的 Git 標籤 (Tags) 與完整歷史紀錄以計算版本號。",
+        "en": "To ensure access to all Git tags and full history for version calculation.",
+        "wg": []
+      },
+      {
+        "t": "為了執行淺層複製 (Shallow Clone)，僅下載最新的 Commit 以節省時間與頻寬。",
+        "en": "To perform a Shallow Clone, downloading only the latest commit to save time and bandwidth.",
+        "wg": []
+      },
+      {
+        "t": "為了自動觸發 Git LFS 的檔案下載。",
+        "en": "To automatically trigger Git LFS file downloads.",
+        "wg": []
+      },
+      {
+        "t": "為了避免在多個 Runner 之間發生快取衝突。",
+        "en": "To avoid cache conflicts between multiple runners.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "`fetch-depth: 1` 會建立淺層複製 (Shallow Clone)，只獲取最新的快照而非整個 Commit Graph。這對於不需要分析歷史紀錄的 CI 任務來說，能大幅減少網路傳輸與磁碟佔用。若需要計算版本號或 Git Diff，則可能需要更深的 depth。",
+      "en": "`fetch-depth: 1` creates a Shallow Clone, fetching only the latest snapshot instead of the entire Commit Graph. This significantly reduces network transfer and disk usage for CI tasks that do not need history analysis. If version calculation or Git Diff is needed, a deeper depth might be required.",
+      "wg": [
+        {
+          "t": "快照",
+          "en": "Snapshot",
+          "ps": "noun"
+        },
+        {
+          "t": "提交圖",
+          "en": "Commit Graph",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "2",
+    "level": "Intermediate",
+    "keywords": "Monorepo, Path Filtering, GitHub Actions, Workflow",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "on:\n  push:\n    paths-ignore:\n      - 'docs/**'\n      - '**/*.md'",
+    "question": [
+      {
+        "t": "在一個 Monorepo 專案中，你希望當開發者只修改了 `docs/` 目錄下的文件時，不要觸發後端服務的建置與測試 (Build & Test)。下列哪種做法最符合「資源限制管理」的最佳實務？",
+        "en": "In a Monorepo project, you want to prevent triggering the backend build and test workflows when developers only modify files in the `docs/` directory. Which approach best aligns with 'Resource Management' best practices?",
+        "wg": [
+          {
+            "t": "單一儲存庫",
+            "en": "Monorepo",
+            "ps": "noun"
+          },
+          {
+            "t": "路徑過濾",
+            "en": "Path Filtering",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "在 Workflow 中使用 `paths` 或 `paths-ignore` 來過濾觸發條件。",
+        "en": "Use `paths` or `paths-ignore` in the Workflow to filter trigger conditions.",
+        "wg": []
+      },
+      {
+        "t": "使用 `git sparse-checkout` 來限制 Runner 下載的目錄。",
+        "en": "Use `git sparse-checkout` to limit the directories downloaded by the Runner.",
+        "wg": []
+      },
+      {
+        "t": "在 Build Script 內部檢查更動檔案，若無關則 `exit 0`。",
+        "en": "Check changed files inside the Build Script and `exit 0` if irrelevant.",
+        "wg": []
+      },
+      {
+        "t": "將文件與程式碼拆分成兩個完全不同的 Repository。",
+        "en": "Split documentation and code into two completely different Repositories.",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "使用 `paths` 或 `paths-ignore` 是 GitHub Actions 原生提供的路徑過濾功能，能在 Workflow 啟動前就決定是否執行，完全避免了不必要的 VM 啟動與計費。雖然 Script 內部檢查也能運作，但仍需啟動 Runner，浪費了初始化時間與資源。",
+      "en": "Using `paths` or `paths-ignore` is a native GitHub Actions feature for path filtering. It determines whether to execute before the Workflow starts, completely avoiding unnecessary VM startup and billing. While checking inside a script works, it still requires spinning up a Runner, wasting initialization time and resources.",
+      "wg": [
+        {
+          "t": "原生",
+          "en": "Native",
+          "ps": "adjective"
+        },
+        {
+          "t": "計費",
+          "en": "Billing",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "3",
+    "level": "Advanced",
+    "keywords": "Caching, Cache Thrashing, Key Design, GitHub Actions",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "- uses: actions/cache@v3\n  with:\n    path: ~/.npm\n    # Anti-pattern example\n    key: ${{ runner.os }}-node-${{ github.run_id }}",
+    "question": [
+      {
+        "t": "請檢視上方的 Cache Key 設定。這種設定方式會導致什麼樣的效能問題（Anti-pattern）？",
+        "en": "Review the Cache Key configuration above. What performance issue (Anti-pattern) will this configuration cause?",
+        "wg": [
+          {
+            "t": "快取抖動",
+            "en": "Cache Thrashing",
+            "ps": "noun"
+          },
+          {
+            "t": "反模式",
+            "en": "Anti-pattern",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "快取過期 (Cache Expiration)：快取會因為時間過長而被自動刪除。",
+        "en": "Cache Expiration: The cache will be automatically deleted due to age.",
+        "wg": []
+      },
+      {
+        "t": "快取抖動 (Cache Thrashing)：每次 `run_id` 都不同，導致無法命中快取，且不斷寫入新快取浪費空間。",
+        "en": "Cache Thrashing: Since `run_id` changes every time, cache is never hit, and new caches are constantly written, wasting space.",
+        "wg": []
+      },
+      {
+        "t": "快取鎖死 (Cache Locking)：多個 Job 會同時嘗試寫入同一個 Key 導致失敗。",
+        "en": "Cache Locking: Multiple Jobs will try to write to the same Key simultaneously, causing failure.",
+        "wg": []
+      },
+      {
+        "t": "這是一個正確的設定，沒有問題。",
+        "en": "This is a correct configuration with no issues.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "Cache Key 應該基於「內容雜湊 (Content Hash)」例如 `package-lock.json` 的 hash。使用 `github.run_id` 或時間戳記作為 Key 的一部分，意味著每次執行的 Key 都不同，永遠無法命中舊快取 (Cache Miss)，且每次都會上傳新的快取，導致資源浪費。",
+      "en": "Cache Keys should be based on 'Content Hash', such as the hash of `package-lock.json`. Using `github.run_id` or timestamps as part of the Key means the Key is different for every execution, leading to perpetual Cache Misses and wasteful uploads of new caches every time.",
+      "wg": [
+        {
+          "t": "內容雜湊",
+          "en": "Content Hash",
+          "ps": "noun"
+        },
+        {
+          "t": "命中",
+          "en": "Hit",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "4",
+    "level": "Intermediate",
+    "keywords": "API Rate Limits, Polling, Webhooks, Event-driven",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你的團隊編寫了一個腳本，每分鐘呼叫一次 GitHub API 來檢查是否有新的 Pull Request 需要審核。根據「API 是有限資源」的心智模型，這種做法屬於哪種反模式，應如何改進？",
+        "en": "Your team wrote a script that calls the GitHub API every minute to check for new Pull Requests needing review. Based on the 'API is a scarce resource' mental model, which anti-pattern is this, and how should it be improved?",
+        "wg": [
+          {
+            "t": "輪詢",
+            "en": "Polling",
+            "ps": "noun"
+          },
+          {
+            "t": "稀缺資源",
+            "en": "Scarce Resource",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "這是「高頻輪詢 (Polling)」。應改用 Webhook 監聽 `pull_request` 事件來觸發動作。",
+        "en": "This is 'High-frequency Polling'. It should be replaced by listening to `pull_request` events via Webhooks.",
+        "wg": []
+      },
+      {
+        "t": "這是「同步處理 (Synchronous Processing)」。應改用 GraphQL 來一次獲取更多資料。",
+        "en": "This is 'Synchronous Processing'. It should be replaced by using GraphQL to fetch more data at once.",
+        "wg": []
+      },
+      {
+        "t": "這是「濫用 PAT (PAT Abuse)」。應改用 GitHub App Token 來增加 Rate Limit。",
+        "en": "This is 'PAT Abuse'. It should be replaced by using a GitHub App Token to increase Rate Limits.",
+        "wg": []
+      },
+      {
+        "t": "這是標準做法，只要不超過每小時 5000 次請求即可。",
+        "en": "This is standard practice, as long as it doesn't exceed 5000 requests per hour.",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "每分鐘主動詢問 API (Polling) 是極度浪費 Quota 的做法。GitHub 推薦使用「事件驅動 (Event-driven)」架構，即設定 Webhook，當 PR 建立時由 GitHub 主動通知你的服務，這樣既即時又不會消耗 API Rate Limit。",
+      "en": "Actively querying the API every minute (Polling) is extremely wasteful of Quota. GitHub recommends an 'Event-driven' architecture, setting up Webhooks so GitHub notifies your service when a PR is created. This is real-time and consumes zero API Rate Limit.",
+      "wg": [
+        {
+          "t": "事件驅動",
+          "en": "Event-driven",
+          "ps": "adjective"
+        },
+        {
+          "t": "配額",
+          "en": "Quota",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "5",
+    "level": "Intermediate",
+    "keywords": "Concurrency, CI Costs, Workflow, Skip CI",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "concurrency:\n  group: ${{ github.workflow }}-${{ github.ref }}\n  cancel-in-progress: true",
+    "question": [
+      {
+        "t": "在 GitHub Actions Workflow 中設定上述 `concurrency` 區塊的主要效益是什麼？",
+        "en": "What is the primary benefit of configuring the `concurrency` block shown above in a GitHub Actions Workflow?",
+        "wg": [
+          {
+            "t": "併發",
+            "en": "Concurrency",
+            "ps": "noun"
+          },
+          {
+            "t": "效益",
+            "en": "Benefit",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "確保同一個 PR 的所有 Commit 都會依序執行，不會遺漏任何測試。",
+        "en": "Ensure all commits in the same PR are executed sequentially, without missing any tests.",
+        "wg": []
+      },
+      {
+        "t": "當開發者在短時間內連續 Push 新 Commit 時，自動取消舊的、正在執行的 Build，節省資源。",
+        "en": "Automatically cancel old, running builds when a developer pushes new commits in a short time, saving resources.",
+        "wg": []
+      },
+      {
+        "t": "允許同一個 Workflow 同時在多個 Runner 上平行執行以加速。",
+        "en": "Allow the same Workflow to run in parallel on multiple Runners to speed up execution.",
+        "wg": []
+      },
+      {
+        "t": "防止兩個不同的 Workflow 同時修改同一個檔案。",
+        "en": "Prevent two different Workflows from modifying the same file simultaneously.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "`concurrency` 配合 `cancel-in-progress: true` 是節省 CI 成本的關鍵設定。在 Pull Request 情境中，我們通常只關心最新 Commit 的測試結果，舊的 Commit 若還在跑已經沒有意義，應立即取消以釋放 Runner。",
+      "en": "`concurrency` with `cancel-in-progress: true` is a key setting for saving CI costs. In a Pull Request context, we usually only care about the test results of the latest commit. If older commits are still running, they are obsolete and should be cancelled immediately to free up Runners.",
+      "wg": [
+        {
+          "t": "釋放",
+          "en": "Free up",
+          "ps": "verb"
+        },
+        {
+          "t": "過時的",
+          "en": "Obsolete",
+          "ps": "adjective"
+        }
+      ]
+    }
+  },
+  {
+    "no": "6",
+    "level": "Advanced",
+    "keywords": "Git LFS, Repo Size, Binary Files, Migration",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你的團隊決定引入 Git LFS 來管理大型二進位檔案 (如 .psd, .mp4)。僅在 `.gitattributes` 加入規則是不夠的，若不執行 `git lfs migrate` 或類似的歷史清洗動作，會發生什麼後果？",
+        "en": "Your team decides to adopt Git LFS for managing large binary files (e.g., .psd, .mp4). Merely adding rules to `.gitattributes` is insufficient. What is the consequence if you do not perform `git lfs migrate` or a similar history cleanup?",
+        "wg": [
+          {
+            "t": "二進位檔案",
+            "en": "Binary Files",
+            "ps": "noun"
+          },
+          {
+            "t": "歷史清洗",
+            "en": "History Cleanup",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "Git LFS 會無法啟動，所有檔案仍會被視為普通文字檔。",
+        "en": "Git LFS will fail to start, and all files will still be treated as plain text.",
+        "wg": []
+      },
+      {
+        "t": "儲存庫體積會變成「雙倍浪費」：舊歷史中的大檔依然存在，新檔案則存入 LFS，導致 Clone 速度無改善。",
+        "en": "Repository size becomes a 'double waste': large files in old history remain, while new files go into LFS, resulting in no improvement in Clone speed.",
+        "wg": []
+      },
+      {
+        "t": "舊的 Commit 會自動遺失，破壞專案歷史。",
+        "en": "Old commits will be automatically lost, corrupting project history.",
+        "wg": []
+      },
+      {
+        "t": "GitHub 會拒絕接收 Push，直到手動刪除舊檔案。",
+        "en": "GitHub will reject the Push until old files are manually deleted.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "`.gitattributes` 只影響「未來」的 Commit。若不清洗歷史 (Rewrite History)，過去提交的大檔仍會留在 `.git` 目錄中，導致使用者 Clone 時仍需下載這些舊資料。正確做法必須包含將歷史中的大檔轉換為 LFS 指標。",
+      "en": "`.gitattributes` only affects 'future' commits. Without rewriting history, large files committed in the past remain in the `.git` directory, forcing users to download this old data during Clone. The correct procedure must include converting large files in history into LFS pointers.",
+      "wg": [
+        {
+          "t": "指標",
+          "en": "Pointer",
+          "ps": "noun"
+        },
+        {
+          "t": "重寫歷史",
+          "en": "Rewrite History",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "7",
+    "level": "Intermediate",
+    "keywords": "GraphQL, REST API, Rate Limits, Over-fetching",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你需要開發一個儀表板，用來顯示組織內前 50 個儲存庫的最新 Issue 標題與作者名稱。若使用 REST API，你可能需要多次請求或獲取大量不必要的欄位。",
+        "en": "You need to develop a dashboard to display the latest Issue titles and author names for the top 50 repositories in your organization. Using the REST API might require multiple requests or fetching a lot of unnecessary fields.",
+        "wg": [
+          {
+            "t": "儀表板",
+            "en": "dashboard",
+            "ps": "noun"
+          },
+          {
+            "t": "不必要的欄位",
+            "en": "unnecessary fields",
+            "ps": "noun phrase"
+          }
+        ]
+      },
+      {
+        "t": "根據「API 是有限資源」的心智模型，改用 GitHub GraphQL API 的主要優勢是什麼？",
+        "en": "According to the 'API is a scarce resource' mental model, what is the primary advantage of switching to the GitHub GraphQL API?",
+        "wg": [
+          {
+            "t": "心智模型",
+            "en": "mental model",
+            "ps": "noun"
+          },
+          {
+            "t": "優勢",
+            "en": "advantage",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "GraphQL API 完全沒有速率限制 (Rate Limits)，適合大量數據抓取。",
+        "en": "The GraphQL API has no Rate Limits at all, making it suitable for massive data scraping.",
+        "wg": []
+      },
+      {
+        "t": "GraphQL 允許在單次請求中精準獲取巢狀資料，避免 Over-fetching 並節省 API 配額消耗。",
+        "en": "GraphQL allows precise fetching of nested data in a single request, avoiding Over-fetching and saving API quota consumption.",
+        "wg": [
+          {
+            "t": "巢狀資料",
+            "en": "nested data",
+            "ps": "noun phrase"
+          },
+          {
+            "t": "配額消耗",
+            "en": "quota consumption",
+            "ps": "noun phrase"
+          }
+        ]
+      },
+      {
+        "t": "GraphQL 的回應速度總是比 REST API 快，因為它繞過了資料庫查詢。",
+        "en": "GraphQL response times are always faster than REST API because it bypasses database queries.",
+        "wg": []
+      },
+      {
+        "t": "GraphQL 自動快取所有請求結果，因此第二次呼叫不消耗資源。",
+        "en": "GraphQL automatically caches all request results, so the second call consumes no resources.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "REST API 往往會回傳固定結構的大量資料 (Over-fetching) 或需要多次往返 (Under-fetching)。GraphQL 允許客戶端指定確切需要的欄位，在單次請求中獲取關聯資料，這直接降低了 API Rate Limit 的消耗點數（GitHub GraphQL 依據節點複雜度計費，通常比多次 REST 呼叫更節省）。",
+      "en": "REST APIs often return large amounts of fixed-structure data (Over-fetching) or require multiple round trips (Under-fetching). GraphQL allows clients to specify exactly the fields needed and fetch related data in a single request, directly reducing API Rate Limit consumption (GitHub GraphQL charges based on node complexity, which is usually more efficient than multiple REST calls).",
+      "wg": [
+        {
+          "t": "往返",
+          "en": "round trips",
+          "ps": "noun"
+        },
+        {
+          "t": "節點複雜度",
+          "en": "node complexity",
+          "ps": "noun phrase"
+        }
+      ]
+    }
+  },
+  {
+    "no": "8",
+    "level": "Intermediate",
+    "keywords": "Sparse Checkout, Monorepo, Git Clone, Disk Usage",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你的公司擁有一個高達 50GB 的 Monorepo，包含數十個微服務。新進開發者只需要維護其中的 `services/payment` 目錄。",
+        "en": "Your company has a massive 50GB Monorepo containing dozens of microservices. A new developer only needs to maintain the `services/payment` directory.",
+        "wg": [
+          {
+            "t": "微服務",
+            "en": "microservices",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "為了避免下載整個工作目錄 (Working Tree) 導致硬碟空間不足與操作緩慢，開發者應該在 `clone` 後使用哪個 Git 功能？",
+        "en": "To avoid downloading the entire Working Tree, which causes disk space issues and slowness, which Git feature should the developer use after `clone`?",
+        "wg": [
+          {
+            "t": "工作目錄",
+            "en": "Working Tree",
+            "ps": "noun"
+          },
+          {
+            "t": "硬碟空間不足",
+            "en": "disk space shortage",
+            "ps": "noun phrase"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "Git LFS (Large File Storage)",
+        "en": "Git LFS (Large File Storage)",
+        "wg": []
+      },
+      {
+        "t": "Shallow Clone (`--depth 1`)",
+        "en": "Shallow Clone (`--depth 1`)",
+        "wg": []
+      },
+      {
+        "t": "Sparse Checkout",
+        "en": "Sparse Checkout",
+        "wg": []
+      },
+      {
+        "t": "Git Submodules",
+        "en": "Git Submodules",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "Sparse Checkout 允許使用者只檢出 (checkout) 儲存庫中的特定目錄或檔案，而不需要在本地硬碟展開完整的專案結構。Shallow Clone 雖然減少了歷史紀錄的大小，但預設仍會檢出該 commit 的所有檔案；Git LFS 是處理二進位大檔的工具；Submodules 是將專案拆分的機制，而非在單一 Repo 中過濾目錄。",
+      "en": "Sparse Checkout allows users to check out only specific directories or files from the repository without expanding the full project structure on the local disk. While Shallow Clone reduces history size, it still checks out all files for that commit by default; Git LFS is for large binary files; Submodules are a mechanism for splitting projects, not filtering directories within a single Repo.",
+      "wg": [
+        {
+          "t": "檢出",
+          "en": "checkout",
+          "ps": "verb"
+        },
+        {
+          "t": "展開",
+          "en": "expand/populate",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "9",
+    "level": "Advanced",
+    "keywords": "Docker, Caching, GitHub Actions, gha exporter",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "steps:\n  - name: Build and push\n    uses: docker/build-push-action@v5\n    with:\n      context: .\n      push: true\n      tags: user/app:latest\n      # Missing Cache Configuration",
+    "question": [
+      {
+        "t": "你的 CI 流程包含建置 Docker Image 的步驟（如上方程式碼所示）。目前每次執行都需要重新建置所有 Layers，導致耗時過長。",
+        "en": "Your CI pipeline includes a step to build a Docker Image (as shown in the code above). Currently, every run rebuilds all Layers, causing excessive duration.",
+        "wg": [
+          {
+            "t": "建置",
+            "en": "build",
+            "ps": "verb"
+          },
+          {
+            "t": "耗時過長",
+            "en": "excessive duration",
+            "ps": "noun phrase"
+          }
+        ]
+      },
+      {
+        "t": "為了利用 GitHub Actions 的快取機制來加速 Docker Build，你應該加入下列哪組設定？",
+        "en": "To leverage GitHub Actions' caching mechanism to accelerate the Docker Build, which configuration should you add?",
+        "wg": [
+          {
+            "t": "加速",
+            "en": "accelerate",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "cache-from: type=local,src=/tmp/.buildx-cache\ncache-to: type=local,dest=/tmp/.buildx-cache",
+        "en": "cache-from: type=local,src=/tmp/.buildx-cache\ncache-to: type=local,dest=/tmp/.buildx-cache",
+        "wg": []
+      },
+      {
+        "t": "cache-from: type=gha\ncache-to: type=gha,mode=max",
+        "en": "cache-from: type=gha\ncache-to: type=gha,mode=max",
+        "wg": []
+      },
+      {
+        "t": "cache-from: type=registry,ref=user/app:latest\ncache-to: type=inline",
+        "en": "cache-from: type=registry,ref=user/app:latest\ncache-to: type=inline",
+        "wg": []
+      },
+      {
+        "t": "use-cache: true\ncache-key: ${{ runner.os }}-docker",
+        "en": "use-cache: true\ncache-key: ${{ runner.os }}-docker",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "GitHub Actions Cache exporter (`type=gha`) 是專為 GitHub Actions 環境優化的快取後端。它能將 Docker layers 直接儲存到 GitHub 的 Cache API 中，無需額外的 registry 或本地檔案操作，是目前在 Actions 中加速 Docker build 最推薦的方式。",
+      "en": "The GitHub Actions Cache exporter (`type=gha`) is a cache backend optimized specifically for the GitHub Actions environment. It stores Docker layers directly in GitHub's Cache API without needing an external registry or local file operations, making it the recommended way to accelerate Docker builds in Actions.",
+      "wg": [
+        {
+          "t": "快取後端",
+          "en": "cache backend",
+          "ps": "noun phrase"
+        },
+        {
+          "t": "推薦的方式",
+          "en": "recommended way",
+          "ps": "noun phrase"
+        }
+      ]
+    }
+  },
+  {
+    "no": "10",
+    "level": "Advanced",
+    "keywords": "API Rate Limits, Conditional Requests, ETag, 304 Not Modified",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你的應用程式需要定期輪詢 (Poll) GitHub API 以獲取某個資源的最新狀態。為了節省 Rate Limit 配額，你在請求 Header 中加入了 `If-None-Match: \"<etag_value>\"`。",
+        "en": "Your application needs to periodically poll the GitHub API to get the latest status of a resource. To save Rate Limit quota, you added `If-None-Match: \"<etag_value>\"` to the request header.",
+        "wg": [
+          {
+            "t": "輪詢",
+            "en": "poll",
+            "ps": "verb"
+          },
+          {
+            "t": "配額",
+            "en": "quota",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "當 GitHub 回傳 `304 Not Modified` 狀態碼時，這對你的 Rate Limit 消耗有何影響？",
+        "en": "When GitHub returns a `304 Not Modified` status code, how does this affect your Rate Limit consumption?",
+        "wg": [
+          {
+            "t": "狀態碼",
+            "en": "status code",
+            "ps": "noun"
+          },
+          {
+            "t": "消耗",
+            "en": "consumption",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "消耗 1 點配額，與正常請求相同。",
+        "en": "Consumes 1 quota point, same as a normal request.",
+        "wg": []
+      },
+      {
+        "t": "不消耗任何配額 (0 點)。",
+        "en": "Consumes no quota (0 points).",
+        "wg": []
+      },
+      {
+        "t": "消耗 0.1 點配額（輕量級請求）。",
+        "en": "Consumes 0.1 quota points (lightweight request).",
+        "wg": []
+      },
+      {
+        "t": "只有在使用 GitHub App Token 時才不消耗，使用 PAT 仍會消耗。",
+        "en": "Only consumes no quota when using a GitHub App Token; using a PAT still consumes quota.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "GitHub API 支援條件式請求 (Conditional Requests)。若客戶端提供的 ETag 與伺服器端當前的版本相符，GitHub 會回傳 `304 Not Modified`，根據官方文件，這種回應**不會消耗**任何 Rate Limit 配額。",
+      "en": "GitHub API supports Conditional Requests. If the ETag provided by the client matches the current version on the server, GitHub returns `304 Not Modified`. According to official documentation, this response **does not consume** any Rate Limit quota.",
+      "wg": [
+        {
+          "t": "條件式請求",
+          "en": "Conditional Requests",
+          "ps": "noun phrase"
+        },
+        {
+          "t": "相符",
+          "en": "matches",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "11",
+    "level": "Intermediate",
+    "keywords": "Anti-pattern, Repository Bloat, Git GC, Build Artifacts",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "某團隊為了方便部署，習慣將編譯後的 `dist/` 資料夾與 `node_modules/` 直接 commit 進 Git 儲存庫。",
+        "en": "For deployment convenience, a team habitually commits the compiled `dist/` folder and `node_modules/` directly into the Git repository.",
+        "wg": [
+          {
+            "t": "部署",
+            "en": "deployment",
+            "ps": "noun"
+          },
+          {
+            "t": "習慣",
+            "en": "habitually",
+            "ps": "adverb"
+          }
+        ]
+      },
+      {
+        "t": "從「儲存庫效能 (Repo Performance)」的角度來看，為什麼這是一個嚴重的 Anti-pattern？",
+        "en": "From a 'Repo Performance' perspective, why is this a serious Anti-pattern?",
+        "wg": [
+          {
+            "t": "嚴重的",
+            "en": "serious",
+            "ps": "adjective"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "這會導致 GitHub Actions 無法正確識別程式語言種類。",
+        "en": "This causes GitHub Actions to fail in correctly identifying the programming language.",
+        "wg": []
+      },
+      {
+        "t": "這會造成 Merge Conflicts 變多，但不會影響 clone 速度。",
+        "en": "This increases Merge Conflicts but does not affect clone speed.",
+        "wg": []
+      },
+      {
+        "t": "這些檔案通常變動頻繁且體積大，會導致 `.git` 目錄指數級膨脹，且無法被 Garbage Collection 清理（因為它們被最新的 commit 引用）。",
+        "en": "These files usually change frequently and are large, causing the `.git` directory to grow exponentially and cannot be cleaned by Garbage Collection (because they are referenced by the latest commit).",
+        "wg": [
+          {
+            "t": "指數級膨脹",
+            "en": "grow exponentially",
+            "ps": "verb phrase"
+          },
+          {
+            "t": "引用",
+            "en": "referenced",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "這會違反 GitHub 的服務條款 (ToS)，導致帳號被封鎖。",
+        "en": "This violates GitHub's Terms of Service (ToS) and leads to account suspension.",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "Git 擅長處理文字檔的差異，但對於編譯產物（通常是二進位或 minified code），每次變更都會儲存完整的 blob。這會導致 Repo 體積迅速增長。且因為這些檔案存在於最新的 HEAD 中，`git gc` 無法將其視為垃圾回收，導致所有人的 clone/fetch 速度永久變慢。",
+      "en": "Git excels at handling text file diffs, but for build artifacts (usually binary or minified code), every change stores a full blob. This causes the Repo size to grow rapidly. And since these files exist in the latest HEAD, `git gc` cannot garbage collect them, permanently slowing down clone/fetch speeds for everyone.",
+      "wg": [
+        {
+          "t": "編譯產物",
+          "en": "build artifacts",
+          "ps": "noun phrase"
+        },
+        {
+          "t": "垃圾回收",
+          "en": "garbage collect",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "12",
+    "level": "Intermediate",
+    "keywords": "CI/CD, Timeout, Resource Management, Cost Optimization",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你在 GitHub Actions 中設定了一個執行腳本，但該腳本偶爾會因為外部服務無回應而卡住 (Hang)。若你忘記設定 `timeout-minutes`，該 Job 預設會執行多久才被強制終止？",
+        "en": "You configured a script in GitHub Actions, but it occasionally hangs due to an unresponsive external service. If you forget to set `timeout-minutes`, how long will the Job run by default before being forcibly terminated?",
+        "wg": [
+          {
+            "t": "卡住",
+            "en": "hang",
+            "ps": "verb"
+          },
+          {
+            "t": "強制終止",
+            "en": "forcibly terminated",
+            "ps": "verb phrase"
+          }
+        ]
+      },
+      {
+        "t": "這對資源管理有何影響？",
+        "en": "What is the impact of this on resource management?",
+        "wg": []
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "預設 60 分鐘；影響較小。",
+        "en": "Default is 60 minutes; minor impact.",
+        "wg": []
+      },
+      {
+        "t": "預設 6 小時；會造成大量的計費分鐘數浪費 (Billable Minutes Waste)。",
+        "en": "Default is 6 hours; causes massive waste of Billable Minutes.",
+        "wg": [
+          {
+            "t": "計費分鐘數",
+            "en": "Billable Minutes",
+            "ps": "noun phrase"
+          }
+        ]
+      },
+      {
+        "t": "預設 24 小時；會導致隔天的 CI 無法執行。",
+        "en": "Default is 24 hours; prevents CI from running the next day.",
+        "wg": []
+      },
+      {
+        "t": "預設無限期；直到手動取消為止。",
+        "en": "Default is indefinite; until manually cancelled.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "GitHub Actions 的 job 預設 timeout 為 360 分鐘（6 小時）。若發生死鎖或無限迴圈，這將消耗大量的 Runner 時間與金錢成本。最佳實務是為每個 Job 顯式設定合理的 `timeout-minutes`（例如 10 或 30 分鐘）。",
+      "en": "The default timeout for a GitHub Actions job is 360 minutes (6 hours). If a deadlock or infinite loop occurs, this consumes a large amount of Runner time and monetary cost. Best practice is to explicitly set a reasonable `timeout-minutes` (e.g., 10 or 30 minutes) for every Job.",
+      "wg": [
+        {
+          "t": "死鎖",
+          "en": "deadlock",
+          "ps": "noun"
+        },
+        {
+          "t": "顯式設定",
+          "en": "explicitly set",
+          "ps": "verb phrase"
+        }
+      ]
+    }
+  }
+]

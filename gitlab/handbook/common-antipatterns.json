@@ -1,0 +1,858 @@
+[
+  {
+    "no": "1",
+    "level": "Easy",
+    "keywords": "Mental Model, IaC, ClickOps, Best Practices",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "某團隊習慣在 GitLab 網頁介面上手動設定所有的 CI/CD 變數與分支保護規則，而在程式碼倉庫中沒有任何相關的設定檔。根據「一切皆代碼 (Everything as Code)」的原則，這種「UI 優先 (ClickOps)」的做法主要會帶來什麼風險？",
+        "en": "A team manages all CI/CD variables and branch protection rules manually via the GitLab UI, with no corresponding configuration in the code repository. According to the 'Everything as Code' principle, what is the primary risk of this 'UI First' (ClickOps) approach?",
+        "wg": [
+          {
+            "t": "一切皆代碼",
+            "en": "Everything as Code",
+            "ps": "phrase"
+          },
+          {
+            "t": "UI 優先",
+            "en": "UI First",
+            "ps": "phrase"
+          }
+        ]
+      }
+    ],
+    "type": "Single",
+    "options": [
+      {
+        "t": "這會導致 CI 流水線的執行速度變慢。",
+        "en": "It causes the CI pipeline execution speed to slow down.",
+        "wg": []
+      },
+      {
+        "t": "這使得流水線的配置難以被稽核、複製或遷移（例如在 Fork 專案時），且缺乏版本控制。",
+        "en": "It makes the pipeline configuration difficult to audit, reproduce, or migrate (e.g., when forking), and lacks version control.",
+        "wg": [
+          {
+            "t": "稽核",
+            "en": "audit",
+            "ps": "verb"
+          },
+          {
+            "t": "遷移",
+            "en": "migrate",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "這會阻止 GitLab Runner 正確抓取程式碼。",
+        "en": "It prevents the GitLab Runner from fetching the code correctly.",
+        "wg": []
+      },
+      {
+        "t": "這需要購買 GitLab Premium 授權才能運作。",
+        "en": "It requires a GitLab Premium license to function.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "正確的心智模型是將 Pipeline 視為產品。過度依賴 UI 設定（ClickOps）會導致「幽靈設定 (Phantom Configuration)」，當專案需要遷移或他人協作時，這些隱藏的設定無法隨程式碼轉移，也無法追溯變更歷史。",
+      "en": "The correct mental model is to treat the Pipeline as a product. Over-reliance on UI settings (ClickOps) leads to 'Phantom Configuration', where hidden settings do not transfer with the code during migration or collaboration, and change history cannot be tracked.",
+      "wg": [
+        {
+          "t": "幽靈設定",
+          "en": "Phantom Configuration",
+          "ps": "phrase"
+        },
+        {
+          "t": "追溯",
+          "en": "track/trace",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "2",
+    "level": "Medium",
+    "keywords": "rules, changes, optimization, Zombie Pipelines",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "deploy:\n  stage: deploy\n  script: ./deploy.sh\n  # Missing rules configuration",
+    "question": [
+      {
+        "t": "你發現即使只是修正了 `README.md` 中的一個錯字，CI 流水線仍然觸發了包含建置、測試與部署的完整流程，浪費了大量資源。為了消除這種「殭屍流水線 (Zombie Pipelines)」，你應該在 Job 中加入什麼設定？",
+        "en": "You notice that even a simple typo fix in `README.md` triggers a full CI pipeline containing build, test, and deploy stages, wasting significant resources. To eliminate this 'Zombie Pipelines' anti-pattern, what configuration should you add to the job?",
+        "wg": [
+          {
+            "t": "殭屍流水線",
+            "en": "Zombie Pipelines",
+            "ps": "phrase"
+          },
+          {
+            "t": "觸發",
+            "en": "trigger",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "type": "Single",
+    "options": [
+      {
+        "t": "設定 `allow_failure: true`",
+        "en": "Set `allow_failure: true`",
+        "wg": []
+      },
+      {
+        "t": "設定 `rules: changes` 來限制只有特定檔案變更時才執行",
+        "en": "Set `rules: changes` to restrict execution only when specific files change",
+        "wg": []
+      },
+      {
+        "t": "將 Job 改為 `when: manual`",
+        "en": "Change the job to `when: manual`",
+        "wg": []
+      },
+      {
+        "t": "使用 `stage: documentation` 建立一個新階段",
+        "en": "Use `stage: documentation` to create a new stage",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "使用 `rules: changes` 可以明確定義 Job 觸發的條件。針對文件修改，應避免執行部署或後端測試邏輯，這是避免資源浪費的最佳實務。",
+      "en": "Using `rules: changes` explicitly defines the conditions for triggering a job. For documentation changes, deployment or backend tests should be skipped to avoid resource waste, which is a best practice.",
+      "wg": [
+        {
+          "t": "資源浪費",
+          "en": "resource waste",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "3",
+    "level": "Hard",
+    "keywords": "Security, Access Token, Least Privilege, Anti-patterns",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "為了讓 CI Job 能夠自動將版本號 Tag 推送回儲存庫，某位開發者將自己的 Personal Access Token (PAT) 設定在 CI/CD 變數中供腳本使用。為什麼這被視為嚴重的反模式 (Anti-pattern)？",
+        "en": "To allow a CI job to automatically push version tags back to the repository, a developer configured their Personal Access Token (PAT) in the CI/CD variables for the script to use. Why is this considered a serious anti-pattern?",
+        "wg": [
+          {
+            "t": "反模式",
+            "en": "Anti-pattern",
+            "ps": "noun"
+          },
+          {
+            "t": "儲存庫",
+            "en": "repository",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single",
+    "options": [
+      {
+        "t": "PAT 每 24 小時就會過期，導致流水線不穩定。",
+        "en": "PATs expire every 24 hours, causing pipeline instability.",
+        "wg": []
+      },
+      {
+        "t": "PAT 無法在 GitLab CI 的 Log 中被遮罩 (Masked)。",
+        "en": "PATs cannot be masked in GitLab CI logs.",
+        "wg": []
+      },
+      {
+        "t": "PAT 賦予了該 Job 該使用者的所有權限（可能包含其他專案），違反了最小權限原則 (Least Privilege)。",
+        "en": "A PAT grants the job all permissions of that user (potentially including other projects), violating the Principle of Least Privilege.",
+        "wg": [
+          {
+            "t": "最小權限原則",
+            "en": "Principle of Least Privilege",
+            "ps": "phrase"
+          }
+        ]
+      },
+      {
+        "t": "PAT 只能用於讀取儲存庫，無法執行寫入操作。",
+        "en": "PATs can only be used to read the repository and cannot perform write operations.",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "使用 PAT 會讓 CI Job 擁有該使用者的「上帝視角」權限。一旦惡意腳本竊取了該 Token，攻擊者就能存取該使用者名下的所有專案。正確做法是使用範圍受限的 Project Access Token 或 Deploy Key。",
+      "en": "Using a PAT gives the CI job the user's 'God Mode' permissions. If a malicious script steals the token, the attacker can access all projects belonging to that user. The correct approach is to use a scoped Project Access Token or Deploy Key.",
+      "wg": [
+        {
+          "t": "上帝視角",
+          "en": "God Mode / Full Access",
+          "ps": "phrase"
+        },
+        {
+          "t": "竊取",
+          "en": "steal/exfiltrate",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "4",
+    "level": "Medium",
+    "keywords": "Refactoring, include, extends, Wall of YAML",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你的 `.gitlab-ci.yml` 檔案已經超過 600 行，其中包含大量重複的 `before_script` 與相似的 Job 定義，導致維護困難（即「YAML 巨牆」現象）。下列哪種重構策略最能有效解決此問題？",
+        "en": "Your `.gitlab-ci.yml` file has grown to over 600 lines, containing many repeated `before_script` sections and similar job definitions, making it hard to maintain (the 'Wall of YAML' phenomenon). Which refactoring strategy best addresses this issue?",
+        "wg": [
+          {
+            "t": "YAML 巨牆",
+            "en": "Wall of YAML",
+            "ps": "phrase"
+          },
+          {
+            "t": "重構",
+            "en": "refactor",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "type": "Single",
+    "options": [
+      {
+        "t": "使用 `include` 將檔案拆分為多個模組，並利用 `extends` 來繼承通用邏輯。",
+        "en": "Use `include` to split the file into multiple modules and utilize `extends` to inherit common logic.",
+        "wg": [
+          {
+            "t": "繼承",
+            "en": "inherit",
+            "ps": "verb"
+          },
+          {
+            "t": "通用邏輯",
+            "en": "common logic",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "將所有的 script 移入一個巨大的 Shell script 檔案中，並在 YAML 呼叫它。",
+        "en": "Move all scripts into a single huge Shell script file and call it from the YAML.",
+        "wg": []
+      },
+      {
+        "t": "使用 GitLab UI 的 Auto DevOps 功能來完全取代手寫 YAML。",
+        "en": "Use GitLab UI's Auto DevOps feature to completely replace manual YAML.",
+        "wg": []
+      },
+      {
+        "t": "增加更多的 `stages` 來將檔案在視覺上分段。",
+        "en": "Add more `stages` to visually segment the file.",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "解決「YAML 巨牆」的關鍵是模組化。`include` 允許將配置拆分到不同檔案（如 `/ci/build.yml`），而 `extends` 則能消除重複的配置區塊，保持 DRY (Don't Repeat Yourself)。",
+      "en": "The key to solving the 'Wall of YAML' is modularity. `include` allows splitting configuration into different files (e.g., `/ci/build.yml`), while `extends` eliminates repeated configuration blocks, adhering to DRY (Don't Repeat Yourself).",
+      "wg": [
+        {
+          "t": "模組化",
+          "en": "modularity",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "5",
+    "level": "Medium",
+    "keywords": "Docker, image, latest tag, reproducibility, Code Review",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "build_job:\n  image: node:latest\n  script:\n    - npm install\n    - npm run build",
+    "question": [
+      {
+        "t": "在進行 CI/CD Code Review 時，你看到上述設定。為什麼使用 `node:latest` 是一個應該被拒絕的反模式？",
+        "en": "During a CI/CD Code Review, you see the above configuration. Why is using `node:latest` an anti-pattern that should be rejected?",
+        "wg": [
+          {
+            "t": "被拒絕",
+            "en": "rejected",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "type": "Single",
+    "options": [
+      {
+        "t": "`latest` 標籤的映像檔通常下載速度較慢。",
+        "en": "Images with the `latest` tag usually have slower download speeds.",
+        "wg": []
+      },
+      {
+        "t": "這會導致建置環境「非決定性 (Non-deterministic)」，未來的版本更新可能會在無預警的情況下破壞流水線。",
+        "en": "It leads to a 'non-deterministic' build environment, where future version updates might break the pipeline without warning.",
+        "wg": [
+          {
+            "t": "非決定性",
+            "en": "Non-deterministic",
+            "ps": "adjective"
+          },
+          {
+            "t": "無預警",
+            "en": "without warning",
+            "ps": "adverb"
+          }
+        ]
+      },
+      {
+        "t": "GitLab Runner 不支援 `latest` 標籤。",
+        "en": "GitLab Runner does not support the `latest` tag.",
+        "wg": []
+      },
+      {
+        "t": "這違反了權限最小化原則。",
+        "en": "This violates the principle of least privilege.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "使用具體版本號（如 `node:18-alpine`）能確保每次執行的環境一致。依賴 `latest` 意味著當上游映像檔更新（例如 Node.js 升級大版本）時，你的專案可能會突然無法建置。",
+      "en": "Using a specific version tag (e.g., `node:18-alpine`) ensures a consistent environment for every run. Relying on `latest` means your project build could suddenly fail when the upstream image updates (e.g., a major Node.js upgrade).",
+      "wg": [
+        {
+          "t": "上游",
+          "en": "upstream",
+          "ps": "adjective"
+        },
+        {
+          "t": "一致",
+          "en": "consistent",
+          "ps": "adjective"
+        }
+      ]
+    }
+  },
+  {
+    "no": "6",
+    "level": "Medium",
+    "keywords": "Phantom Configuration, Variables, Debugging, Best Practices",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "一位新進工程師 Fork 了專案，但流水線立刻失敗，因為腳本依賴了數個在原專案 UI 中設定、但在 `.gitlab-ci.yml` 或文件中完全未提及的變數。這種反模式被稱為「幽靈設定 (Phantom Configuration)」。下列何者是最佳的修正方案？",
+        "en": "A new engineer forks the project, but the pipeline fails immediately because the script relies on several variables configured in the original project's UI but not mentioned in `.gitlab-ci.yml` or documentation. This anti-pattern is called 'Phantom Configuration'. Which of the following is the best fix?",
+        "wg": [
+          {
+            "t": "幽靈設定",
+            "en": "Phantom Configuration",
+            "ps": "phrase"
+          },
+          {
+            "t": "提及",
+            "en": "mention",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "type": "Single",
+    "options": [
+      {
+        "t": "在 `.gitlab-ci.yml` 中為非敏感變數設定預設值，並建立 `.env.example` 文件來說明必要的機密變數。",
+        "en": "Set default values for non-sensitive variables in `.gitlab-ci.yml` and create a `.env.example` file to document required secret variables.",
+        "wg": [
+          {
+            "t": "非敏感",
+            "en": "non-sensitive",
+            "ps": "adjective"
+          }
+        ]
+      },
+      {
+        "t": "將所有變數的值直接寫死 (Hardcode) 在 YAML 檔案中以確保可見性。",
+        "en": "Hardcode all variable values directly into the YAML file to ensure visibility.",
+        "wg": [
+          {
+            "t": "寫死",
+            "en": "Hardcode",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "給予所有開發者 Maintainer 權限，讓他們自己去 UI 查看設定。",
+        "en": "Grant all developers Maintainer access so they can check the UI settings themselves.",
+        "wg": []
+      },
+      {
+        "t": "使用 `allow_failure: true` 忽略變數缺失的錯誤。",
+        "en": "Use `allow_failure: true` to ignore errors caused by missing variables.",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "為了避免「幽靈設定」，程式碼應作為單一真理來源 (Single Source of Truth)。非機密設定應直接寫在 YAML 的 `variables` 區塊，機密設定則應透過範例文件告知開發者需要自行在 UI 或 Vault 中配置。",
+      "en": "To avoid 'Phantom Configuration', the code should be the Single Source of Truth. Non-sensitive settings should be written directly in the YAML `variables` block, while secret settings should be documented in an example file, informing developers to configure them in the UI or Vault.",
+      "wg": [
+        {
+          "t": "單一真理來源",
+          "en": "Single Source of Truth",
+          "ps": "phrase"
+        }
+      ]
+    }
+  },
+  {
+    "no": "7",
+    "level": "Hard",
+    "keywords": "Security, Runner, Docker, Privileged Mode, Anti-patterns",
+    "parentNo": null,
+    "images": "",
+    "codeSnippet": "[[runners]]\n  executor = \"docker\"\n  [runners.docker]\n    privileged = true\n    volumes = [\"/var/run/docker.sock:/var/run/docker.sock\"]",
+    "question": [
+      {
+        "t": "你的團隊為了方便在 CI 中建置 Docker 映像檔，將共用的 GitLab Runner 設定如上（開啟 `privileged` 模式並掛載 `docker.sock`）。",
+        "en": "For convenience in building Docker images within CI, your team configured a shared GitLab Runner as shown above (enabling `privileged` mode and mounting `docker.sock`).",
+        "wg": []
+      },
+      {
+        "t": "這種被稱為「上帝模式 (God Mode)」的設定主要存在什麼嚴重的安全隱憂？",
+        "en": "What is the primary security concern associated with this configuration, often referred to as 'God Mode'?",
+        "wg": [
+          {
+            "t": "上帝模式",
+            "en": "God Mode",
+            "ps": "noun"
+          },
+          {
+            "t": "安全隱憂",
+            "en": "security concern",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single",
+    "options": [
+      {
+        "t": "這會導致 Docker 映像檔下載速度變慢，影響流水線效能。",
+        "en": "It causes slower Docker image downloads, impacting pipeline performance.",
+        "wg": []
+      },
+      {
+        "t": "惡意的 Job 可以透過掛載的 socket 控制宿主機，甚至竊取同一 Runner 上其他專案的程式碼或憑證。",
+        "en": "A malicious job can control the host machine via the mounted socket, potentially stealing code or credentials from other projects on the same runner.",
+        "wg": [
+          {
+            "t": "宿主機",
+            "en": "host machine",
+            "ps": "noun"
+          },
+          {
+            "t": "憑證",
+            "en": "credentials",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "這會導致 Runner 無法使用快取 (Cache) 功能。",
+        "en": "It prevents the Runner from using the Cache feature.",
+        "wg": []
+      },
+      {
+        "t": "這違反了 GitLab 的授權條款，會導致帳號被封鎖。",
+        "en": "It violates GitLab's licensing terms and will lead to account suspension.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "掛載 `/var/run/docker.sock` 意味著容器內的程序可以直接與宿主機的 Docker Daemon 通訊，這等同於給予了宿主機的 root 權限。惡意腳本可以啟動新容器來掛載宿主機的檔案系統，進而讀取其他專案的資料或破壞系統。這是「上帝模式 Runner」反模式的核心風險。",
+      "en": "Mounting `/var/run/docker.sock` means processes inside the container can communicate directly with the host's Docker Daemon, effectively granting root access to the host. A malicious script could spin up new containers mounting the host filesystem, accessing other projects' data or compromising the system. This is the core risk of the 'God Mode Runner' anti-pattern.",
+      "wg": [
+        {
+          "t": "Docker Daemon",
+          "en": "Docker Daemon",
+          "ps": "noun"
+        },
+        {
+          "t": "反模式",
+          "en": "anti-pattern",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "8",
+    "level": "Medium",
+    "keywords": "Environments, Deployment, Rollback, Best Practices",
+    "parentNo": null,
+    "images": "",
+    "codeSnippet": "deploy_prod:\n  stage: deploy\n  script:\n    - ./deploy_script.sh production",
+    "question": [
+      {
+        "t": "某團隊的部署 Job 如上所示，雖然腳本能成功部署，但他們無法在 GitLab UI 上查看目前的生產環境版本，也無法使用 UI 進行 Rollback。",
+        "en": "A team's deployment job is shown above. Although the script deploys successfully, they cannot view the current production version in the GitLab UI, nor can they use the UI to perform a rollback.",
+        "wg": [
+          {
+            "t": "部署",
+            "en": "deployment",
+            "ps": "noun"
+          },
+          {
+            "t": "回滾",
+            "en": "Rollback",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "根據「宣告式環境 (Declarative Environments)」的最佳實務，他們應該在 YAML 中加入什麼設定？",
+        "en": "According to the best practice of 'Declarative Environments', what configuration should they add to the YAML?",
+        "wg": []
+      }
+    ],
+    "type": "Single",
+    "options": [
+      {
+        "t": "加入 `environment` 關鍵字，定義 `name` 與 `url`。",
+        "en": "Add the `environment` keyword, defining `name` and `url`.",
+        "wg": []
+      },
+      {
+        "t": "加入 `artifacts` 關鍵字來保存部署日誌。",
+        "en": "Add the `artifacts` keyword to save deployment logs.",
+        "wg": []
+      },
+      {
+        "t": "使用 `rules: changes` 來追蹤檔案變更。",
+        "en": "Use `rules: changes` to track file changes.",
+        "wg": []
+      },
+      {
+        "t": "將 `script` 改寫為 `before_script`。",
+        "en": "Rewrite `script` as `before_script`.",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "GitLab 的 `environment` 功能允許你追蹤部署歷史、查看當前部署的版本，並直接從 UI 執行 Rollback（重新部署舊版本）。這是將 Pipeline 視為產品 (Pipeline as a Product) 的重要一環，而不僅僅是執行腳本。",
+      "en": "GitLab's `environment` feature allows you to track deployment history, see the currently deployed version, and perform rollbacks (re-deploying old versions) directly from the UI. This is a crucial part of treating 'Pipeline as a Product', rather than just running scripts.",
+      "wg": [
+        {
+          "t": "宣告式環境",
+          "en": "Declarative Environments",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "9",
+    "level": "Medium",
+    "keywords": "Security, Secrets, Git History, Remediation",
+    "parentNo": null,
+    "images": "",
+    "codeSnippet": "",
+    "question": [
+      {
+        "t": "一位開發者不小心將含有明文 AWS Access Key 的 `.gitlab-ci.yml` 推送 (Push) 到了儲存庫。",
+        "en": "A developer accidentally pushed a `.gitlab-ci.yml` containing a plaintext AWS Access Key to the repository.",
+        "wg": [
+          {
+            "t": "明文",
+            "en": "plaintext",
+            "ps": "adjective"
+          }
+        ]
+      },
+      {
+        "t": "他發現後立刻提交了一個新 Commit 刪除了該行密鑰。請問這樣處理是否足夠安全？",
+        "en": "Upon realizing this, he immediately submitted a new commit removing the key line. Is this handling secure enough?",
+        "wg": []
+      }
+    ],
+    "type": "Single",
+    "options": [
+      {
+        "t": "安全，因為最新的程式碼中已經沒有密鑰了。",
+        "en": "Secure, because the key is no longer in the latest code.",
+        "wg": []
+      },
+      {
+        "t": "不安全，密鑰仍然存在於 Git 歷史紀錄中。必須立刻撤銷 (Revoke) 該密鑰並產生新密鑰。",
+        "en": "Insecure, the key still exists in the Git history. The key must be revoked and rotated immediately.",
+        "wg": [
+          {
+            "t": "歷史紀錄",
+            "en": "history",
+            "ps": "noun"
+          },
+          {
+            "t": "撤銷",
+            "en": "revoke",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "安全，只要該專案是 Private Project 就不會被外部看到。",
+        "en": "Secure, as long as the project is a Private Project, it won't be seen externally.",
+        "wg": []
+      },
+      {
+        "t": "不安全，除非他使用 `git revert` 而不是刪除。",
+        "en": "Insecure, unless he uses `git revert` instead of deleting.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "這是「硬編碼機密 (Hardcoded Secrets)」反模式的典型後果。Git 的特性是永久保存歷史，任何有權限 Clone 專案的人都可以回溯歷史找到該密鑰。唯一安全的做法是假設該密鑰已洩漏，並立即在雲端提供商處撤銷該憑證。",
+      "en": "This is a typical consequence of the 'Hardcoded Secrets' anti-pattern. Git permanently stores history, so anyone with clone access can trace back and find the key. The only secure action is to assume the key is compromised and immediately revoke the credential at the cloud provider.",
+      "wg": [
+        {
+          "t": "硬編碼",
+          "en": "Hardcoded",
+          "ps": "adjective"
+        },
+        {
+          "t": "洩漏",
+          "en": "compromised / leaked",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "10",
+    "level": "Easy",
+    "keywords": "Artifacts, Storage, Optimization, Checklist",
+    "parentNo": null,
+    "images": "",
+    "codeSnippet": "",
+    "question": [
+      {
+        "t": "在進行 CI/CD Code Review 時，你注意到專案的儲存空間使用量異常巨大。",
+        "en": "During a CI/CD Code Review, you notice the project's storage usage is abnormally high.",
+        "wg": []
+      },
+      {
+        "t": "檢查後發現每個 Job 都產生了大型的二進位檔案。根據 Checklist，你應該檢查哪個關鍵字是否遺漏或設定不當？",
+        "en": "Inspection reveals that every job produces large binary files. According to the Checklist, which keyword should you check for being missing or misconfigured?",
+        "wg": [
+          {
+            "t": "二進位檔案",
+            "en": "binary files",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single",
+    "options": [
+      {
+        "t": "`cache: key`",
+        "en": "`cache: key`",
+        "wg": []
+      },
+      {
+        "t": "`artifacts: expire_in`",
+        "en": "`artifacts: expire_in`",
+        "wg": []
+      },
+      {
+        "t": "`image: pull_policy`",
+        "en": "`image: pull_policy`",
+        "wg": []
+      },
+      {
+        "t": "`variables: GIT_DEPTH`",
+        "en": "`variables: GIT_DEPTH`",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "Artifacts 預設可能會被保留很長一段時間（或無限期，取決於實例設定）。為了避免無限期佔用儲存空間，必須設定合理的 `expire_in`（例如 `1 week` 或 `1 day`），讓系統自動清理過期的建置產物。",
+      "en": "Artifacts may be kept for a long time (or indefinitely, depending on instance settings) by default. To avoid indefinite storage consumption, a reasonable `expire_in` (e.g., `1 week` or `1 day`) must be set to allow the system to automatically clean up expired build artifacts.",
+      "wg": [
+        {
+          "t": "建置產物",
+          "en": "build artifacts",
+          "ps": "noun"
+        },
+        {
+          "t": "過期",
+          "en": "expire",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "11",
+    "level": "Hard",
+    "keywords": "Monorepo, Architecture, include, rules",
+    "parentNo": null,
+    "images": "",
+    "codeSnippet": "",
+    "question": [
+      {
+        "t": "你的團隊正在將多個微服務合併為一個 Monorepo。",
+        "en": "Your team is merging multiple microservices into a single Monorepo.",
+        "wg": [
+          {
+            "t": "微服務",
+            "en": "microservices",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "根據「專案接入流程 (Project Onboarding Workflow)」的決策樹，對於 Monorepo 的 CI 架構，最佳的設計模式是什麼？",
+        "en": "According to the decision tree in the 'Project Onboarding Workflow', what is the best design pattern for the CI architecture of a Monorepo?",
+        "wg": [
+          {
+            "t": "決策樹",
+            "en": "decision tree",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single",
+    "options": [
+      {
+        "t": "維護單一巨大的 `.gitlab-ci.yml`，集中管理所有邏輯。",
+        "en": "Maintain a single giant `.gitlab-ci.yml` to centrally manage all logic.",
+        "wg": []
+      },
+      {
+        "t": "使用 `include: local` 拆分各服務的 CI 設定檔，並搭配 `rules: changes` 僅執行有變更服務的流水線。",
+        "en": "Use `include: local` to split CI config files for each service, combined with `rules: changes` to run pipelines only for changed services.",
+        "wg": []
+      },
+      {
+        "t": "為每個服務建立獨立的 GitLab Project，不要使用 Monorepo。",
+        "en": "Create separate GitLab Projects for each service and avoid using a Monorepo.",
+        "wg": []
+      },
+      {
+        "t": "使用 `trigger` 關鍵字，在每次 Commit 時無條件觸發所有子專案的流水線。",
+        "en": "Use the `trigger` keyword to unconditionally trigger pipelines for all sub-projects on every commit.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "Monorepo 的核心挑戰在於避免「改了 A 服務卻跑了 B 服務的測試」。最佳實務是將 CI 設定模組化（`include: local`），並利用 `rules: changes` 確保只有受影響的目錄才會觸發對應的 Job，這能大幅節省資源並加快回饋速度。",
+      "en": "The core challenge of a Monorepo is avoiding 'running tests for Service B when only Service A changed'. The best practice is to modularize CI settings (`include: local`) and use `rules: changes` to ensure only jobs corresponding to affected directories are triggered, significantly saving resources and speeding up feedback.",
+      "wg": [
+        {
+          "t": "模組化",
+          "en": "modularize",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "12",
+    "level": "Hard",
+    "keywords": "Security, AWS, OIDC, Authentication",
+    "parentNo": null,
+    "images": "",
+    "codeSnippet": "",
+    "question": [
+      {
+        "t": "你的專案需要從 CI/CD 流水線存取 AWS 資源。",
+        "en": "Your project needs to access AWS resources from the CI/CD pipeline.",
+        "wg": []
+      },
+      {
+        "t": "為了避免使用長效型的 Access Key (Long-lived keys)，GitLab 手冊建議採用哪種更安全的驗證整合方式？",
+        "en": "To avoid using long-lived Access Keys, which more secure authentication integration method does the GitLab handbook recommend?",
+        "wg": [
+          {
+            "t": "長效型",
+            "en": "long-lived",
+            "ps": "adjective"
+          },
+          {
+            "t": "驗證整合",
+            "en": "authentication integration",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single",
+    "options": [
+      {
+        "t": "OpenID Connect (OIDC)",
+        "en": "OpenID Connect (OIDC)",
+        "wg": []
+      },
+      {
+        "t": "SSH Keys",
+        "en": "SSH Keys",
+        "wg": []
+      },
+      {
+        "t": "Personal Access Token (PAT)",
+        "en": "Personal Access Token (PAT)",
+        "wg": []
+      },
+      {
+        "t": "Masked Variables",
+        "en": "Masked Variables",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "使用 OIDC (OpenID Connect) 允許 GitLab CI 代表流水線向雲端供應商（如 AWS/GCP）換取短效期的臨時憑證。這樣就不需要在 GitLab 變數中儲存靜態的 Access Key，消除了金鑰輪替與洩漏的風險。",
+      "en": "Using OIDC (OpenID Connect) allows GitLab CI to exchange short-lived temporary credentials with cloud providers (like AWS/GCP) on behalf of the pipeline. This eliminates the need to store static Access Keys in GitLab variables, removing risks associated with key rotation and leakage.",
+      "wg": [
+        {
+          "t": "短效期",
+          "en": "short-lived",
+          "ps": "adjective"
+        },
+        {
+          "t": "臨時憑證",
+          "en": "temporary credentials",
+          "ps": "noun"
+        }
+      ]
+    }
+  }
+]
