@@ -1,0 +1,1332 @@
+[
+  {
+    "no": "1",
+    "level": "intermediate",
+    "keywords": "ElasticSearch, Indexing Lifecycle, Refresh, Translog, Durability",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "PUT /my_index/_settings\n{\n  \"index.translog.durability\": \"async\",\n  \"index.translog.sync_interval\": \"5s\"\n}",
+    "question": [
+      {
+        "t": "您正在優化一個日誌分析系統的寫入效能，並將 `translog.durability` 設定為 `async`（如上方程式碼所示）。",
+        "en": "You are optimizing the write performance of a log analytics system and have set `translog.durability` to `async` (as shown in the code snippet above).",
+        "wg": [
+          {
+            "t": "日誌分析",
+            "en": "log analytics",
+            "ps": "N"
+          },
+          {
+            "t": "寫入效能",
+            "en": "write performance",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "在某次寫入操作後，您立即透過搜尋 API 找到了該筆資料，但隨後伺服器發生斷電崩潰。",
+        "en": "Immediately after a write operation, you successfully found the data via the Search API, but shortly after, the server crashed due to a power failure.",
+        "wg": [
+          {
+            "t": "崩潰",
+            "en": "crash",
+            "ps": "V"
+          },
+          {
+            "t": "斷電",
+            "en": "power failure",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "重啟後，您發現該筆資料消失了。請問這是什麼原因造成的？",
+        "en": "After restarting, you find that the data is missing. What caused this?",
+        "wg": [
+          {
+            "t": "消失",
+            "en": "missing",
+            "ps": "Adj"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 資料僅存在於 Memory Buffer 中，尚未執行 Refresh。",
+        "en": "(A) The data was only in the Memory Buffer and had not yet been Refreshed.",
+        "wg": []
+      },
+      {
+        "t": "(B) 資料已執行 Refresh 進入 Filesystem Cache，但尚未透過 Flush 或 Translog fsync 持久化到磁碟。",
+        "en": "(B) The data had been Refreshed into the Filesystem Cache, but had not yet been persisted to disk via Flush or Translog fsync.",
+        "wg": [
+          {
+            "t": "持久化",
+            "en": "persist",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(C) 資料寫入時發生了 Mapping Error，被默默丟棄。",
+        "en": "(C) A Mapping Error occurred during writing, and the data was silently discarded.",
+        "wg": []
+      },
+      {
+        "t": "(D) 這是 ElasticSearch 的正常行為，搜尋到的資料來自 Replica，而 Primary Shard 尚未寫入。",
+        "en": "(D) This is normal behavior for ElasticSearch; the searched data came from a Replica, while the Primary Shard had not yet been written to.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "ElasticSearch 的 `refresh` 操作（預設每秒一次）會將資料從 Buffer 移至 Filesystem Cache，使其「可被搜尋」，但此時資料尚未寫入實體磁碟。若 Translog 設定為 `async`，則不會在每次請求時強制 `fsync`。因此，在 Flush 或 Translog Sync 發生前斷電，Cache 中的資料會遺失，即使它之前是可以被搜尋到的。",
+      "en": "ElasticSearch's `refresh` operation (default every 1s) moves data from the Buffer to the Filesystem Cache, making it 'searchable', but the data is not yet written to the physical disk. If Translog is set to `async`, `fsync` is not forced on every request. Therefore, if a power failure occurs before a Flush or Translog Sync, data in the Cache is lost, even if it was searchable beforehand.",
+      "wg": [
+        {
+          "t": "實體磁碟",
+          "en": "physical disk",
+          "ps": "N"
+        },
+        {
+          "t": "強制",
+          "en": "force",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "2",
+    "level": "intermediate",
+    "keywords": "Bulk API, Performance Tuning, Initial Load",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您的團隊需要將 10 億筆歷史訂單資料匯入 ElasticSearch 進行分析，這是一次性的初始載入（Initial Load）。",
+        "en": "Your team needs to import 1 billion historical order records into ElasticSearch for analysis, which is a one-time initial load.",
+        "wg": [
+          {
+            "t": "匯入",
+            "en": "import",
+            "ps": "V"
+          },
+          {
+            "t": "一次性的",
+            "en": "one-time",
+            "ps": "Adj"
+          },
+          {
+            "t": "初始載入",
+            "en": "initial load",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "為了在最短時間內完成匯入，下列哪一組設定調整是最佳實務？",
+        "en": "To complete the import in the shortest possible time, which of the following combinations of settings is the best practice?",
+        "wg": [
+          {
+            "t": "最佳實務",
+            "en": "best practice",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 使用 Bulk API，將 `refresh_interval` 設為 `-1`，並將 `number_of_replicas` 暫時設為 `0`。",
+        "en": "(A) Use Bulk API, set `refresh_interval` to `-1`, and temporarily set `number_of_replicas` to `0`.",
+        "wg": []
+      },
+      {
+        "t": "(B) 使用多執行緒並行發送單筆 Index Request，並將 `refresh_interval` 設為 `1s` 以確保資料即時可見。",
+        "en": "(B) Send single Index Requests concurrently using multi-threading, and set `refresh_interval` to `1s` to ensure data is immediately visible.",
+        "wg": [
+          {
+            "t": "並行",
+            "en": "concurrently",
+            "ps": "Adv"
+          }
+        ]
+      },
+      {
+        "t": "(C) 使用 Bulk API，將 Bulk Size 設定為 100MB 以上，並開啟 `best_compression`。",
+        "en": "(C) Use Bulk API, set Bulk Size to over 100MB, and enable `best_compression`.",
+        "wg": []
+      },
+      {
+        "t": "(D) 使用 Logstash，並將 `translog.durability` 設為 `request` 以確保資料不遺失。",
+        "en": "(D) Use Logstash and set `translog.durability` to `request` to ensure no data loss.",
+        "wg": []
+      }
+    ],
+    "answer": "(A)",
+    "why": {
+      "t": "這是大量寫入的標準優化策略：(1) `refresh_interval: -1` 禁止頻繁產生小 Segment，減少 Merge 壓力；(2) `replicas: 0` 避免寫入時同時複製資料，待寫入完成後再開啟 Replica 讓 ES 透過檔案傳輸進行複製，效率更高。",
+      "en": "This is the standard optimization strategy for mass indexing: (1) `refresh_interval: -1` prevents frequent creation of small Segments, reducing Merge pressure; (2) `replicas: 0` avoids replicating data during the write process. Enabling replicas after writing allows ES to replicate via file transfer, which is much more efficient.",
+      "wg": [
+        {
+          "t": "禁止",
+          "en": "prohibit/prevent",
+          "ps": "V"
+        },
+        {
+          "t": "檔案傳輸",
+          "en": "file transfer",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "3",
+    "level": "advanced",
+    "keywords": "ID Generation, Lucene, Write Performance, Optimization",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在設計高吞吐量的日誌系統時，您正在評估 Document ID 的生成策略。",
+        "en": "When designing a high-throughput log system, you are evaluating strategies for Document ID generation.",
+        "wg": [
+          {
+            "t": "評估",
+            "en": "evaluate",
+            "ps": "V"
+          },
+          {
+            "t": "生成策略",
+            "en": "generation strategy",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "為什麼「讓 ElasticSearch 自動生成 ID」通常比「使用外部生成的 UUID 作為自定義 ID」具有更好的寫入效能？",
+        "en": "Why does 'letting ElasticSearch auto-generate IDs' generally yield better write performance than 'using externally generated UUIDs as custom IDs'?",
+        "wg": [
+          {
+            "t": "自定義",
+            "en": "custom",
+            "ps": "Adj"
+          },
+          {
+            "t": "寫入效能",
+            "en": "write performance",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 自動生成的 ID 長度較短，節省網路頻寬。",
+        "en": "(A) Auto-generated IDs are shorter, saving network bandwidth.",
+        "wg": []
+      },
+      {
+        "t": "(B) 使用自定義 ID 時，Lucene 必須在寫入前檢查該 ID 是否已存在（以處理更新），這涉及磁碟讀取或 Bloom Filter 檢查；自動生成 ID 則視為 Append-only 操作，跳過此檢查。",
+        "en": "(B) When using custom IDs, Lucene must check if the ID exists before writing (to handle updates), involving disk reads or Bloom Filter checks; auto-generated IDs are treated as Append-only operations, skipping this check.",
+        "wg": [
+          {
+            "t": "涉及",
+            "en": "involve",
+            "ps": "V"
+          },
+          {
+            "t": "跳過",
+            "en": "skip",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(C) 自動生成的 ID 會依據時間排序，這使得 Segment Merge 更有效率。",
+        "en": "(C) Auto-generated IDs are sorted by time, which makes Segment Merge more efficient.",
+        "wg": []
+      },
+      {
+        "t": "(D) 使用自定義 ID 會導致 Translog 無法使用 `async` 模式。",
+        "en": "(D) Using custom IDs prevents the Translog from using `async` mode.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "這是 Lucene 層面的優化。當指定 ID 時，ES 必須假設這可能是一個 Update 操作，因此需要花費資源去確認 ID 是否存在。對於自動生成 ID，ES 知道這是全新的文件，因此可以直接寫入，節省了檢查的開銷（可提升約 20% 效能）。",
+      "en": "This is a Lucene-level optimization. When an ID is specified, ES must assume it could be an Update operation, so it spends resources checking if the ID exists. For auto-generated IDs, ES knows it is a brand new document and can write it directly, saving the overhead of the check (potentially boosting performance by ~20%).",
+      "wg": [
+        {
+          "t": "開銷",
+          "en": "overhead",
+          "ps": "N"
+        },
+        {
+          "t": "確認",
+          "en": "verify/confirm",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "4",
+    "level": "intermediate",
+    "keywords": "System Design, Architecture, Kafka, Peak Shaving",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您的 ElasticSearch 叢集在每天上午 9 點的流量高峰期會頻繁回傳 `429 Too Many Requests` 錯誤，導致部分日誌資料遺失。",
+        "en": "Your ElasticSearch cluster frequently returns `429 Too Many Requests` errors during the daily traffic peak at 9 AM, causing some log data loss.",
+        "wg": [
+          {
+            "t": "流量高峰期",
+            "en": "traffic peak",
+            "ps": "N"
+          },
+          {
+            "t": "頻繁",
+            "en": "frequently",
+            "ps": "Adv"
+          }
+        ]
+      },
+      {
+        "t": "在不增加硬體成本的前提下，下列哪項架構調整最能有效解決此問題？",
+        "en": "Without increasing hardware costs, which of the following architectural adjustments is most effective in solving this problem?",
+        "wg": [
+          {
+            "t": "架構調整",
+            "en": "architectural adjustment",
+            "ps": "N"
+          },
+          {
+            "t": "前提",
+            "en": "premise/condition",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 在應用程式端增加無限重試機制（Infinite Retry）。",
+        "en": "(A) Add an infinite retry mechanism on the application side.",
+        "wg": []
+      },
+      {
+        "t": "(B) 引入 Message Queue（如 Kafka）作為緩衝層，進行削峰填谷（Peak Shaving）。",
+        "en": "(B) Introduce a Message Queue (e.g., Kafka) as a buffer layer for Peak Shaving.",
+        "wg": [
+          {
+            "t": "緩衝層",
+            "en": "buffer layer",
+            "ps": "N"
+          },
+          {
+            "t": "削峰填谷",
+            "en": "peak shaving",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) 將 `refresh_interval` 調小至 `100ms` 以加快記憶體釋放。",
+        "en": "(C) Decrease `refresh_interval` to `100ms` to speed up memory release.",
+        "wg": []
+      },
+      {
+        "t": "(D) 關閉 Translog 以減少磁碟 I/O。",
+        "en": "(D) Disable Translog to reduce disk I/O.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "ES 的寫入能力受限於硬體資源，無法無限擴展。面對突發流量，最佳解法是引入 Queue（如 Kafka）暫存數據，再由 Consumer 以 ES 能夠負荷的速率（Bulk）穩定寫入。這能保護 ES 不被瞬間流量壓垮。",
+      "en": "ES write capacity is limited by hardware resources and cannot scale infinitely. Facing burst traffic, the best solution is to introduce a Queue (like Kafka) to buffer data, and then have Consumers write to ES steadily at a rate it can handle (Bulk). This protects ES from being overwhelmed by instantaneous traffic.",
+      "wg": [
+        {
+          "t": "突發流量",
+          "en": "burst traffic",
+          "ps": "N"
+        },
+        {
+          "t": "壓垮",
+          "en": "overwhelm",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "5",
+    "level": "intermediate",
+    "keywords": "Bulk Size, Heap Memory, Garbage Collection, Troubleshooting",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "一位工程師為了提升寫入吞吐量，將 Bulk Request 的 Payload 大小從 5MB 增加到了 100MB。",
+        "en": "To improve write throughput, an engineer increased the Bulk Request payload size from 5MB to 100MB.",
+        "wg": [
+          {
+            "t": "吞吐量",
+            "en": "throughput",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "結果發現寫入速度反而變慢，且 ES 節點頻繁出現長時間的 GC Pause。請問主要原因為何？",
+        "en": "As a result, the write speed actually slowed down, and the ES nodes frequently experienced long GC Pauses. What is the main reason for this?",
+        "wg": [
+          {
+            "t": "反而",
+            "en": "on the contrary",
+            "ps": "Adv"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 100MB 的請求超過了 HTTP 協議的限制。",
+        "en": "(A) The 100MB request exceeded the HTTP protocol limit.",
+        "wg": []
+      },
+      {
+        "t": "(B) 過大的 Bulk Request 佔用大量 Heap Memory，導致頻繁的 Full GC，進而阻塞了寫入執行緒。",
+        "en": "(B) Excessively large Bulk Requests consume a large amount of Heap Memory, causing frequent Full GC, which in turn blocks write threads.",
+        "wg": [
+          {
+            "t": "佔用",
+            "en": "consume/occupy",
+            "ps": "V"
+          },
+          {
+            "t": "阻塞",
+            "en": "block",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(C) 網路頻寬不足以傳輸 100MB 的封包。",
+        "en": "(C) Network bandwidth is insufficient to transmit 100MB packets.",
+        "wg": []
+      },
+      {
+        "t": "(D) ES 為了處理大封包會自動強制執行 Flush，導致 I/O 瓶頸。",
+        "en": "(D) ES automatically forces a Flush to handle large packets, causing an I/O bottleneck.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "Bulk Request 的資料需要被載入到記憶體中進行解析與處理。過大的 Payload 會對 Java Heap 造成巨大壓力，觸發頻繁的 Garbage Collection (GC)，甚至導致 Stop-the-world，嚴重影響效能。建議值通常在 5MB-15MB 之間。",
+      "en": "Data from Bulk Requests needs to be loaded into memory for parsing and processing. Excessively large payloads put huge pressure on the Java Heap, triggering frequent Garbage Collection (GC) and even Stop-the-world events, severely impacting performance. The recommended value is usually between 5MB and 15MB.",
+      "wg": [
+        {
+          "t": "解析",
+          "en": "parse",
+          "ps": "V"
+        },
+        {
+          "t": "建議值",
+          "en": "recommended value",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "6",
+    "level": "advanced",
+    "keywords": "Mapping Explosion, Cluster State, Master Node, Performance",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "POST /logs/_doc\n{\n  \"timestamp\": \"2023-10-01T12:00:00\",\n  \"extra_data\": {\n    \"user_id_123\": \"value\",\n    \"user_id_124\": \"value\",\n    ... (thousands of unique keys)\n  }\n}",
+    "question": [
+      {
+        "t": "您的應用程式允許使用者上傳任意 JSON 資料，並直接寫入 ES（如上方程式碼所示）。",
+        "en": "Your application allows users to upload arbitrary JSON data and writes it directly to ES (as shown in the code snippet above).",
+        "wg": [
+          {
+            "t": "任意",
+            "en": "arbitrary",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "一段時間後，您發現 Cluster State 變得非常巨大，且 Master Node 的 CPU 居高不下，導致整個叢集的寫入經常卡頓。這是什麼問題？",
+        "en": "After a while, you notice that the Cluster State has become huge, and the Master Node's CPU usage remains high, causing frequent write stalls across the cluster. What is this problem?",
+        "wg": [
+          {
+            "t": "居高不下",
+            "en": "remain high",
+            "ps": "Idiom"
+          },
+          {
+            "t": "卡頓",
+            "en": "stall/lag",
+            "ps": "V"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) Split Brain（腦裂）。",
+        "en": "(A) Split Brain.",
+        "wg": []
+      },
+      {
+        "t": "(B) Mapping Explosion（映射爆炸）。",
+        "en": "(B) Mapping Explosion.",
+        "wg": [
+          {
+            "t": "映射爆炸",
+            "en": "mapping explosion",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) Shard Skew（分片傾斜）。",
+        "en": "(C) Shard Skew.",
+        "wg": []
+      },
+      {
+        "t": "(D) Translog Corruption（交易日誌損壞）。",
+        "en": "(D) Translog Corruption.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "當寫入大量動態欄位（Dynamic Mapping）時，每個新欄位都會更新 Mapping。Mapping 儲存在 Cluster State 中，且必須由 Master Node 同步給所有節點。過多的欄位會導致 Cluster State 過大及頻繁更新，造成 Master Node 瓶頸，稱為 Mapping Explosion。",
+      "en": "When writing many dynamic fields (Dynamic Mapping), every new field updates the Mapping. Mapping is stored in the Cluster State and must be synchronized by the Master Node to all nodes. Excessive fields cause the Cluster State to become too large and update frequently, creating a bottleneck on the Master Node, known as Mapping Explosion.",
+      "wg": [
+        {
+          "t": "同步",
+          "en": "synchronize",
+          "ps": "V"
+        },
+        {
+          "t": "瓶頸",
+          "en": "bottleneck",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "7",
+    "level": "intermediate",
+    "keywords": "Refresh Interval, Segment Merging, I/O Pressure, NRT",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "PUT /logs_index/_settings\n{\n  \"index\": {\n    \"refresh_interval\": \"50ms\"\n  }\n}",
+    "question": [
+      {
+        "t": "為了滿足業務單位對「即時性」的要求，您的團隊將日誌索引的 `refresh_interval` 從預設的 `1s` 調整為 `50ms`（如上方程式碼所示）。",
+        "en": "To meet the business unit's requirement for \"real-time\" visibility, your team adjusted the `refresh_interval` of the log index from the default `1s` to `50ms` (as shown in the code above).",
+        "wg": [
+          {
+            "t": "即時性",
+            "en": "real-time",
+            "ps": "N"
+          },
+          {
+            "t": "預設",
+            "en": "default",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "上線後發現寫入吞吐量顯著下降，且磁碟 I/O 變得異常繁忙。請問主要原因為何？",
+        "en": "After deployment, you noticed a significant drop in write throughput and abnormally high disk I/O. What is the primary reason for this?",
+        "wg": [
+          {
+            "t": "吞吐量",
+            "en": "throughput",
+            "ps": "N"
+          },
+          {
+            "t": "異常繁忙",
+            "en": "abnormally high/busy",
+            "ps": "Adj"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 頻繁的 Refresh 導致記憶體緩衝區 (Memory Buffer) 無法被清空，造成 Heap Memory 溢位。",
+        "en": "(A) Frequent Refreshes prevent the Memory Buffer from being cleared, causing Heap Memory overflow.",
+        "wg": []
+      },
+      {
+        "t": "(B) 頻繁的 Refresh 會產生大量細小的 Segment，導致 Lucene 必須頻繁執行高成本的 Segment Merge 操作。",
+        "en": "(B) Frequent Refreshes generate a large number of tiny Segments, forcing Lucene to perform costly Segment Merge operations frequently.",
+        "wg": [
+          {
+            "t": "細小的",
+            "en": "tiny",
+            "ps": "Adj"
+          },
+          {
+            "t": "高成本的",
+            "en": "costly",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "(C) 50ms 的間隔小於 Translog 的預設 fsync 時間，導致資料遺失並觸發重試。",
+        "en": "(C) The 50ms interval is shorter than the default Translog fsync time, causing data loss and triggering retries.",
+        "wg": []
+      },
+      {
+        "t": "(D) Refresh 操作會強制觸發 Cluster State 的更新，導致 Master Node 成為瓶頸。",
+        "en": "(D) The Refresh operation forces a Cluster State update, causing the Master Node to become a bottleneck.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "Refresh 操作會將 In-memory buffer 的資料寫入 Filesystem Cache 並形成一個新的 Segment。若頻率過高（如 50ms），會瞬間產生大量小檔案，迫使 Lucene 不斷進行 Segment Merge（合併），這是一個極消耗 CPU 與 Disk I/O 的過程，進而拖慢寫入速度。",
+      "en": "The Refresh operation writes data from the In-memory buffer to the Filesystem Cache, creating a new Segment. If the frequency is too high (e.g., 50ms), it generates massive amounts of small files, forcing Lucene to constantly perform Segment Merges. This process consumes significant CPU and Disk I/O, thereby slowing down write performance.",
+      "wg": [
+        {
+          "t": "消耗",
+          "en": "consume",
+          "ps": "V"
+        },
+        {
+          "t": "拖慢",
+          "en": "slow down",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "8",
+    "level": "intermediate",
+    "keywords": "Replicas, Initial Load, Batch Processing, CPU Overhead",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您正在規劃一個每日執行的批次任務，需要將 500GB 的 CSV 資料匯入 ElasticSearch。",
+        "en": "You are planning a daily batch task to import 500GB of CSV data into ElasticSearch.",
+        "wg": [
+          {
+            "t": "批次任務",
+            "en": "batch task",
+            "ps": "N"
+          },
+          {
+            "t": "匯入",
+            "en": "import",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "為了縮短匯入時間，您決定在寫入期間調整 `number_of_replicas` 設定。請問最佳策略為何？",
+        "en": "To shorten the import time, you decide to adjust the `number_of_replicas` setting during the write process. What is the best strategy?",
+        "wg": [
+          {
+            "t": "縮短",
+            "en": "shorten",
+            "ps": "V"
+          },
+          {
+            "t": "策略",
+            "en": "strategy",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 將 Replicas 設為 0。寫入完成後再改回 1，讓 ES 透過複製 Segment 檔案來恢復副本。",
+        "en": "(A) Set Replicas to 0. Change it back to 1 after writing is complete, allowing ES to restore replicas by copying Segment files.",
+        "wg": [
+          {
+            "t": "恢復",
+            "en": "restore",
+            "ps": "V"
+          },
+          {
+            "t": "複製",
+            "en": "copy",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(B) 將 Replicas 設為 2 或更高，利用多個副本同時寫入來分散 I/O 壓力。",
+        "en": "(B) Set Replicas to 2 or higher to distribute I/O pressure by writing to multiple replicas simultaneously.",
+        "wg": []
+      },
+      {
+        "t": "(C) 保持預設值（通常為 1），因為調整 Replicas 會觸發叢集重新平衡（Rebalancing），反而更慢。",
+        "en": "(C) Keep the default value (usually 1), as adjusting Replicas triggers cluster rebalancing, which is slower.",
+        "wg": []
+      },
+      {
+        "t": "(D) 將 Replicas 設為 0，並且在寫入完成後保持為 0，因為批次資料不需要高可用性。",
+        "en": "(D) Set Replicas to 0 and keep it at 0 after writing, as batch data does not require high availability.",
+        "wg": []
+      }
+    ],
+    "answer": "(A)",
+    "why": {
+      "t": "在寫入期間將 Replicas 設為 0 可以省去將資料轉發到副本節點並重複執行索引邏輯（Analysis, Indexing）的開銷。寫入完成後再開啟副本，ES 只需透過網路傳輸已生成的 Segment 檔案，這比重複索引快得多。",
+      "en": "Setting Replicas to 0 during writes saves the overhead of forwarding data to replica nodes and re-executing indexing logic (Analysis, Indexing). Enabling replicas after completion allows ES to simply transfer the generated Segment files over the network, which is much faster than re-indexing.",
+      "wg": [
+        {
+          "t": "轉發",
+          "en": "forward",
+          "ps": "V"
+        },
+        {
+          "t": "開銷",
+          "en": "overhead",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "9",
+    "level": "advanced",
+    "keywords": "Analyzers, CPU Bottleneck, Data Types, Keyword vs Text",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "PUT /app_logs\n{\n  \"mappings\": {\n    \"properties\": {\n      \"request_id\": { \"type\": \"text\" },\n      \"session_token\": { \"type\": \"text\" },\n      \"status_code\": { \"type\": \"text\" },\n      \"message\": { \"type\": \"text\" }\n    }\n  }\n}",
+    "question": [
+      {
+        "t": "您的 ES 叢集在寫入時 CPU 使用率長期處於 90% 以上，但磁碟 I/O 並未飽和。",
+        "en": "Your ES cluster's CPU usage is consistently above 90% during writes, but disk I/O is not saturated.",
+        "wg": [
+          {
+            "t": "飽和",
+            "en": "saturated",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "經檢查 Mapping 設定如上，且業務場景只需要對 `request_id` 與 `session_token` 進行精確比對（Exact Match）。請問如何優化以降低 CPU 負載？",
+        "en": "Upon checking the Mapping settings above, and given that the business scenario only requires Exact Match for `request_id` and `session_token`. How would you optimize to reduce CPU load?",
+        "wg": [
+          {
+            "t": "精確比對",
+            "en": "exact match",
+            "ps": "N"
+          },
+          {
+            "t": "負載",
+            "en": "load",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 將 `request_id` 與 `session_token` 的型態改為 `keyword`。",
+        "en": "(A) Change the type of `request_id` and `session_token` to `keyword`.",
+        "wg": []
+      },
+      {
+        "t": "(B) 增加 `refresh_interval` 的時間。",
+        "en": "(B) Increase the `refresh_interval` time.",
+        "wg": []
+      },
+      {
+        "t": "(C) 將 `translog.durability` 改為 `async`。",
+        "en": "(C) Change `translog.durability` to `async`.",
+        "wg": []
+      },
+      {
+        "t": "(D) 為這些欄位啟用 `eager_global_ordinals`。",
+        "en": "(D) Enable `eager_global_ordinals` for these fields.",
+        "wg": []
+      }
+    ],
+    "answer": "(A)",
+    "why": {
+      "t": "CPU 瓶頸通常來自於文字分析（Analysis/Tokenization）。將不需要全文檢索的欄位（如 ID、Token）設為 `text` 會導致 ES 使用標準分詞器進行處理，浪費大量 CPU。改為 `keyword` 可跳過分詞步驟，直接將原始字串存入倒排索引，顯著降低 CPU 開銷。",
+      "en": "CPU bottlenecks often stem from text analysis (Analysis/Tokenization). Setting fields that don't need full-text search (like IDs, Tokens) to `text` causes ES to use the standard tokenizer, wasting significant CPU. Changing them to `keyword` skips the tokenization step and stores the raw string directly in the inverted index, significantly reducing CPU overhead.",
+      "wg": [
+        {
+          "t": "全文檢索",
+          "en": "full-text search",
+          "ps": "N"
+        },
+        {
+          "t": "分詞器",
+          "en": "tokenizer",
+          "ps": "N"
+        },
+        {
+          "t": "倒排索引",
+          "en": "inverted index",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "10",
+    "level": "advanced",
+    "keywords": "Flush, Refresh, Persistence, Translog, Filesystem Cache",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "關於 ElasticSearch 的資料持久化（Persistence）與可搜尋性（Searchability），以下描述何者正確？",
+        "en": "Regarding ElasticSearch's data persistence and searchability, which of the following statements is correct?",
+        "wg": [
+          {
+            "t": "持久化",
+            "en": "persistence",
+            "ps": "N"
+          },
+          {
+            "t": "可搜尋性",
+            "en": "searchability",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) `Refresh` 操作會將資料寫入磁碟，確保資料不遺失；`Flush` 操作則讓資料變為可搜尋。",
+        "en": "(A) The `Refresh` operation writes data to disk to ensure no data loss; the `Flush` operation makes data searchable.",
+        "wg": []
+      },
+      {
+        "t": "(B) `Refresh` 操作將 Buffer 資料寫入 Filesystem Cache 使其可搜尋；`Flush` 操作執行 fsync 將 Segment 寫入磁碟並清空 Translog。",
+        "en": "(B) The `Refresh` operation writes Buffer data to the Filesystem Cache making it searchable; the `Flush` operation performs an fsync to write Segments to disk and clears the Translog.",
+        "wg": [
+          {
+            "t": "清空",
+            "en": "clear/purge",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(C) 只要 `Refresh` 成功，資料就已經永久寫入硬碟，即使斷電也不會遺失。",
+        "en": "(C) As long as `Refresh` succeeds, data is permanently written to the hard drive and will not be lost even in a power failure.",
+        "wg": []
+      },
+      {
+        "t": "(D) `Translog` 僅用於復原 Replica 節點，與 Primary 節點的資料持久化無關。",
+        "en": "(D) `Translog` is only used for recovering Replica nodes and is irrelevant to the data persistence of the Primary node.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "`Refresh` 僅將資料從 Memory Buffer 移至 Filesystem Cache（新書展示架），此時資料可被搜尋但尚未物理落地。`Flush` 才是真正執行 `fsync` 將資料寫入磁碟（永久書架）並截斷 Translog 的操作。Translog 的存在是為了保護兩次 Flush 之間尚未落地的資料。",
+      "en": "`Refresh` only moves data from the Memory Buffer to the Filesystem Cache (New Arrivals Shelf), making it searchable but not yet physically persisted. `Flush` is the operation that actually performs an `fsync` to write data to disk (Permanent Shelves) and truncates the Translog. The Translog exists to protect data that has not yet been persisted between two Flushes.",
+      "wg": [
+        {
+          "t": "物理落地",
+          "en": "physically persisted",
+          "ps": "V"
+        },
+        {
+          "t": "截斷",
+          "en": "truncate",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "11",
+    "level": "intermediate",
+    "keywords": "System Design, Architecture, Connection Management, Bulk Size",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您正在審查一個微服務架構的設計，其中有 500 個容器實例（Container Instances）會直接連接 ElasticSearch 並使用 Bulk API 寫入日誌。",
+        "en": "You are reviewing a microservices architecture design where 500 container instances directly connect to ElasticSearch and write logs using the Bulk API.",
+        "wg": [
+          {
+            "t": "審查",
+            "en": "review",
+            "ps": "V"
+          },
+          {
+            "t": "實例",
+            "en": "instance",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "這種「App Server 直連 ES」的模式最容易引發什麼效能問題？",
+        "en": "What performance issue is most likely to be triggered by this \"App Server directly to ES\" pattern?",
+        "wg": [
+          {
+            "t": "直連",
+            "en": "directly connect",
+            "ps": "V"
+          },
+          {
+            "t": "引發",
+            "en": "trigger",
+            "ps": "V"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 每個實例產生的 Bulk Batch 可能過小，且大量的 HTTP 連線會消耗 ES 的資源。",
+        "en": "(A) The Bulk Batch generated by each instance may be too small, and the large number of HTTP connections will consume ES resources.",
+        "wg": [
+          {
+            "t": "消耗",
+            "en": "consume",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(B) App Server 無法正確生成 Document ID，導致大量資料重複。",
+        "en": "(B) App Servers cannot correctly generate Document IDs, leading to massive data duplication.",
+        "wg": []
+      },
+      {
+        "t": "(C) 這種架構無法支援 `translog.durability: async` 設定。",
+        "en": "(C) This architecture cannot support the `translog.durability: async` setting.",
+        "wg": []
+      },
+      {
+        "t": "(D) 容器環境不支援長連接（Keep-Alive），導致網路延遲過高。",
+        "en": "(D) Container environments do not support persistent connections (Keep-Alive), resulting in excessive network latency.",
+        "wg": []
+      }
+    ],
+    "answer": "(A)",
+    "why": {
+      "t": "當客戶端數量過多（500+）時，每個客戶端很難湊齊最佳的 Bulk Size（5-15MB），導致發送大量小封包。此外，過多的並發 HTTP 連線會佔用 ES 的 Thread Pool 與記憶體資源。最佳實務是透過 Aggregator（如 Logstash 或 Kafka consumer）將資料匯聚成大批次後再寫入。",
+      "en": "When there are too many clients (500+), it is difficult for each client to accumulate an optimal Bulk Size (5-15MB), leading to many small packets. Additionally, excessive concurrent HTTP connections consume ES Thread Pool and memory resources. The best practice is to use an Aggregator (like Logstash or Kafka consumer) to aggregate data into large batches before writing.",
+      "wg": [
+        {
+          "t": "湊齊",
+          "en": "accumulate/gather",
+          "ps": "V"
+        },
+        {
+          "t": "匯聚",
+          "en": "aggregate",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "12",
+    "level": "advanced",
+    "keywords": "Indexing Buffer, Heap Memory, Refresh, Performance Tuning",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "PUT /logs_index/_settings\n{\n  \"index\": {\n    \"refresh_interval\": \"60s\"\n  }\n}",
+    "question": [
+      {
+        "t": "您正在維護一個高寫入吞吐量的 ElasticSearch 叢集，並將 `refresh_interval` 設定為 `60s` 以減少 Segment 的產生頻率（如上方程式碼所示）。",
+        "en": "You are maintaining a high-write throughput ElasticSearch cluster and have set `refresh_interval` to `60s` to reduce the frequency of Segment creation (as shown in the code above).",
+        "wg": [
+          {
+            "t": "吞吐量",
+            "en": "throughput",
+            "ps": "N"
+          },
+          {
+            "t": "頻率",
+            "en": "frequency",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "然而，您觀察監控數據發現，系統仍然每隔 5 到 10 秒就會產生新的 Segment，導致磁碟 I/O 壓力並未如預期般降低。",
+        "en": "However, monitoring data shows that the system still generates new Segments every 5 to 10 seconds, so disk I/O pressure has not decreased as expected.",
+        "wg": [
+          {
+            "t": "監控數據",
+            "en": "monitoring data",
+            "ps": "N"
+          },
+          {
+            "t": "預期",
+            "en": "expected",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "請問最可能的原因是什麼？",
+        "en": "What is the most likely cause?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) `translog.sync_interval` 的預設值為 5 秒，強制觸發了 Flush。",
+        "en": "(A) The default value of `translog.sync_interval` is 5 seconds, forcing a Flush.",
+        "wg": []
+      },
+      {
+        "t": "(B) 節點的 `indices.memory.index_buffer_size` 已滿，強制觸發了 Refresh。",
+        "en": "(B) The node's `indices.memory.index_buffer_size` is full, forcing a Refresh.",
+        "wg": [
+          {
+            "t": "強制觸發",
+            "en": "forcing / triggered",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(C) `number_of_replicas` 設定過高，導致主分片必須頻繁寫入磁碟以同步數據。",
+        "en": "(C) `number_of_replicas` is set too high, causing primary shards to write to disk frequently for synchronization.",
+        "wg": []
+      },
+      {
+        "t": "(D) 這是正常的，因為 Lucene 的 Merge Policy 會自動忽略 `refresh_interval`。",
+        "en": "(D) This is normal because Lucene's Merge Policy automatically ignores `refresh_interval`.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "即使 `refresh_interval` 設得很長，當 Heap 中的 Indexing Buffer（預設為 Heap 的 10%）被寫滿時，ElasticSearch 會強制將 Buffer 內容寫入 Filesystem Cache（即觸發 Refresh）以釋放記憶體空間。",
+      "en": "Even with a long `refresh_interval`, when the Indexing Buffer in Heap (defaulting to 10% of Heap) fills up, ElasticSearch forces the Buffer content to be written to the Filesystem Cache (triggering a Refresh) to free up memory.",
+      "wg": [
+        {
+          "t": "釋放",
+          "en": "free up / release",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "13",
+    "level": "intermediate",
+    "keywords": "NRT, Consistency, Refresh, System Design",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您的團隊開發了一個使用者資料管理系統，前端應用程式在更新使用者個人檔案（Profile）後，會立即重新載入頁面以顯示最新資料。",
+        "en": "Your team has developed a user data management system where the frontend application reloads the page immediately after updating a user profile to display the latest data.",
+        "wg": [
+          {
+            "t": "重新載入",
+            "en": "reloads",
+            "ps": "V"
+          },
+          {
+            "t": "個人檔案",
+            "en": "profile",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "QA 團隊回報了一個 Bug：使用者偶爾會看到舊的資料，但在幾秒鐘後重新整理又變成了正確的資料。",
+        "en": "The QA team reported a bug: users occasionally see old data, but it becomes correct after refreshing again a few seconds later.",
+        "wg": [
+          {
+            "t": "偶爾",
+            "en": "occasionally",
+            "ps": "Adv"
+          }
+        ]
+      },
+      {
+        "t": "根據 ElasticSearch 的寫入機制，這是什麼原因造成的？",
+        "en": "Based on ElasticSearch's write mechanism, what causes this?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 這是因為 `translog` 尚未執行 `fsync` 到磁碟，導致讀取請求無法存取數據。",
+        "en": "(A) This is because the `translog` has not yet `fsync`ed to disk, making the data inaccessible to read requests.",
+        "wg": []
+      },
+      {
+        "t": "(B) 這是因為資料還在 Memory Buffer 中，尚未透過 Refresh 寫入 Filesystem Cache 成為可搜尋狀態（NRT 特性）。",
+        "en": "(B) This is because the data is still in the Memory Buffer and has not yet been written to the Filesystem Cache via Refresh to become searchable (NRT characteristic).",
+        "wg": [
+          {
+            "t": "可搜尋狀態",
+            "en": "searchable state",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) 這是因為 Replica Shard 尚未完成同步，而讀取請求被路由到了 Replica。",
+        "en": "(C) This is because the Replica Shard has not finished syncing, and the read request was routed to a Replica.",
+        "wg": [
+          {
+            "t": "路由",
+            "en": "routed",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(D) 這是因為 Cluster State 尚未更新 Mapping 資訊。",
+        "en": "(D) This is because the Cluster State has not yet updated the Mapping information.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "ElasticSearch 是「近即時」（Near Real-Time）的搜尋引擎。資料寫入後首先進入 Memory Buffer，此時不可被搜尋；直到 `refresh`（預設 1 秒）發生後，資料進入 Filesystem Cache 才可見。這導致了「寫入後立即讀取」可能讀到舊資料。",
+      "en": "ElasticSearch is a 'Near Real-Time' search engine. After data is written, it first enters the Memory Buffer where it is not searchable; it becomes visible only after a `refresh` (default 1s) moves it to the Filesystem Cache. This leads to the possibility of reading old data immediately after a write.",
+      "wg": [
+        {
+          "t": "近即時",
+          "en": "Near Real-Time",
+          "ps": "N"
+        },
+        {
+          "t": "不可被搜尋",
+          "en": "not searchable",
+          "ps": "Adj"
+        }
+      ]
+    }
+  },
+  {
+    "no": "14",
+    "level": "advanced",
+    "keywords": "Segment Merging, I/O Bottleneck, Troubleshooting, Performance",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您正在診斷一個寫入效能不穩定的 ES 叢集。監控圖表顯示寫入吞吐量呈現「鋸齒狀」（Sawtooth pattern），即高效能運作一段時間後會突然大幅下降，隨後又恢復。",
+        "en": "You are diagnosing an ES cluster with unstable write performance. Monitoring charts show a 'sawtooth pattern' in write throughput, where high performance drops significantly after a period and then recovers.",
+        "wg": [
+          {
+            "t": "鋸齒狀",
+            "en": "sawtooth pattern",
+            "ps": "N"
+          },
+          {
+            "t": "大幅下降",
+            "en": "drops significantly",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "在效能下降期間，CPU 使用率持平，但磁碟 I/O Wait 飆升至接近 100%。",
+        "en": "During the performance drops, CPU usage remains flat, but Disk I/O Wait spikes to nearly 100%.",
+        "wg": [
+          {
+            "t": "持平",
+            "en": "remains flat",
+            "ps": "Adj"
+          },
+          {
+            "t": "飆升",
+            "en": "spikes",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "這最可能是由哪一個背景機制引起的？",
+        "en": "Which background mechanism is most likely causing this?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) Garbage Collection (GC) Stop-the-world。",
+        "en": "(A) Garbage Collection (GC) Stop-the-world.",
+        "wg": []
+      },
+      {
+        "t": "(B) Segment Merging（分段合併）。",
+        "en": "(B) Segment Merging.",
+        "wg": [
+          {
+            "t": "分段合併",
+            "en": "Segment Merging",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) Cluster State Update（叢集狀態更新）。",
+        "en": "(C) Cluster State Update.",
+        "wg": []
+      },
+      {
+        "t": "(D) Thread Pool Queue Rejection（執行緒池佇列拒絕）。",
+        "en": "(D) Thread Pool Queue Rejection.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "Segment Merging 是極度消耗磁碟 I/O 的操作。當 Lucene 在背景合併大量 Segment 時，若磁碟 I/O 無法負荷，ES 會限制（Throttle）寫入請求的處理速度，導致吞吐量驟降與 I/O Wait 飆高。",
+      "en": "Segment Merging is an extremely Disk I/O intensive operation. When Lucene merges many Segments in the background, if the Disk I/O cannot keep up, ES throttles the processing of write requests, causing a sharp drop in throughput and a spike in I/O Wait.",
+      "wg": [
+        {
+          "t": "消耗",
+          "en": "intensive / consume",
+          "ps": "V"
+        },
+        {
+          "t": "負荷",
+          "en": "keep up / handle",
+          "ps": "V"
+        },
+        {
+          "t": "限制",
+          "en": "throttle",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "15",
+    "level": "intermediate",
+    "keywords": "429 Errors, Thread Pool, Backoff Strategy, Client Side",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在高流量寫入期間，您的應用程式開始收到來自 ElasticSearch 的 `429 Too Many Requests` 錯誤回應。",
+        "en": "During high-traffic writes, your application starts receiving `429 Too Many Requests` error responses from ElasticSearch.",
+        "wg": []
+      },
+      {
+        "t": "經檢查，這並非因為 Bulk Payload 過大，而是因為寫入佇列（Write Queue）已滿。",
+        "en": "Upon inspection, this is not due to excessive Bulk Payload size, but because the Write Queue is full.",
+        "wg": [
+          {
+            "t": "寫入佇列",
+            "en": "Write Queue",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "為了確保系統穩定性並盡可能完成寫入，下列哪項是用戶端（Client-side）最正確的處理方式？",
+        "en": "To ensure system stability and complete writes as much as possible, what is the most correct handling approach on the Client-side?",
+        "wg": [
+          {
+            "t": "穩定性",
+            "en": "stability",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 立即重試請求（Immediate Retry），直到成功為止。",
+        "en": "(A) Retry the request immediately until it succeeds.",
+        "wg": []
+      },
+      {
+        "t": "(B) 實作指數退避（Exponential Backoff）重試機制。",
+        "en": "(B) Implement an Exponential Backoff retry mechanism.",
+        "wg": [
+          {
+            "t": "指數退避",
+            "en": "Exponential Backoff",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) 增加 Bulk Request 的批次大小（Batch Size）以減少請求次數。",
+        "en": "(C) Increase the Batch Size of Bulk Requests to reduce the number of requests.",
+        "wg": []
+      },
+      {
+        "t": "(D) 暫時停用 `translog` 以加速寫入處理。",
+        "en": "(D) Temporarily disable `translog` to speed up write processing.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "當 ES 回傳 429 時，表示節點已無法處理更多請求。立即重試只會加重負載。正確做法是使用指數退避（Exponential Backoff），讓叢集有時間消化積壓的佇列。增加 Batch Size 可能會導致記憶體壓力更大，而 Client 端無法直接控制 Server 端的 Translog 設定。",
+      "en": "When ES returns 429, it means the node cannot handle more requests. Immediate retries only add to the load. The correct approach is to use Exponential Backoff, allowing the cluster time to digest the backlog. Increasing Batch Size might increase memory pressure, and the Client cannot directly control Server-side Translog settings.",
+      "wg": [
+        {
+          "t": "消化",
+          "en": "digest / process",
+          "ps": "V"
+        },
+        {
+          "t": "積壓",
+          "en": "backlog",
+          "ps": "N"
+        }
+      ]
+    }
+  }
+]

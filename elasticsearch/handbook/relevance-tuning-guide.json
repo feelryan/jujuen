@@ -1,0 +1,870 @@
+[
+  {
+    "no": "1",
+    "level": "Easy",
+    "keywords": "BM25, Field Length Norm, Relevance",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在 ElasticSearch 的預設評分演算法 BM25 中，假設搜尋關鍵字同時出現在「標題」與「內文」中且出現次數相同，為何該文件在「標題」匹配時通常會獲得較高的分數？",
+        "en": "In ElasticSearch's default scoring algorithm BM25, assuming a search keyword appears in both the 'Title' and 'Content' fields with the same frequency, why does the document usually get a higher score when matched in the 'Title'?",
+        "wg": [
+          {
+            "t": "預設評分演算法",
+            "en": "default scoring algorithm",
+            "ps": "noun phrase"
+          },
+          {
+            "t": "內文",
+            "en": "content/body",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "因為標題欄位預設有 Index-Time Boosting。",
+        "en": "Because the title field has a default Index-Time Boosting.",
+        "wg": []
+      },
+      {
+        "t": "因為 Field Length Norm 機制，欄位越短，關鍵字命中的權重越高。",
+        "en": "Because of the Field Length Norm mechanism; the shorter the field, the higher the weight of the keyword match.",
+        "wg": [
+          {
+            "t": "欄位長度歸一化",
+            "en": "Field Length Norm",
+            "ps": "noun phrase"
+          }
+        ]
+      },
+      {
+        "t": "因為標題欄位的 IDF 值通常較高。",
+        "en": "Because the IDF value of the title field is usually higher.",
+        "wg": []
+      },
+      {
+        "t": "因為標題欄位不使用停用詞過濾。",
+        "en": "Because the title field does not use stopword filtering.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "BM25 的三個核心變數之一是 Field Length Norm。當關鍵字出現在較短的欄位（如標題）時，相較於出現在較長的欄位（如內文），其代表性更強，因此分數會被歸一化放大。",
+      "en": "One of the three core variables of BM25 is Field Length Norm. When a keyword appears in a shorter field (like a title), it is considered more representative than when it appears in a longer field (like content), so the score is normalized and amplified.",
+      "wg": [
+        {
+          "t": "歸一化",
+          "en": "normalized",
+          "ps": "verb"
+        },
+        {
+          "t": "放大",
+          "en": "amplified",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "2",
+    "level": "Medium",
+    "keywords": "Anti-pattern, Function Score, Linear Boosting",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你在電商網站實作搜尋功能時，發現搜尋「iPhone」時，結果的第一名竟然是銷量極高但完全不相關的「衛生紙」。這最可能是犯了哪種相關性調校的反模式（Anti-pattern）？",
+        "en": "When implementing search for an e-commerce site, you find that searching for 'iPhone' returns highly sold but completely irrelevant 'Toilet Paper' as the top result. Which relevance tuning anti-pattern is this most likely?",
+        "wg": [
+          {
+            "t": "反模式",
+            "en": "anti-pattern",
+            "ps": "noun"
+          },
+          {
+            "t": "銷量",
+            "en": "sales volume",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "The 'Whac-A-Mole' Tuning (打地鼠式調校)",
+        "en": "The 'Whac-A-Mole' Tuning",
+        "wg": []
+      },
+      {
+        "t": "Ignoring Stopwords (忽略停用詞)",
+        "en": "Ignoring Stopwords",
+        "wg": []
+      },
+      {
+        "t": "Boosting Popularity Linearly (線性加權人氣)",
+        "en": "Boosting Popularity Linearly",
+        "wg": [
+          {
+            "t": "線性加權",
+            "en": "linearly boosting",
+            "ps": "verb phrase"
+          }
+        ]
+      },
+      {
+        "t": "Misunderstanding minimum_should_match (誤解最小匹配數)",
+        "en": "Misunderstanding minimum_should_match",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "這是典型的「線性加權人氣」陷阱。若直接將 BM25 分數乘以銷量（Score * Sales），高銷量商品的數值優勢會完全壓過文本相關性分數，導致不相關的熱門商品排在前面。應使用 `log` 函數平滑化。",
+      "en": "This is a typical 'Boosting Popularity Linearly' pitfall. If you directly multiply the BM25 score by sales (Score * Sales), the numerical advantage of high-sales items will completely overwhelm the text relevance score, causing irrelevant popular items to rank first. A `log` function should be used for smoothing.",
+      "wg": [
+        {
+          "t": "壓過",
+          "en": "overwhelm/overshadow",
+          "ps": "verb"
+        },
+        {
+          "t": "平滑化",
+          "en": "smoothing",
+          "ps": "noun/verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "3",
+    "level": "Medium",
+    "keywords": "Performance, Rescoring, Architecture",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你需要根據使用者的「個人化向量特徵」對搜尋結果進行重排序，但該向量運算非常消耗資源。為了兼顧相關性與查詢效能，下列哪種架構模式最為合適？",
+        "en": "You need to re-rank search results based on the user's 'personalized vector features', but the vector calculation is very resource-intensive. To balance relevance and query performance, which architectural pattern is most suitable?",
+        "wg": [
+          {
+            "t": "重排序",
+            "en": "re-rank",
+            "ps": "verb"
+          },
+          {
+            "t": "消耗資源",
+            "en": "resource-intensive",
+            "ps": "adjective"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "在 `function_score` 中直接執行向量運算腳本，確保所有結果都準確。",
+        "en": "Execute the vector calculation script directly in `function_score` to ensure all results are accurate.",
+        "wg": []
+      },
+      {
+        "t": "使用 Rescoring 機制，先撈出 Top N (L1)，再對這小部分結果進行昂貴的運算 (L2)。",
+        "en": "Use the Rescoring mechanism to first retrieve the Top N (L1), and then perform the expensive calculation on this small subset (L2).",
+        "wg": [
+          {
+            "t": "昂貴的運算",
+            "en": "expensive calculation",
+            "ps": "noun phrase"
+          }
+        ]
+      },
+      {
+        "t": "使用 Index-Time Boosting 預先計算好所有使用者的偏好分數。",
+        "en": "Use Index-Time Boosting to pre-calculate preference scores for all users.",
+        "wg": []
+      },
+      {
+        "t": "增加 `minimum_should_match` 的比例，減少需要計算的文件總數。",
+        "en": "Increase the `minimum_should_match` ratio to reduce the total number of documents that need calculation.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "這是「排序漏斗 (Ranking Funnel)」的概念。對於昂貴的邏輯（Expensive Logic），不應對全量數據執行。最佳實務是先用低成本查詢（L1）過濾出前 50-1000 筆，再使用 `rescore` 對這些結果進行精細運算。",
+      "en": "This is the concept of the 'Ranking Funnel'. For expensive logic, it should not be executed on the full dataset. The best practice is to first filter the top 50-1000 results using a cheap query (L1), and then use `rescore` to perform fine-grained calculations on these results.",
+      "wg": [
+        {
+          "t": "排序漏斗",
+          "en": "Ranking Funnel",
+          "ps": "noun phrase"
+        },
+        {
+          "t": "精細運算",
+          "en": "fine-grained calculations",
+          "ps": "noun phrase"
+        }
+      ]
+    }
+  },
+  {
+    "no": "4",
+    "level": "Hard",
+    "keywords": "Function Score, Decay Functions, Recency",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "{\n  \"gauss\": {\n    \"publish_date\": {\n      \"origin\": \"now\",\n      \"scale\": \"7d\",\n      \"decay\": 0.5\n    }\n  }\n}",
+    "question": [
+      {
+        "t": "在新聞搜尋場景中，你使用了如上的 Gauss Decay Function。請問這段設定的具體含義為何？",
+        "en": "In a news search scenario, you used the Gauss Decay Function as shown above. What is the specific meaning of this configuration?",
+        "wg": [
+          {
+            "t": "具體含義",
+            "en": "specific meaning",
+            "ps": "noun phrase"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "新聞發布時間在 7 天內的文章分數不變，超過 7 天後分數直接歸零。",
+        "en": "Articles published within 7 days get the same score, and the score drops to zero directly after 7 days.",
+        "wg": []
+      },
+      {
+        "t": "新聞發布時間與現在相差 7 天時，該函數計算出的分數會衰減至 0.5。",
+        "en": "When the difference between the publish date and now is 7 days, the score calculated by this function decays to 0.5.",
+        "wg": [
+          {
+            "t": "衰減",
+            "en": "decays",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "新聞發布時間每過 7 天，總分會扣除 0.5 分。",
+        "en": "For every 7 days that pass since the publish date, 0.5 points are deducted from the total score.",
+        "wg": []
+      },
+      {
+        "t": "只有最近 7 天內的新聞會被搜尋出來，其餘過濾掉。",
+        "en": "Only news within the last 7 days will be searched, and the rest will be filtered out.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "在 Decay Function 中，`scale` 定義了距離 `origin` 多遠時，分數會衰減到 `decay` 參數所設定的值。因此設定表示：當時間距離現在（origin: now）正好 7 天（scale: 7d）時，分數降為 0.5。",
+      "en": "In a Decay Function, `scale` defines at what distance from the `origin` the score will decay to the value set by the `decay` parameter. Therefore, the setting means: when the time distance from now (origin: now) is exactly 7 days (scale: 7d), the score drops to 0.5.",
+      "wg": [
+        {
+          "t": "參數",
+          "en": "parameter",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "5",
+    "level": "Medium",
+    "keywords": "Tuning Workflow, Evaluation, Methodology",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "為了避免「打地鼠式調校（Whac-A-Mole Tuning）」，即修好一個查詢卻搞壞其他三個查詢的情況，在進行相關性參數調整前，最關鍵的準備工作是什麼？",
+        "en": "To avoid 'Whac-A-Mole Tuning', where fixing one query breaks three others, what is the most critical preparation step before adjusting relevance parameters?",
+        "wg": [
+          {
+            "t": "打地鼠式調校",
+            "en": "Whac-A-Mole Tuning",
+            "ps": "noun phrase"
+          },
+          {
+            "t": "準備工作",
+            "en": "preparation step",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "將所有欄位的權重都設為 1，從頭開始。",
+        "en": "Set the weight of all fields to 1 and start from scratch.",
+        "wg": []
+      },
+      {
+        "t": "建立一組包含典型搜尋詞與預期排序的「黃金測試集（Golden Set）」，並使用 Ranking Evaluation API 進行回歸測試。",
+        "en": "Create a 'Golden Set' containing typical search terms and expected rankings, and use the Ranking Evaluation API for regression testing.",
+        "wg": [
+          {
+            "t": "黃金測試集",
+            "en": "Golden Set",
+            "ps": "noun phrase"
+          },
+          {
+            "t": "回歸測試",
+            "en": "regression testing",
+            "ps": "noun phrase"
+          }
+        ]
+      },
+      {
+        "t": "確保所有欄位都使用相同的 Analyzer。",
+        "en": "Ensure all fields use the same Analyzer.",
+        "wg": []
+      },
+      {
+        "t": "先在 Production 環境小流量測試，觀察使用者反應。",
+        "en": "Test with small traffic in the Production environment first and observe user reactions.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "相關性調校必須基於數據而非感覺。建立 Golden Set 並進行自動化評估（Ranking Evaluation），才能確保新的參數調整是「整體優化」而非「局部過擬合」，這是防止打地鼠現象的唯一解法。",
+      "en": "Relevance tuning must be data-driven, not feeling-driven. Establishing a Golden Set and performing automated evaluation (Ranking Evaluation) is the only way to ensure that new parameter adjustments are 'global optimizations' rather than 'local overfitting', preventing the Whac-A-Mole phenomenon.",
+      "wg": [
+        {
+          "t": "局部過擬合",
+          "en": "local overfitting",
+          "ps": "noun phrase"
+        },
+        {
+          "t": "整體優化",
+          "en": "global optimization",
+          "ps": "noun phrase"
+        }
+      ]
+    }
+  },
+  {
+    "no": "6",
+    "level": "Easy",
+    "keywords": "Tie-Breaker, Pagination, Stability",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "當使用者在瀏覽搜尋結果並進行換頁（Pagination）時，發現同一筆資料在第一頁出現過，在第二頁又重複出現。這通常是因為多個文件分數相同，且缺少了什麼機制？",
+        "en": "When a user browses search results and navigates through pages (Pagination), they find that the same item appears on the first page and then duplicates on the second page. This is usually because multiple documents have the same score and what mechanism is missing?",
+        "wg": [
+          {
+            "t": "換頁",
+            "en": "Pagination",
+            "ps": "noun"
+          },
+          {
+            "t": "重複出現",
+            "en": "duplicates/reappears",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "缺少 `track_total_hits` 設定。",
+        "en": "Missing `track_total_hits` setting.",
+        "wg": []
+      },
+      {
+        "t": "缺少 Deterministic Tie-Breaker（確定性平手決勝鍵）。",
+        "en": "Missing a Deterministic Tie-Breaker.",
+        "wg": [
+          {
+            "t": "確定性",
+            "en": "Deterministic",
+            "ps": "adjective"
+          },
+          {
+            "t": "平手決勝鍵",
+            "en": "Tie-Breaker",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "缺少 `preference` 參數設定。",
+        "en": "Missing `preference` parameter setting.",
+        "wg": []
+      },
+      {
+        "t": "分片（Shard）數量過多。",
+        "en": "Too many shards.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "當分數相同時，ElasticSearch 預設按內部 Doc ID 排序，這在分散式環境下可能不穩定。最佳實務是始終加入一個確定性的第二排序鍵（如 `created_at` 或 `id`），確保排序穩定，避免分頁時資料跳動。",
+      "en": "When scores are identical, ElasticSearch defaults to sorting by internal Doc ID, which can be unstable in a distributed environment. Best practice is to always include a deterministic secondary sort key (like `created_at` or `id`) to ensure stable sorting and prevent data jumping during pagination.",
+      "wg": [
+        {
+          "t": "分散式環境",
+          "en": "distributed environment",
+          "ps": "noun phrase"
+        },
+        {
+          "t": "資料跳動",
+          "en": "data jumping/inconsistency",
+          "ps": "noun phrase"
+        }
+      ]
+    }
+  },
+  {
+    "no": "7",
+    "level": "Easy",
+    "keywords": "BM25, IDF, Scoring Algorithm",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在 ElasticSearch 的 BM25 演算法中，當使用者搜尋「The Kubernetes」時，通常會發現關鍵字「Kubernetes」對總分的貢獻度遠高於「The」。",
+        "en": "In ElasticSearch's BM25 algorithm, when a user searches for 'The Kubernetes', it is often observed that the keyword 'Kubernetes' contributes significantly more to the total score than 'The'.",
+        "wg": [
+          {
+            "t": "貢獻度",
+            "en": "contribution",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "這是基於哪一個評分變數的特性？",
+        "en": "Which scoring variable characteristic is this based on?",
+        "wg": []
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "TF (Term Frequency)：因為「Kubernetes」在文件中出現的頻率通常較高。",
+        "en": "TF (Term Frequency): Because 'Kubernetes' usually appears more frequently in the document.",
+        "wg": []
+      },
+      {
+        "t": "IDF (Inverse Document Frequency)：因為「Kubernetes」在整個索引中較為罕見，權重較高。",
+        "en": "IDF (Inverse Document Frequency): Because 'Kubernetes' is rarer across the entire index, resulting in a higher weight.",
+        "wg": [
+          {
+            "t": "罕見",
+            "en": "rare",
+            "ps": "adjective"
+          }
+        ]
+      },
+      {
+        "t": "Field Length Norm：因為「Kubernetes」這個單字的長度比「The」長。",
+        "en": "Field Length Norm: Because the word length of 'Kubernetes' is longer than 'The'.",
+        "wg": []
+      },
+      {
+        "t": "Coordination Factor：因為搜尋詞包含了兩個單字。",
+        "en": "Coordination Factor: Because the search term contains two words.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "IDF (逆向文件頻率) 的核心概念是：越罕見的詞越能代表文件的主題，因此權重越高；而像 'The' 這種到處可見的停用詞，其 IDF 值極低，對分數影響很小。",
+      "en": "The core concept of IDF (Inverse Document Frequency) is that rarer terms are more representative of the document's topic and thus carry higher weight; whereas common stop words like 'The' have very low IDF values and minimal impact on the score.",
+      "wg": [
+        {
+          "t": "逆向文件頻率",
+          "en": "Inverse Document Frequency",
+          "ps": "noun"
+        },
+        {
+          "t": "停用詞",
+          "en": "stop words",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "8",
+    "level": "Medium",
+    "keywords": "Boosting, Mapping, Best Practices",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "{\n  \"multi_match\": {\n    \"query\": \"iphone case\",\n    \"fields\": [\"title^3\", \"description\"]\n  }\n}",
+    "question": [
+      {
+        "t": "你的團隊正在調整搜尋相關性，決定提升「標題 (title)」欄位的權重。",
+        "en": "Your team is tuning search relevance and decides to increase the weight of the 'title' field.",
+        "wg": []
+      },
+      {
+        "t": "根據最佳實務，為什麼通常建議使用如上所示的「查詢時加權 (Query-Time Boosting)」而非在 Mapping 中設定「索引時加權 (Index-Time Boosting)」？",
+        "en": "According to best practices, why is it usually recommended to use 'Query-Time Boosting' as shown above, rather than configuring 'Index-Time Boosting' in the Mapping?",
+        "wg": [
+          {
+            "t": "查詢時加權",
+            "en": "Query-Time Boosting",
+            "ps": "noun"
+          },
+          {
+            "t": "索引時加權",
+            "en": "Index-Time Boosting",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "查詢時加權的運算效能比索引時加權更好。",
+        "en": "Query-Time Boosting has better computational performance than Index-Time Boosting.",
+        "wg": []
+      },
+      {
+        "t": "索引時加權已被 ElasticSearch 移除，不再支援。",
+        "en": "Index-Time Boosting has been removed from ElasticSearch and is no longer supported.",
+        "wg": []
+      },
+      {
+        "t": "查詢時加權提供了調整的靈活性，若使用索引時加權，每次調整權重都需要重新索引 (Reindex)。",
+        "en": "Query-Time Boosting offers flexibility in tuning; using Index-Time Boosting would require reindexing every time the weight is adjusted.",
+        "wg": [
+          {
+            "t": "重新索引",
+            "en": "Reindex",
+            "ps": "verb"
+          },
+          {
+            "t": "靈活性",
+            "en": "flexibility",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "查詢時加權可以改變 TF-IDF 的底層計算公式，而索引時加權不能。",
+        "en": "Query-Time Boosting can alter the underlying TF-IDF calculation formula, whereas Index-Time Boosting cannot.",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "索引時加權 (Index-Time Boosting) 會將權重直接寫入索引結構中，這意味著一旦你需要微調參數（例如將權重從 2 改為 3），就必須對所有資料執行昂貴的 Reindex 操作。查詢時加權則允許你在不更動資料的情況下快速迭代測試。",
+      "en": "Index-Time Boosting burns the weight directly into the index structure, meaning that once you need to fine-tune parameters (e.g., changing weight from 2 to 3), you must perform an expensive Reindex operation on all data. Query-Time Boosting allows you to iterate and test quickly without modifying the data.",
+      "wg": [
+        {
+          "t": "寫入",
+          "en": "burns into / writes into",
+          "ps": "verb"
+        },
+        {
+          "t": "迭代",
+          "en": "iterate",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "9",
+    "level": "Medium",
+    "keywords": "Stopwords, Precision, Anti-pattern",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在某些精確度要求較高的場景（例如搜尋特定錯誤代碼或名言佳句），過度積極地移除「停用詞 (Stopwords)」可能會導致問題。",
+        "en": "In certain scenarios requiring high precision (such as searching for specific error codes or famous quotes), overly aggressive removal of 'Stopwords' can lead to issues.",
+        "wg": [
+          {
+            "t": "精確度",
+            "en": "precision",
+            "ps": "noun"
+          },
+          {
+            "t": "過度積極地",
+            "en": "overly aggressively",
+            "ps": "adverb"
+          }
+        ]
+      },
+      {
+        "t": "以下哪種情況最能體現此反模式 (Anti-pattern) 的風險？",
+        "en": "Which of the following situations best embodies the risk of this anti-pattern?",
+        "wg": []
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "搜尋「To be or not to be」時，因為所有詞都被視為停用詞移除，導致變成空查詢或匹配到完全無關的內容。",
+        "en": "When searching for 'To be or not to be', all words are treated as stopwords and removed, resulting in an empty query or matches with completely irrelevant content.",
+        "wg": []
+      },
+      {
+        "t": "搜尋「Apple iPhone」時，因為「iPhone」被誤判為停用詞，導致只搜尋到水果。",
+        "en": "When searching for 'Apple iPhone', 'iPhone' is mistakenly identified as a stopword, resulting in results only about the fruit.",
+        "wg": []
+      },
+      {
+        "t": "移除停用詞會導致索引體積變得過大，影響寫入效能。",
+        "en": "Removing stopwords causes the index size to become excessively large, impacting indexing performance.",
+        "wg": []
+      },
+      {
+        "t": "停用詞移除後，BM25 的 Field Length Norm 機制會失效。",
+        "en": "After removing stopwords, the Field Length Norm mechanism of BM25 will fail.",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "這是典型的「過度移除停用詞」陷阱。對於包含大量常用詞的短語（如 'To be or not to be'），若全部移除，搜尋引擎將失去上下文或變成空查詢。解決方案通常是使用 `cutoff_frequency` 或保留停用詞但給予極低權重。",
+      "en": "This is a classic 'over-removal of stopwords' pitfall. For phrases containing many common words (like 'To be or not to be'), removing them all causes the search engine to lose context or become an empty query. The solution is usually to use `cutoff_frequency` or keep stopwords but assign them very low weight.",
+      "wg": [
+        {
+          "t": "陷阱",
+          "en": "pitfall",
+          "ps": "noun"
+        },
+        {
+          "t": "上下文",
+          "en": "context",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "10",
+    "level": "Medium",
+    "keywords": "minimum_should_match, Long-tail Query, Recall",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你的使用者回報：當輸入很長的查詢字串（例如包含 10 個單字的詳細描述）時，經常得到「零結果」。",
+        "en": "Your users report that when entering very long query strings (e.g., a detailed description containing 10 words), they often get 'zero results'.",
+        "wg": [
+          {
+            "t": "零結果",
+            "en": "zero results",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "經檢查發現這是因為 `minimum_should_match` 設定過於嚴格（例如預設為 100%）。為了改善長尾查詢的召回率 (Recall) 同時保持短查詢的精準度，下列哪種設定方式最為合適？",
+        "en": "Investigation reveals this is because `minimum_should_match` is set too strictly (e.g., defaulting to 100%). To improve recall for long-tail queries while maintaining precision for short queries, which of the following settings is most appropriate?",
+        "wg": [
+          {
+            "t": "召回率",
+            "en": "Recall",
+            "ps": "noun"
+          },
+          {
+            "t": "長尾查詢",
+            "en": "long-tail queries",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "將 `minimum_should_match` 統一設定為 \"50%\"。",
+        "en": "Set `minimum_should_match` uniformly to \"50%\".",
+        "wg": []
+      },
+      {
+        "t": "將 `minimum_should_match` 統一設定為 \"1\" (至少匹配一個詞)。",
+        "en": "Set `minimum_should_match` uniformly to \"1\" (match at least one word).",
+        "wg": []
+      },
+      {
+        "t": "使用階梯式設定，例如 \"2<-25% 9<-3\"。",
+        "en": "Use a stepped setting, such as \"2<-25% 9<-3\".",
+        "wg": [
+          {
+            "t": "階梯式設定",
+            "en": "stepped setting",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "完全移除 `minimum_should_match` 參數，改用 `match_phrase`。",
+        "en": "Completely remove the `minimum_should_match` parameter and use `match_phrase` instead.",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "統一設定百分比或固定數值通常無法同時滿足短查詢（需要高精確度）與長查詢（允許部分容錯）的需求。階梯式設定（如 \"2<-25%\" 表示：若少於 2 個詞需全中，若多於 2 個詞則允許 25% 不匹配）是處理此類問題的最佳實務。",
+      "en": "Uniformly setting a percentage or a fixed number usually fails to satisfy both short queries (needing high precision) and long queries (allowing partial tolerance). Stepped settings (e.g., \"2<-25%\" means: if fewer than 2 words, all must match; if more than 2, allow 25% mismatch) are the best practice for handling such issues.",
+      "wg": [
+        {
+          "t": "容錯",
+          "en": "tolerance",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "11",
+    "level": "Medium",
+    "keywords": "Function Score, Field Value Factor, Saturation",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "{\n  \"field_value_factor\": {\n    \"field\": \"view_count\",\n    \"modifier\": \"log1p\",\n    \"factor\": 1.2\n  }\n}",
+    "question": [
+      {
+        "t": "在使用 `field_value_factor` 將「瀏覽次數 (view_count)」納入評分時，為什麼必須使用 `log1p` 或 `saturation` 等 modifier，而不是直接使用原始數值？",
+        "en": "When using `field_value_factor` to incorporate 'view_count' into scoring, why is it necessary to use modifiers like `log1p` or `saturation` instead of using the raw value directly?",
+        "wg": [
+          {
+            "t": "原始數值",
+            "en": "raw value",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "為了防止分數爆炸，避免熱門內容的數值權重完全壓過文本相關性分數。",
+        "en": "To prevent score explosion and avoid having the numerical weight of popular content completely overshadow the text relevance score.",
+        "wg": [
+          {
+            "t": "分數爆炸",
+            "en": "score explosion",
+            "ps": "noun"
+          },
+          {
+            "t": "壓過",
+            "en": "overshadow / overwhelm",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "因為 `view_count` 欄位在索引中是整數，而評分系統只能處理浮點數。",
+        "en": "Because the `view_count` field is an integer in the index, but the scoring system can only handle floating-point numbers.",
+        "wg": []
+      },
+      {
+        "t": "為了讓分數能夠包含負值，以處理負面評價。",
+        "en": "To allow the score to include negative values for handling negative reviews.",
+        "wg": []
+      },
+      {
+        "t": "因為 ElasticSearch 的 BM25 演算法不支援非對數的數值運算。",
+        "en": "Because ElasticSearch's BM25 algorithm does not support non-logarithmic numerical operations.",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "原始數值（如銷量或瀏覽量）差異極大，100 萬瀏覽量並不代表比 100 瀏覽量「相關一萬倍」。使用 `log` 或 `saturation` 可以平滑化這些數值，確保它們僅作為合理的加分項，而非主導排序的唯一因素。",
+      "en": "Raw values (like sales or views) vary wildly; 1 million views doesn't mean it's '10,000 times more relevant' than 100 views. Using `log` or `saturation` smooths these values, ensuring they act as reasonable boosters rather than the sole factor dominating the ranking.",
+      "wg": [
+        {
+          "t": "平滑化",
+          "en": "smooth / smoothing",
+          "ps": "verb"
+        },
+        {
+          "t": "主導",
+          "en": "dominate",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "12",
+    "level": "Easy",
+    "keywords": "Debugging, Explain API, Workflow",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "當業務單位質疑「為什麼搜尋 X 時，文件 A 排在文件 B 前面？」時，作為工程師，你應該使用的第一個工具或 API 是什麼，以獲取最詳細的評分計算細節？",
+        "en": "When a business unit questions 'Why does Document A rank higher than Document B when searching for X?', as an engineer, what is the first tool or API you should use to get the most detailed scoring calculation breakdown?",
+        "wg": [
+          {
+            "t": "質疑",
+            "en": "questions / challenges",
+            "ps": "verb"
+          },
+          {
+            "t": "評分計算細節",
+            "en": "scoring calculation breakdown",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "Explain API (`_explain`)",
+        "en": "Explain API (`_explain`)",
+        "wg": []
+      },
+      {
+        "t": "Analyze API (`_analyze`)",
+        "en": "Analyze API (`_analyze`)",
+        "wg": []
+      },
+      {
+        "t": "Search Profiler (`_search` with profile: true)",
+        "en": "Search Profiler (`_search` with profile: true)",
+        "wg": []
+      },
+      {
+        "t": "Cat API (`_cat/indices`)",
+        "en": "Cat API (`_cat/indices`)",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "`_explain` API 是專門設計來解釋「為什麼某個文件匹配（或不匹配）某個查詢」以及「分數是如何計算出來的」。它會列出 BM25、Function Score 等所有環節的詳細得分。`_analyze` 僅用於測試分詞結果。",
+      "en": "The `_explain` API is specifically designed to explain 'why a document matches (or doesn't match) a query' and 'how the score was calculated'. It lists detailed scores for all components like BM25, Function Score, etc. `_analyze` is only used for testing tokenization results.",
+      "wg": [
+        {
+          "t": "分詞",
+          "en": "tokenization",
+          "ps": "noun"
+        }
+      ]
+    }
+  }
+]

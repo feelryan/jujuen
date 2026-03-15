@@ -1,0 +1,711 @@
+[
+  {
+    "no": "chapter03-q07",
+    "level": "advanced",
+    "keywords": "Middleware Factory, Closure, Scope, Concurrency",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "const requestTracker = (options) => {\n  // Scope A\n  let requestCount = 0;\n\n  return (req, res, next) => {\n    // Scope B\n    requestCount++;\n    const requestId = Date.now();\n    \n    console.log(`Request ${requestId} started. Total: ${requestCount}`);\n    next();\n  };\n};",
+    "question": [
+      {
+        "t": "請分析上述 Middleware Factory 的程式碼片段。關於 `Scope A` 與 `Scope B` 中變數的生命週期與行為，下列敘述何者正確？",
+        "en": "Please analyze the Middleware Factory code snippet above. Regarding the lifecycle and behavior of variables in `Scope A` and `Scope B`, which of the following statements is correct?",
+        "wg": [
+          {
+            "t": "生命週期",
+            "en": "lifecycle",
+            "ps": "N"
+          },
+          {
+            "t": "變數",
+            "en": "variable",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "`requestCount` (Scope A) 會在每次請求時重置為 0，無法正確計算總請求數。",
+        "en": "`requestCount` (Scope A) resets to 0 on every request and cannot correctly count total requests.",
+        "wg": []
+      },
+      {
+        "t": "`requestCount` (Scope A) 是在應用程式啟動時初始化一次，並由所有請求共享（Shared State），這是一個正確的計數器實作。",
+        "en": "`requestCount` (Scope A) is initialized once at application startup and shared by all requests (Shared State), making this a correct counter implementation.",
+        "wg": [
+          {
+            "t": "共享",
+            "en": "shared",
+            "ps": "V"
+          },
+          {
+            "t": "實作",
+            "en": "implementation",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "`requestId` (Scope B) 會在所有並發請求之間共享，導致資料競爭（Race Condition）。",
+        "en": "`requestId` (Scope B) is shared across all concurrent requests, leading to Race Conditions.",
+        "wg": [
+          {
+            "t": "並發",
+            "en": "concurrent",
+            "ps": "Adj"
+          },
+          {
+            "t": "資料競爭",
+            "en": "Race Condition",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "`Scope A` 中的變數會導致記憶體洩漏（Memory Leak），因為它們永遠不會被 Garbage Collection 回收。",
+        "en": "Variables in `Scope A` cause Memory Leaks because they are never collected by Garbage Collection.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "Middleware Factory 是一個高階函數，`Scope A` 僅在 `app.use(requestTracker(...))` 時執行一次，因此 `requestCount` 形成閉包（Closure）並被所有請求共享，適合用來做全域計數或快取配置。相對地，`Scope B` 是每次請求都會執行的區域，變數是 Request-scoped。",
+      "en": "The Middleware Factory is a Higher-Order Function. `Scope A` runs only once when `app.use(requestTracker(...))` is called, so `requestCount` forms a Closure and is shared across all requests, making it suitable for global counting or caching configurations. In contrast, `Scope B` runs per request, making its variables Request-scoped.",
+      "wg": [
+        {
+          "t": "閉包",
+          "en": "Closure",
+          "ps": "N"
+        },
+        {
+          "t": "全域",
+          "en": "global",
+          "ps": "Adj"
+        }
+      ]
+    }
+  },
+  {
+    "no": "chapter03-q08",
+    "level": "advanced",
+    "keywords": "AsyncLocalStorage, Context Loss, Middleware Chain",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "const { AsyncLocalStorage } = require('node:async_hooks');\nconst context = new AsyncLocalStorage();\n\nconst contextMiddleware = (req, res, next) => {\n  const store = new Map();\n  store.set('requestId', '12345');\n  \n  // Implementation A\n  context.run(store, () => {\n    next();\n  });\n\n  // Implementation B\n  // context.enterWith(store);\n  // next();\n};",
+    "question": [
+      {
+        "t": "在實作 Request Context 時，為什麼官方文件與最佳實務通常推薦使用 `Implementation A` (`run` + callback) 而非 `Implementation B` (`enterWith`)？",
+        "en": "When implementing Request Context, why do official documentation and best practices typically recommend `Implementation A` (`run` + callback) over `Implementation B` (`enterWith`)?",
+        "wg": [
+          {
+            "t": "最佳實務",
+            "en": "best practices",
+            "ps": "N"
+          },
+          {
+            "t": "推薦",
+            "en": "recommend",
+            "ps": "V"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "`enterWith` 無法在非同步操作（Async Operations）中傳遞 Context。",
+        "en": "`enterWith` cannot propagate Context across Async Operations.",
+        "wg": []
+      },
+      {
+        "t": "`run` 方法提供了明確的範圍界定（Scoping），確保 Context 只在該回呼函數及其觸發的非同步鏈中有效；而 `enterWith` 可能導致 Context 洩漏到後續不相關的程式碼執行中。",
+        "en": "`run` provides explicit scoping, ensuring Context is valid only within the callback and its async chain; `enterWith` can cause Context to leak into subsequent unrelated code execution.",
+        "wg": [
+          {
+            "t": "範圍界定",
+            "en": "scoping",
+            "ps": "N"
+          },
+          {
+            "t": "洩漏",
+            "en": "leak",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "`run` 方法的效能顯著優於 `enterWith`。",
+        "en": "The performance of the `run` method is significantly better than `enterWith`.",
+        "wg": []
+      },
+      {
+        "t": "`enterWith` 已經在 Node.js 最新版本中被移除。",
+        "en": "`enterWith` has been removed in the latest Node.js versions.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "`context.run(store, callback)` 明確定義了 Context 的生命週期範圍。`enterWith` 會切換當前執行緒的 Context 直到該同步區塊結束，這在複雜的非同步環境中容易導致 Context 污染或難以追蹤的 Context Loss 問題，因此被視為較不安全的 API。",
+      "en": "`context.run(store, callback)` explicitly defines the scope of the Context lifecycle. `enterWith` switches the Context for the current execution until the synchronous block ends, which can easily lead to Context pollution or hard-to-trace Context Loss issues in complex async environments, making it a less safe API.",
+      "wg": [
+        {
+          "t": "污染",
+          "en": "pollution",
+          "ps": "N"
+        },
+        {
+          "t": "執行緒",
+          "en": "thread",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "chapter03-q09",
+    "level": "intermediate",
+    "keywords": "Error Handling, Operational Errors, Programmer Errors",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在設計全域錯誤處理策略時，區分「Operational Errors」（操作型錯誤）與「Programmer Errors」（程式設計錯誤）至關重要。下列哪一種情況屬於 **Operational Error**，且適合回傳 4xx/5xx 錯誤代碼並繼續服務？",
+        "en": "When designing a global error handling strategy, distinguishing between 'Operational Errors' and 'Programmer Errors' is crucial. Which of the following is an **Operational Error** that is suitable for returning a 4xx/5xx error code and continuing service?",
+        "wg": [
+          {
+            "t": "操作型錯誤",
+            "en": "Operational Errors",
+            "ps": "N"
+          },
+          {
+            "t": "程式設計錯誤",
+            "en": "Programmer Errors",
+            "ps": "N"
+          },
+          {
+            "t": "繼續服務",
+            "en": "continuing service",
+            "ps": "V"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "嘗試讀取 `undefined` 物件的屬性（例如 `req.user.id` 當 `user` 為 null 時）。",
+        "en": "Trying to read a property of an `undefined` object (e.g., `req.user.id` when `user` is null).",
+        "wg": []
+      },
+      {
+        "t": "資料庫連線超時（Database connection timeout）或請求的資源不存在（Resource not found）。",
+        "en": "Database connection timeout or requested resource not found.",
+        "wg": [
+          {
+            "t": "超時",
+            "en": "timeout",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "函數呼叫時傳遞了錯誤的參數型別（例如預期 Array 卻傳入 String），導致內部邏輯崩潰。",
+        "en": "Passing the wrong argument type to a function call (e.g., passing a String when an Array is expected), causing internal logic to crash.",
+        "wg": []
+      },
+      {
+        "t": "Require 一個不存在的模組（Module not found）。",
+        "en": "Requiring a non-existent module (Module not found).",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "Operational Errors 是系統運行中可預期的錯誤情況（如網路問題、輸入驗證失敗、DB 連線問題），應被捕捉並妥善回應。其他選項（讀取 undefined、型別錯誤、缺模組）皆屬於 Programmer Errors（Bug），通常意味著程式碼有缺陷，嚴重時可能需要重啟 Process 以確保狀態一致。",
+      "en": "Operational Errors are expected error conditions during system operation (e.g., network issues, input validation failures, DB connection issues) and should be caught and handled gracefully. The other options (reading undefined, type errors, missing modules) are Programmer Errors (Bugs), indicating code defects that might require restarting the process to ensure state consistency.",
+      "wg": [
+        {
+          "t": "可預期",
+          "en": "expected",
+          "ps": "Adj"
+        },
+        {
+          "t": "缺陷",
+          "en": "defect",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "chapter03-q10",
+    "level": "intermediate",
+    "keywords": "Anti-pattern, Request Object, Coupling, TypeScript",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "app.use((req, res, next) => {\n  req.db = dbInstance;\n  req.config = appConfig;\n  req.utils = { ... };\n  next();\n});",
+    "question": [
+      {
+        "t": "許多開發者習慣將全域工具或設定掛載到 `req` 物件上（如上圖所示）。身為資深工程師，您會如何評估這種做法？",
+        "en": "Many developers are used to attaching global tools or configurations to the `req` object (as shown above). As a senior engineer, how would you evaluate this practice?",
+        "wg": [
+          {
+            "t": "掛載",
+            "en": "attach",
+            "ps": "V"
+          },
+          {
+            "t": "評估",
+            "en": "evaluate",
+            "ps": "V"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "這是一種推薦的 Dependency Injection 模式，方便在 Controller 中存取所有依賴。",
+        "en": "This is a recommended Dependency Injection pattern, making it easy to access all dependencies in the Controller.",
+        "wg": []
+      },
+      {
+        "t": "這是一種反模式（Anti-pattern）。它造成了隱式依賴（Implicit Dependency），降低了型別安全（Type Safety），且容易發生命名衝突。",
+        "en": "This is an Anti-pattern. It creates Implicit Dependencies, reduces Type Safety, and is prone to Naming Conflicts.",
+        "wg": [
+          {
+            "t": "隱式依賴",
+            "en": "Implicit Dependency",
+            "ps": "N"
+          },
+          {
+            "t": "型別安全",
+            "en": "Type Safety",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "這是 Express 官方建議的最佳實務，因為 `req` 是唯一貫穿請求生命週期的物件。",
+        "en": "This is a best practice recommended by Express officially, as `req` is the only object that persists throughout the request lifecycle.",
+        "wg": []
+      },
+      {
+        "t": "這樣做沒有缺點，只要確保命名不重複即可。",
+        "en": "There are no downsides to this, as long as you ensure names do not duplicate.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "雖然方便，但污染 `req` 物件會導致 Controller 依賴於 Middleware 的實作細節（難以單元測試），且在 TypeScript 中需要不斷擴充 Request Interface。較佳做法是透過模組導入（Import）或使用 `AsyncLocalStorage` 來傳遞 Context 相關資訊。",
+      "en": "While convenient, polluting the `req` object causes Controllers to rely on implementation details of Middleware (making unit testing difficult) and requires constant extension of the Request Interface in TypeScript. A better approach is to use module imports or `AsyncLocalStorage` to pass Context-related information.",
+      "wg": [
+        {
+          "t": "污染",
+          "en": "polluting",
+          "ps": "V"
+        },
+        {
+          "t": "單元測試",
+          "en": "unit testing",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "chapter03-q11",
+    "level": "advanced",
+    "keywords": "System Design, Middleware, Fail-safe, Resilience",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您正在設計一個供多個微服務使用的共用 Middleware Library（例如負責日誌記錄或指標收集）。為了確保系統的彈性（Resilience），下列哪項設計原則最為關鍵？",
+        "en": "You are designing a shared Middleware Library (e.g., for logging or metrics collection) for multiple microservices. To ensure system Resilience, which of the following design principles is most critical?",
+        "wg": [
+          {
+            "t": "彈性",
+            "en": "Resilience",
+            "ps": "N"
+          },
+          {
+            "t": "關鍵",
+            "en": "critical",
+            "ps": "Adj"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "Fail-safe（故障安全）：Middleware 內部的非關鍵錯誤（如 Log 寫入失敗）應被捕捉並忽略，絕不能導致主請求流程崩潰。",
+        "en": "Fail-safe: Non-critical errors within the middleware (e.g., log write failure) must be caught and ignored; they must never crash the main request flow.",
+        "wg": [
+          {
+            "t": "故障安全",
+            "en": "Fail-safe",
+            "ps": "N"
+          },
+          {
+            "t": "崩潰",
+            "en": "crash",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "Strict Validation（嚴格驗證）：若 Middleware 配置錯誤，應立即拋出錯誤並拒絕啟動服務，以確保設定正確。",
+        "en": "Strict Validation: If the middleware is misconfigured, it should immediately throw an error and refuse to start the service to ensure correct configuration.",
+        "wg": []
+      },
+      {
+        "t": "Synchronous Execution（同步執行）：為了確保資料完整性，所有日誌寫入都應使用 `await` 等待完成後才進入下一個 Middleware。",
+        "en": "Synchronous Execution: To ensure data integrity, all log writes should use `await` to wait for completion before proceeding to the next middleware.",
+        "wg": []
+      },
+      {
+        "t": "Global State（全域狀態）：所有 Middleware 應共享一個全域 Singleton 物件來儲存狀態，以節省記憶體。",
+        "en": "Global State: All middleware should share a global Singleton object to store state and save memory.",
+        "wg": []
+      }
+    ],
+    "answer": "(A)",
+    "why": {
+      "t": "對於輔助型 Middleware（如 Logger, Metrics），其失敗不應影響核心業務邏輯（Business Logic）。設計必須確保即使監控系統斷線，使用者的請求仍能正常處理（Fail Open 或 Fail Safe）。同步等待（選項 C）會嚴重拖慢效能。",
+      "en": "For auxiliary middleware (like Logger, Metrics), failure should not impact the core Business Logic. The design must ensure that even if the monitoring system is down, user requests can still be processed normally (Fail Open or Fail Safe). Synchronous waiting (Option C) would severely degrade performance.",
+      "wg": [
+        {
+          "t": "輔助型",
+          "en": "auxiliary",
+          "ps": "Adj"
+        },
+        {
+          "t": "監控系統",
+          "en": "monitoring system",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "chapter03-q12",
+    "level": "intermediate",
+    "keywords": "Security, Error Handling, Production, Sanitization",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在生產環境（Production）的全域錯誤處理器（Global Error Handler）中，下列哪一項資訊**絕對不應該**回傳給客戶端？",
+        "en": "In a Global Error Handler for a Production environment, which of the following information must **absolutely NOT** be returned to the client?",
+        "wg": [
+          {
+            "t": "生產環境",
+            "en": "Production environment",
+            "ps": "N"
+          },
+          {
+            "t": "絕對不應該",
+            "en": "absolutely NOT",
+            "ps": "Adv"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "HTTP Status Code (例如 500, 403)。",
+        "en": "HTTP Status Code (e.g., 500, 403).",
+        "wg": []
+      },
+      {
+        "t": "Request ID (Trace ID)。",
+        "en": "Request ID (Trace ID).",
+        "wg": []
+      },
+      {
+        "t": "Stack Trace (錯誤堆疊追蹤)。",
+        "en": "Stack Trace.",
+        "wg": [
+          {
+            "t": "堆疊追蹤",
+            "en": "Stack Trace",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "標準化的錯誤訊息 (例如 'Internal Server Error' 或 'Validation Failed')。",
+        "en": "Standardized error messages (e.g., 'Internal Server Error' or 'Validation Failed').",
+        "wg": []
+      }
+    ],
+    "answer": "(C)",
+    "why": {
+      "t": "Stack Trace 包含了程式碼結構、檔案路徑甚至部分邏輯細節，暴露給外部攻擊者會造成嚴重的安全風險（Information Disclosure）。Request ID 對於除錯非常有用，應保留；Status Code 與標準訊息則是 API 溝通的基礎。",
+      "en": "The Stack Trace contains code structure, file paths, and even some logic details. Exposing it to external attackers poses a serious security risk (Information Disclosure). The Request ID is highly useful for debugging and should be kept; Status Codes and standardized messages are fundamental for API communication.",
+      "wg": [
+        {
+          "t": "暴露",
+          "en": "expose",
+          "ps": "V"
+        },
+        {
+          "t": "資訊洩漏",
+          "en": "Information Disclosure",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "13",
+    "level": "intermediate",
+    "keywords": "Middleware Factory, Performance, Blocking I/O, Initialization",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "const createConfigurableAuth = (configPath) => {\n  // Scope A\n  return (req, res, next) => {\n    // Scope B\n    const rawConfig = fs.readFileSync(configPath, 'utf-8');\n    const config = JSON.parse(rawConfig);\n    \n    if (config.allowedIPs.includes(req.ip)) {\n      return next();\n    }\n    res.status(403).send('Forbidden');\n  };\n};",
+    "question": [
+      {
+        "t": "在 Code Review 過程中，您發現同事提交了上述的 Middleware Factory 實作。",
+        "en": "During a Code Review, you notice a colleague submitted the Middleware Factory implementation shown above.",
+        "wg": []
+      },
+      {
+        "t": "雖然功能運作正常，但這段程式碼存在一個嚴重的效能問題。",
+        "en": "Although it functions correctly, this code has a serious performance issue.",
+        "wg": []
+      },
+      {
+        "t": "請問問題出在哪裡，以及該如何修正？",
+        "en": "Where is the problem, and how should it be fixed?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "問題在於 `fs.readFileSync` 是同步操作，會阻塞 Event Loop。應改為在 `Scope B` 中使用 `fs.readFile` (非同步版本)。",
+        "en": "The issue is that `fs.readFileSync` is a synchronous operation that blocks the Event Loop. It should be changed to use `fs.readFile` (asynchronous version) within `Scope B`.",
+        "wg": [
+          {
+            "t": "阻塞",
+            "en": "block",
+            "ps": "V"
+          },
+          {
+            "t": "同步操作",
+            "en": "synchronous operation",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "問題在於配置檔案的讀取與解析發生在 `Scope B`（請求層級）。這導致每個請求都會重複執行昂貴的 I/O 與 JSON 解析。應將其移至 `Scope A`（初始化層級）。",
+        "en": "The issue is that file reading and parsing occur in `Scope B` (request level). This causes expensive I/O and JSON parsing to repeat for every request. It should be moved to `Scope A` (initialization level).",
+        "wg": [
+          {
+            "t": "請求層級",
+            "en": "request level",
+            "ps": "N"
+          },
+          {
+            "t": "初始化層級",
+            "en": "initialization level",
+            "ps": "N"
+          },
+          {
+            "t": "昂貴的",
+            "en": "expensive",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "問題在於 Middleware Factory 不應該接受參數。配置應該直接寫死在程式碼中以提高安全性。",
+        "en": "The issue is that a Middleware Factory should not accept parameters. Configuration should be hardcoded for better security.",
+        "wg": []
+      },
+      {
+        "t": "問題在於 `JSON.parse` 是同步的。應使用串流（Stream）解析器來處理配置檔案。",
+        "en": "The issue is that `JSON.parse` is synchronous. A stream parser should be used to handle the configuration file.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "Middleware Factory 的核心優勢之一是將「初始化邏輯」（Scope A）與「請求處理邏輯」（Scope B）分離。將靜態配置的讀取放在 Scope B 會導致每個請求都進行不必要的磁碟 I/O 與解析，嚴重影響吞吐量 (Throughput)。",
+      "en": "One of the core advantages of the Middleware Factory is separating 'Initialization Logic' (Scope A) from 'Request Logic' (Scope B). Placing static configuration reading in Scope B causes unnecessary disk I/O and parsing for every request, severely impacting throughput.",
+      "wg": [
+        {
+          "t": "吞吐量",
+          "en": "throughput",
+          "ps": "N"
+        },
+        {
+          "t": "分離",
+          "en": "separate",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "14",
+    "level": "intermediate",
+    "keywords": "Error Handling, Sanitization, Observability, RFC 7807",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您正在設計一個生產環境（Production）的全域錯誤處理器（Global Error Handler）。",
+        "en": "You are designing a Global Error Handler for a production environment.",
+        "wg": []
+      },
+      {
+        "t": "為了同時滿足「安全性（Security）」與「可觀測性（Observability）」的最佳實務，下列哪一種 JSON 回應結構最為合適？",
+        "en": "To meet the best practices for both 'Security' and 'Observability', which of the following JSON response structures is most appropriate?",
+        "wg": [
+          {
+            "t": "最佳實務",
+            "en": "best practices",
+            "ps": "N"
+          },
+          {
+            "t": "回應結構",
+            "en": "response structure",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "{ \"error\": \"Something went wrong\", \"stack\": \"Error: DB connection failed at ...\" }",
+        "en": "{ \"error\": \"Something went wrong\", \"stack\": \"Error: DB connection failed at ...\" }",
+        "wg": []
+      },
+      {
+        "t": "{ \"status\": \"error\", \"code\": 500, \"requestId\": \"a1b2-c3d4\", \"message\": \"Internal Server Error\" }",
+        "en": "{ \"status\": \"error\", \"code\": 500, \"requestId\": \"a1b2-c3d4\", \"message\": \"Internal Server Error\" }",
+        "wg": []
+      },
+      {
+        "t": "{ \"success\": false, \"data\": null, \"debug\": { \"query\": \"SELECT * FROM users\" } }",
+        "en": "{ \"success\": false, \"data\": null, \"debug\": { \"query\": \"SELECT * FROM users\" } }",
+        "wg": []
+      },
+      {
+        "t": "{ \"err\": true }",
+        "en": "{ \"err\": true }",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "選項 (B) 遵循了最佳實務：它包含 `requestId` 以供追蹤（Observability），並對 500 錯誤使用通用的 `message` 進行消毒（Sanitization），隱藏了敏感的內部細節（如 Stack Trace 或 SQL 查詢）。",
+      "en": "Option (B) follows best practices: it includes a `requestId` for tracing (Observability) and sanitizes the 500 error with a generic `message`, hiding sensitive internal details (like Stack Traces or SQL queries).",
+      "wg": [
+        {
+          "t": "消毒",
+          "en": "sanitize",
+          "ps": "V"
+        },
+        {
+          "t": "敏感的",
+          "en": "sensitive",
+          "ps": "Adj"
+        }
+      ]
+    }
+  },
+  {
+    "no": "15",
+    "level": "advanced",
+    "keywords": "Middleware Ordering, AsyncLocalStorage, Context, Architecture",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "const app = express();\n\n// Middleware A: Logger\napp.use((req, res, next) => {\n  const requestId = context.getStore()?.get('requestId');\n  console.log(`[${requestId || 'NO_ID'}] ${req.method} ${req.url}`);\n  next();\n});\n\n// Middleware B: Context Initializer\napp.use(contextMiddleware); // Initializes AsyncLocalStorage and sets 'requestId'\n\n// Middleware C: Routes\napp.use('/api', routes);",
+    "question": [
+      {
+        "t": "在上述應用程式架構中，開發者發現所有進入的請求日誌都顯示 `[NO_ID]`，但在 Route 內部的 Log 卻能正常顯示 Request ID。",
+        "en": "In the application architecture above, the developer finds that all incoming request logs show `[NO_ID]`, but logs inside the Routes display the Request ID correctly.",
+        "wg": [
+          {
+            "t": "架構",
+            "en": "architecture",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "請問造成此現象的主要原因為何？",
+        "en": "What is the primary reason for this phenomenon?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "Middleware 的執行順序錯誤。`Middleware A` 在 `Middleware B` 初始化 Context 之前就執行了，因此無法讀取到 Store 中的資料。",
+        "en": "The middleware execution order is incorrect. `Middleware A` executes before `Middleware B` initializes the Context, so it cannot read data from the Store.",
+        "wg": [
+          {
+            "t": "執行順序",
+            "en": "execution order",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "`AsyncLocalStorage` 只能在非同步操作（Async/Await）中運作，而 `Middleware A` 是同步函數。",
+        "en": "`AsyncLocalStorage` only works within asynchronous operations (Async/Await), and `Middleware A` is a synchronous function.",
+        "wg": []
+      },
+      {
+        "t": "`console.log` 是一個同步操作，它會脫離 `AsyncLocalStorage` 的追蹤範圍。",
+        "en": "`console.log` is a synchronous operation, which breaks out of the `AsyncLocalStorage` tracking scope.",
+        "wg": [
+          {
+            "t": "脫離",
+            "en": "break out of",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "在 Express 中，必須明確將 `context` 物件掛載到 `req` 上才能跨 Middleware 共享。",
+        "en": "In Express, the `context` object must be explicitly attached to `req` to be shared across middleware.",
+        "wg": []
+      }
+    ],
+    "answer": "A",
+    "why": {
+      "t": "Express Middleware 是依序執行的。`AsyncLocalStorage.run()` 的範圍（Scope）僅包含在 `run` 回呼函數內部觸發的後續操作（即 `next()` 之後的鏈）。由於 `Middleware A` 在 `Middleware B`（呼叫 `run` 的地方）之前執行，它處於 Context 範圍之外。",
+      "en": "Express Middleware executes sequentially. The scope of `AsyncLocalStorage.run()` only includes subsequent operations triggered within the `run` callback (i.e., the chain after `next()`). Since `Middleware A` runs before `Middleware B` (where `run` is called), it is outside the Context scope.",
+      "wg": [
+        {
+          "t": "依序",
+          "en": "sequentially",
+          "ps": "Adv"
+        },
+        {
+          "t": "範圍",
+          "en": "scope",
+          "ps": "N"
+        }
+      ]
+    }
+  }
+]

@@ -1,0 +1,1051 @@
+[
+  {
+    "no": "7",
+    "level": "advanced",
+    "keywords": "Resiliency, Timeout, AbortController, Resource Management",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "app.use((req, res, next) => {\n  const timeout = setTimeout(() => {\n    res.status(408).send('Request Timeout');\n  }, 5000);\n\n  res.on('finish', () => clearTimeout(timeout));\n  next();\n});\n\napp.get('/heavy-query', async (req, res) => {\n  const data = await db.complexQuery(); // Takes 10s\n  res.json(data);\n});",
+    "question": [
+      {
+        "t": "上述程式碼實作了一個簡單的 Timeout Middleware。但在高負載的生產環境中，這種實作方式存在一個嚴重的資源浪費問題。",
+        "en": "The code above implements a simple Timeout Middleware. However, in a high-load production environment, this implementation suffers from a serious resource waste issue.",
+        "wg": [
+          {
+            "t": "資源浪費",
+            "en": "resource waste",
+            "ps": "N"
+          },
+          {
+            "t": "高負載",
+            "en": "high-load",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "請問該問題是什麼？以及如何改進？",
+        "en": "What is the issue, and how can it be improved?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "問題是 `db.complexQuery()` 會在 Timeout 後繼續執行。應使用 `AbortController` 或資料庫驅動程式的取消機制來中斷查詢。",
+        "en": "The issue is that `db.complexQuery()` continues to execute after the timeout. You should use `AbortController` or the database driver's cancellation mechanism to interrupt the query.",
+        "wg": [
+          {
+            "t": "中斷",
+            "en": "interrupt",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "問題是 `res.status(408)` 不會關閉 TCP 連線。應改用 `res.connection.destroy()` 強制斷線。",
+        "en": "The issue is that `res.status(408)` does not close the TCP connection. You should use `res.connection.destroy()` to force disconnection.",
+        "wg": []
+      },
+      {
+        "t": "問題是 `clearTimeout` 放在 `finish` 事件中太晚了。應改放在 `next()` 之後立即執行。",
+        "en": "The issue is that placing `clearTimeout` in the `finish` event is too late. It should be executed immediately after `next()`.",
+        "wg": []
+      },
+      {
+        "t": "問題是 Express 不支援 Async Middleware。應將 `setTimeout` 包裝在 Promise 中。",
+        "en": "The issue is that Express does not support Async Middleware. You should wrap `setTimeout` in a Promise.",
+        "wg": []
+      }
+    ],
+    "answer": "Option 1",
+    "why": {
+      "t": "雖然客戶端收到了 408 回應，但後端的 `db.complexQuery()` 仍在背景執行，佔用資料庫連線與 CPU 資源。在彈性設計 (Resiliency Design) 中，Timeout 策略必須配合「取消機制 (Cancellation)」(如 AbortSignal) 才能真正釋放系統資源。",
+      "en": "Although the client receives a 408 response, the backend `db.complexQuery()` continues running in the background, consuming database connections and CPU resources. In Resiliency Design, a Timeout strategy must be paired with a 'Cancellation Mechanism' (like AbortSignal) to truly free up system resources.",
+      "wg": [
+        {
+          "t": "彈性設計",
+          "en": "Resiliency Design",
+          "ps": "N"
+        },
+        {
+          "t": "取消機制",
+          "en": "Cancellation Mechanism",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "8",
+    "level": "intermediate",
+    "keywords": "Concurrency, Singleton, Race Condition, Request Isolation",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "// global-state.js\nlet currentUser = null;\n\napp.use((req, res, next) => {\n  currentUser = req.body.user;\n  next();\n});\n\napp.get('/profile', async (req, res) => {\n  await someAsyncOperation();\n  res.send(`Hello ${currentUser}`);\n});",
+    "question": [
+      {
+        "t": "資深工程師在 Code Review 時指出了上述程式碼的一個致命錯誤。",
+        "en": "A senior engineer pointed out a fatal error in the code above during Code Review.",
+        "wg": [
+          {
+            "t": "致命錯誤",
+            "en": "fatal error",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "請問在併發請求 (Concurrent Requests) 的情境下，這段程式碼會發生什麼事？",
+        "en": "What will happen to this code under Concurrent Requests scenarios?",
+        "wg": [
+          {
+            "t": "併發請求",
+            "en": "Concurrent Requests",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "會發生記憶體洩漏 (Memory Leak)，因為 `currentUser` 永遠不會被設回 null。",
+        "en": "A Memory Leak will occur because `currentUser` is never set back to null.",
+        "wg": []
+      },
+      {
+        "t": "會發生競態條件 (Race Condition)，請求 A 可能會讀取到請求 B 的使用者資料，導致嚴重的資料外洩。",
+        "en": "A Race Condition will occur; Request A might read Request B's user data, leading to serious data leakage.",
+        "wg": [
+          {
+            "t": "競態條件",
+            "en": "Race Condition",
+            "ps": "N"
+          },
+          {
+            "t": "資料外洩",
+            "en": "data leakage",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "程式會崩潰 (Crash)，因為 Node.js 不允許在全域範疇修改變數。",
+        "en": "The program will crash because Node.js does not allow modifying variables in the global scope.",
+        "wg": []
+      },
+      {
+        "t": "不會有問題，因為 Node.js 是單執行緒的，程式碼會依序執行。",
+        "en": "There will be no issue because Node.js is single-threaded, and the code executes sequentially.",
+        "wg": []
+      }
+    ],
+    "answer": "Option 2",
+    "why": {
+      "t": "雖然 Node.js 是單執行緒，但 `await someAsyncOperation()` 會讓出 Event Loop 控制權，允許其他請求插入執行。全域變數 `currentUser` 是所有請求共享的，後進的請求會覆蓋該變數，導致先前的請求在 `await` 回來後讀取到錯誤的資料。應將狀態儲存在 `req` 物件或 `res.locals` 中以確保請求隔離。",
+      "en": "Although Node.js is single-threaded, `await someAsyncOperation()` yields control of the Event Loop, allowing other requests to interleave. The global variable `currentUser` is shared across all requests; a later request will overwrite it, causing the earlier request to read incorrect data after returning from `await`. State should be stored in the `req` object or `res.locals` to ensure request isolation.",
+      "wg": [
+        {
+          "t": "讓出",
+          "en": "yield",
+          "ps": "V"
+        },
+        {
+          "t": "請求隔離",
+          "en": "request isolation",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "9",
+    "level": "intermediate",
+    "keywords": "Middleware Pattern, Onion Model, Execution Order",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "app.use((req, res, next) => {\n  console.log('A');\n  next();\n  console.log('B');\n});\n\napp.use((req, res, next) => {\n  console.log('C');\n  next();\n});\n\napp.get('/', (req, res) => {\n  console.log('D');\n  res.send('ok');\n});",
+    "question": [
+      {
+        "t": "根據 Express 的洋蔥模型 (Onion Model)，當客戶端請求 `GET /` 時，Console 的輸出順序為何？",
+        "en": "According to Express's Onion Model, what is the console output order when a client requests `GET /`?",
+        "wg": [
+          {
+            "t": "洋蔥模型",
+            "en": "Onion Model",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "A -> C -> D -> B",
+        "en": "A -> C -> D -> B",
+        "wg": []
+      },
+      {
+        "t": "A -> B -> C -> D",
+        "en": "A -> B -> C -> D",
+        "wg": []
+      },
+      {
+        "t": "A -> C -> D (B 不會執行，因為 res.send 已結束回應)",
+        "en": "A -> C -> D (B will not execute because res.send has ended the response)",
+        "wg": []
+      },
+      {
+        "t": "D -> C -> A -> B",
+        "en": "D -> C -> A -> B",
+        "wg": []
+      }
+    ],
+    "answer": "Option 1",
+    "why": {
+      "t": "`next()` 函式會同步地調用下一個 Middleware。當下游的 Middleware 堆疊執行完畢（或開始非同步操作並返回 Promise）後，控制權會回到上游 Middleware `next()` 之後的程式碼。這就是洋蔥模型的「回程」階段。因此順序是 A(進入) -> C(進入) -> D(處理) -> B(回程)。",
+      "en": "The `next()` function synchronously invokes the next middleware. After the downstream middleware stack completes (or starts an async operation and returns a Promise), control returns to the code following `next()` in the upstream middleware. This is the 'return' phase of the Onion Model. Thus, the order is A(enter) -> C(enter) -> D(handle) -> B(return).",
+      "wg": [
+        {
+          "t": "回程",
+          "en": "return phase",
+          "ps": "N"
+        },
+        {
+          "t": "堆疊",
+          "en": "stack",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "10",
+    "level": "intermediate",
+    "keywords": "Express 5.x, Promise, Migration, Router",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "Express 5.x 引入了一項關於非同步處理的重大變革，這使得 `express-async-errors` 這類的 Wrapper 套件不再是必須的。",
+        "en": "Express 5.x introduced a major change regarding async handling, making wrapper packages like `express-async-errors` no longer mandatory.",
+        "wg": [
+          {
+            "t": "重大變革",
+            "en": "major change",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "這項變革的具體機制是什麼？",
+        "en": "What is the specific mechanism of this change?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "Express 5.x 的 Router 會自動捕捉 Middleware 回傳的 Rejected Promise，並將其傳遞給 `next(err)`。",
+        "en": "The Express 5.x Router automatically catches Rejected Promises returned by middleware and passes them to `next(err)`.",
+        "wg": [
+          {
+            "t": "捕捉",
+            "en": "catch",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "Express 5.x 預設使用 Worker Threads 來執行所有的 Async Middleware，因此不會阻塞。",
+        "en": "Express 5.x uses Worker Threads by default to execute all Async Middleware, so it won't block.",
+        "wg": []
+      },
+      {
+        "t": "Express 5.x 廢除了 `next` 參數，強制所有 Middleware 必須回傳 Promise。",
+        "en": "Express 5.x deprecated the `next` parameter, forcing all middleware to return a Promise.",
+        "wg": [
+          {
+            "t": "廢除",
+            "en": "deprecate",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "Express 5.x 將 `res.send` 變成了 Promise，強制開發者使用 `await res.send()`。",
+        "en": "Express 5.x turned `res.send` into a Promise, forcing developers to use `await res.send()`.",
+        "wg": []
+      }
+    ],
+    "answer": "Option 1",
+    "why": {
+      "t": "在 Express 4.x 中，Router 忽略 Middleware 的回傳值。而在 Express 5.x 中，Router 會檢查回傳值，如果是 Promise，則會附加 `.catch(err => next(err))`，從而原生支援 Async/Await 的錯誤捕捉。",
+      "en": "In Express 4.x, the Router ignores the return value of middleware. In Express 5.x, the Router checks the return value; if it is a Promise, it attaches `.catch(err => next(err))`, thereby natively supporting error capturing for Async/Await.",
+      "wg": [
+        {
+          "t": "原生支援",
+          "en": "natively support",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "11",
+    "level": "advanced",
+    "keywords": "Worker Threads, CPU Intensive, Architecture, Offloading",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "app.post('/generate-pdf', (req, res) => {\n  // CPU intensive operation blocking the thread for 5 seconds\n  const pdf = generatePdfSync(req.body);\n  res.send(pdf);\n});",
+    "question": [
+      {
+        "t": "您的 Express 應用程式中有一個 PDF 生成功能（如上圖），這導致了嚴重的效能瓶頸，阻塞了 Event Loop。",
+        "en": "Your Express application has a PDF generation feature (as shown above), which causes a severe performance bottleneck by blocking the Event Loop.",
+        "wg": [
+          {
+            "t": "效能瓶頸",
+            "en": "performance bottleneck",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "為了維持高吞吐量 (Throughput)，下列哪種架構重構方案最為合適？",
+        "en": "To maintain high throughput, which of the following architectural refactoring solutions is most appropriate?",
+        "wg": [
+          {
+            "t": "吞吐量",
+            "en": "throughput",
+            "ps": "N"
+          },
+          {
+            "t": "重構",
+            "en": "refactoring",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "將 PDF 生成邏輯移至 Node.js 的 `Worker Threads` 或獨立的微服務中執行。",
+        "en": "Move the PDF generation logic to Node.js `Worker Threads` or a separate microservice.",
+        "wg": [
+          {
+            "t": "獨立的",
+            "en": "separate",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "使用 `process.nextTick()` 包裹該同步函式，使其變為非同步。",
+        "en": "Wrap the synchronous function with `process.nextTick()` to make it asynchronous.",
+        "wg": []
+      },
+      {
+        "t": "將 `generatePdfSync` 改為 Promise 版本，並使用 `await`。",
+        "en": "Change `generatePdfSync` to a Promise version and use `await`.",
+        "wg": []
+      },
+      {
+        "t": "增加 Express 的 `pool` 設定，允許更多執行緒處理請求。",
+        "en": "Increase the Express `pool` setting to allow more threads to handle requests.",
+        "wg": []
+      }
+    ],
+    "answer": "Option 1",
+    "why": {
+      "t": "Node.js 是單執行緒的。單純將同步函式包裹在 Promise 或 `nextTick` 中並不會改變它在主執行緒上執行的事實，依然會阻塞。唯有將 CPU 密集任務「卸載 (Offload)」到 Worker Threads 或外部服務，才能釋放 Event Loop 處理其他請求。",
+      "en": "Node.js is single-threaded. Simply wrapping a synchronous function in a Promise or `nextTick` does not change the fact that it executes on the main thread, so it will still block. Only by 'offloading' CPU-intensive tasks to Worker Threads or external services can the Event Loop be freed to handle other requests.",
+      "wg": [
+        {
+          "t": "卸載",
+          "en": "offload",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "12",
+    "level": "intermediate",
+    "keywords": "Event Loop, Partitioning, setImmediate, Performance",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "function processHugeArray(arr, cb) {\n  for (let i = 0; i < arr.length; i++) {\n    heavyCalc(arr[i]);\n  }\n  cb();\n}",
+    "question": [
+      {
+        "t": "如果無法使用 Worker Threads，且必須在 Express Middleware 中處理一個巨大的陣列運算。",
+        "en": "If Worker Threads cannot be used and a huge array computation must be handled within an Express Middleware.",
+        "wg": []
+      },
+      {
+        "t": "為了避免長時間阻塞 Event Loop，我們可以使用什麼技術來「切分」任務？",
+        "en": "To avoid blocking the Event Loop for a long time, what technique can we use to 'partition' the task?",
+        "wg": [
+          {
+            "t": "切分",
+            "en": "partition",
+            "ps": "V"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "使用 `setImmediate()` 在每處理完一部分資料後讓出 Event Loop。",
+        "en": "Use `setImmediate()` to yield the Event Loop after processing a chunk of data.",
+        "wg": [
+          {
+            "t": "讓出",
+            "en": "yield",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "使用 `process.nextTick()` 來遞迴呼叫處理函式。",
+        "en": "Use `process.nextTick()` to recursively call the processing function.",
+        "wg": []
+      },
+      {
+        "t": "使用 `JSON.stringify()` 將陣列序列化後再處理。",
+        "en": "Use `JSON.stringify()` to serialize the array before processing.",
+        "wg": []
+      },
+      {
+        "t": "將陣列轉為 `Buffer` 物件。",
+        "en": "Convert the array to a `Buffer` object.",
+        "wg": []
+      }
+    ],
+    "answer": "Option 1",
+    "why": {
+      "t": "`setImmediate()` 會將回呼函式排入 Event Loop 的 Check 階段，允許 Node.js 在兩次執行之間處理 I/O 事件與其他請求。相反的，`process.nextTick()` 會在當前階段結束後立即執行，若遞迴使用仍會導致 I/O 飢餓 (Starvation)。",
+      "en": "`setImmediate()` queues the callback in the Check phase of the Event Loop, allowing Node.js to handle I/O events and other requests between executions. Conversely, `process.nextTick()` executes immediately after the current phase finishes; recursive use will still cause I/O starvation.",
+      "wg": [
+        {
+          "t": "飢餓",
+          "en": "starvation",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "13",
+    "level": "intermediate",
+    "keywords": "Error Handling, Middleware Flow, next(err)",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "app.use((req, res, next) => {\n  // Middleware A\n  const err = new Error('Access Denied');\n  next(err);\n});\n\napp.use((req, res, next) => {\n  // Middleware B\n  console.log('B executed');\n  next();\n});\n\napp.use((err, req, res, next) => {\n  // Middleware C (Error Handler)\n  console.log('C executed');\n  res.status(500).send(err.message);\n});",
+    "question": [
+      {
+        "t": "請問上述程式碼執行後，Console 的輸出結果為何？",
+        "en": "What will be the console output after executing the code above?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "僅輸出 'C executed'。",
+        "en": "Outputs 'C executed' only.",
+        "wg": []
+      },
+      {
+        "t": "輸出 'B executed' 然後 'C executed'。",
+        "en": "Outputs 'B executed' then 'C executed'.",
+        "wg": []
+      },
+      {
+        "t": "輸出 'C executed' 然後 'B executed'。",
+        "en": "Outputs 'C executed' then 'B executed'.",
+        "wg": []
+      },
+      {
+        "t": "程式會拋出 Unhandled Exception 並終止。",
+        "en": "The program throws an Unhandled Exception and terminates.",
+        "wg": []
+      }
+    ],
+    "answer": "Option 1",
+    "why": {
+      "t": "當 `next(err)` 被呼叫並帶有參數時，Express 會跳過所有標準的 Middleware (如 Middleware B)，直接尋找並執行下一個定義了 4 個參數 `(err, req, res, next)` 的錯誤處理 Middleware (Middleware C)。",
+      "en": "When `next(err)` is called with an argument, Express skips all standard middleware (like Middleware B) and directly seeks and executes the next error handling middleware defined with 4 arguments `(err, req, res, next)` (Middleware C).",
+      "wg": [
+        {
+          "t": "跳過",
+          "en": "skip",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "14",
+    "level": "intermediate",
+    "keywords": "Async Wrapper, Best Practices, Error Propagation",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "// Custom Wrapper\nconst wrap = (fn) => (req, res, next) => {\n  fn(req, res, next).catch(err => {\n    console.error(err);\n    res.status(500).send('Internal Server Error');\n  });\n};\n\n// Usage\napp.get('/data', wrap(async (req, res) => {\n  throw new Error('DB Fail');\n}));",
+    "question": [
+      {
+        "t": "這是一個開發者自行撰寫的 Async Wrapper。雖然它能防止程式崩潰，但從架構角度來看，它違反了一個重要的 Express 最佳實務。",
+        "en": "This is a custom Async Wrapper written by a developer. Although it prevents crashes, it violates an important Express best practice from an architectural perspective.",
+        "wg": [
+          {
+            "t": "最佳實務",
+            "en": "best practice",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "請問是哪一點？",
+        "en": "What is it?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "它繞過了 Express 的標準錯誤處理鏈 (Error Handling Chain)，導致後續定義的全域 Error Handler 無法被觸發。",
+        "en": "It bypasses Express's standard Error Handling Chain, causing subsequently defined global Error Handlers to not be triggered.",
+        "wg": [
+          {
+            "t": "繞過",
+            "en": "bypass",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "它使用了 `console.error`，這在生產環境中會阻塞 stdout。",
+        "en": "It uses `console.error`, which blocks stdout in a production environment.",
+        "wg": []
+      },
+      {
+        "t": "它沒有回傳 Promise，導致 Express 5.x 無法相容。",
+        "en": "It does not return a Promise, making it incompatible with Express 5.x.",
+        "wg": []
+      },
+      {
+        "t": "它強制回傳 500 錯誤，無法針對不同錯誤類型回傳 400 或 404。",
+        "en": "It forces a 500 error return, making it impossible to return 400 or 404 for different error types.",
+        "wg": []
+      }
+    ],
+    "answer": "Option 1",
+    "why": {
+      "t": "最佳實務是將錯誤透過 `next(err)` 傳遞出去，由專門的 Error Handling Middleware 統一處理（例如記錄日誌、格式化錯誤訊息、決定 Status Code）。直接在 Wrapper 中發送回應會導致錯誤處理邏輯分散且難以維護。",
+      "en": "The best practice is to propagate errors via `next(err)` to be handled centrally by Error Handling Middleware (e.g., logging, formatting error messages, determining status codes). Sending a response directly within the wrapper scatters error handling logic and makes it hard to maintain.",
+      "wg": [
+        {
+          "t": "分散",
+          "en": "scatter",
+          "ps": "V"
+        },
+        {
+          "t": "統一處理",
+          "en": "handle centrally",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "15",
+    "level": "advanced",
+    "keywords": "Client Disconnect, Resource Cleanup, Event Listener",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "當客戶端在 Request 尚未完成時（例如瀏覽器關閉分頁或網路中斷）斷開連線，Express 伺服器預設會如何反應？",
+        "en": "When a client disconnects while a Request is still pending (e.g., closing a browser tab or network interruption), how does the Express server react by default?",
+        "wg": [
+          {
+            "t": "斷開連線",
+            "en": "disconnect",
+            "ps": "V"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "伺服器不會自動感知，Middleware 與資料庫查詢會繼續執行直到嘗試寫入 Response 失敗或完成。",
+        "en": "The server does not automatically detect this; Middleware and database queries continue to execute until attempting to write the Response fails or completes.",
+        "wg": [
+          {
+            "t": "感知",
+            "en": "detect",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "Express 會自動拋出一個 `ClientClosedError`，中斷當前的 Middleware 執行。",
+        "en": "Express automatically throws a `ClientClosedError`, interrupting the current Middleware execution.",
+        "wg": []
+      },
+      {
+        "t": "Node.js Event Loop 會立即終止該 Request 的所有相關 Callback。",
+        "en": "The Node.js Event Loop immediately terminates all callbacks related to that Request.",
+        "wg": []
+      },
+      {
+        "t": "Express 會自動觸發 `res.end()` 並釋放記憶體。",
+        "en": "Express automatically triggers `res.end()` and frees memory.",
+        "wg": []
+      }
+    ],
+    "answer": "Option 1",
+    "why": {
+      "t": "Express (及底層的 Node.js http module) 預設不會因為客戶端斷線而自動「殺死」正在執行的 JavaScript 邏輯。開發者必須主動監聽 `req.on('close', ...)` 事件來手動停止繁重的運算或資料庫查詢，以避免資源浪費。",
+      "en": "Express (and the underlying Node.js http module) does not automatically 'kill' running JavaScript logic just because the client disconnects. Developers must actively listen to the `req.on('close', ...)` event to manually stop heavy computations or database queries to avoid resource waste.",
+      "wg": [
+        {
+          "t": "主動監聽",
+          "en": "actively listen",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "chapter01-q10",
+    "level": "intermediate",
+    "keywords": "Flow Control, Routing, next('route'), Middleware",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "app.get('/api/resource', \n  (req, res, next) => {\n    if (req.query.skip === 'true') {\n      return next('route');\n    }\n    next();\n  },\n  (req, res, next) => {\n    // Middleware A\n    console.log('A');\n    next();\n  }\n);\n\napp.get('/api/resource', (req, res) => {\n  // Middleware B\n  console.log('B');\n  res.send('Done');\n});",
+    "question": [
+      {
+        "t": "當客戶端發送請求 `GET /api/resource?skip=true` 時，控制台輸出的內容為何？",
+        "en": "When a client sends a request `GET /api/resource?skip=true`, what is the console output?",
+        "wg": [
+          {
+            "t": "控制台輸出",
+            "en": "console output",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "輸出 'A'，然後輸出 'B'。",
+        "en": "Outputs 'A', then 'B'.",
+        "wg": []
+      },
+      {
+        "t": "僅輸出 'B'。",
+        "en": "Outputs 'B' only.",
+        "wg": []
+      },
+      {
+        "t": "僅輸出 'A'。",
+        "en": "Outputs 'A' only.",
+        "wg": []
+      },
+      {
+        "t": "拋出錯誤，因為 `next('route')` 只能在 `app.use()` 中使用。",
+        "en": "Throws an error because `next('route')` can only be used in `app.use()`.",
+        "wg": []
+      }
+    ],
+    "answer": "僅輸出 'B'。",
+    "why": {
+      "t": "`next('route')` 是一個特殊的指令，它會跳過當前路由定義中剩餘的所有 Middleware（在此例中為 Middleware A），並將控制權交給下一個匹配該路徑的路由處理器（Middleware B）。",
+      "en": "`next('route')` is a special instruction that skips all remaining middleware in the current route definition (Middleware A in this case) and passes control to the next route handler matching the path (Middleware B).",
+      "wg": [
+        {
+          "t": "路由定義",
+          "en": "route definition",
+          "ps": "N"
+        },
+        {
+          "t": "匹配",
+          "en": "matching",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "chapter01-q11",
+    "level": "advanced",
+    "keywords": "Observability, Logging, Response Lifecycle, Event Emitter",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "app.use((req, res, next) => {\n  const start = Date.now();\n  \n  // Which event should we listen to?\n  res.on('_____', () => {\n    const duration = Date.now() - start;\n    console.log(`Request took ${duration}ms`);\n  });\n  \n  next();\n});",
+    "question": [
+      {
+        "t": "您正在設計一個用於記錄 API 回應時間的 Middleware。",
+        "en": "You are designing a middleware to log API response times.",
+        "wg": [
+          {
+            "t": "回應時間",
+            "en": "response time",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "為了確保即使在客戶端提前中斷連線（Client Abort）或網路錯誤的情況下也能正確記錄日誌，且能區分請求是否成功完成，您應該監聽哪個事件？",
+        "en": "To ensure logs are recorded correctly even if the client aborts the connection or a network error occurs, and to distinguish whether the request completed successfully, which event should you listen to?",
+        "wg": [
+          {
+            "t": "提前中斷",
+            "en": "abort",
+            "ps": "V"
+          },
+          {
+            "t": "區分",
+            "en": "distinguish",
+            "ps": "V"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "僅監聽 `finish` 事件。",
+        "en": "Listen only to the `finish` event.",
+        "wg": []
+      },
+      {
+        "t": "僅監聽 `close` 事件。",
+        "en": "Listen only to the `close` event.",
+        "wg": []
+      },
+      {
+        "t": "同時監聽 `finish` 與 `close` 事件，並確保只記錄一次。",
+        "en": "Listen to both `finish` and `close` events, ensuring logs are recorded only once.",
+        "wg": []
+      },
+      {
+        "t": "監聽 `end` 事件。",
+        "en": "Listen to the `end` event.",
+        "wg": []
+      }
+    ],
+    "answer": "同時監聽 `finish` 與 `close` 事件，並確保只記錄一次。",
+    "why": {
+      "t": "`finish` 事件僅在回應成功發送給作業系統後觸發；若客戶端提前斷線，則會觸發 `close` 而非 `finish`。為了完整覆蓋所有情況（成功與失敗），必須同時監聽兩者。",
+      "en": "The `finish` event fires only when the response has been successfully handed to the OS; if the client disconnects prematurely, `close` fires instead of `finish`. To cover all scenarios (success and failure), you must listen to both.",
+      "wg": [
+        {
+          "t": "作業系統",
+          "en": "OS (Operating System)",
+          "ps": "N"
+        },
+        {
+          "t": "提前斷線",
+          "en": "disconnect prematurely",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "chapter01-q12",
+    "level": "intermediate",
+    "keywords": "Route Parameters, DRY, app.param, Middleware",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "app.param('userId', (req, res, next, id) => {\n  console.log('Loading User');\n  // Assume db.findUser is synchronous for this example\n  req.user = { id, name: 'Alice' };\n  next();\n});\n\napp.get('/users/:userId', (req, res) => {\n  console.log('Handler 1');\n  res.send(req.user);\n});\n\napp.get('/users/:userId/details', (req, res) => {\n  console.log('Handler 2');\n  res.send(req.user);\n});",
+    "question": [
+      {
+        "t": "關於上述 `app.param` 的使用，下列敘述何者正確？",
+        "en": "Regarding the usage of `app.param` above, which of the following statements is correct?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "當請求 `/users/123/details` 時，'Loading User' 會被列印兩次，因為它匹配了兩個路由定義。",
+        "en": "When requesting `/users/123/details`, 'Loading User' will be printed twice because it matches two route definitions.",
+        "wg": [
+          {
+            "t": "匹配",
+            "en": "match",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "當請求 `/users/123` 時，'Handler 1' 會先於 'Loading User' 列印。",
+        "en": "When requesting `/users/123`, 'Handler 1' will be printed before 'Loading User'.",
+        "wg": []
+      },
+      {
+        "t": "`app.param` 定義的 callback 在每個 Request-Response 週期中，針對該參數只會執行一次，且在路由 Handler 之前執行。",
+        "en": "The callback defined by `app.param` executes only once per Request-Response cycle for that parameter, and it runs before the route handler.",
+        "wg": [
+          {
+            "t": "週期",
+            "en": "cycle",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "`app.param` 已經被廢棄，不建議在 Express 4.x 或 5.x 中使用。",
+        "en": "`app.param` is deprecated and not recommended for use in Express 4.x or 5.x.",
+        "wg": [
+          {
+            "t": "廢棄",
+            "en": "deprecated",
+            "ps": "Adj"
+          }
+        ]
+      }
+    ],
+    "answer": "`app.param` 定義的 callback 在每個 Request-Response 週期中，針對該參數只會執行一次，且在路由 Handler 之前執行。",
+    "why": {
+      "t": "`app.param` 是 Express 提供用於參數前置處理的機制。無論該參數在後續路由中出現多少次，param callback 預設只會執行一次（除非自定義行為），非常適合用於驗證參數或從資料庫預加載資料。",
+      "en": "`app.param` is a mechanism provided by Express for parameter preprocessing. Regardless of how many times the parameter appears in subsequent routes, the param callback defaults to executing only once (unless customized), making it ideal for validation or pre-loading data from a database.",
+      "wg": [
+        {
+          "t": "前置處理",
+          "en": "preprocessing",
+          "ps": "N"
+        },
+        {
+          "t": "預加載",
+          "en": "pre-loading",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "chapter01-q13",
+    "level": "intermediate",
+    "keywords": "Express 5.x, Migration, Promise Support, Error Handling",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "app.get('/async-error', async (req, res, next) => {\n  throw new Error('Something went wrong');\n});\n\napp.use((err, req, res, next) => {\n  res.status(500).send('Caught!');\n});",
+    "question": [
+      {
+        "t": "比較上述程式碼在 Express 4.x 與 Express 5.x 環境下的行為差異，下列何者正確？",
+        "en": "Comparing the behavior of the above code in Express 4.x and Express 5.x environments, which of the following is correct?",
+        "wg": [
+          {
+            "t": "行為差異",
+            "en": "behavioral difference",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "在兩個版本中，客戶端都會收到 'Caught!' 回應。",
+        "en": "In both versions, the client will receive the 'Caught!' response.",
+        "wg": []
+      },
+      {
+        "t": "在 Express 4.x 中，伺服器會 Crash 或掛起（取決於 Node 版本），而在 Express 5.x 中會正確回應 'Caught!'。",
+        "en": "In Express 4.x, the server will crash or hang (depending on Node version), while in Express 5.x it will correctly respond with 'Caught!'.",
+        "wg": [
+          {
+            "t": "掛起",
+            "en": "hang",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "在 Express 4.x 中會回應 'Caught!'，而在 Express 5.x 中需要手動呼叫 `next(err)` 才能觸發錯誤處理。",
+        "en": "In Express 4.x it responds with 'Caught!', while in Express 5.x you need to manually call `next(err)` to trigger error handling.",
+        "wg": []
+      },
+      {
+        "t": "在兩個版本中，都需要使用 `express-async-errors` 才能捕獲錯誤。",
+        "en": "In both versions, `express-async-errors` is required to catch the error.",
+        "wg": []
+      }
+    ],
+    "answer": "在 Express 4.x 中，伺服器會 Crash 或掛起（取決於 Node 版本），而在 Express 5.x 中會正確回應 'Caught!'。",
+    "why": {
+      "t": "Express 4.x 無法自動捕獲 Async Function 拋出的錯誤（Rejected Promise），導致 Unhandled Rejection。Express 5.x 核心已重寫以支援 Promise，能自動將 Rejected Promise 傳遞給 `next(err)`。",
+      "en": "Express 4.x cannot automatically catch errors thrown by Async Functions (Rejected Promises), leading to Unhandled Rejection. The Express 5.x core has been rewritten to support Promises, automatically passing Rejected Promises to `next(err)`.",
+      "wg": [
+        {
+          "t": "核心",
+          "en": "core",
+          "ps": "N"
+        },
+        {
+          "t": "重寫",
+          "en": "rewrite",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "chapter01-q14",
+    "level": "advanced",
+    "keywords": "Event Loop, Partitioning, setImmediate, Performance",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "// Scenario: Processing a large dataset in a middleware\nconst processLargeData = (data, res) => {\n  for (let i = 0; i < data.length; i++) {\n    heavyComputation(data[i]); // Synchronous & Slow\n  }\n  res.send('Done');\n};",
+    "question": [
+      {
+        "t": "上述程式碼會阻塞 Event Loop，導致其他請求延遲。",
+        "en": "The code above blocks the Event Loop, causing latency for other requests.",
+        "wg": [
+          {
+            "t": "阻塞",
+            "en": "block",
+            "ps": "V"
+          },
+          {
+            "t": "延遲",
+            "en": "latency",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "若不想使用 Worker Threads，且希望透過「任務分割 (Partitioning)」技術讓 Event Loop 有機會處理其他 I/O，應如何重構？",
+        "en": "If you don't want to use Worker Threads and want to use 'Partitioning' to give the Event Loop a chance to handle other I/O, how should you refactor?",
+        "wg": [
+          {
+            "t": "任務分割",
+            "en": "Partitioning",
+            "ps": "N"
+          },
+          {
+            "t": "重構",
+            "en": "refactor",
+            "ps": "V"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "將 `heavyComputation` 包裝在 `process.nextTick()` 中執行。",
+        "en": "Wrap `heavyComputation` in `process.nextTick()`.",
+        "wg": []
+      },
+      {
+        "t": "使用遞迴函數處理數據塊 (Chunk)，並在每次迭代使用 `setImmediate()` 排程下一次執行。",
+        "en": "Use a recursive function to process chunks, scheduling the next iteration with `setImmediate()`.",
+        "wg": [
+          {
+            "t": "遞迴",
+            "en": "recursive",
+            "ps": "Adj"
+          },
+          {
+            "t": "迭代",
+            "en": "iteration",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "使用 `Promise.resolve().then(...)` 來執行每次計算。",
+        "en": "Use `Promise.resolve().then(...)` to execute each computation.",
+        "wg": []
+      },
+      {
+        "t": "將 `for` 迴圈改為 `data.forEach`，因為 Array 方法是非同步的。",
+        "en": "Change the `for` loop to `data.forEach`, because Array methods are asynchronous.",
+        "wg": []
+      }
+    ],
+    "answer": "使用遞迴函數處理數據塊 (Chunk)，並在每次迭代使用 `setImmediate()` 排程下一次執行。",
+    "why": {
+      "t": "`process.nextTick` 和 Promise Microtasks 會在當前 Event Loop 階段結束前耗盡，仍會阻塞 I/O。只有 `setImmediate` 會將回調排入 Check Phase，允許 Event Loop 完成一輪完整的循環（包含處理 pending I/O），從而實現真正的非阻塞分割。",
+      "en": "`process.nextTick` and Promise Microtasks drain before the current Event Loop phase ends, still blocking I/O. Only `setImmediate` queues the callback in the Check Phase, allowing the Event Loop to complete a full tick (including handling pending I/O), thus achieving true non-blocking partitioning.",
+      "wg": [
+        {
+          "t": "耗盡",
+          "en": "drain",
+          "ps": "V"
+        },
+        {
+          "t": "排入",
+          "en": "queue",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "chapter01-q15",
+    "level": "intermediate",
+    "keywords": "Router, Error Handling, Bubbling, Middleware Scope",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "const subRouter = express.Router();\n\nsubRouter.get('/fail', (req, res, next) => {\n  next(new Error('Oops'));\n});\n\n// Sub-Router Error Handler\nsubRouter.use((err, req, res, next) => {\n  res.send('Handled by Sub');\n});\n\nconst app = express();\napp.use('/api', subRouter);\n\n// App Global Error Handler\napp.use((err, req, res, next) => {\n  res.send('Handled by App');\n});",
+    "question": [
+      {
+        "t": "當客戶端請求 `GET /api/fail` 時，回應內容為何？",
+        "en": "When a client requests `GET /api/fail`, what is the response?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "Handled by App",
+        "en": "Handled by App",
+        "wg": []
+      },
+      {
+        "t": "Handled by Sub",
+        "en": "Handled by Sub",
+        "wg": []
+      },
+      {
+        "t": "先收到 'Handled by Sub'，然後收到 'Handled by App'。",
+        "en": "Receives 'Handled by Sub' first, then 'Handled by App'.",
+        "wg": []
+      },
+      {
+        "t": "伺服器拋出錯誤，因為 Error Handler 不能定義在 Router 層級。",
+        "en": "The server throws an error because Error Handlers cannot be defined at the Router level.",
+        "wg": []
+      }
+    ],
+    "answer": "Handled by Sub",
+    "why": {
+      "t": "Express 的錯誤傳遞機制會尋找 Stack 中「最近」定義的錯誤處理 Middleware。由於 `subRouter` 內部已定義了 Error Handler 且未呼叫 `next(err)` 繼續傳遞，錯誤會被該 Handler 吞噬並處理，不會冒泡到 App 層級。",
+      "en": "Express's error propagation mechanism looks for the 'nearest' defined error handling middleware in the stack. Since `subRouter` has an Error Handler defined internally and does not call `next(err)` to propagate it, the error is consumed and handled there, and does not bubble up to the App level.",
+      "wg": [
+        {
+          "t": "吞噬",
+          "en": "consume/swallow",
+          "ps": "V"
+        },
+        {
+          "t": "冒泡",
+          "en": "bubble up",
+          "ps": "V"
+        }
+      ]
+    }
+  }
+]

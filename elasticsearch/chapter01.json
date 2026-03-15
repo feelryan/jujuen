@@ -1,0 +1,1219 @@
+[
+  {
+    "no": "chapter01-q08",
+    "level": "advanced",
+    "keywords": "High Cardinality, Aggregation, Global Ordinals, Heap Memory, OOM",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您的團隊正在排查一個 ElasticSearch 叢集的記憶體不足 (OOM) 錯誤。",
+        "en": "Your team is troubleshooting an OutOfMemory (OOM) error in an ElasticSearch cluster.",
+        "wg": [
+          {
+            "t": "排查",
+            "en": "troubleshoot",
+            "ps": "V"
+          },
+          {
+            "t": "記憶體不足",
+            "en": "OutOfMemory (OOM)",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "經過分析，發現問題源於對一個具有數百萬個唯一值 (High Cardinality) 的欄位進行了聚合操作。",
+        "en": "Analysis reveals the issue stems from performing an aggregation on a field with millions of unique values (High Cardinality).",
+        "wg": [
+          {
+            "t": "唯一值",
+            "en": "unique values",
+            "ps": "N"
+          },
+          {
+            "t": "高基數",
+            "en": "High Cardinality",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "請問導致 Heap 記憶體耗盡的最主要原因是什麼？",
+        "en": "What is the primary cause of the Heap memory exhaustion?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 倒排索引 (Inverted Index) 過大，導致磁碟 I/O 飽和。",
+        "en": "(A) The Inverted Index is too large, causing disk I/O saturation.",
+        "wg": []
+      },
+      {
+        "t": "(B) 系統試圖在 Heap 上建立全域序數 (Global Ordinals) 來加速聚合。",
+        "en": "(B) The system attempted to build Global Ordinals on the Heap to accelerate aggregation.",
+        "wg": [
+          {
+            "t": "全域序數",
+            "en": "Global Ordinals",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) Doc Values 檔案損壞，導致資料載入記憶體失敗。",
+        "en": "(C) The Doc Values file is corrupted, causing data loading into memory to fail.",
+        "wg": []
+      },
+      {
+        "t": "(D) Translog 緩衝區未及時 Flush，佔用了過多記憶體。",
+        "en": "(D) The Translog buffer was not flushed in time, consuming too much memory.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "當對高基數欄位進行聚合時，ES 可能需要建立全域序數 (Global Ordinals) 來對應文檔與詞項。這些結構通常構建在 Heap 中，若基數過高且未適當規劃（如未預留足夠 Off-heap 空間或使用 Composite Aggregation），極易導致 OOM。",
+      "en": "When aggregating on high-cardinality fields, ES may need to build Global Ordinals to map documents to terms. These structures are typically built on the Heap. If cardinality is too high without proper planning (e.g., insufficient off-heap space or not using Composite Aggregation), it can easily lead to OOM.",
+      "wg": [
+        {
+          "t": "對應",
+          "en": "map",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "chapter01-q09",
+    "level": "intermediate",
+    "keywords": "Translog, Async, Durability, Performance, IOPS",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您正在設計一個用於儲存應用程式追蹤日誌 (Trace Logs) 的 ElasticSearch 叢集。",
+        "en": "You are designing an ElasticSearch cluster for storing application trace logs.",
+        "wg": [
+          {
+            "t": "追蹤日誌",
+            "en": "Trace Logs",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "業務需求是極高的寫入吞吐量 (Throughput)，且可以接受在系統崩潰時遺失最近 5 秒的資料。",
+        "en": "The business requirement is extremely high write throughput, and losing the last 5 seconds of data in case of a system crash is acceptable.",
+        "wg": [
+          {
+            "t": "吞吐量",
+            "en": "throughput",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "下列哪項設定最能滿足此需求？",
+        "en": "Which of the following settings best meets this requirement?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 設定 `index.refresh_interval: 1s`。",
+        "en": "(A) Set `index.refresh_interval: 1s`.",
+        "wg": []
+      },
+      {
+        "t": "(B) 設定 `index.translog.durability: async`。",
+        "en": "(B) Set `index.translog.durability: async`.",
+        "wg": []
+      },
+      {
+        "t": "(C) 設定 `index.translog.durability: request`。",
+        "en": "(C) Set `index.translog.durability: request`.",
+        "wg": []
+      },
+      {
+        "t": "(D) 停用 Segment Merging。",
+        "en": "(D) Disable Segment Merging.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "預設的 `request` 模式會在每次請求後執行 fsync，保證持久性但限制 IOPS。將 Translog 持久性設為 `async` 可以顯著提升寫入效能，代價是節點崩潰時可能遺失尚未 fsync 的資料（通常是幾秒鐘）。",
+      "en": "The default `request` mode performs an fsync after every request, guaranteeing durability but limiting IOPS. Setting Translog durability to `async` significantly boosts write performance, at the cost of potentially losing data not yet fsync'ed (usually a few seconds) if a node crashes.",
+      "wg": [
+        {
+          "t": "代價",
+          "en": "at the cost of",
+          "ps": "Phrase"
+        }
+      ]
+    }
+  },
+  {
+    "no": "chapter01-q10",
+    "level": "intermediate",
+    "keywords": "Flush, Refresh, Persistence, Searchability, Lucene",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在 ElasticSearch 的內部機制中，`Refresh` 與 `Flush` 是兩個關鍵操作。",
+        "en": "In ElasticSearch internals, `Refresh` and `Flush` are two critical operations.",
+        "wg": []
+      },
+      {
+        "t": "關於這兩者的區別，下列敘述何者正確？",
+        "en": "Which of the following statements regarding the difference between them is correct?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) Refresh 確保資料寫入磁碟 (Persistence)；Flush 確保資料可被搜尋 (Visibility)。",
+        "en": "(A) Refresh ensures data is written to disk (Persistence); Flush ensures data is searchable (Visibility).",
+        "wg": []
+      },
+      {
+        "t": "(B) Refresh 確保資料可被搜尋 (Visibility)；Flush 確保資料寫入磁碟 (Persistence) 並清空 Translog。",
+        "en": "(B) Refresh ensures data is searchable (Visibility); Flush ensures data is written to disk (Persistence) and clears the Translog.",
+        "wg": [
+          {
+            "t": "可被搜尋",
+            "en": "searchable",
+            "ps": "Adj"
+          },
+          {
+            "t": "清空",
+            "en": "clears",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(C) 兩者功能相同，只是觸發的時間點不同。",
+        "en": "(C) Both have the same function, only the trigger timing differs.",
+        "wg": []
+      },
+      {
+        "t": "(D) Refresh 僅發生在記憶體中；Flush 僅發生在 Replica 節點上。",
+        "en": "(D) Refresh only occurs in memory; Flush only occurs on Replica nodes.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "Refresh 將記憶體緩衝區的資料寫入 OS Cache 形成新的 Segment，使資料可被搜尋（NRT）。Flush 則執行 `fsync` 將 OS Cache 中的 Segment 強制寫入實體磁碟，確保資料持久化，並截斷/清空 Translog。",
+      "en": "Refresh writes data from the memory buffer to the OS Cache creating a new Segment, making data searchable (NRT). Flush performs an `fsync` to force Segments from the OS Cache to the physical disk, ensuring durability, and truncates/clears the Translog.",
+      "wg": [
+        {
+          "t": "強制",
+          "en": "force",
+          "ps": "V"
+        },
+        {
+          "t": "截斷",
+          "en": "truncate",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "chapter01-q11",
+    "level": "intermediate",
+    "keywords": "OS Cache, Heap Sizing, Memory Management, Performance",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您正在配置一台擁有 64GB RAM 的實體機器作為 ElasticSearch 資料節點。",
+        "en": "You are configuring a physical machine with 64GB of RAM as an ElasticSearch data node.",
+        "wg": [
+          {
+            "t": "配置",
+            "en": "configure",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "根據最佳實務，您將 JVM Heap Size 設定為 31GB。",
+        "en": "Following best practices, you set the JVM Heap Size to 31GB.",
+        "wg": []
+      },
+      {
+        "t": "請問剩餘的 33GB 記憶體主要用途為何，且為何對效能至關重要？",
+        "en": "What is the primary purpose of the remaining 33GB of memory, and why is it critical for performance?",
+        "wg": [
+          {
+            "t": "至關重要",
+            "en": "critical",
+            "ps": "Adj"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 供作業系統核心 (Kernel) 運行使用，對 ES 效能影響不大。",
+        "en": "(A) Used by the OS Kernel to run, with little impact on ES performance.",
+        "wg": []
+      },
+      {
+        "t": "(B) 作為檔案系統快取 (File System Cache)，Lucene 依賴它來加速 Segment 的讀取。",
+        "en": "(B) As File System Cache, which Lucene relies on to accelerate Segment reads.",
+        "wg": [
+          {
+            "t": "依賴",
+            "en": "relies on",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(C) 用於儲存 Translog 的備份，以防止資料遺失。",
+        "en": "(C) Used to store Translog backups to prevent data loss.",
+        "wg": []
+      },
+      {
+        "t": "(D) 預留給 Garbage Collection (GC) 運作時的暫存空間。",
+        "en": "(D) Reserved as temporary space for Garbage Collection (GC) operations.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "Lucene 的 Segment 是不可變檔案，非常適合被作業系統快取。ES 依賴 OS 的 File System Cache 來將熱點資料保留在記憶體中，從而避免頻繁的磁碟 I/O。如果將所有 RAM 都給了 Heap，Lucene 將被迫頻繁讀取磁碟，導致效能低落。",
+      "en": "Lucene Segments are immutable files, making them ideal for OS caching. ES relies on the OS File System Cache to keep hot data in memory, avoiding frequent disk I/O. If all RAM is allocated to the Heap, Lucene is forced to read from disk frequently, leading to poor performance.",
+      "wg": [
+        {
+          "t": "熱點資料",
+          "en": "hot data",
+          "ps": "N"
+        },
+        {
+          "t": "被迫",
+          "en": "forced",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "chapter01-q12",
+    "level": "advanced",
+    "keywords": "Updates, Deleted Documents, Search Latency, Segment Merging",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您維護的一個 Index 頻繁進行文件更新 (Update) 操作。雖然文件總數維持不變，但您發現搜尋延遲 (Search Latency) 逐漸增加。",
+        "en": "You maintain an Index that undergoes frequent document updates. Although the total document count remains constant, you notice Search Latency is gradually increasing.",
+        "wg": [
+          {
+            "t": "維持不變",
+            "en": "remains constant",
+            "ps": "Phrase"
+          },
+          {
+            "t": "逐漸增加",
+            "en": "gradually increasing",
+            "ps": "Phrase"
+          }
+        ]
+      },
+      {
+        "t": "從底層原理來看，造成搜尋變慢的最可能原因是什麼？",
+        "en": "From an internals perspective, what is the most likely cause of the slowdown?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 更新操作導致 Translog 過大，搜尋時需要掃描 Translog。",
+        "en": "(A) Updates cause the Translog to grow too large, requiring scans during search.",
+        "wg": []
+      },
+      {
+        "t": "(B) 搜尋查詢必須掃描包含「已刪除」標記的文件，並在結果返回前將其過濾掉。",
+        "en": "(B) Search queries must scan documents marked as \"deleted\" and filter them out before returning results.",
+        "wg": [
+          {
+            "t": "過濾掉",
+            "en": "filter out",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(C) 頻繁更新導致 Inverted Index 結構損壞，需要即時修復。",
+        "en": "(C) Frequent updates cause corruption in the Inverted Index structure, requiring on-the-fly repair.",
+        "wg": []
+      },
+      {
+        "t": "(D) Doc Values 無法支援更新操作，導致每次搜尋都必須讀取原始 Source。",
+        "en": "(D) Doc Values do not support updates, forcing every search to read the original Source.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "在 Lucene 中，更新 = 刪除舊文件 + 索引新文件。舊文件僅在 `.del` 檔案中被標記，物理上仍存在於 Segment 中。搜尋時，Lucene 仍需處理這些已刪除的文件（解碼、匹配），最後才將其過濾。大量已刪除文件會浪費 CPU 與 I/O 資源，直到 Segment Merge 發生。",
+      "en": "In Lucene, an update = delete old doc + index new doc. The old document is only marked in a `.del` file but physically remains in the Segment. During search, Lucene still processes these deleted documents (decoding, matching) and filters them out at the end. A large number of deleted documents wastes CPU and I/O resources until a Segment Merge occurs.",
+      "wg": [
+        {
+          "t": "解碼",
+          "en": "decoding",
+          "ps": "V"
+        },
+        {
+          "t": "浪費",
+          "en": "waste",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "chapter01-q13",
+    "level": "intermediate",
+    "keywords": "Segment Merging, I/O Spikes, Background Process, Performance",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您的監控系統顯示 ElasticSearch 節點偶爾會出現 I/O Wait 飆高，導致短暫的效能抖動，但同時間並沒有異常的查詢流量。",
+        "en": "Your monitoring system shows occasional spikes in I/O Wait on ElasticSearch nodes, causing brief performance jitters, but there is no abnormal query traffic at the same time.",
+        "wg": [
+          {
+            "t": "飆高",
+            "en": "spikes",
+            "ps": "V"
+          },
+          {
+            "t": "效能抖動",
+            "en": "performance jitters",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "這最有可能與哪一個背景程序 (Background Process) 有關？",
+        "en": "Which background process is this most likely related to?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) Garbage Collection (GC)。",
+        "en": "(A) Garbage Collection (GC).",
+        "wg": []
+      },
+      {
+        "t": "(B) Segment Merging。",
+        "en": "(B) Segment Merging.",
+        "wg": []
+      },
+      {
+        "t": "(C) Cluster State Update。",
+        "en": "(C) Cluster State Update.",
+        "wg": []
+      },
+      {
+        "t": "(D) DNS Resolution。",
+        "en": "(D) DNS Resolution.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "Segment Merging 是一個資源密集型的背景程序。它會讀取多個小 Segment 並寫入一個大 Segment，這會消耗大量的磁碟 I/O 和 CPU。雖然 ES 有節流機制 (Throttling)，但在大量寫入或合併大檔案時，仍可能導致 I/O 飆高。",
+      "en": "Segment Merging is a resource-intensive background process. It reads multiple small segments and writes a single large segment, consuming significant Disk I/O and CPU. Although ES has throttling mechanisms, heavy writes or merging large files can still cause I/O spikes.",
+      "wg": [
+        {
+          "t": "資源密集型",
+          "en": "resource-intensive",
+          "ps": "Adj"
+        },
+        {
+          "t": "節流機制",
+          "en": "throttling mechanisms",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "chapter01-q14",
+    "level": "advanced",
+    "keywords": "Sorting, Doc Values, Inverted Index, Performance",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "開發人員回報某個查詢的排序 (Sorting) 效能極差。",
+        "en": "Developers report that the sorting performance of a specific query is extremely poor.",
+        "wg": []
+      },
+      {
+        "t": "檢查後發現，該查詢是針對一個 `text` 類型的欄位進行排序，而非 `keyword` 類型。",
+        "en": "Upon inspection, it is found that the query sorts on a `text` type field instead of a `keyword` type.",
+        "wg": [
+          {
+            "t": "檢查",
+            "en": "inspection",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "為什麼針對 `text` 欄位排序通常比 `keyword` 慢且消耗更多記憶體？",
+        "en": "Why is sorting on a `text` field generally slower and more memory-intensive than on a `keyword` field?",
+        "wg": [
+          {
+            "t": "記憶體密集",
+            "en": "memory-intensive",
+            "ps": "Adj"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) `text` 欄位使用 Doc Values，而 `keyword` 使用倒排索引。",
+        "en": "(A) `text` fields use Doc Values, while `keyword` fields use Inverted Indices.",
+        "wg": []
+      },
+      {
+        "t": "(B) `text` 欄位預設不啟用 Doc Values，排序時必須將倒排索引「反向」加載到 Heap 中 (Fielddata)。",
+        "en": "(B) `text` fields do not have Doc Values enabled by default; sorting requires \"un-inverting\" the Inverted Index into the Heap (Fielddata).",
+        "wg": [
+          {
+            "t": "反向",
+            "en": "un-inverting",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(C) `text` 欄位的資料量通常比 `keyword` 大。",
+        "en": "(C) The data volume of `text` fields is usually larger than `keyword` fields.",
+        "wg": []
+      },
+      {
+        "t": "(D) `text` 欄位必須先進行網路請求驗證才能排序。",
+        "en": "(D) `text` fields must undergo network request validation before sorting.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "Doc Values 是專為排序和聚合設計的列式儲存結構（磁碟友善）。`text` 欄位因為經過斷詞 (Analyzed)，預設不支援 Doc Values。若強行排序，ES 必須使用 Fielddata，這涉及將倒排索引載入 Heap 並反轉，非常消耗記憶體且速度慢。",
+      "en": "Doc Values are a columnar storage structure designed for sorting and aggregation (disk-friendly). `text` fields, being analyzed, do not support Doc Values by default. Forcing a sort requires ES to use Fielddata, which involves loading the Inverted Index into the Heap and un-inverting it, which is very memory-intensive and slow.",
+      "wg": [
+        {
+          "t": "斷詞",
+          "en": "analyzed / tokenized",
+          "ps": "V"
+        },
+        {
+          "t": "強行",
+          "en": "forcing",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "chapter01-q15",
+    "level": "advanced",
+    "keywords": "System Design, Hot-Warm Architecture, ILM, Cost Optimization",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您正在規劃一個每天產生 1TB 日誌的系統架構。為了優化成本，您決定採用 Hot-Warm-Cold 架構。",
+        "en": "You are planning a system architecture for 1TB of logs per day. To optimize costs, you decide to adopt a Hot-Warm-Cold architecture.",
+        "wg": [
+          {
+            "t": "架構",
+            "en": "architecture",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "對於「Warm」階段的索引 (Index)，下列哪項操作是最佳實務，既能節省資源又能保持一定的查詢效能？",
+        "en": "For indices in the \"Warm\" phase, which of the following operations is a best practice to save resources while maintaining reasonable query performance?",
+        "wg": [
+          {
+            "t": "最佳實務",
+            "en": "best practice",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 將 `refresh_interval` 設定為 1ms 以確保即時性。",
+        "en": "(A) Set `refresh_interval` to 1ms to ensure real-time capability.",
+        "wg": []
+      },
+      {
+        "t": "(B) 執行 Force Merge 將 Segment 數量降至 1，並將索引設為唯讀 (Read-only)。",
+        "en": "(B) Perform a Force Merge to reduce the number of segments to 1 and set the index to Read-only.",
+        "wg": [
+          {
+            "t": "唯讀",
+            "en": "Read-only",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "(C) 將所有 Replica 移除以節省空間。",
+        "en": "(C) Remove all Replicas to save space.",
+        "wg": []
+      },
+      {
+        "t": "(D) 將資料匯出為 CSV 存入 S3，並從 ES 中刪除。",
+        "en": "(D) Export data as CSV to S3 and delete it from ES.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "Warm 階段的資料通常不再寫入。執行 Force Merge (max_num_segments=1) 可以釋放被刪除文件佔用的空間，並大幅提升查詢效率（減少 Segment 掃描數）。設定為唯讀可以防止意外寫入並節省資源。",
+      "en": "Data in the Warm phase is typically no longer written to. Performing a Force Merge (max_num_segments=1) reclaims space occupied by deleted documents and significantly improves query efficiency (reduces segment scans). Setting it to Read-only prevents accidental writes and saves resources.",
+      "wg": [
+        {
+          "t": "釋放",
+          "en": "reclaims / frees up",
+          "ps": "V"
+        },
+        {
+          "t": "意外",
+          "en": "accidental",
+          "ps": "Adj"
+        }
+      ]
+    }
+  },
+  {
+    "no": "chapter01-q09",
+    "level": "advanced",
+    "keywords": "Translog, Durability, Async, Performance",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "index.translog.durability: async\nindex.translog.sync_interval: 5s",
+    "question": [
+      {
+        "t": "為了提升高流量日誌系統的寫入吞吐量，您將 Translog 的持久性設定調整為 `async`（如上所示）。",
+        "en": "To improve write throughput for a high-traffic logging system, you adjust the Translog durability setting to `async` (as shown above).",
+        "wg": [
+          {
+            "t": "寫入吞吐量",
+            "en": "write throughput",
+            "ps": "N"
+          },
+          {
+            "t": "持久性",
+            "en": "durability",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "請問此變更主要的權衡（Trade-off）是什麼？",
+        "en": "What is the primary trade-off of this change?",
+        "wg": [
+          {
+            "t": "權衡",
+            "en": "trade-off",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "資料將會更快地變為「可搜尋」狀態，但會消耗更多 CPU。",
+        "en": "Data will become 'searchable' faster, but it will consume more CPU.",
+        "wg": []
+      },
+      {
+        "t": "寫入效能會提升，但在節點崩潰時，可能會遺失最近 5 秒內的資料。",
+        "en": "Write performance will improve, but you may lose the last 5 seconds of data in the event of a node crash.",
+        "wg": [
+          {
+            "t": "節點崩潰",
+            "en": "node crash",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "搜尋延遲會顯著降低，但會佔用更多的 Heap 記憶體。",
+        "en": "Search latency will decrease significantly, but it will consume more Heap memory.",
+        "wg": []
+      },
+      {
+        "t": "Segment Merging 的頻率會降低，導致磁碟空間使用量暫時增加。",
+        "en": "The frequency of Segment Merging will decrease, causing a temporary increase in disk space usage.",
+        "wg": []
+      }
+    ],
+    "answer": "Option 2",
+    "why": {
+      "t": "預設的 Translog 持久性為 `request`，保證每次請求都寫入磁碟。切換為 `async` 後，ElasticSearch 僅會在背景依據 `sync_interval`（此例為 5秒）執行 `fsync`。這雖然減少了磁碟 IOPS 並提升吞吐量，但若節點在 `fsync` 執行前崩潰，記憶體緩衝區與尚未 `fsync` 的 Translog 資料將會遺失。",
+      "en": "The default Translog durability is `request`, ensuring every request is written to disk. Switching to `async` means ElasticSearch only performs an `fsync` in the background based on the `sync_interval` (5s in this case). While this reduces disk IOPS and boosts throughput, if the node crashes before an `fsync`, data in the memory buffer and un-fsynced Translog will be lost.",
+      "wg": [
+        {
+          "t": "記憶體緩衝區",
+          "en": "memory buffer",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "chapter01-q10",
+    "level": "intermediate",
+    "keywords": "Refresh, Flush, Persistence, Searchability",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在 ElasticSearch 的寫入生命週期中，區分 `Refresh` 與 `Flush` 操作的關鍵差異至關重要。",
+        "en": "In the ElasticSearch write lifecycle, it is crucial to distinguish the key difference between `Refresh` and `Flush` operations.",
+        "wg": [
+          {
+            "t": "生命週期",
+            "en": "lifecycle",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "下列哪項敘述正確描述了這兩者的區別？",
+        "en": "Which of the following statements correctly describes the distinction between the two?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "Refresh 將資料寫入 Translog 以確保持久性；Flush 使資料可被搜尋。",
+        "en": "Refresh writes data to the Translog for durability; Flush makes data searchable.",
+        "wg": []
+      },
+      {
+        "t": "Refresh 使新文件可被搜尋（寫入 OS Cache）；Flush 強制將資料持久化到磁碟並清空 Translog。",
+        "en": "Refresh makes new documents searchable (written to OS Cache); Flush forces data persistence to disk and clears the Translog.",
+        "wg": [
+          {
+            "t": "持久化",
+            "en": "persistence",
+            "ps": "N"
+          },
+          {
+            "t": "清空",
+            "en": "clears",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "Refresh 僅發生在記憶體中；Flush 僅發生在 Replica 分片上。",
+        "en": "Refresh only happens in memory; Flush only happens on Replica shards.",
+        "wg": []
+      },
+      {
+        "t": "Refresh 是由使用者手動觸發的；Flush 是由系統每秒自動執行的。",
+        "en": "Refresh is triggered manually by the user; Flush is executed automatically by the system every second.",
+        "wg": []
+      }
+    ],
+    "answer": "Option 2",
+    "why": {
+      "t": "Refresh（預設每秒一次）會建立新的 Segment 並推送到檔案系統快取（OS Cache），使資料可見（可搜尋），但尚未 `fsync` 到實體磁碟。Flush 則會執行 `fsync` 將所有快取中的 Segment 寫入磁碟，並截斷/清空 Translog，確保資料的持久性。",
+      "en": "Refresh (default every second) creates a new Segment and pushes it to the file system cache (OS Cache), making data visible (searchable), but not yet `fsync`ed to physical disk. Flush performs an `fsync` to write all cached Segments to disk and truncates/clears the Translog, ensuring data durability.",
+      "wg": [
+        {
+          "t": "檔案系統快取",
+          "en": "file system cache",
+          "ps": "N"
+        },
+        {
+          "t": "截斷",
+          "en": "truncate",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "chapter01-q11",
+    "level": "intermediate",
+    "keywords": "Memory Sizing, Heap, OS Cache, Doc Values",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您正在配置一台擁有 64GB 實體記憶體（RAM）的專用 ElasticSearch 節點。",
+        "en": "You are configuring a dedicated ElasticSearch node with 64GB of physical RAM.",
+        "wg": [
+          {
+            "t": "配置",
+            "en": "configuring",
+            "ps": "V"
+          },
+          {
+            "t": "實體記憶體",
+            "en": "physical RAM",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "根據最佳實務，您不應該將 JVM Heap Size 設定為 64GB，而應保留約 50% 的記憶體給作業系統。",
+        "en": "According to best practices, you should not set the JVM Heap Size to 64GB, but rather leave about 50% of the memory for the operating system.",
+        "wg": [
+          {
+            "t": "最佳實務",
+            "en": "best practices",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "主要原因為何？",
+        "en": "What is the primary reason for this?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "作業系統需要大量記憶體來執行垃圾回收（GC）。",
+        "en": "The operating system needs a lot of memory to perform Garbage Collection (GC).",
+        "wg": []
+      },
+      {
+        "t": "Lucene 依賴作業系統的檔案系統快取（File System Cache）來高效存取 Segment 與 Doc Values。",
+        "en": "Lucene relies on the OS File System Cache to efficiently access Segments and Doc Values.",
+        "wg": [
+          {
+            "t": "依賴",
+            "en": "relies on",
+            "ps": "V"
+          },
+          {
+            "t": "高效存取",
+            "en": "efficiently access",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "保留記憶體是為了防止 Translog 過大導致記憶體溢出。",
+        "en": "Memory is reserved to prevent the Translog from growing too large and causing memory overflows.",
+        "wg": []
+      },
+      {
+        "t": "ElasticSearch 的協調節點（Coordinating Node）邏輯完全在 JVM 外部運行。",
+        "en": "ElasticSearch's Coordinating Node logic runs entirely outside the JVM.",
+        "wg": []
+      }
+    ],
+    "answer": "Option 2",
+    "why": {
+      "t": "Lucene 的 Segment 是不可變的檔案，這使得它們非常適合被作業系統快取。Doc Values 等資料結構通常直接從磁碟讀取，若有足夠的 OS Cache，這些讀取操作實際上是在存取記憶體，效能極高。若將所有 RAM 分配給 Heap，將導致頻繁的磁碟 I/O，嚴重拖慢搜尋效能。",
+      "en": "Lucene Segments are immutable files, making them ideal for OS caching. Data structures like Doc Values are often read directly from disk; with sufficient OS Cache, these reads effectively access memory, resulting in high performance. Allocating all RAM to the Heap would force frequent disk I/O, severely degrading search performance.",
+      "wg": [
+        {
+          "t": "不可變的",
+          "en": "immutable",
+          "ps": "Adj"
+        },
+        {
+          "t": "拖慢",
+          "en": "degrading",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "chapter01-q12",
+    "level": "advanced",
+    "keywords": "Deep Paging, Distributed Search, Performance, Calculation",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "GET /my-index/_search\n{\n  \"from\": 10000,\n  \"size\": 10,\n  \"query\": { ... }\n}",
+    "question": [
+      {
+        "t": "假設 `my-index` 擁有 5 個主分片（Primary Shards）。",
+        "en": "Assume `my-index` has 5 Primary Shards.",
+        "wg": [
+          {
+            "t": "主分片",
+            "en": "Primary Shards",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "當執行上述的分頁查詢時，協調節點（Coordinating Node）總共需要在記憶體中處理（排序）多少份文件？",
+        "en": "When executing the pagination query above, how many documents in total does the Coordinating Node need to process (sort) in memory?",
+        "wg": [
+          {
+            "t": "協調節點",
+            "en": "Coordinating Node",
+            "ps": "N"
+          },
+          {
+            "t": "處理",
+            "en": "process",
+            "ps": "V"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "10,010 份文件",
+        "en": "10,010 documents",
+        "wg": []
+      },
+      {
+        "t": "50,050 份文件",
+        "en": "50,050 documents",
+        "wg": []
+      },
+      {
+        "t": "50 份文件",
+        "en": "50 documents",
+        "wg": []
+      },
+      {
+        "t": "100,000 份文件",
+        "en": "100,000 documents",
+        "wg": []
+      }
+    ],
+    "answer": "Option 2",
+    "why": {
+      "t": "在分散式搜尋中，為了取得全域的第 10,000 到 10,010 筆結果，每個分片（Shard）必須各自取出它的前 10,010 筆結果（from + size）。協調節點隨後必須收集所有分片的結果並進行全域排序。計算公式為：`分片數 * (from + size)` = `5 * 10,010` = `50,050`。",
+      "en": "In distributed search, to get the global 10,000th to 10,010th results, each shard must fetch its own top 10,010 results (from + size). The coordinating node must then collect results from all shards and perform a global sort. The formula is: `number_of_shards * (from + size)` = `5 * 10,010` = `50,050`.",
+      "wg": [
+        {
+          "t": "全域排序",
+          "en": "global sort",
+          "ps": "N"
+        },
+        {
+          "t": "分散式搜尋",
+          "en": "distributed search",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "chapter01-q13",
+    "level": "intermediate",
+    "keywords": "Bulk Indexing, Replicas, Optimization, Throughput",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在對一個全新的 Index 進行大量歷史資料回填（Bulk Backfill）時，建議將 `number_of_replicas` 暫時設為 0。",
+        "en": "When performing a bulk backfill of historical data into a brand new Index, it is recommended to temporarily set `number_of_replicas` to 0.",
+        "wg": [
+          {
+            "t": "回填",
+            "en": "backfill",
+            "ps": "V"
+          },
+          {
+            "t": "暫時",
+            "en": "temporarily",
+            "ps": "Adv"
+          }
+        ]
+      },
+      {
+        "t": "這樣做能顯著提升寫入速度的主要原因為何？",
+        "en": "What is the main reason this significantly improves write speed?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "因為 Replica 分片位於不同的實體磁碟上，網路延遲會拖慢寫入。",
+        "en": "Because Replica shards are on different physical disks, network latency slows down writes.",
+        "wg": []
+      },
+      {
+        "t": "因為這避免了在寫入階段重複執行索引操作（Indexing Operation）；資料只需在 Primary 分片被索引一次。",
+        "en": "Because this avoids repeating the indexing operation during the write phase; data only needs to be indexed once on the Primary shard.",
+        "wg": [
+          {
+            "t": "重複執行",
+            "en": "repeating",
+            "ps": "V"
+          },
+          {
+            "t": "索引操作",
+            "en": "indexing operation",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "因為 Replica 分片預設使用同步 Translog，而 Primary 使用非同步。",
+        "en": "Because Replica shards use synchronous Translog by default, while Primary uses asynchronous.",
+        "wg": []
+      },
+      {
+        "t": "因為 Replica 分片會強制觸發更頻繁的 Segment Merge。",
+        "en": "Because Replica shards force more frequent Segment Merges.",
+        "wg": []
+      }
+    ],
+    "answer": "Option 2",
+    "why": {
+      "t": "當 Replica 存在時，文件不僅要寫入 Primary，還必須轉發到所有 Replica 並在該處再次執行完整的索引過程（Analysis, Inverted Index 建立等）。將 Replica 設為 0 可消除這些重複的計算與磁碟 I/O 開銷。待資料載入完成後再開啟 Replica，ES 會直接透過網路複製底層 Segment 檔案，這比重複索引快得多。",
+      "en": "When Replicas exist, documents must not only be written to the Primary but also forwarded to all Replicas to undergo the full indexing process again (Analysis, Inverted Index creation, etc.). Setting Replicas to 0 eliminates this duplicate computation and disk I/O overhead. Enabling Replicas after loading allows ES to copy the underlying Segment files directly over the network, which is much faster than re-indexing.",
+      "wg": [
+        {
+          "t": "開銷",
+          "en": "overhead",
+          "ps": "N"
+        },
+        {
+          "t": "底層",
+          "en": "underlying",
+          "ps": "Adj"
+        }
+      ]
+    }
+  },
+  {
+    "no": "chapter01-q14",
+    "level": "intermediate",
+    "keywords": "Immutability, Concurrency, Caching, Architecture",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "Lucene 的 Segment 具有「不可變性（Immutability）」，這雖然導致更新操作成本較高，但也帶來了關鍵的架構優勢。",
+        "en": "Lucene Segments are 'immutable', which, while making update operations more expensive, brings key architectural advantages.",
+        "wg": [
+          {
+            "t": "不可變性",
+            "en": "immutability",
+            "ps": "N"
+          },
+          {
+            "t": "架構優勢",
+            "en": "architectural advantages",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "下列哪一項是不可變性帶來的直接好處？",
+        "en": "Which of the following is a direct benefit of immutability?",
+        "wg": [
+          {
+            "t": "直接好處",
+            "en": "direct benefit",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "它允許在不使用鎖（Lock-free）的情況下進行高並發讀取，並簡化了快取管理。",
+        "en": "It allows for high-concurrency reads without locks (lock-free) and simplifies cache management.",
+        "wg": [
+          {
+            "t": "高並發",
+            "en": "high-concurrency",
+            "ps": "N"
+          },
+          {
+            "t": "鎖",
+            "en": "locks",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "它消除了對 Translog 的需求，因為資料永遠不會遺失。",
+        "en": "It eliminates the need for a Translog because data is never lost.",
+        "wg": []
+      },
+      {
+        "t": "它使得文件刪除操作可以立即釋放磁碟空間。",
+        "en": "It allows document deletion operations to immediately reclaim disk space.",
+        "wg": [
+          {
+            "t": "釋放",
+            "en": "reclaim",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "它保證了所有 Replica 分片在任何時間點的資料完全一致。",
+        "en": "It guarantees that data on all Replica shards is perfectly consistent at any point in time.",
+        "wg": []
+      }
+    ],
+    "answer": "Option 1",
+    "why": {
+      "t": "因為 Segment 一旦寫入就不會改變，所以讀取操作不需要擔心資料在讀取過程中被修改，這消除了讀寫鎖的需求。此外，不可變的檔案可以被作業系統快取（OS Cache）永久保留，無需擔心快取失效（Cache Invalidation）的問題，極大提升了讀取效能。",
+      "en": "Since Segments never change once written, read operations don't need to worry about data being modified during the read, eliminating the need for read/write locks. Additionally, immutable files can be permanently cached by the OS (OS Cache) without worrying about cache invalidation, greatly improving read performance.",
+      "wg": [
+        {
+          "t": "快取失效",
+          "en": "cache invalidation",
+          "ps": "N"
+        },
+        {
+          "t": "讀寫鎖",
+          "en": "read/write locks",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "chapter01-q15",
+    "level": "advanced",
+    "keywords": "Updates, Internals, Performance, Merge",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在 ElasticSearch 中，頻繁更新（Update）文件被視為昂貴的操作。",
+        "en": "In ElasticSearch, frequently updating documents is considered an expensive operation.",
+        "wg": [
+          {
+            "t": "頻繁",
+            "en": "frequently",
+            "ps": "Adv"
+          },
+          {
+            "t": "昂貴的",
+            "en": "expensive",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "從底層原理來看，為什麼更新比單純的新增（Append-only）消耗更多資源？",
+        "en": "From an internals perspective, why does an update consume more resources than a simple append-only operation?",
+        "wg": [
+          {
+            "t": "底層原理",
+            "en": "internals perspective",
+            "ps": "N"
+          },
+          {
+            "t": "單純的",
+            "en": "simple",
+            "ps": "Adj"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "更新需要解壓縮整個 Segment，修改數值後重新壓縮。",
+        "en": "Updates require decompressing the entire Segment, modifying the value, and re-compressing it.",
+        "wg": []
+      },
+      {
+        "t": "更新實際上是「標記刪除舊文件」與「索引新文件」的組合，這會增加 `.del` 檔案的大小並加重 Segment Merge 的負擔。",
+        "en": "An update is actually a combination of 'marking the old document as deleted' and 'indexing a new document', which increases the size of `.del` files and adds load to Segment Merging.",
+        "wg": [
+          {
+            "t": "標記刪除",
+            "en": "marking as deleted",
+            "ps": "V"
+          },
+          {
+            "t": "負擔",
+            "en": "load",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "更新操作必須強制執行 Flush 才能生效，導致頻繁的磁碟 I/O。",
+        "en": "Update operations must force a Flush to take effect, causing frequent disk I/O.",
+        "wg": []
+      },
+      {
+        "t": "更新操作無法使用 Inverted Index，只能依賴 Doc Values。",
+        "en": "Update operations cannot use the Inverted Index and must rely solely on Doc Values.",
+        "wg": []
+      }
+    ],
+    "answer": "Option 2",
+    "why": {
+      "t": "由於 Segment 是不可變的，ES 無法直接修改現有文件。更新操作必須先在 `.del` 檔案中將舊文件標記為刪除（軟刪除），然後將新版本的內容作為一份全新文件進行索引。這不僅佔用了額外的磁碟空間，還意味著在搜尋時必須過濾掉已刪除的文件，直到背景的 Merge 流程將它們物理清除為止。",
+      "en": "Because Segments are immutable, ES cannot directly modify existing documents. An update must first mark the old document as deleted (soft delete) in a `.del` file, and then index the new version as a completely new document. This not only consumes extra disk space but also means deleted documents must be filtered out during search until the background Merge process physically removes them.",
+      "wg": [
+        {
+          "t": "軟刪除",
+          "en": "soft delete",
+          "ps": "N"
+        },
+        {
+          "t": "過濾掉",
+          "en": "filter out",
+          "ps": "V"
+        }
+      ]
+    }
+  }
+]

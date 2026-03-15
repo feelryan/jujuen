@@ -1,0 +1,830 @@
+[
+  {
+    "no": "1",
+    "level": "easy",
+    "keywords": "Middleware, Fail Fast, Controller",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在 Express 應用程式架構中，關於請求驗證（Request Validation）的實作位置，下列哪一種做法最符合「Fail Fast」與「關注點分離」的最佳實務？",
+        "en": "In an Express application architecture, regarding the placement of Request Validation, which of the following practices best aligns with the 'Fail Fast' and 'Separation of Concerns' principles?",
+        "wg": [
+          {
+            "t": "請求驗證",
+            "en": "Request Validation",
+            "ps": "noun"
+          },
+          {
+            "t": "關注點分離",
+            "en": "Separation of Concerns",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "single",
+    "options": [
+      {
+        "t": "在 Controller 的函式開頭撰寫 `if-else` 邏輯來檢查 `req.body`。",
+        "en": "Write `if-else` logic at the beginning of the Controller function to check `req.body`.",
+        "wg": []
+      },
+      {
+        "t": "在 Service 層處理業務邏輯之前進行資料格式檢查。",
+        "en": "Perform data format checks in the Service layer before processing business logic.",
+        "wg": []
+      },
+      {
+        "t": "在 Router 定義中，於 Controller 之前掛載專用的驗證 Middleware。",
+        "en": "Mount a dedicated validation Middleware before the Controller in the Router definition.",
+        "wg": [
+          {
+            "t": "掛載",
+            "en": "Mount",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "依賴資料庫層（如 Mongoose Schema 或 SQL Constraints）拋出錯誤來進行驗證。",
+        "en": "Rely on the database layer (such as Mongoose Schema or SQL Constraints) to throw errors for validation.",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "驗證應作為「海關檢查站」存在於 Router 層級。若資料無效，請求不應進入 Controller（Fail Fast），這樣能保持 Controller 專注於業務邏輯，且避免髒資料污染後續流程。",
+      "en": "Validation should exist as a 'Border Control' at the Router level. If data is invalid, the request should not enter the Controller (Fail Fast). This keeps the Controller focused on business logic and prevents dirty data from polluting subsequent processes.",
+      "wg": [
+        {
+          "t": "海關檢查站",
+          "en": "Border Control",
+          "ps": "noun"
+        },
+        {
+          "t": "髒資料",
+          "en": "Dirty Data",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "2",
+    "level": "medium",
+    "keywords": "Security, Mass Assignment, Stripping",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "const updateUserSchema = z.object({\n  body: z.object({\n    username: z.string(),\n    email: z.string().email(),\n  })\n  // Note: .strict() or stripping is NOT explicitly configured here depending on library defaults\n});\n\n// Attacker sends: \n// { \"username\": \"hacker\", \"email\": \"h@ck.er\", \"isAdmin\": true }",
+    "question": [
+      {
+        "t": "駭客試圖發送包含 `isAdmin: true` 的惡意 Payload。若驗證層沒有設定「剔除未知欄位（Stripping）」或「嚴格模式（Strict Mode）」，且 Controller 直接將 `req.body` 傳給 ORM 更新資料庫，這種攻擊稱為什麼？",
+        "en": "A hacker attempts to send a malicious payload containing `isAdmin: true`. If the validation layer is not configured to 'Strip Unknown Keys' or use 'Strict Mode', and the Controller passes `req.body` directly to the ORM to update the database, what is this attack called?",
+        "wg": [
+          {
+            "t": "剔除",
+            "en": "Strip",
+            "ps": "verb"
+          },
+          {
+            "t": "惡意負載",
+            "en": "Malicious Payload",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "single",
+    "options": [
+      {
+        "t": "SQL Injection (SQL 注入)",
+        "en": "SQL Injection",
+        "wg": []
+      },
+      {
+        "t": "Mass Assignment (批量賦值)",
+        "en": "Mass Assignment",
+        "wg": [
+          {
+            "t": "批量賦值",
+            "en": "Mass Assignment",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "Cross-Site Scripting (XSS)",
+        "en": "Cross-Site Scripting (XSS)",
+        "wg": []
+      },
+      {
+        "t": "ReDoS (正規表達式阻斷服務)",
+        "en": "ReDoS (Regular Expression Denial of Service)",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "Mass Assignment 攻擊發生在應用程式自動將客戶端提供的所有欄位綁定到資料庫模型時。如果沒有剔除 Schema 中未定義的敏感欄位（如 `isAdmin`），攻擊者就能未經授權修改這些屬性。",
+      "en": "Mass Assignment attacks occur when an application automatically binds all client-provided fields to a database model. If undefined sensitive fields (like `isAdmin`) are not stripped from the Schema, attackers can modify these attributes without authorization.",
+      "wg": [
+        {
+          "t": "綁定",
+          "en": "Bind",
+          "ps": "verb"
+        },
+        {
+          "t": "未經授權",
+          "en": "Unauthorized",
+          "ps": "adjective"
+        }
+      ]
+    }
+  },
+  {
+    "no": "3",
+    "level": "medium",
+    "keywords": "Coercion, Query Params, Types",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "// Client requests: GET /products?limit=10&offset=0\n\n// Controller:\nconst getProducts = (req, res) => {\n  const { limit, offset } = req.query;\n  // Problem happens here if not validated/coerced\n  const result = productService.find(limit + 1, offset);\n};",
+    "question": [
+      {
+        "t": "在 Express 中，`req.query` 的值預設皆為字串。若未在驗證層進行「型別強制轉換（Type Coercion）」，上述程式碼中的 `limit + 1` 會產生什麼結果？",
+        "en": "In Express, values in `req.query` are strings by default. If 'Type Coercion' is not performed in the validation layer, what will be the result of `limit + 1` in the code above?",
+        "wg": [
+          {
+            "t": "型別強制轉換",
+            "en": "Type Coercion",
+            "ps": "noun"
+          },
+          {
+            "t": "預設",
+            "en": "Default",
+            "ps": "adjective"
+          }
+        ]
+      }
+    ],
+    "type": "single",
+    "options": [
+      {
+        "t": "數字 `11`",
+        "en": "Number `11`",
+        "wg": []
+      },
+      {
+        "t": "字串 `\"101\"`",
+        "en": "String `\"101\"`",
+        "wg": []
+      },
+      {
+        "t": "拋出 `TypeError`",
+        "en": "Throws a `TypeError`",
+        "wg": []
+      },
+      {
+        "t": "NaN (Not a Number)",
+        "en": "NaN (Not a Number)",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "在 JavaScript 中，字串與數字相加會進行字串串接。`\"10\" + 1` 會變成 `\"101\"`。這就是為什麼驗證層不僅要檢查格式，還必須負責將資料轉換（Coercion）為正確的型別（如 Number），以免 Controller 邏輯出錯。",
+      "en": "In JavaScript, adding a string and a number results in string concatenation. `\"10\" + 1` becomes `\"101\"`. This is why the validation layer must not only check formats but also be responsible for coercing data into the correct types (like Number) to prevent logic errors in the Controller.",
+      "wg": [
+        {
+          "t": "字串串接",
+          "en": "String Concatenation",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "4",
+    "level": "hard",
+    "keywords": "Anti-pattern, Architecture, Shotgun Parsing",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "當一個應用程式的驗證邏輯沒有集中管理，而是分散在 Controller 檢查 Email、Service 檢查密碼長度、Database 檢查唯一性，導致難以維護且容易遺漏檢查。這種反模式（Anti-pattern）被稱為什麼？",
+        "en": "When an application's validation logic is not centralized but scattered—checking Email in the Controller, password length in the Service, and uniqueness in the Database—making it hard to maintain and prone to missed checks. What is this anti-pattern called?",
+        "wg": [
+          {
+            "t": "分散",
+            "en": "Scattered",
+            "ps": "adjective"
+          },
+          {
+            "t": "反模式",
+            "en": "Anti-pattern",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "single",
+    "options": [
+      {
+        "t": "Spaghetti Code (義大利麵程式碼)",
+        "en": "Spaghetti Code",
+        "wg": []
+      },
+      {
+        "t": "Shotgun Parsing (散彈槍式解析)",
+        "en": "Shotgun Parsing",
+        "wg": [
+          {
+            "t": "散彈槍式解析",
+            "en": "Shotgun Parsing",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "Callback Hell (回呼地獄)",
+        "en": "Callback Hell",
+        "wg": []
+      },
+      {
+        "t": "God Object (上帝物件)",
+        "en": "God Object",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "Shotgun Parsing 描述的是解析與驗證邏輯像散彈槍一樣「散落」在程式碼各處的現象。這違反了將驗證集中在邊界（Border Control）的原則，容易導致安全漏洞。",
+      "en": "Shotgun Parsing describes the phenomenon where parsing and validation logic are 'scattered' like a shotgun blast throughout the code. This violates the principle of centralizing validation at the border (Border Control) and easily leads to security vulnerabilities.",
+      "wg": [
+        {
+          "t": "邊界",
+          "en": "Border",
+          "ps": "noun"
+        },
+        {
+          "t": "漏洞",
+          "en": "Vulnerability",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "5",
+    "level": "hard",
+    "keywords": "Zod, Middleware, Bug",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "const validate = (schema) => async (req, res, next) => {\n  try {\n    // Zod schema has .trim() and coercion logic\n    await schema.parseAsync({\n      body: req.body,\n      query: req.query,\n      params: req.params,\n    });\n    // BUG: Missing step here\n    next();\n  } catch (err) {\n    return res.status(400).json(err);\n  }\n};",
+    "question": [
+      {
+        "t": "觀察上述的驗證 Middleware 實作，雖然執行了 `schema.parseAsync`，但卻存在一個嚴重缺陷。請問這個缺陷會導致什麼後果？",
+        "en": "Observing the validation Middleware implementation above, although `schema.parseAsync` is executed, there is a critical flaw. What is the consequence of this flaw?",
+        "wg": [
+          {
+            "t": "缺陷",
+            "en": "Flaw",
+            "ps": "noun"
+          },
+          {
+            "t": "後果",
+            "en": "Consequence",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "single",
+    "options": [
+      {
+        "t": "驗證失敗時不會拋出錯誤，導致無效資料進入 Controller。",
+        "en": "It will not throw an error when validation fails, allowing invalid data to enter the Controller.",
+        "wg": []
+      },
+      {
+        "t": "Zod 驗證是非同步的，必須使用 `.then()` 語法。",
+        "en": "Zod validation is asynchronous and must use `.then()` syntax.",
+        "wg": []
+      },
+      {
+        "t": "Controller 接收到的 `req.body` 仍然是原始的髒資料（未被 Trim 或轉型），因為解析後的結果沒有寫回 `req` 物件。",
+        "en": "The `req.body` received by the Controller is still the original dirty data (untrimmed or uncoerced) because the parsed result was not written back to the `req` object.",
+        "wg": [
+          {
+            "t": "原始的",
+            "en": "Raw/Original",
+            "ps": "adjective"
+          }
+        ]
+      },
+      {
+        "t": "無法同時驗證 body, query 和 params。",
+        "en": "It cannot validate body, query, and params simultaneously.",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "Zod 的 `parse` 或 `parseAsync` 會回傳一個新的、已淨化（Sanitized）的物件。如果沒有將這個回傳值重新賦值給 `req.body` 等屬性，Controller 拿到的仍是 Express 預設解析的原始資料，導致 Trim 或 Coercion 失效。",
+      "en": "Zod's `parse` or `parseAsync` returns a new, sanitized object. If this return value is not reassigned to properties like `req.body`, the Controller still receives the raw data parsed by Express defaults, rendering Trim or Coercion ineffective.",
+      "wg": [
+        {
+          "t": "重新賦值",
+          "en": "Reassign",
+          "ps": "verb"
+        },
+        {
+          "t": "失效",
+          "en": "Ineffective",
+          "ps": "adjective"
+        }
+      ]
+    }
+  },
+  {
+    "no": "6",
+    "level": "easy",
+    "keywords": "Frontend, Security, Trust",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "關於前端驗證（Frontend Validation）與後端驗證（Backend Validation）的關係，下列敘述何者正確？",
+        "en": "Regarding the relationship between Frontend Validation and Backend Validation, which of the following statements is correct?",
+        "wg": [
+          {
+            "t": "敘述",
+            "en": "Statement",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "single",
+    "options": [
+      {
+        "t": "如果前端已經使用了強大的表單驗證庫（如 React Hook Form），後端可以省略驗證以提升效能。",
+        "en": "If the frontend already uses a powerful form validation library (like React Hook Form), the backend can skip validation to improve performance.",
+        "wg": []
+      },
+      {
+        "t": "前端驗證主要為了使用者體驗（UX），後端驗證才是為了安全性（Security），後端絕不可信任前端傳來的資料。",
+        "en": "Frontend validation is primarily for User Experience (UX), while backend validation is for Security. The backend must never trust data sent from the frontend.",
+        "wg": [
+          {
+            "t": "使用者體驗",
+            "en": "User Experience",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "後端驗證應該只檢查資料庫連線狀態，資料格式由前端負責。",
+        "en": "Backend validation should only check database connection status; data format is the frontend's responsibility.",
+        "wg": []
+      },
+      {
+        "t": "只要使用了 HTTPS 加密傳輸，後端就不需要驗證資料內容。",
+        "en": "As long as HTTPS encryption is used for transmission, the backend does not need to validate data content.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "前端驗證可以被輕易繞過（例如使用 curl 或 Postman 直接打 API）。因此，後端必須假設所有輸入都是「髒」的，必須進行獨立且嚴格的驗證。",
+      "en": "Frontend validation can be easily bypassed (e.g., using curl or Postman to hit the API directly). Therefore, the backend must assume all input is 'dirty' and perform independent and strict validation.",
+      "wg": [
+        {
+          "t": "繞過",
+          "en": "Bypass",
+          "ps": "verb"
+        },
+        {
+          "t": "嚴格的",
+          "en": "Strict",
+          "ps": "adjective"
+        }
+      ]
+    }
+  },
+  {
+    "no": "7",
+    "level": "medium",
+    "keywords": "Security, ReDoS, Regex, Anti-pattern",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "const emailRegex = /^([a-zA-Z0-9_\\-\\.]+)@([a-zA-Z0-9_\\-\\.]+)\\.([a-zA-Z]{2,5})$/;\n// In controller:\nif (!emailRegex.test(req.body.email)) {\n  throw new Error('Invalid email');\n}",
+    "question": [
+      {
+        "t": "在審查程式碼時，你發現資淺工程師手寫了上述的正規表達式（Regex）來驗證 Email，而非使用驗證庫（如 Zod/Joi）內建的方法。請問這種做法最大的潛在資安風險是什麼？",
+        "en": "During a code review, you notice a junior engineer manually wrote the above Regex to validate emails instead of using a validation library's built-in method (like Zod/Joi). What is the primary security risk of this approach?",
+        "wg": [
+          {
+            "t": "正規表達式",
+            "en": "Regular Expression",
+            "ps": "noun"
+          },
+          {
+            "t": "資安風險",
+            "en": "Security Risk",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "single",
+    "options": [
+      {
+        "t": "容易發生 SQL 注入攻擊（SQL Injection）。",
+        "en": "It is prone to SQL Injection attacks.",
+        "wg": []
+      },
+      {
+        "t": "容易遭受正規表達式阻斷服務攻擊（ReDoS）。",
+        "en": "It is vulnerable to Regular Expression Denial of Service (ReDoS) attacks.",
+        "wg": [
+          {
+            "t": "阻斷服務攻擊",
+            "en": "Denial of Service",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "無法正確處理 Unicode 字元導致資料遺失。",
+        "en": "It cannot handle Unicode characters correctly, leading to data loss.",
+        "wg": []
+      },
+      {
+        "t": "會導致記憶體洩漏（Memory Leak）。",
+        "en": "It will cause a Memory Leak.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "手寫複雜的 Regex 若設計不當，攻擊者可透過特製的長字串觸發「災難性回溯（Catastrophic Backtracking）」，導致伺服器 CPU 飆升並卡死，即所謂的 ReDoS 攻擊。驗證庫通常使用經過測試與優化的 Regex 或非 Regex 邏輯來避免此問題。",
+      "en": "Poorly designed manual Regex can be exploited by attackers using crafted long strings to trigger 'Catastrophic Backtracking', causing the server CPU to spike and hang, known as a ReDoS attack. Validation libraries typically use tested and optimized Regex or non-Regex logic to avoid this.",
+      "wg": [
+        {
+          "t": "災難性回溯",
+          "en": "Catastrophic Backtracking",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "8",
+    "level": "easy",
+    "keywords": "Sanitization, Trim, Data Consistency",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "// User input payload\n{\n  \"username\": \" alice \"\n}\n\n// Database record\n{ \"username\": \"alice\" }",
+    "question": [
+      {
+        "t": "使用者回報無法登入，經查發現是因為他在輸入帳號時不小心多按了空白鍵（如上例），導致與資料庫中的值不匹配。在「請求驗證層」解決此問題的最佳實務為何？",
+        "en": "A user reports being unable to login. Investigation reveals they accidentally added spaces to their username (as shown above), causing a mismatch with the database record. What is the best practice to solve this at the 'Request Validation Layer'?",
+        "wg": [
+          {
+            "t": "不匹配",
+            "en": "Mismatch",
+            "ps": "verb/noun"
+          },
+          {
+            "t": "最佳實務",
+            "en": "Best Practice",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "single",
+    "options": [
+      {
+        "t": "在前端使用 JavaScript 禁止使用者輸入空白鍵。",
+        "en": "Use JavaScript on the frontend to prevent users from typing spaces.",
+        "wg": []
+      },
+      {
+        "t": "在 Controller 查詢資料庫時使用 SQL 的 `LIKE` 語法進行模糊搜尋。",
+        "en": "Use SQL `LIKE` syntax for fuzzy search when querying the database in the Controller.",
+        "wg": []
+      },
+      {
+        "t": "在驗證 Schema 中設定字串自動執行 `trim()` 淨化（Sanitization）。",
+        "en": "Configure the validation schema to automatically `trim()` strings for sanitization.",
+        "wg": [
+          {
+            "t": "淨化",
+            "en": "Sanitization",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "回傳 400 錯誤，要求使用者自行刪除空白。",
+        "en": "Return a 400 error asking the user to remove the spaces manually.",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "驗證層不僅負責檢查，也負責「資料淨化（Sanitization）」。自動對字串欄位執行 `trim()` 可以提升使用者體驗並確保資料一致性，避免因無意義的空白導致邏輯錯誤。",
+      "en": "The validation layer is responsible not just for checking but also for 'Data Sanitization'. Automatically executing `trim()` on string fields improves UX and ensures data consistency, preventing logic errors caused by insignificant whitespace.",
+      "wg": [
+        {
+          "t": "資料一致性",
+          "en": "Data Consistency",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "9",
+    "level": "medium",
+    "keywords": "Security, Error Handling, Information Leakage",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "app.use((err, req, res, next) => {\n  if (err instanceof ZodError) {\n    // Anti-pattern example\n    return res.status(400).json(err);\n  }\n  next(err);\n});",
+    "question": [
+      {
+        "t": "上述的錯誤處理中介軟體直接將 `ZodError` 物件回傳給客戶端。根據 Handbook 的「反模式（Anti-patterns）」章節，這樣做主要違反了什麼原則？",
+        "en": "The above error handling middleware returns the `ZodError` object directly to the client. According to the 'Anti-patterns' section of the Handbook, what principle does this primarily violate?",
+        "wg": [
+          {
+            "t": "反模式",
+            "en": "Anti-patterns",
+            "ps": "noun"
+          },
+          {
+            "t": "違反",
+            "en": "Violate",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "type": "single",
+    "options": [
+      {
+        "t": "洩漏實作細節（Leaking Implementation Details）。",
+        "en": "Leaking Implementation Details.",
+        "wg": [
+          {
+            "t": "實作細節",
+            "en": "Implementation Details",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "散彈槍式解析（Shotgun Parsing）。",
+        "en": "Shotgun Parsing.",
+        "wg": []
+      },
+      {
+        "t": "過早最佳化（Premature Optimization）。",
+        "en": "Premature Optimization.",
+        "wg": []
+      },
+      {
+        "t": "依賴反轉（Inversion of Control）。",
+        "en": "Inversion of Control.",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "直接回傳原始錯誤物件可能會暴露使用的函式庫版本、內部路徑結構或其他敏感資訊。最佳實務是將錯誤轉換為標準化、對使用者友善且不含敏感細節的格式（如 `code` 與 `message`）。",
+      "en": "Returning the raw error object directly may expose library versions, internal path structures, or other sensitive information. Best practice is to transform errors into a standardized, user-friendly format (like `code` and `message`) without sensitive details.",
+      "wg": [
+        {
+          "t": "敏感資訊",
+          "en": "Sensitive Information",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "10",
+    "level": "hard",
+    "keywords": "TypeScript, Zod, Type Inference, DRY",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "// schema.ts\nexport const userSchema = z.object({ ... });\n\n// controller.ts\n// Bad practice: Manually defining interface\ninterface UserInput {\n  name: string;\n  age: number;\n}\n\nexport const createUser = (req: Request<{}, {}, UserInput>, res: Response) => { ... }",
+    "question": [
+      {
+        "t": "在 TypeScript 專案中，若像上述程式碼一樣手動定義 `UserInput` 介面，當 `userSchema` 更新時容易造成型別不同步。應如何修改才能達成「單一真實來源（Single Source of Truth）」？",
+        "en": "In a TypeScript project, manually defining the `UserInput` interface as shown above can lead to type desynchronization when `userSchema` updates. How should this be modified to achieve 'Single Source of Truth'?",
+        "wg": [
+          {
+            "t": "單一真實來源",
+            "en": "Single Source of Truth",
+            "ps": "noun"
+          },
+          {
+            "t": "不同步",
+            "en": "Desynchronization",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "single",
+    "options": [
+      {
+        "t": "使用 `z.infer<typeof userSchema>` 自動推斷型別。",
+        "en": "Use `z.infer<typeof userSchema>` to automatically infer the type.",
+        "wg": [
+          {
+            "t": "推斷",
+            "en": "Infer",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "在 Controller 中使用 `any` 型別來避開檢查。",
+        "en": "Use `any` type in the Controller to bypass checks.",
+        "wg": []
+      },
+      {
+        "t": "使用 TypeScript 的 `interface extends` 繼承 Zod 物件。",
+        "en": "Use TypeScript's `interface extends` to inherit from the Zod object.",
+        "wg": []
+      },
+      {
+        "t": "將 Schema 定義改為由 TypeScript Interface 產生。",
+        "en": "Change the Schema definition to be generated from a TypeScript Interface.",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "Zod 提供了 `z.infer` 工具，能直接從執行時期的 Schema 定義推斷出編譯時期的 TypeScript 型別。這樣當 Schema 驗證邏輯改變時，Controller 的型別也會自動更新，確保程式碼的一致性與維護性。",
+      "en": "Zod provides `z.infer`, which infers compile-time TypeScript types directly from runtime Schema definitions. This ensures that when validation logic changes, the Controller's types update automatically, guaranteeing code consistency and maintainability.",
+      "wg": [
+        {
+          "t": "執行時期",
+          "en": "Runtime",
+          "ps": "noun"
+        },
+        {
+          "t": "編譯時期",
+          "en": "Compile-time",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "11",
+    "level": "medium",
+    "keywords": "Security, Validation Scope, Params",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "const schema = z.object({\n  body: z.object({ /* ... */ })\n});\n\n// Route\nrouter.put('/users/:id', validate(schema), (req, res) => {\n  // Dangerous usage\n  db.updateUser(req.params.id, req.body);\n});",
+    "question": [
+      {
+        "t": "觀察上述程式碼，雖然使用了驗證 Middleware，但仍存在安全隱憂。請問此驗證策略缺失了哪個部分？",
+        "en": "Observing the code above, although a validation middleware is used, a security concern remains. Which part of the validation strategy is missing?",
+        "wg": [
+          {
+            "t": "安全隱憂",
+            "en": "Security Concern",
+            "ps": "noun"
+          },
+          {
+            "t": "缺失",
+            "en": "Missing",
+            "ps": "verb/adj"
+          }
+        ]
+      }
+    ],
+    "type": "single",
+    "options": [
+      {
+        "t": "未驗證 `req.params`，可能導致資料庫注入或邏輯錯誤。",
+        "en": "Did not validate `req.params`, potentially leading to database injection or logic errors.",
+        "wg": [
+          {
+            "t": "注入",
+            "en": "Injection",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "未驗證 `req.headers`，可能導致身分偽造。",
+        "en": "Did not validate `req.headers`, potentially leading to identity spoofing.",
+        "wg": []
+      },
+      {
+        "t": "未設定 CORS，導致跨域攻擊。",
+        "en": "Did not configure CORS, leading to cross-origin attacks.",
+        "wg": []
+      },
+      {
+        "t": "PUT 方法不應該有 Body。",
+        "en": "PUT method should not have a Body.",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "完整的驗證策略必須涵蓋所有不可信的輸入來源，包括 `req.body`、`req.query` 與 `req.params`。忽略 `req.params` 意味著 `id` 可以是任何字串，這可能導致資料庫錯誤或安全漏洞（如 IDOR 或 Injection）。",
+      "en": "A complete validation strategy must cover all untrusted input sources, including `req.body`, `req.query`, and `req.params`. Ignoring `req.params` means `id` can be any string, potentially leading to database errors or security vulnerabilities (like IDOR or Injection).",
+      "wg": [
+        {
+          "t": "不可信的",
+          "en": "Untrusted",
+          "ps": "adj"
+        }
+      ]
+    }
+  },
+  {
+    "no": "12",
+    "level": "medium",
+    "keywords": "Design Pattern, Middleware, Factory Pattern",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "const validate = (schema: AnyZodObject) => \n  async (req: Request, res: Response, next: NextFunction) => { ... }",
+    "question": [
+      {
+        "t": "Handbook 推薦使用「中介軟體工廠模式（Middleware Factory Pattern）」來實作驗證層（如上方程式碼所示）。相較於在每個 Controller 函式開頭手寫驗證邏輯，這種模式的主要架構優勢為何？",
+        "en": "The Handbook recommends using the 'Middleware Factory Pattern' for the validation layer (as shown above). Compared to manually writing validation logic at the start of every Controller function, what is the main architectural advantage of this pattern?",
+        "wg": [
+          {
+            "t": "中介軟體工廠模式",
+            "en": "Middleware Factory Pattern",
+            "ps": "noun"
+          },
+          {
+            "t": "架構優勢",
+            "en": "Architectural Advantage",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "single",
+    "options": [
+      {
+        "t": "關注點分離（Separation of Concerns），讓 Controller 專注於業務邏輯。",
+        "en": "Separation of Concerns, allowing the Controller to focus on business logic.",
+        "wg": [
+          {
+            "t": "關注點分離",
+            "en": "Separation of Concerns",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "提升執行效能，因為 Middleware 執行速度比 Controller 快。",
+        "en": "Improved performance, because Middleware executes faster than Controllers.",
+        "wg": []
+      },
+      {
+        "t": "可以自動修復前端傳來的錯誤資料。",
+        "en": "It can automatically fix incorrect data sent from the frontend.",
+        "wg": []
+      },
+      {
+        "t": "強制所有路由都必須使用相同的 Schema。",
+        "en": "Forces all routes to use the exact same Schema.",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "此模式將「驗證邏輯」從「業務邏輯」中抽離，確保 Controller 接收到的資料已經是乾淨且合法的（Trusted Zone）。這符合單一職責原則，並減少了 Controller 內部的防禦性程式碼。",
+      "en": "This pattern decouples 'validation logic' from 'business logic', ensuring that the data received by the Controller is already clean and valid (Trusted Zone). This adheres to the Single Responsibility Principle and reduces defensive code within the Controller.",
+      "wg": [
+        {
+          "t": "單一職責原則",
+          "en": "Single Responsibility Principle",
+          "ps": "noun"
+        },
+        {
+          "t": "防禦性程式碼",
+          "en": "Defensive Code",
+          "ps": "noun"
+        }
+      ]
+    }
+  }
+]

@@ -1,0 +1,1244 @@
+[
+  {
+    "no": "chapter07-q06",
+    "level": "intermediate",
+    "keywords": "Session Management, Scalability, Redis, Clustering",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您的 Express 應用程式原本運行在單一執行個體上，運作正常。但在使用 PM2 擴展至 4 個叢集（Cluster）實例後，使用者開始回報登入狀態不穩定，經常需要重新登入。",
+        "en": "Your Express application was running fine on a single instance. However, after scaling to 4 cluster instances using PM2, users started reporting unstable login states, frequently requiring them to log in again.",
+        "wg": [
+          {
+            "t": "單一執行個體",
+            "en": "single instance",
+            "ps": "NP"
+          },
+          {
+            "t": "叢集",
+            "en": "cluster",
+            "ps": "N"
+          },
+          {
+            "t": "不穩定",
+            "en": "unstable",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "請問最可能的原因是什麼？",
+        "en": "What is the most likely cause?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) PM2 的負載平衡演算法預設為 Round Robin，導致請求被分發到錯誤的連接埠。",
+        "en": "(A) PM2's load balancing algorithm defaults to Round Robin, causing requests to be distributed to the wrong port.",
+        "wg": []
+      },
+      {
+        "t": "(B) 應用程式使用了預設的記憶體內 Session 儲存（In-Memory Session Store），導致 Session 無法在不同行程間共享。",
+        "en": "(B) The application uses the default In-Memory Session Store, causing sessions not to be shared across processes.",
+        "wg": [
+          {
+            "t": "記憶體內",
+            "en": "In-Memory",
+            "ps": "Adj"
+          },
+          {
+            "t": "行程",
+            "en": "processes",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) 資料庫連線池（Connection Pool）在多個實例下被耗盡，導致驗證請求超時。",
+        "en": "(C) The database connection pool is exhausted under multiple instances, causing authentication requests to timeout.",
+        "wg": []
+      },
+      {
+        "t": "(D) Express 的 `trust proxy` 設定未啟用，導致 Cookie 無法正確寫入。",
+        "en": "(D) Express's `trust proxy` setting is not enabled, preventing Cookies from being written correctly.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "在 Cluster 模式下，每個 Worker Process 都有獨立的記憶體空間。若 Session 存在記憶體中（預設行為），當使用者的下一個請求被 Load Balancer 分發到另一個 Process 時，該 Process 找不到 Session 資訊，導致使用者被迫登出。解決方案是使用 Redis 等外部儲存來管理 Session。",
+      "en": "In Cluster mode, each Worker Process has its own independent memory space. If sessions are stored in memory (default behavior), when a user's next request is routed to a different Process by the Load Balancer, that Process cannot find the session info, forcing the user to log out. The solution is to use external storage like Redis to manage sessions.",
+      "wg": [
+        {
+          "t": "獨立的",
+          "en": "independent",
+          "ps": "Adj"
+        },
+        {
+          "t": "外部儲存",
+          "en": "external storage",
+          "ps": "NP"
+        }
+      ]
+    }
+  },
+  {
+    "no": "chapter07-q07",
+    "level": "intermediate",
+    "keywords": "Memory Leak, Anti-patterns, Garbage Collection",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "const requestHistory = {};\n\napp.get('/api/data', (req, res) => {\n  const requestId = Date.now().toString();\n  // For debugging purposes\n  requestHistory[requestId] = { \n    headers: req.headers, \n    body: req.body, \n    timestamp: new Date() \n  };\n  \n  res.json({ id: requestId, data: '...' });\n});",
+    "question": [
+      {
+        "t": "請檢視上方的程式碼片段。這段程式碼在長期運行後會導致什麼嚴重的效能問題？",
+        "en": "Please review the code snippet above. What serious performance issue will this code cause after running for a long time?",
+        "wg": [
+          {
+            "t": "長期運行",
+            "en": "long-running",
+            "ps": "Adj"
+          },
+          {
+            "t": "效能問題",
+            "en": "performance issue",
+            "ps": "NP"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) CPU 密集運算導致 Event Loop 阻塞。",
+        "en": "(A) CPU-intensive operations causing Event Loop blocking.",
+        "wg": []
+      },
+      {
+        "t": "(B) 記憶體洩漏（Memory Leak），最終導致應用程式崩潰（OOM）。",
+        "en": "(B) Memory Leak, eventually causing the application to crash (OOM).",
+        "wg": [
+          {
+            "t": "記憶體洩漏",
+            "en": "Memory Leak",
+            "ps": "NP"
+          },
+          {
+            "t": "崩潰",
+            "en": "crash",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(C) Race Condition，導致請求 ID 重複。",
+        "en": "(C) Race Condition, causing duplicate request IDs.",
+        "wg": []
+      },
+      {
+        "t": "(D) 檔案描述符（File Descriptors）耗盡。",
+        "en": "(D) Exhaustion of File Descriptors.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "`requestHistory` 是一個全域物件，每次請求都會向其中新增資料，但從未進行清理。隨著請求量增加，這個物件會持續佔用 Heap Memory，Garbage Collector 無法回收，最終導致 Out of Memory (OOM) 錯誤。",
+      "en": "`requestHistory` is a global object; data is added to it with every request but never cleared. As requests increase, this object continues to consume Heap Memory, preventing the Garbage Collector from reclaiming it, eventually leading to an Out of Memory (OOM) error.",
+      "wg": [
+        {
+          "t": "全域物件",
+          "en": "global object",
+          "ps": "NP"
+        },
+        {
+          "t": "回收",
+          "en": "reclaim",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "chapter07-q08",
+    "level": "intermediate",
+    "keywords": "Keep-Alive, TCP, Latency, Networking",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您的 API 服務在處理大量短小的連續 HTTP 請求時，回應時間（Latency）比預期高，但伺服器端的處理時間（Processing Time）卻非常短。",
+        "en": "Your API service shows higher than expected latency when handling a large number of short, sequential HTTP requests, even though the server-side processing time is very short.",
+        "wg": [
+          {
+            "t": "連續",
+            "en": "sequential",
+            "ps": "Adj"
+          },
+          {
+            "t": "處理時間",
+            "en": "processing time",
+            "ps": "NP"
+          }
+        ]
+      },
+      {
+        "t": "經檢查，發現每次請求都重新建立了 TCP 連線。您應該採取什麼措施來優化？",
+        "en": "Upon inspection, you find that a TCP connection is re-established for every request. What measure should you take to optimize this?",
+        "wg": [
+          {
+            "t": "重新建立",
+            "en": "re-established",
+            "ps": "V"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 啟用 HTTP Keep-Alive 以重複使用 TCP 連線。",
+        "en": "(A) Enable HTTP Keep-Alive to reuse TCP connections.",
+        "wg": [
+          {
+            "t": "重複使用",
+            "en": "reuse",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(B) 增加 PM2 的實例數量。",
+        "en": "(B) Increase the number of PM2 instances.",
+        "wg": []
+      },
+      {
+        "t": "(C) 使用 Gzip 壓縮請求內容。",
+        "en": "(C) Use Gzip to compress the request content.",
+        "wg": []
+      },
+      {
+        "t": "(D) 將資料庫遷移到與 API 伺服器相同的區域網路。",
+        "en": "(D) Migrate the database to the same LAN as the API server.",
+        "wg": []
+      }
+    ],
+    "answer": "(A)",
+    "why": {
+      "t": "TCP 三向交握（Handshake）與 SSL/TLS 協商需要多次往返（Round-trips），對於短請求來說開銷巨大。啟用 Keep-Alive 允許客戶端在同一個 TCP 連線上發送多個 HTTP 請求，消除了重複建立連線的延遲。",
+      "en": "TCP three-way handshake and SSL/TLS negotiation require multiple round-trips, creating significant overhead for short requests. Enabling Keep-Alive allows the client to send multiple HTTP requests over the same TCP connection, eliminating the latency of repeatedly establishing connections.",
+      "wg": [
+        {
+          "t": "三向交握",
+          "en": "three-way handshake",
+          "ps": "NP"
+        },
+        {
+          "t": "開銷",
+          "en": "overhead",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "chapter07-q09",
+    "level": "advanced",
+    "keywords": "Worker Threads, CPU Bound, Event Loop, Crypto",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您的 Express 應用程式有一個端點負責執行複雜的密碼雜湊運算（如 `pbkdf2`），這是一個 CPU 密集型任務。",
+        "en": "Your Express application has an endpoint responsible for performing complex password hashing (like `pbkdf2`), which is a CPU-intensive task.",
+        "wg": [
+          {
+            "t": "雜湊運算",
+            "en": "hashing operation",
+            "ps": "NP"
+          },
+          {
+            "t": "CPU 密集型",
+            "en": "CPU-intensive",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "即使使用了 PM2 Clustering，當某個 Worker 正在處理雜湊時，該 Worker 負責的其他輕量級請求仍會被阻塞。為了徹底解決單一 Process 內的阻塞問題，最佳做法是？",
+        "en": "Even with PM2 Clustering, when a Worker is processing a hash, other lightweight requests handled by that Worker are still blocked. To completely solve the blocking issue within a single process, what is the best practice?",
+        "wg": [
+          {
+            "t": "輕量級",
+            "en": "lightweight",
+            "ps": "Adj"
+          },
+          {
+            "t": "阻塞",
+            "en": "blocked",
+            "ps": "V"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 使用 `setImmediate` 將運算拆分為多個小步驟。",
+        "en": "(A) Use `setImmediate` to break the computation into smaller steps.",
+        "wg": []
+      },
+      {
+        "t": "(B) 將雜湊運算卸載（Offload）到 Node.js 的 Worker Threads。",
+        "en": "(B) Offload the hashing operation to Node.js Worker Threads.",
+        "wg": [
+          {
+            "t": "卸載",
+            "en": "offload",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(C) 增加更多 PM2 實例。",
+        "en": "(C) Increase the number of PM2 instances.",
+        "wg": []
+      },
+      {
+        "t": "(D) 使用 Redis 快取雜湊結果。",
+        "en": "(D) Use Redis to cache the hashing results.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "Clustering 只能分散流量，無法解決單一 Process 內因 CPU 運算導致的 Event Loop 阻塞。對於無法避免的 CPU 密集任務，應使用 Worker Threads 將計算移至主執行緒之外，確保主執行緒能繼續回應其他 I/O 請求。",
+      "en": "Clustering only distributes traffic but cannot solve Event Loop blocking within a single process due to CPU computation. For unavoidable CPU-intensive tasks, Worker Threads should be used to move the computation off the main thread, ensuring the main thread can continue responding to other I/O requests.",
+      "wg": [
+        {
+          "t": "主執行緒",
+          "en": "main thread",
+          "ps": "NP"
+        },
+        {
+          "t": "分散",
+          "en": "distribute",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "chapter07-q10",
+    "level": "advanced",
+    "keywords": "Streams, Memory Usage, Large Files, Buffer",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "app.get('/download/large-log', async (req, res) => {\n  const file = await fs.promises.readFile('./huge-log.txt');\n  res.send(file);\n});",
+    "question": [
+      {
+        "t": "資深工程師在 Code Review 時指出上述程式碼在處理 1GB 以上的大檔案時會導致伺服器崩潰。",
+        "en": "During a Code Review, a senior engineer pointed out that the code above would cause the server to crash when handling large files over 1GB.",
+        "wg": [
+          {
+            "t": "大檔案",
+            "en": "large files",
+            "ps": "NP"
+          }
+        ]
+      },
+      {
+        "t": "請問原因為何，以及應如何修正？",
+        "en": "What is the reason, and how should it be fixed?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) `readFile` 是同步操作，應改為 `readFileSync`。修正：使用同步讀取。",
+        "en": "(A) `readFile` is a synchronous operation; it should be `readFileSync`. Fix: Use synchronous reading.",
+        "wg": []
+      },
+      {
+        "t": "(B) 檔案讀取超時。修正：增加 HTTP Timeout 時間。",
+        "en": "(B) File reading timeout. Fix: Increase HTTP Timeout duration.",
+        "wg": []
+      },
+      {
+        "t": "(C) 完整讀取檔案會耗盡 Buffer 記憶體限制（約 2GB）或 Heap 記憶體。修正：使用 `fs.createReadStream` 進行串流傳輸。",
+        "en": "(C) Reading the full file exhausts the Buffer memory limit (~2GB) or Heap memory. Fix: Use `fs.createReadStream` for streaming.",
+        "wg": [
+          {
+            "t": "耗盡",
+            "en": "exhaust",
+            "ps": "V"
+          },
+          {
+            "t": "串流傳輸",
+            "en": "streaming",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(D) 硬碟 I/O 速度太慢。修正：將檔案先載入 Redis。",
+        "en": "(D) Disk I/O speed is too slow. Fix: Load the file into Redis first.",
+        "wg": []
+      }
+    ],
+    "answer": "(C)",
+    "why": {
+      "t": "`fs.promises.readFile` 會試圖將整個檔案載入記憶體（Buffer）。對於大檔案，這極易導致記憶體不足（OOM）。使用 Stream 可以分塊讀取並傳送資料，大幅降低記憶體佔用。",
+      "en": "`fs.promises.readFile` attempts to load the entire file into memory (Buffer). For large files, this easily leads to Out of Memory (OOM). Using Streams allows reading and sending data in chunks, significantly reducing memory usage.",
+      "wg": [
+        {
+          "t": "分塊",
+          "en": "chunks",
+          "ps": "N"
+        },
+        {
+          "t": "佔用",
+          "en": "usage/consumption",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "chapter07-q11",
+    "level": "advanced",
+    "keywords": "Database, Connection Pool, Bottleneck, Tuning",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在高併發測試中，您發現 Node.js 應用程式的 CPU 使用率很低，資料庫的 CPU 使用率也很低，但 API 回應卻頻繁出現 Timeout 錯誤。",
+        "en": "During high concurrency testing, you notice that the Node.js application CPU usage is low, and the database CPU usage is also low, yet the API frequently returns Timeout errors.",
+        "wg": [
+          {
+            "t": "高併發",
+            "en": "high concurrency",
+            "ps": "NP"
+          },
+          {
+            "t": "頻繁",
+            "en": "frequently",
+            "ps": "Adv"
+          }
+        ]
+      },
+      {
+        "t": "這通常指向哪種資源配置瓶頸？",
+        "en": "What resource configuration bottleneck does this typically point to?",
+        "wg": [
+          {
+            "t": "資源配置",
+            "en": "resource configuration",
+            "ps": "NP"
+          },
+          {
+            "t": "瓶頸",
+            "en": "bottleneck",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) Node.js 的 Event Loop 被阻塞。",
+        "en": "(A) The Node.js Event Loop is blocked.",
+        "wg": []
+      },
+      {
+        "t": "(B) 資料庫連線池（Connection Pool）的大小設定過小，導致請求在等待可用連線。",
+        "en": "(B) The database Connection Pool size is set too small, causing requests to wait for available connections.",
+        "wg": [
+          {
+            "t": "連線池",
+            "en": "Connection Pool",
+            "ps": "NP"
+          },
+          {
+            "t": "可用連線",
+            "en": "available connections",
+            "ps": "NP"
+          }
+        ]
+      },
+      {
+        "t": "(C) 網路頻寬不足。",
+        "en": "(C) Insufficient network bandwidth.",
+        "wg": []
+      },
+      {
+        "t": "(D) Redis 快取失效。",
+        "en": "(D) Redis cache failure.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "當應用程式與資料庫的 CPU 負載都很低，卻發生延遲或超時，通常是因為請求卡在「等待資料庫連線」。如果 Pool Size 太小（例如預設 10），第 11 個併發請求就必須等待，直到有連線被釋放。",
+      "en": "When both application and database CPU loads are low but latency or timeouts occur, it's usually because requests are stuck 'waiting for a database connection'. If the Pool Size is too small (e.g., default 10), the 11th concurrent request must wait until a connection is released.",
+      "wg": [
+        {
+          "t": "釋放",
+          "en": "released",
+          "ps": "V"
+        },
+        {
+          "t": "負載",
+          "en": "load",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "chapter07-q12",
+    "level": "intermediate",
+    "keywords": "PM2, Deployment, Zero Downtime, Availability",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您使用 PM2 管理生產環境的應用程式。每次部署新程式碼並執行 `pm2 restart app` 時，服務都會出現短暫的 502 Bad Gateway 錯誤，導致使用者體驗不佳。",
+        "en": "You use PM2 to manage your production application. Every time you deploy new code and run `pm2 restart app`, the service experiences a brief 502 Bad Gateway error, resulting in poor user experience.",
+        "wg": [
+          {
+            "t": "部署",
+            "en": "deploy",
+            "ps": "V"
+          },
+          {
+            "t": "短暫的",
+            "en": "brief",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "為了實現「零停機部署」（Zero Downtime Deployment），您應該改用哪個指令？",
+        "en": "To achieve 'Zero Downtime Deployment', which command should you use instead?",
+        "wg": [
+          {
+            "t": "零停機部署",
+            "en": "Zero Downtime Deployment",
+            "ps": "NP"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) `pm2 stop app` 然後 `pm2 start app`",
+        "en": "(A) `pm2 stop app` then `pm2 start app`",
+        "wg": []
+      },
+      {
+        "t": "(B) `pm2 reload app`",
+        "en": "(B) `pm2 reload app`",
+        "wg": []
+      },
+      {
+        "t": "(C) `pm2 delete app` 然後 `pm2 start app`",
+        "en": "(C) `pm2 delete app` then `pm2 start app`",
+        "wg": []
+      },
+      {
+        "t": "(D) `pm2 update`",
+        "en": "(D) `pm2 update`",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "`pm2 restart` 會同時殺死並重啟行程，造成服務中斷。`pm2 reload` 則會逐一重啟 Cluster 中的 Worker，確保在舊 Worker 關閉前，新 Worker 已經準備好接收請求，從而實現零停機。",
+      "en": "`pm2 restart` kills and restarts processes simultaneously, causing service interruption. `pm2 reload` restarts Workers in the Cluster one by one, ensuring that a new Worker is ready to accept requests before the old one shuts down, thus achieving zero downtime.",
+      "wg": [
+        {
+          "t": "逐一",
+          "en": "one by one",
+          "ps": "Adv"
+        },
+        {
+          "t": "中斷",
+          "en": "interruption",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "chapter07-q13",
+    "level": "intermediate",
+    "keywords": "Compression, Middleware, CPU Overhead, Best Practices",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "關於在 Express 中使用 `compression` Middleware，以下哪項敘述是正確的「效能權衡」（Trade-off）？",
+        "en": "Regarding the use of `compression` Middleware in Express, which of the following statements is a correct 'performance trade-off'?",
+        "wg": [
+          {
+            "t": "效能權衡",
+            "en": "performance trade-off",
+            "ps": "NP"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 壓縮應該對所有請求啟用，包含極小的 JSON 回應，以節省頻寬。",
+        "en": "(A) Compression should be enabled for all requests, including tiny JSON responses, to save bandwidth.",
+        "wg": []
+      },
+      {
+        "t": "(B) 壓縮會增加 CPU 的負載，因此對於已經壓縮過的檔案（如 JPEG、ZIP）不應再次壓縮。",
+        "en": "(B) Compression increases CPU load, so files that are already compressed (like JPEG, ZIP) should not be compressed again.",
+        "wg": [
+          {
+            "t": "負載",
+            "en": "load",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) 壓縮只在開發環境有效，生產環境通常由 Node.js 自動處理。",
+        "en": "(C) Compression is only effective in development environments; production is usually handled automatically by Node.js.",
+        "wg": []
+      },
+      {
+        "t": "(D) Brotli 壓縮速度比 Gzip 快，且不消耗 CPU。",
+        "en": "(D) Brotli compression is faster than Gzip and consumes no CPU.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "壓縮是 CPU 密集型操作。對已經壓縮的格式（如圖片）或極小的 Payload 進行壓縮，不僅無法顯著減少體積，反而浪費 CPU 週期並增加延遲。通常會設定一個閾值（如 1KB）才啟用壓縮。",
+      "en": "Compression is a CPU-intensive operation. Compressing already compressed formats (like images) or tiny payloads does not significantly reduce size but wastes CPU cycles and increases latency. A threshold (e.g., 1KB) is usually set before enabling compression.",
+      "wg": [
+        {
+          "t": "閾值",
+          "en": "threshold",
+          "ps": "N"
+        },
+        {
+          "t": "浪費",
+          "en": "waste",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "chapter07-q14",
+    "level": "advanced",
+    "keywords": "Microservices, Architecture, Scalability, Decomposition",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您的單體（Monolithic）Express 應用程式包含一個「PDF 報表生成」功能，該功能非常消耗 CPU。",
+        "en": "Your Monolithic Express application includes a 'PDF Report Generation' feature that is very CPU-intensive.",
+        "wg": [
+          {
+            "t": "單體",
+            "en": "Monolithic",
+            "ps": "Adj"
+          },
+          {
+            "t": "報表生成",
+            "en": "Report Generation",
+            "ps": "NP"
+          }
+        ]
+      },
+      {
+        "t": "隨著流量增加，這個功能開始拖慢整個 API 的回應速度。除了使用 Worker Threads，從架構設計的角度，最長遠的解決方案是什麼？",
+        "en": "As traffic increases, this feature starts slowing down the entire API response time. Apart from using Worker Threads, what is the most long-term solution from an architectural design perspective?",
+        "wg": [
+          {
+            "t": "長遠的",
+            "en": "long-term",
+            "ps": "Adj"
+          },
+          {
+            "t": "拖慢",
+            "en": "slow down",
+            "ps": "V"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 將 PDF 生成功能拆分為獨立的微服務（Microservice），並透過 Message Queue 進行非同步溝通。",
+        "en": "(A) Extract the PDF generation feature into a separate Microservice and communicate asynchronously via a Message Queue.",
+        "wg": [
+          {
+            "t": "拆分",
+            "en": "extract/decompose",
+            "ps": "V"
+          },
+          {
+            "t": "非同步溝通",
+            "en": "asynchronous communication",
+            "ps": "NP"
+          }
+        ]
+      },
+      {
+        "t": "(B) 在 Express 中使用 `process.nextTick` 來延後 PDF 生成。",
+        "en": "(B) Use `process.nextTick` in Express to defer PDF generation.",
+        "wg": []
+      },
+      {
+        "t": "(C) 升級伺服器硬體，增加更多 RAM。",
+        "en": "(C) Upgrade server hardware by adding more RAM.",
+        "wg": []
+      },
+      {
+        "t": "(D) 改用 XML 而非 JSON 來傳輸資料。",
+        "en": "(D) Switch to XML instead of JSON for data transmission.",
+        "wg": []
+      }
+    ],
+    "answer": "(A)",
+    "why": {
+      "t": "當單一功能嚴重影響整體效能且特性（如 CPU 密集）與主應用不同時，將其拆分為微服務是最佳解。這允許該服務獨立擴展（例如使用更強的 CPU 實例），且不會因為該服務的崩潰或高負載而影響主 API 的可用性。",
+      "en": "When a single feature severely impacts overall performance and has different characteristics (e.g., CPU-intensive) from the main app, extracting it into a microservice is the best solution. This allows independent scaling (e.g., using high-CPU instances) and prevents crashes or high load on that service from affecting the main API's availability.",
+      "wg": [
+        {
+          "t": "獨立擴展",
+          "en": "independent scaling",
+          "ps": "NP"
+        },
+        {
+          "t": "可用性",
+          "en": "availability",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "chapter07-q15",
+    "level": "advanced",
+    "keywords": "Clustering, Resilience, Error Handling, Availability",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在使用 Node.js Cluster 模組或 PM2 時，如果其中一個 Worker Process 因為未捕獲的異常（Uncaught Exception）而崩潰，對系統的影響為何？",
+        "en": "When using the Node.js Cluster module or PM2, if one Worker Process crashes due to an Uncaught Exception, what is the impact on the system?",
+        "wg": [
+          {
+            "t": "未捕獲的異常",
+            "en": "Uncaught Exception",
+            "ps": "NP"
+          },
+          {
+            "t": "崩潰",
+            "en": "crash",
+            "ps": "V"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 整個應用程式（包含 Master 和其他 Workers）都會停止運作。",
+        "en": "(A) The entire application (including Master and other Workers) will stop working.",
+        "wg": []
+      },
+      {
+        "t": "(B) 只有該 Worker 會停止，Master Process 會偵測到並啟動一個新的 Worker 來替代，服務整體保持可用。",
+        "en": "(B) Only that Worker will stop; the Master Process will detect it and spawn a new Worker to replace it, keeping the service generally available.",
+        "wg": [
+          {
+            "t": "偵測",
+            "en": "detect",
+            "ps": "V"
+          },
+          {
+            "t": "替代",
+            "en": "replace",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(C) 該 Worker 會進入殭屍狀態（Zombie State），繼續佔用 Port 但不處理請求。",
+        "en": "(C) The Worker will enter a Zombie State, continuing to occupy the Port but not handling requests.",
+        "wg": []
+      },
+      {
+        "t": "(D) 該 Worker 會自動重啟，但會遺失所有已連線的 Socket，導致客戶端永久斷線。",
+        "en": "(D) The Worker will restart automatically, but all connected Sockets will be lost, causing permanent client disconnection.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "這是 Clustering 架構的主要優勢之一：隔離性。單一 Worker 的崩潰不會拖垮整個系統。Process Manager（如 PM2）或 Master Process 會負責監控並自動重啟失敗的 Worker，從而維持服務的高可用性。",
+      "en": "This is one of the main advantages of the Clustering architecture: Isolation. A crash in a single Worker does not bring down the entire system. The Process Manager (like PM2) or Master Process monitors and automatically restarts failed Workers, maintaining high service availability.",
+      "wg": [
+        {
+          "t": "隔離性",
+          "en": "Isolation",
+          "ps": "N"
+        },
+        {
+          "t": "拖垮",
+          "en": "bring down",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "11",
+    "level": "advanced",
+    "keywords": "JSON.parse, Blocking, Event Loop, Streams",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "app.post('/api/import', (req, res) => {\n  // body-parser has been configured with a large limit\n  const data = req.body; // Large JSON array (e.g., 50MB)\n  data.forEach(item => processItem(item));\n  res.json({ status: 'done' });\n});",
+    "question": [
+      {
+        "t": "您的 Express 應用程式提供了一個批次匯入 API，允許客戶端上傳高達 50MB 的 JSON 檔案。",
+        "en": "Your Express application provides a bulk import API that allows clients to upload JSON files up to 50MB.",
+        "wg": [
+          {
+            "t": "批次匯入",
+            "en": "bulk import",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "監控顯示，每當有客戶端呼叫此 API 時，伺服器上的其他請求都會發生逾時（Timeout），即使 CPU 使用率尚未達到 100%。",
+        "en": "Monitoring shows that whenever a client calls this API, other requests on the server time out, even if CPU usage hasn't reached 100%.",
+        "wg": [
+          {
+            "t": "逾時",
+            "en": "timeout",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "根據提供的程式碼片段，最可能的原因是什麼？",
+        "en": "Based on the provided code snippet, what is the most likely cause?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) Node.js 的記憶體不足，導致 Garbage Collection 頻繁觸發。",
+        "en": "(A) Node.js is running out of memory, causing frequent Garbage Collection.",
+        "wg": []
+      },
+      {
+        "t": "(B) Body Parser 在解析巨大的 JSON 字串時使用了同步的 `JSON.parse`，阻塞了 Event Loop。",
+        "en": "(B) Body Parser uses synchronous `JSON.parse` when parsing massive JSON strings, blocking the Event Loop.",
+        "wg": [
+          {
+            "t": "阻塞",
+            "en": "blocking",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(C) `processItem` 函式是非同步執行的，導致回應過早發送。",
+        "en": "(C) The `processItem` function is executed asynchronously, causing the response to be sent too early.",
+        "wg": []
+      },
+      {
+        "t": "(D) 網路頻寬被上傳的大檔案佔滿了。",
+        "en": "(D) Network bandwidth is saturated by the large file upload.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "`JSON.parse` 是同步（Synchronous）操作。解析 50MB 的字串可能需要數百毫秒甚至更久，這段時間內 Event Loop 無法處理任何其他請求（如 Health Check 或其他 API 呼叫）。解決方案是使用 JSON Streaming 解析器（如 `JSONStream`）。",
+      "en": "`JSON.parse` is a synchronous operation. Parsing a 50MB string can take hundreds of milliseconds or more, during which the Event Loop cannot handle any other requests (like Health Checks or other API calls). The solution is to use a JSON Streaming parser (like `JSONStream`).",
+      "wg": [
+        {
+          "t": "同步",
+          "en": "synchronous",
+          "ps": "Adj"
+        },
+        {
+          "t": "串流",
+          "en": "streaming",
+          "ps": "Adj"
+        }
+      ]
+    }
+  },
+  {
+    "no": "12",
+    "level": "intermediate",
+    "keywords": "Connection Pool, Clustering, Database, PM2",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "// db.js\nconst pool = new Pool({\n  max: 20, // Max clients in the pool\n  // ...\n});",
+    "question": [
+      {
+        "t": "您的應用程式使用 PostgreSQL，並在程式碼中設定了連線池（Connection Pool）大小為 20。",
+        "en": "Your application uses PostgreSQL, and the connection pool size is configured to 20 in the code.",
+        "wg": [
+          {
+            "t": "連線池",
+            "en": "connection pool",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "資料庫伺服器設定的最大連線數限制（`max_connections`）為 60。",
+        "en": "The database server is configured with a maximum connection limit (`max_connections`) of 60.",
+        "wg": []
+      },
+      {
+        "t": "如果您使用 PM2 的 Cluster Mode 啟動 4 個應用程式實例（Instances），可能會發生什麼問題？",
+        "en": "If you start 4 application instances using PM2 Cluster Mode, what problem might occur?",
+        "wg": [
+          {
+            "t": "實例",
+            "en": "instances",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) PM2 會自動在實例之間共享這 20 個連線，系統運作正常。",
+        "en": "(A) PM2 will automatically share these 20 connections among instances, and the system will work fine.",
+        "wg": []
+      },
+      {
+        "t": "(B) 每個實例都會建立自己的 Pool，總連線數可能達到 80 (4 * 20)，導致超過資料庫限制而報錯。",
+        "en": "(B) Each instance will create its own pool, potentially reaching 80 (4 * 20) total connections, exceeding the database limit and causing errors.",
+        "wg": [
+          {
+            "t": "超過",
+            "en": "exceeding",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(C) 只有 Master Process 會建立連線，Worker Process 不會直接連線資料庫。",
+        "en": "(C) Only the Master Process will establish connections; Worker Processes do not connect to the database directly.",
+        "wg": []
+      },
+      {
+        "t": "(D) Node.js 是單執行緒的，因此無論有多少實例，同一時間只能有一個活躍連線。",
+        "en": "(D) Node.js is single-threaded, so regardless of the number of instances, there can only be one active connection at a time.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "在 Cluster Mode 下，每個 Node.js 行程（Process）都是獨立的，擁有獨立的記憶體空間與資源。因此，每個行程會初始化自己的 Connection Pool。4 個行程各開啟 20 個連線，總數為 80，超過了資料庫的 60 個限制。",
+      "en": "In Cluster Mode, each Node.js process is independent, with its own memory space and resources. Therefore, each process initializes its own Connection Pool. 4 processes opening 20 connections each results in 80 total, exceeding the database limit of 60.",
+      "wg": [
+        {
+          "t": "獨立的",
+          "en": "independent",
+          "ps": "Adj"
+        },
+        {
+          "t": "初始化",
+          "en": "initialize",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "13",
+    "level": "intermediate",
+    "keywords": "SSL Termination, Reverse Proxy, CPU Usage, Architecture",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您正在優化一個處理敏感資料的 Express API。",
+        "en": "You are optimizing an Express API that handles sensitive data.",
+        "wg": []
+      },
+      {
+        "t": "效能分析顯示，Node.js 伺服器花費了大量 CPU 時間在處理 TLS/SSL 握手與加密解密（Encryption/Decryption）。",
+        "en": "Performance profiling shows that the Node.js server spends a significant amount of CPU time handling TLS/SSL handshakes and encryption/decryption.",
+        "wg": [
+          {
+            "t": "握手",
+            "en": "handshake",
+            "ps": "N"
+          },
+          {
+            "t": "加密",
+            "en": "encryption",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "為了提升 Express 應用程式處理業務邏輯的吞吐量，最佳的架構調整是什麼？",
+        "en": "To improve the throughput of the Express application for business logic, what is the best architectural adjustment?",
+        "wg": [
+          {
+            "t": "吞吐量",
+            "en": "throughput",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 在 Node.js 中使用更強的加密演算法（如 RSA-4096）。",
+        "en": "(A) Use stronger encryption algorithms (like RSA-4096) in Node.js.",
+        "wg": []
+      },
+      {
+        "t": "(B) 將 SSL 終止（SSL Termination）卸載到反向代理伺服器（如 Nginx 或 Load Balancer）。",
+        "en": "(B) Offload SSL Termination to a reverse proxy server (like Nginx or Load Balancer).",
+        "wg": [
+          {
+            "t": "卸載",
+            "en": "offload",
+            "ps": "V"
+          },
+          {
+            "t": "反向代理",
+            "en": "reverse proxy",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) 為每個請求啟動一個新的 Worker Thread 來處理 HTTPS 連線。",
+        "en": "(C) Spawn a new Worker Thread for each request to handle the HTTPS connection.",
+        "wg": []
+      },
+      {
+        "t": "(D) 改用 HTTP/2，因為它不需要加密。",
+        "en": "(D) Switch to HTTP/2 because it does not require encryption.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "Node.js 在處理加密運算時效率不如專門的 Web Server（如 Nginx）或硬體負載平衡器。將 SSL 處理移至反向代理層（SSL Termination），可以讓 Node.js 專注於執行 JavaScript 業務邏輯，顯著降低 CPU 負載。",
+      "en": "Node.js is less efficient at cryptographic operations compared to dedicated Web Servers (like Nginx) or hardware load balancers. Moving SSL processing to the reverse proxy layer (SSL Termination) allows Node.js to focus on executing JavaScript business logic, significantly reducing CPU load.",
+      "wg": [
+        {
+          "t": "專注於",
+          "en": "focus on",
+          "ps": "V"
+        },
+        {
+          "t": "負載",
+          "en": "load",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "14",
+    "level": "intermediate",
+    "keywords": "Uncaught Exception, Stability, Best Practices, Process Management",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "process.on('uncaughtException', (err) => {\n  console.error('Something bad happened:', err);\n  // Intentionally not exiting the process to keep server alive\n});",
+    "question": [
+      {
+        "t": "在 Code Review 中，您看到一位初階工程師寫了上述程式碼，目的是為了防止伺服器崩潰並保持「100% 上線時間」。",
+        "en": "During a Code Review, you see a junior engineer wrote the above code, aiming to prevent server crashes and maintain '100% uptime'.",
+        "wg": [
+          {
+            "t": "崩潰",
+            "en": "crash",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "身為資深工程師，您應該給予什麼建議？",
+        "en": "As a senior engineer, what advice should you give?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 這是好的做法，但應該同時發送 Email 通知管理員。",
+        "en": "(A) This is a good practice, but an Email notification should also be sent to the admin.",
+        "wg": []
+      },
+      {
+        "t": "(B) 這是危險的做法。未捕獲的異常通常意味著應用程式狀態已損壞（Corrupted State），應允許行程崩潰並由 PM2 自動重啟。",
+        "en": "(B) This is a dangerous practice. An uncaught exception usually means the application state is corrupted; the process should be allowed to crash and be auto-restarted by PM2.",
+        "wg": [
+          {
+            "t": "損壞",
+            "en": "corrupted",
+            "ps": "Adj"
+          },
+          {
+            "t": "重啟",
+            "en": "restart",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(C) 應該使用 `try-catch` 包裹整個 `app` 物件來取代這個全域監聽器。",
+        "en": "(C) You should wrap the entire `app` object with `try-catch` instead of using this global listener.",
+        "wg": []
+      },
+      {
+        "t": "(D) 只有在 Production 環境才應該這樣做，Development 環境則應該崩潰。",
+        "en": "(D) This should only be done in Production; in Development, it should crash.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "當發生 `uncaughtException` 時，Node.js 行程的記憶體狀態、連線池或 Event Loop 可能處於不一致的狀態。繼續運行可能導致資料錯誤或死鎖。正確的做法是記錄錯誤、關閉連線並退出（Exit），依賴外部工具（如 PM2/K8s）來重啟乾淨的實例。",
+      "en": "When an `uncaughtException` occurs, the Node.js process's memory state, connection pool, or Event Loop may be in an inconsistent state. Continuing to run can lead to data errors or deadlocks. The correct approach is to log the error, close connections, and exit, relying on external tools (like PM2/K8s) to restart a clean instance.",
+      "wg": [
+        {
+          "t": "不一致的",
+          "en": "inconsistent",
+          "ps": "Adj"
+        },
+        {
+          "t": "依賴",
+          "en": "rely on",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "15",
+    "level": "advanced",
+    "keywords": "Profiling, Flame Graph, Clinic.js, CPU Bound",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您的 Express 應用程式在高負載下出現了不明原因的 CPU 飆升，您懷疑是某個特定的函式邏輯過於複雜。",
+        "en": "Your Express application is experiencing unexplained CPU spikes under high load, and you suspect a specific function's logic is too complex.",
+        "wg": [
+          {
+            "t": "飆升",
+            "en": "spikes",
+            "ps": "N"
+          },
+          {
+            "t": "懷疑",
+            "en": "suspect",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "為了驗證假設，您希望在開發環境產生一個「火焰圖（Flame Graph）」來視覺化 CPU 的堆疊追蹤（Stack Trace）。",
+        "en": "To verify your hypothesis, you want to generate a 'Flame Graph' in the development environment to visualize the CPU stack trace.",
+        "wg": [
+          {
+            "t": "火焰圖",
+            "en": "Flame Graph",
+            "ps": "N"
+          },
+          {
+            "t": "視覺化",
+            "en": "visualize",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "下列哪項工具最適合此目的？",
+        "en": "Which of the following tools is best suited for this purpose?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) `console.time()` 與 `console.timeEnd()`",
+        "en": "(A) `console.time()` and `console.timeEnd()`",
+        "wg": []
+      },
+      {
+        "t": "(B) `Clinic.js Flame` 或 `0x`",
+        "en": "(B) `Clinic.js Flame` or `0x`",
+        "wg": []
+      },
+      {
+        "t": "(C) `pm2 monit`",
+        "en": "(C) `pm2 monit`",
+        "wg": []
+      },
+      {
+        "t": "(D) `express-status-monitor`",
+        "en": "(D) `express-status-monitor`",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "`Clinic.js Flame`（或 `0x`）是專門用於 Node.js 的效能分析工具，能夠收集 CPU 採樣並生成火焰圖，幫助開發者快速識別佔用 CPU 時間最長的熱點函式（Hot Paths）。其他選項只能提供高層次的監控數據或簡單的計時。",
+      "en": "`Clinic.js Flame` (or `0x`) is a performance profiling tool specifically for Node.js that collects CPU samples and generates flame graphs, helping developers quickly identify the hot paths consuming the most CPU time. Other options only provide high-level monitoring data or simple timing.",
+      "wg": [
+        {
+          "t": "採樣",
+          "en": "sampling",
+          "ps": "N"
+        },
+        {
+          "t": "熱點",
+          "en": "hot paths",
+          "ps": "N"
+        }
+      ]
+    }
+  }
+]

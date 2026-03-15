@@ -1,0 +1,880 @@
+[
+  {
+    "no": "1",
+    "level": "Hard",
+    "keywords": "Filesystem Cache, Heap Size, Memory Management",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你的 ES 叢集擁有一台 64GB RAM 的機器，目前 Heap Size 設定為 48GB。雖然 CPU 使用率不高，但搜尋延遲很高且 I/O wait 嚴重。根據「Disk is Lava」心智模型，下列哪項調整最可能解決此問題？",
+        "en": "Your ES cluster has a machine with 64GB RAM, and the Heap Size is currently set to 48GB. Although CPU usage is low, search latency is high and I/O wait is severe. According to the 'Disk is Lava' mental model, which of the following adjustments is most likely to solve this problem?",
+        "wg": [
+          {
+            "t": "叢集",
+            "en": "cluster",
+            "ps": "noun"
+          },
+          {
+            "t": "搜尋延遲",
+            "en": "search latency",
+            "ps": "noun"
+          },
+          {
+            "t": "心智模型",
+            "en": "mental model",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "將 Heap Size 增加到 60GB 以容納更多資料。",
+        "en": "Increase Heap Size to 60GB to hold more data.",
+        "wg": []
+      },
+      {
+        "t": "將 Heap Size 降低至 30GB 左右，將更多記憶體留給 Filesystem Cache。",
+        "en": "Decrease Heap Size to around 30GB to leave more memory for the Filesystem Cache.",
+        "wg": [
+          {
+            "t": "留給",
+            "en": "leave for",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "啟用 Swap 以增加虛擬記憶體空間。",
+        "en": "Enable Swap to increase virtual memory space.",
+        "wg": []
+      },
+      {
+        "t": "增加更多分片 (Shards) 以提升並行處理能力。",
+        "en": "Increase the number of shards to improve concurrency.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "ES 的效能極大程度依賴 OS 的 Filesystem Cache 來快取 Lucene 的 Segment 檔案。若 Heap 設定過大（超過 RAM 的 50% 或 32GB），會擠壓 OS Cache 的空間，導致系統頻繁讀取磁碟（Disk is Lava），產生高 I/O wait。最佳實務是將 Heap 設為 RAM 的 50% 且不超過 32GB。",
+      "en": "ES performance relies heavily on the OS Filesystem Cache to cache Lucene Segment files. If the Heap is set too large (over 50% of RAM or 32GB), it squeezes out space for the OS Cache, causing frequent disk reads (Disk is Lava) and high I/O wait. The best practice is to set the Heap to 50% of RAM and no more than 32GB.",
+      "wg": [
+        {
+          "t": "擠壓",
+          "en": "squeeze out",
+          "ps": "verb"
+        },
+        {
+          "t": "頻繁",
+          "en": "frequent",
+          "ps": "adjective"
+        }
+      ]
+    }
+  },
+  {
+    "no": "2",
+    "level": "Medium",
+    "keywords": "Routing, Scatter-Gather, Sharding",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "GET /orders/_search?q=user_id:1001",
+    "question": [
+      {
+        "t": "在一個擁有 20 個分片的大型索引中，你經常需要查詢「特定使用者」的訂單（如上方代碼）。目前該查詢會觸發所有 20 個分片進行搜尋。為了優化延遲與吞吐量，應採取什麼策略？",
+        "en": "In a large index with 20 shards, you frequently need to search for orders of a 'specific user' (as shown in the code above). Currently, this query triggers all 20 shards to search. What strategy should be adopted to optimize latency and throughput?",
+        "wg": [
+          {
+            "t": "吞吐量",
+            "en": "throughput",
+            "ps": "noun"
+          },
+          {
+            "t": "觸發",
+            "en": "trigger",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "使用 Force Merge 將分片合併為 1 個。",
+        "en": "Use Force Merge to merge shards into 1.",
+        "wg": []
+      },
+      {
+        "t": "在寫入與查詢時指定 `routing=user_id`。",
+        "en": "Specify `routing=user_id` during both indexing and searching.",
+        "wg": [
+          {
+            "t": "指定",
+            "en": "specify",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "增加 Replica 的數量。",
+        "en": "Increase the number of replicas.",
+        "wg": []
+      },
+      {
+        "t": "將 `user_id` 欄位改為 `keyword` 類型。",
+        "en": "Change the `user_id` field to `keyword` type.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "預設情況下，ES 會將查詢廣播到所有分片（Scatter-Gather），這會導致協調節點負擔重且受限於最慢的分片。透過指定 `routing`，可以確保特定使用者的資料只存在於單一分片，查詢時也只需訪問該分片，大幅減少資源消耗。",
+      "en": "By default, ES broadcasts the query to all shards (Scatter-Gather), which burdens the coordinating node and is limited by the slowest shard. By specifying `routing`, you ensure that a specific user's data resides on a single shard, and the query only needs to visit that shard, significantly reducing resource consumption.",
+      "wg": [
+        {
+          "t": "廣播",
+          "en": "broadcast",
+          "ps": "verb"
+        },
+        {
+          "t": "受限於",
+          "en": "limited by",
+          "ps": "verb phrase"
+        }
+      ]
+    }
+  },
+  {
+    "no": "3",
+    "level": "Medium",
+    "keywords": "Deep Pagination, search_after, Anti-pattern",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "GET /logs/_search\n{\n  \"from\": 50000,\n  \"size\": 20,\n  \"query\": { ... }\n}",
+    "question": [
+      {
+        "t": "你的應用程式需要提供分頁功能，讓使用者瀏覽舊日誌。當使用者翻到第 2500 頁（如上方代碼）時，系統回應變得極慢且 CPU 飆升。這是什麼原因造成的，以及該如何修復？",
+        "en": "Your application needs to provide pagination for users to browse old logs. When a user navigates to page 2500 (as shown in the code above), the system response becomes extremely slow and CPU spikes. What is causing this, and how should it be fixed?",
+        "wg": [
+          {
+            "t": "分頁",
+            "en": "pagination",
+            "ps": "noun"
+          },
+          {
+            "t": "飆升",
+            "en": "spike",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "這是「深分頁陷阱」。每個分片都必須取出前 50020 筆資料供協調節點排序。應改用 `search_after` API。",
+        "en": "This is the 'Deep Pagination Trap'. Each shard must fetch the top 50020 docs for the coordinating node to sort. Should switch to `search_after` API.",
+        "wg": [
+          {
+            "t": "陷阱",
+            "en": "trap",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "這是因為 `size` 太小導致網路來回次數過多。應增加 `size` 到 1000。",
+        "en": "This is because `size` is too small, causing too many network round-trips. Should increase `size` to 1000.",
+        "wg": []
+      },
+      {
+        "t": "這是因為日誌資料未進行 Force Merge。應執行 Force Merge。",
+        "en": "This is because the log data has not been Force Merged. Should execute Force Merge.",
+        "wg": []
+      },
+      {
+        "t": "這是因為使用了 Wildcard 查詢。應改用 Term 查詢。",
+        "en": "This is because a Wildcard query was used. Should switch to Term query.",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "使用 `from` + `size` 進行深分頁時，ES 必須在每個分片載入 `from + size` 筆資料，並在記憶體中進行全域排序，這會消耗大量 CPU 與記憶體。`search_after` 透過上一頁最後一筆資料的 sort value 來定位，避免了重複掃描前段資料。",
+      "en": "When using `from` + `size` for deep pagination, ES must load `from + size` records on each shard and perform a global sort in memory, consuming significant CPU and memory. `search_after` uses the sort value of the last record from the previous page to locate the position, avoiding re-scanning of previous data.",
+      "wg": [
+        {
+          "t": "全域排序",
+          "en": "global sort",
+          "ps": "noun phrase"
+        },
+        {
+          "t": "定位",
+          "en": "locate",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "4",
+    "level": "Medium",
+    "keywords": "Force Merge, Segments, Read-only Index",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你負責維護一組按日產生的日誌索引（如 `logs-2023-10-27`）。這些索引在過了一天後就不會再有寫入操作。為了提升查詢效能並釋放空間，你應該對這些「唯讀索引」執行什麼操作？",
+        "en": "You maintain a set of daily log indices (e.g., `logs-2023-10-27`). These indices receive no more write operations after the day passes. To improve query performance and reclaim space, what operation should you perform on these 'read-only indices'?",
+        "wg": [
+          {
+            "t": "維護",
+            "en": "maintain",
+            "ps": "verb"
+          },
+          {
+            "t": "唯讀",
+            "en": "read-only",
+            "ps": "adjective"
+          },
+          {
+            "t": "釋放空間",
+            "en": "reclaim space",
+            "ps": "verb phrase"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "執行 `_refresh` 操作。",
+        "en": "Execute `_refresh` operation.",
+        "wg": []
+      },
+      {
+        "t": "執行 `_forcemerge?max_num_segments=1`。",
+        "en": "Execute `_forcemerge?max_num_segments=1`.",
+        "wg": []
+      },
+      {
+        "t": "將索引的 `replica` 數量設為 0。",
+        "en": "Set the number of `replicas` for the index to 0.",
+        "wg": []
+      },
+      {
+        "t": "關閉索引 (`_close`) 以節省記憶體。",
+        "en": "Close the index (`_close`) to save memory.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "針對不再寫入的唯讀索引，執行 Force Merge 可以物理刪除標記為 deleted 的文檔（釋放空間），並將多個 Segments 合併為一個（減少搜尋時的 I/O 與 CPU 開銷）。這是提升歷史資料查詢效能的標準做法。",
+      "en": "For read-only indices that are no longer written to, executing Force Merge physically removes documents marked as deleted (reclaiming space) and merges multiple segments into one (reducing I/O and CPU overhead during search). This is a standard practice for improving historical data query performance.",
+      "wg": [
+        {
+          "t": "物理刪除",
+          "en": "physically remove",
+          "ps": "verb phrase"
+        },
+        {
+          "t": "標準做法",
+          "en": "standard practice",
+          "ps": "noun phrase"
+        }
+      ]
+    }
+  },
+  {
+    "no": "5",
+    "level": "Hard",
+    "keywords": "Script Query, Denormalization, Slow Log",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "{\n  \"query\": {\n    \"bool\": {\n      \"filter\": [\n        {\n          \"script\": {\n            \"script\": \"doc['price'].value * doc['discount'].value > 100\"\n          }\n        }\n      ]\n    }\n  }\n}",
+    "question": [
+      {
+        "t": "Slow Log 顯示上方的 Script Query 造成了嚴重的效能瓶頸。為什麼這個查詢很慢？以及最佳的優化方案是什麼？",
+        "en": "The Slow Log indicates that the Script Query above is causing a severe performance bottleneck. Why is this query slow, and what is the best optimization solution?",
+        "wg": [
+          {
+            "t": "瓶頸",
+            "en": "bottleneck",
+            "ps": "noun"
+          },
+          {
+            "t": "優化方案",
+            "en": "optimization solution",
+            "ps": "noun phrase"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "慢是因為 Script 語法錯誤。應改用 `painless` 語言重寫。",
+        "en": "It is slow due to script syntax errors. Should rewrite using `painless` language.",
+        "wg": []
+      },
+      {
+        "t": "慢是因為 Script 無法利用倒排索引，必須全表掃描。應在寫入時預先計算 `final_price` 並存入新欄位。",
+        "en": "It is slow because scripts cannot use the inverted index and require a full table scan. Should pre-calculate `final_price` at indexing time and store it in a new field.",
+        "wg": [
+          {
+            "t": "倒排索引",
+            "en": "inverted index",
+            "ps": "noun"
+          },
+          {
+            "t": "預先計算",
+            "en": "pre-calculate",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "慢是因為沒有啟用 Cache。應在查詢中加入 `_cache: true`。",
+        "en": "It is slow because caching is not enabled. Should add `_cache: true` to the query.",
+        "wg": []
+      },
+      {
+        "t": "慢是因為 `doc['price']` 讀取了 Source。應改用 `_source.price`。",
+        "en": "It is slow because `doc['price']` reads from Source. Should switch to `_source.price`.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "Script Query 必須對每個文檔逐一執行運算，無法利用 ES 高效的倒排索引（Inverted Index），導致全表掃描。最佳解法是「以空間換時間」（Denormalization），在資料寫入時就計算好結果並存入欄位，查詢時直接使用 Range Query。",
+      "en": "Script Query must execute calculations on every document one by one, unable to utilize ES's efficient Inverted Index, leading to a full table scan. The best solution is 'trading space for time' (Denormalization): calculate the result during indexing and store it in a field, then use a Range Query for searching.",
+      "wg": [
+        {
+          "t": "逐一",
+          "en": "one by one",
+          "ps": "adverb"
+        },
+        {
+          "t": "以空間換時間",
+          "en": "trading space for time",
+          "ps": "idiom"
+        }
+      ]
+    }
+  },
+  {
+    "no": "6",
+    "level": "Medium",
+    "keywords": "Profile API, Debugging, Query Optimization",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你懷疑某個複雜查詢因為大量的 Term Rewrite 導致變慢，或者某個子查詢沒有被 Cache。為了驗證這個假設，你應該使用什麼工具來查看查詢執行的詳細階段（如 `rewrite_time`, `build_scorer` 等）？",
+        "en": "You suspect a complex query is slow due to extensive Term Rewrite, or a sub-query is not being cached. To verify this hypothesis, what tool should you use to view the detailed execution stages of the query (such as `rewrite_time`, `build_scorer`, etc.)?",
+        "wg": [
+          {
+            "t": "懷疑",
+            "en": "suspect",
+            "ps": "verb"
+          },
+          {
+            "t": "驗證",
+            "en": "verify",
+            "ps": "verb"
+          },
+          {
+            "t": "假設",
+            "en": "hypothesis",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "Explain API (`_explain`)",
+        "en": "Explain API (`_explain`)",
+        "wg": []
+      },
+      {
+        "t": "Profile API (`profile: true`)",
+        "en": "Profile API (`profile: true`)",
+        "wg": []
+      },
+      {
+        "t": "Cat Nodes API (`_cat/nodes`)",
+        "en": "Cat Nodes API (`_cat/nodes`)",
+        "wg": []
+      },
+      {
+        "t": "Cluster Stats API (`_cluster/stats`)",
+        "en": "Cluster Stats API (`_cluster/stats`)",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "`Profile API` 是專門用於效能除錯的工具，它能提供查詢在分片級別的執行細節，包括各個查詢組件的耗時、Rewrite 時間以及 Lucene 內部方法的呼叫次數。`Explain API` 主要用於解釋分數（Score）計算邏輯，而非效能瓶頸。",
+      "en": "The `Profile API` is a tool specifically for performance debugging. It provides execution details at the shard level, including the time spent on each query component, Rewrite time, and call counts for internal Lucene methods. The `Explain API` is mainly used to explain score calculation logic, not performance bottlenecks.",
+      "wg": [
+        {
+          "t": "除錯",
+          "en": "debug",
+          "ps": "verb"
+        },
+        {
+          "t": "組件",
+          "en": "component",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "7",
+    "level": "Medium",
+    "keywords": "Wildcard Query, Regex, Term Dictionary, Performance",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "GET /products/_search\n{\n  \"query\": {\n    \"wildcard\": {\n      \"description\": \"*bluetooth*\"\n    }\n  }\n}",
+    "question": [
+      {
+        "t": "你的產品經理要求在商品描述中支援「包含某字串」的搜尋功能，開發團隊實作了如上的 `wildcard` 查詢（前後皆有 `*`）。",
+        "en": "Your product manager requested a 'contains string' search feature for product descriptions, and the development team implemented the `wildcard` query shown above (with leading and trailing `*`).",
+        "wg": []
+      },
+      {
+        "t": "上線後發現 CPU 使用率飆升且搜尋延遲極高。請問造成效能問題的主因為何，以及建議的修正方案是什麼？",
+        "en": "After deployment, CPU usage spiked and search latency became extremely high. What is the main cause of this performance issue, and what is the recommended fix?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "原因：Wildcard 查詢無法使用 Filesystem Cache。修正：增加 Heap Size。",
+        "en": "Cause: Wildcard queries cannot use Filesystem Cache. Fix: Increase Heap Size.",
+        "wg": []
+      },
+      {
+        "t": "原因：前綴通配符（Leading Wildcard）迫使 ES 掃描整個 Term Dictionary。修正：改用 `ngram` tokenizer 或 `wildcard` 欄位類型。",
+        "en": "Cause: Leading Wildcard forces ES to scan the entire Term Dictionary. Fix: Use `ngram` tokenizer or `wildcard` field type.",
+        "wg": [
+          {
+            "t": "前綴通配符",
+            "en": "Leading Wildcard",
+            "ps": "noun"
+          },
+          {
+            "t": "詞項字典",
+            "en": "Term Dictionary",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "原因：Wildcard 查詢導致了大量的網路傳輸。修正：使用 Source Filtering。",
+        "en": "Cause: Wildcard queries cause massive network transfer. Fix: Use Source Filtering.",
+        "wg": []
+      },
+      {
+        "t": "原因：該查詢觸發了所有分片的 Scatter-Gather。修正：使用 Routing。",
+        "en": "Cause: The query triggered Scatter-Gather on all shards. Fix: Use Routing.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "以 `*` 開頭的查詢（Leading Wildcard）極度消耗資源，因為 ES 無法利用倒排索引的前綴匹配，必須遍歷 Term Dictionary 中的每一個詞項來比對。最佳解法是在 Indexing 階段使用 `ngram` tokenizer 將文字切分，或使用 ES 7.9+ 專用的 `wildcard` 欄位類型。",
+      "en": "Queries starting with `*` (Leading Wildcard) are extremely resource-intensive because ES cannot utilize the prefix matching of the inverted index and must traverse every term in the Term Dictionary. The best solution is to use an `ngram` tokenizer during indexing or use the specialized `wildcard` field type available in ES 7.9+.",
+      "wg": [
+        {
+          "t": "倒排索引",
+          "en": "Inverted Index",
+          "ps": "noun"
+        },
+        {
+          "t": "遍歷",
+          "en": "Traverse",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "8",
+    "level": "Medium",
+    "keywords": "Query Cache, Date Range, Caching Strategy",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "GET /logs/_search\n{\n  \"query\": {\n    \"range\": {\n      \"timestamp\": {\n        \"gte\": \"now-1h\"\n      }\n    }\n  }\n}",
+    "question": [
+      {
+        "t": "你有一個監控儀表板每分鐘會執行一次上述查詢，顯示「過去一小時」的日誌。",
+        "en": "You have a monitoring dashboard that executes the above query every minute to show logs from the 'last 1 hour'.",
+        "wg": []
+      },
+      {
+        "t": "雖然查詢頻率很高且條件相似，但你發現 Node Query Cache 的命中率（Hit Rate）幾乎為零。請問該如何修改查詢以有效利用快取？",
+        "en": "Although the query frequency is high and conditions are similar, you notice the Node Query Cache hit rate is almost zero. How should you modify the query to effectively utilize the cache?",
+        "wg": [
+          {
+            "t": "節點查詢快取",
+            "en": "Node Query Cache",
+            "ps": "noun"
+          },
+          {
+            "t": "命中率",
+            "en": "Hit Rate",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "將 `gte` 的條件改為 `now-1h/m`（四捨五入到分鐘）。",
+        "en": "Change the `gte` condition to `now-1h/m` (round to minute).",
+        "wg": []
+      },
+      {
+        "t": "在查詢中加入 `\"request_cache\": true`。",
+        "en": "Add `\"request_cache\": true` to the query.",
+        "wg": []
+      },
+      {
+        "t": "將 `range` 查詢改為 `filter` 上下文。",
+        "en": "Change the `range` query to `filter` context.",
+        "wg": []
+      },
+      {
+        "t": "使用 `post_filter` 來執行時間過濾。",
+        "en": "Use `post_filter` to execute the time filter.",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "`now` 是一個精確到毫秒的時間戳，這意味著每一毫秒執行的查詢條件都不同，導致無法命中 Cache。透過 Date Rounding（如 `/m`），可以讓同一分鐘內的所有查詢共享同一個 Cache Key，大幅提升快取命中率。",
+      "en": "`now` is a timestamp precise to the millisecond, meaning the query condition changes every millisecond, preventing cache hits. By using Date Rounding (e.g., `/m`), all queries within the same minute can share the same Cache Key, significantly improving the cache hit rate.",
+      "wg": [
+        {
+          "t": "時間捨入",
+          "en": "Date Rounding",
+          "ps": "noun"
+        },
+        {
+          "t": "快取鍵",
+          "en": "Cache Key",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "9",
+    "level": "Medium",
+    "keywords": "Sharding, Scatter-Gather, Oversharding",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你正在維護一個資料量僅有 500MB 的索引，但該索引被設定了 50 個主分片（Primary Shards）。",
+        "en": "You are maintaining an index with only 500MB of data, but it is configured with 50 Primary Shards.",
+        "wg": [
+          {
+            "t": "主分片",
+            "en": "Primary Shards",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "儘管資料量很小，搜尋延遲卻比預期高出許多。這最可能是什麼效應造成的？",
+        "en": "Despite the small data volume, search latency is much higher than expected. What effect is most likely causing this?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "Deep Pagination（深分頁效應）。",
+        "en": "Deep Pagination.",
+        "wg": []
+      },
+      {
+        "t": "Scatter-Gather Effect（分散-聚合效應）。",
+        "en": "Scatter-Gather Effect.",
+        "wg": [
+          {
+            "t": "分散-聚合效應",
+            "en": "Scatter-Gather Effect",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "Cold Cache（冷快取效應）。",
+        "en": "Cold Cache.",
+        "wg": []
+      },
+      {
+        "t": "Term Rewrite（詞項重寫效應）。",
+        "en": "Term Rewrite.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "這是一個典型的過度分片（Oversharding）案例。協調節點必須等待所有 50 個分片回傳結果後才能進行合併與排序。即使每個分片處理很快，協調與網路通訊的開銷（Overhead）相對於小資料量來說過大，導致延遲增加。",
+      "en": "This is a classic case of Oversharding. The coordinating node must wait for results from all 50 shards before merging and sorting. Even if each shard processes quickly, the coordination and network communication overhead is disproportionately large for the small data volume, increasing latency.",
+      "wg": [
+        {
+          "t": "過度分片",
+          "en": "Oversharding",
+          "ps": "noun"
+        },
+        {
+          "t": "協調節點",
+          "en": "Coordinating Node",
+          "ps": "noun"
+        },
+        {
+          "t": "開銷",
+          "en": "Overhead",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "10",
+    "level": "Hard",
+    "keywords": "Swap, Memory Locking, Garbage Collection, Stability",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你的 ES 節點偶爾會出現長時間的無回應（Unresponsive），伴隨著長達數秒的 GC 停頓。檢查系統監控發現磁碟 I/O 在這些時段有異常讀寫，且 `vm.swappiness` 設定為預設值。",
+        "en": "Your ES node occasionally becomes unresponsive with GC pauses lasting several seconds. System monitoring reveals abnormal disk I/O during these periods, and `vm.swappiness` is set to the default value.",
+        "wg": [
+          {
+            "t": "無回應",
+            "en": "Unresponsive",
+            "ps": "adjective"
+          },
+          {
+            "t": "垃圾回收停頓",
+            "en": "GC pauses",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "為了徹底解決此問題，你應該在 `elasticsearch.yml` 中檢查並啟用哪項設定？",
+        "en": "To permanently resolve this issue, which setting should you check and enable in `elasticsearch.yml`?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "indices.memory.index_buffer_size: 20%",
+        "en": "indices.memory.index_buffer_size: 20%",
+        "wg": []
+      },
+      {
+        "t": "bootstrap.memory_lock: true",
+        "en": "bootstrap.memory_lock: true",
+        "wg": []
+      },
+      {
+        "t": "cluster.routing.allocation.enable: all",
+        "en": "cluster.routing.allocation.enable: all",
+        "wg": []
+      },
+      {
+        "t": "node.store.allow_mmap: false",
+        "en": "node.store.allow_mmap: false",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "當作業系統將 ES 的 Heap 記憶體 Swap 到磁碟時，GC 必須從磁碟讀回記憶體頁面，這會導致極嚴重的效能下降甚至節點崩潰。`bootstrap.memory_lock: true` 可以鎖定記憶體，防止 Heap 被 Swap 出去。",
+      "en": "When the OS swaps ES Heap memory to disk, GC must read memory pages back from the disk, causing severe performance degradation or even node crashes. `bootstrap.memory_lock: true` locks the memory, preventing the Heap from being swapped out.",
+      "wg": [
+        {
+          "t": "記憶體交換",
+          "en": "Swap",
+          "ps": "verb"
+        },
+        {
+          "t": "鎖定記憶體",
+          "en": "Memory Lock",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "11",
+    "level": "Medium",
+    "keywords": "Fetch Phase, Source Filtering, Network I/O",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "GET /products/_search\n{\n  \"query\": { \"match\": { \"name\": \"laptop\" } },\n  \"_source\": [\"id\", \"name\", \"price\"]\n}",
+    "question": [
+      {
+        "t": "你的索引包含一個儲存了大型 Base64 編碼圖片的欄位 `image_data`。雖然查詢階段（Query Phase）很快，但整體回應時間（Took）卻很慢，且網路流量很高。",
+        "en": "Your index contains a field `image_data` storing large Base64 encoded images. Although the Query Phase is fast, the overall response time (Took) is slow, and network traffic is high.",
+        "wg": [
+          {
+            "t": "查詢階段",
+            "en": "Query Phase",
+            "ps": "noun"
+          },
+          {
+            "t": "回應時間",
+            "en": "Response Time",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "上方代碼展示了哪種優化技巧來解決此問題？",
+        "en": "Which optimization technique does the code above demonstrate to solve this issue?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "Source Filtering（來源過濾）。",
+        "en": "Source Filtering.",
+        "wg": [
+          {
+            "t": "來源過濾",
+            "en": "Source Filtering",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "Doc Values Only（僅文檔值）。",
+        "en": "Doc Values Only.",
+        "wg": []
+      },
+      {
+        "t": "Stored Fields（儲存欄位）。",
+        "en": "Stored Fields.",
+        "wg": []
+      },
+      {
+        "t": "Index Sorting（索引排序）。",
+        "en": "Index Sorting.",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "這是 Fetch Phase 的優化。預設情況下 ES 會回傳完整的 `_source` JSON。如果文檔包含大欄位（如 Base64 圖片），會消耗大量磁碟 I/O 與網路頻寬。透過 `_source` 參數指定只回傳需要的欄位，可以顯著降低延遲。",
+      "en": "This is a Fetch Phase optimization. By default, ES returns the full `_source` JSON. If documents contain large fields (like Base64 images), it consumes significant disk I/O and network bandwidth. Specifying only necessary fields via the `_source` parameter can significantly reduce latency.",
+      "wg": [
+        {
+          "t": "擷取階段",
+          "en": "Fetch Phase",
+          "ps": "noun"
+        },
+        {
+          "t": "頻寬",
+          "en": "Bandwidth",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "12",
+    "level": "Hard",
+    "keywords": "Profile API, Cold Cache, Disk I/O, Debugging",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "\"profile\": {\n  \"shards\": [\n    {\n      \"searches\": [\n        {\n          \"query\": [ { \"type\": \"TermQuery\", \"time_in_nanos\": 800000000 } ]\n        }\n      ]\n    }\n  ]\n}",
+    "question": [
+      {
+        "t": "你使用 Profile API 分析一個簡單的 Term Query，發現 `time_in_nanos` 高達 800ms（如上），但該查詢的 `match_count` 很低，且 CPU 使用率並不高。",
+        "en": "You used the Profile API to analyze a simple Term Query and found `time_in_nanos` to be as high as 800ms (as shown above), but the `match_count` is low and CPU usage is not high.",
+        "wg": []
+      },
+      {
+        "t": "這通常暗示了什麼問題，以及該如何改善？",
+        "en": "What problem does this usually indicate, and how can it be improved?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "問題：Script 執行緩慢。改善：使用 Painless script。",
+        "en": "Problem: Slow script execution. Improvement: Use Painless script.",
+        "wg": []
+      },
+      {
+        "t": "問題：Cold Cache（冷快取）。改善：增加 RAM 或使用 `index.store.preload`。",
+        "en": "Problem: Cold Cache. Improvement: Increase RAM or use `index.store.preload`.",
+        "wg": [
+          {
+            "t": "冷快取",
+            "en": "Cold Cache",
+            "ps": "noun"
+          },
+          {
+            "t": "預載",
+            "en": "Preload",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "問題：Regex 回溯（Backtracking）。改善：優化正規表達式。",
+        "en": "Problem: Regex Backtracking. Improvement: Optimize the regular expression.",
+        "wg": []
+      },
+      {
+        "t": "問題：GC Stop-the-world。改善：調整 CMS 或 G1GC 參數。",
+        "en": "Problem: GC Stop-the-world. Improvement: Tune CMS or G1GC parameters.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "當查詢耗時很高（Wall clock time）但實際運算量（CPU）很低時，通常代表執行緒處於 I/O Wait 狀態，正在等待從磁碟讀取資料（Page Fault）。這就是所謂的 Cold Cache。解決方案是確保有足夠的 RAM 讓 OS 快取熱點資料，或使用預載設定。",
+      "en": "When query time is high (Wall clock time) but actual computation (CPU) is low, it usually means the thread is in I/O Wait state, waiting to read data from the disk (Page Fault). This is known as Cold Cache. The solution is to ensure enough RAM for the OS to cache hot data, or use preload settings.",
+      "wg": [
+        {
+          "t": "頁面錯誤",
+          "en": "Page Fault",
+          "ps": "noun"
+        },
+        {
+          "t": "牆鐘時間",
+          "en": "Wall clock time",
+          "ps": "noun"
+        }
+      ]
+    }
+  }
+]

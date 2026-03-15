@@ -1,0 +1,851 @@
+[
+  {
+    "no": "1",
+    "level": "Hard",
+    "keywords": "Internal, Update, Segment Merging, Performance",
+    "parentNo": null,
+    "images": "",
+    "codeSnippet": "",
+    "question": [
+      {
+        "t": "在 Elasticsearch 中，為了實作「文章觀看數」功能，工程師決定每當有使用者點擊文章時，就立即發送一個 Update Request 更新該文件的 `view_count` 欄位。請問這種設計會導致什麼嚴重的效能問題？",
+        "en": "In Elasticsearch, to implement a 'view count' feature, an engineer decides to send an Update Request to update the `view_count` field of a document immediately whenever a user clicks on an article. What severe performance issue will this design cause?",
+        "wg": [
+          {
+            "t": "觀看數",
+            "en": "view count",
+            "ps": "noun"
+          },
+          {
+            "t": "效能問題",
+            "en": "performance issue",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "會導致 Transaction Log 過大，因為 ES 必須維護 ACID 交易特性。",
+        "en": "It will cause the Transaction Log to become too large because ES must maintain ACID transaction properties.",
+        "wg": []
+      },
+      {
+        "t": "會產生大量 `.del` 文件與小型的 Segments，觸發頻繁的 Segment Merging，導致 CPU 與 I/O 飆升。",
+        "en": "It will generate a large number of `.del` files and small Segments, triggering frequent Segment Merging, causing CPU and I/O spikes.",
+        "wg": [
+          {
+            "t": "觸發",
+            "en": "trigger",
+            "ps": "verb"
+          },
+          {
+            "t": "飆升",
+            "en": "spike",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "會導致 Master Node 崩潰，因為更新操作需要在 Master Node 進行全域鎖定。",
+        "en": "It will cause the Master Node to crash because update operations require a global lock on the Master Node.",
+        "wg": []
+      },
+      {
+        "t": "不會有問題，因為 ES 的 Update API 是 In-place update（原地更新），開銷很小。",
+        "en": "There will be no issue because ES's Update API is an In-place update with very low overhead.",
+        "wg": [
+          {
+            "t": "原地更新",
+            "en": "in-place update",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "ES 的 Segment 是不可變（Immutable）的。所謂的「更新」實際上是「標記舊文件為刪除 (.del)」並「寫入新文件」。高頻更新會產生大量垃圾資料與碎片，強迫系統不斷進行昂貴的 Segment Merging 操作。",
+      "en": "ES Segments are immutable. A so-called 'update' is actually 'marking the old document as deleted (.del)' and 'writing a new document'. High-frequency updates generate a lot of garbage data and fragmentation, forcing the system to constantly perform expensive Segment Merging operations.",
+      "wg": [
+        {
+          "t": "不可變",
+          "en": "immutable",
+          "ps": "adjective"
+        },
+        {
+          "t": "碎片",
+          "en": "fragmentation",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "2",
+    "level": "Medium",
+    "keywords": "NRT, Refresh Interval, Consistency",
+    "parentNo": null,
+    "images": "",
+    "codeSnippet": "POST /users/_doc/1\n{ \"name\": \"Alice\" }\n// Returns 200 OK\n\nGET /users/_search?q=Alice\n// Returns empty hits immediately",
+    "question": [
+      {
+        "t": "開發者撰寫了一個整合測試：先寫入一筆資料到 ES，收到 200 OK 後，下一行程式碼立刻進行搜尋，卻發現找不到該筆資料（如上方程式碼所示）。請問這是什麼原因造成的？",
+        "en": "A developer writes an integration test: first writes a record to ES, receives 200 OK, and immediately performs a search in the next line of code, but finds that the record cannot be found (as shown in the code snippet above). What is the cause of this?",
+        "wg": [
+          {
+            "t": "整合測試",
+            "en": "integration test",
+            "ps": "noun"
+          },
+          {
+            "t": "立刻",
+            "en": "immediately",
+            "ps": "adverb"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "資料遺失了，因為 ES 預設不保證寫入持久性。",
+        "en": "Data is lost because ES does not guarantee write durability by default.",
+        "wg": []
+      },
+      {
+        "t": "這是 ES 的「近即時（Near Real-Time）」特性，資料進入 Memory Buffer 後，預設需約 1 秒的 Refresh 才會變成可被搜尋的 Segment。",
+        "en": "This is ES's 'Near Real-Time' (NRT) characteristic. After data enters the Memory Buffer, it takes about 1 second by default to Refresh and become a searchable Segment.",
+        "wg": [
+          {
+            "t": "近即時",
+            "en": "Near Real-Time",
+            "ps": "noun"
+          },
+          {
+            "t": "可被搜尋的",
+            "en": "searchable",
+            "ps": "adjective"
+          }
+        ]
+      },
+      {
+        "t": "搜尋語法錯誤，應該使用 Term Query 而不是 Query String。",
+        "en": "The search syntax is incorrect; Term Query should be used instead of Query String.",
+        "wg": []
+      },
+      {
+        "t": "因為沒有手動執行 `fsync`，資料還在作業系統的 Cache 中。",
+        "en": "Because `fsync` was not performed manually, the data is still in the OS Cache.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "ES 寫入後資料會先存在 Memory Buffer，此時無法被搜尋。預設每 1 秒執行一次 Refresh 將 Buffer 轉為 Segment。這就是 NRT (Near Real-Time) 的緩衝時間差。",
+      "en": "After writing to ES, data first resides in the Memory Buffer and is not searchable. By default, a Refresh is performed every 1 second to convert the Buffer into a Segment. This is the buffer gap of NRT (Near Real-Time).",
+      "wg": [
+        {
+          "t": "緩衝時間差",
+          "en": "buffer gap",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "3",
+    "level": "Medium",
+    "keywords": "Pagination, Performance, Anti-pattern",
+    "parentNo": null,
+    "images": "",
+    "codeSnippet": "GET /products/_search\n{\n  \"from\": 50000,\n  \"size\": 10,\n  \"query\": { \"match_all\": {} }\n}",
+    "question": [
+      {
+        "t": "在審查程式碼時，你發現有開發者使用上述查詢來實作「匯出所有商品」的功能。為什麼這種「深度分頁（Deep Pagination）」的做法被視為 Anti-pattern？",
+        "en": "During a code review, you find a developer using the above query to implement an 'Export All Products' feature. Why is this 'Deep Pagination' approach considered an Anti-pattern?",
+        "wg": [
+          {
+            "t": "深度分頁",
+            "en": "Deep Pagination",
+            "ps": "noun"
+          },
+          {
+            "t": "匯出",
+            "en": "export",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "因為 `from` 參數有最大限制 1000，超過會直接報錯。",
+        "en": "Because the `from` parameter has a maximum limit of 1000, exceeding it will throw an error directly.",
+        "wg": []
+      },
+      {
+        "t": "因為 ES 必須在每個 Shard 找出前 50,010 筆資料，並在 Coordinator Node 進行全域排序與匯總，這會消耗大量 Heap Memory。",
+        "en": "Because ES must find the top 50,010 records in each Shard and perform global sorting and aggregation on the Coordinator Node, consuming a large amount of Heap Memory.",
+        "wg": [
+          {
+            "t": "全域排序",
+            "en": "global sorting",
+            "ps": "noun"
+          },
+          {
+            "t": "匯總",
+            "en": "aggregation",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "因為這會導致資料庫鎖死（Deadlock），阻礙其他寫入請求。",
+        "en": "Because this will cause a database deadlock, blocking other write requests.",
+        "wg": []
+      },
+      {
+        "t": "因為網路頻寬不足以傳輸這麼多資料。",
+        "en": "Because the network bandwidth is insufficient to transmit so much data.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "深度分頁需要每個 Shard 都回傳 `from + size` 筆資料給 Coordinator Node 進行排序，隨著頁數越深，記憶體與 CPU 消耗呈指數級上升。應改用 `search_after` 或 Scroll API。",
+      "en": "Deep pagination requires each Shard to return `from + size` records to the Coordinator Node for sorting. As the page depth increases, memory and CPU consumption rise exponentially. `search_after` or Scroll API should be used instead.",
+      "wg": [
+        {
+          "t": "指數級",
+          "en": "exponentially",
+          "ps": "adverb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "4",
+    "level": "Medium",
+    "keywords": "Data Modeling, Denormalization, Join",
+    "parentNo": null,
+    "images": "",
+    "codeSnippet": "",
+    "question": [
+      {
+        "t": "在關聯式資料庫（RDBMS）中，我們習慣將 User 與 Order 分開儲存並在查詢時 Join。但在 Elasticsearch 中，為了優化搜尋效能，通常建議採用什麼策略？",
+        "en": "In RDBMS, we are used to storing User and Order separately and Joining them during queries. However, in Elasticsearch, what strategy is usually recommended to optimize search performance?",
+        "wg": [
+          {
+            "t": "關聯式資料庫",
+            "en": "RDBMS",
+            "ps": "noun"
+          },
+          {
+            "t": "優化",
+            "en": "optimize",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "使用 Nested Object 並在查詢時大量使用 Nested Query。",
+        "en": "Use Nested Objects and use Nested Queries extensively during searches.",
+        "wg": []
+      },
+      {
+        "t": "使用 Parent-Child Join，雖然效能稍差但保持了資料正規化。",
+        "en": "Use Parent-Child Join, which maintains data normalization albeit with slightly worse performance.",
+        "wg": []
+      },
+      {
+        "t": "反正規化（Denormalization）：將 User 的關鍵資訊（如 Name, Email）直接扁平化寫入 Order 文件中。",
+        "en": "Denormalization: Flatten key User information (such as Name, Email) and write it directly into the Order document.",
+        "wg": [
+          {
+            "t": "反正規化",
+            "en": "Denormalization",
+            "ps": "noun"
+          },
+          {
+            "t": "扁平化",
+            "en": "flatten",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "在 Application Layer 進行 Join，先查 User ID 再查 Order Index。",
+        "en": "Perform Join at the Application Layer: query User ID first, then query the Order Index.",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "ES 不擅長 Join。為了極致的搜尋速度，最佳實踐是「以空間換時間」，將關聯資料攤平（Flatten）存入單一文件，避免查詢時的關聯運算開銷。",
+      "en": "ES is not good at Joins. For ultimate search speed, the best practice is to 'trade space for time' by flattening related data into a single document, avoiding the overhead of relational operations during queries.",
+      "wg": [
+        {
+          "t": "以空間換時間",
+          "en": "trade space for time",
+          "ps": "phrase"
+        },
+        {
+          "t": "開銷",
+          "en": "overhead",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "5",
+    "level": "Hard",
+    "keywords": "Architecture, E-commerce, Consistency",
+    "parentNo": null,
+    "images": "",
+    "codeSnippet": "",
+    "question": [
+      {
+        "t": "在設計高併發的電商搜尋系統時，針對「商品庫存（Stock）」這種高頻變動且要求強一致性的資料，下列哪種架構設計最為合適？",
+        "en": "When designing a high-concurrency e-commerce search system, which of the following architectural designs is most suitable for 'Product Stock', which is high-frequency changing and requires strong consistency?",
+        "wg": [
+          {
+            "t": "高併發",
+            "en": "high-concurrency",
+            "ps": "adjective"
+          },
+          {
+            "t": "強一致性",
+            "en": "strong consistency",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "將庫存直接存入 ES，每次下單都即時 Update ES，以確保搜尋結果準確。",
+        "en": "Store stock directly in ES and update ES immediately with every order to ensure accurate search results.",
+        "wg": []
+      },
+      {
+        "t": "ES 僅儲存商品靜態資訊（名稱、描述），搜尋時由 ES 回傳 ID，Backend 再拿 ID 去 DB 或 Redis 查詢即時庫存並組裝回傳。",
+        "en": "ES stores only static product info (name, description). During search, ES returns IDs, and the Backend uses these IDs to query real-time stock from DB or Redis and assembles the response.",
+        "wg": [
+          {
+            "t": "組裝",
+            "en": "assemble",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "使用 ES 的 Scripted Update 功能來處理庫存扣減，保證原子性。",
+        "en": "Use ES's Scripted Update feature to handle stock deduction, ensuring atomicity.",
+        "wg": []
+      },
+      {
+        "t": "放棄使用 ES，改用 MySQL 的 Full Text Search 以確保資料一致。",
+        "en": "Abandon ES and use MySQL's Full Text Search to ensure data consistency.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "庫存屬於高頻更新且需強一致性的資料，直接 Update ES 會導致效能低落（Segment Merging）且缺乏 Transaction 保障。最佳解是將 ES 作為搜尋索引（Search Index），而將狀態檢查（State Check）留給 DB/Redis。",
+      "en": "Stock data involves high-frequency updates and requires strong consistency. Updating ES directly causes poor performance (Segment Merging) and lacks Transaction guarantees. The best solution is to use ES as a Search Index and leave the State Check to DB/Redis.",
+      "wg": [
+        {
+          "t": "狀態檢查",
+          "en": "state check",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "6",
+    "level": "Easy",
+    "keywords": "Concept, Inverted Index, RDBMS",
+    "parentNo": null,
+    "images": "",
+    "codeSnippet": "",
+    "question": [
+      {
+        "t": "為什麼在數百萬筆資料中搜尋包含 'Taipei' 的文字時，Elasticsearch 的速度遠快於 RDBMS 的 `LIKE %Taipei%`？",
+        "en": "Why is Elasticsearch much faster than RDBMS's `LIKE %Taipei%` when searching for text containing 'Taipei' among millions of records?",
+        "wg": [
+          {
+            "t": "數百萬筆",
+            "en": "millions of records",
+            "ps": "phrase"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "因為 ES 將資料存放在記憶體中，而 RDBMS 存放在硬碟。",
+        "en": "Because ES stores data in memory, while RDBMS stores it on disk.",
+        "wg": []
+      },
+      {
+        "t": "因為 ES 使用了倒排索引（Inverted Index），可以直接查表找到包含該詞的文件 ID，而 RDBMS 需要進行全表掃描（Full Table Scan）。",
+        "en": "Because ES uses an Inverted Index, which can directly look up the document IDs containing the term, whereas RDBMS needs to perform a Full Table Scan.",
+        "wg": [
+          {
+            "t": "倒排索引",
+            "en": "Inverted Index",
+            "ps": "noun"
+          },
+          {
+            "t": "全表掃描",
+            "en": "Full Table Scan",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "因為 ES 自動對資料進行了壓縮，減少了 I/O。",
+        "en": "Because ES automatically compresses the data, reducing I/O.",
+        "wg": []
+      },
+      {
+        "t": "因為 ES 是 NoSQL 資料庫，不需要檢查 Schema。",
+        "en": "Because ES is a NoSQL database and does not need to check the Schema.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "RDBMS 的 B-Tree 索引對前綴匹配有效，但對 `LIKE %...%` 無效，導致必須掃描每一列。ES 的倒排索引類似書本後的關鍵字索引，能直接定位到含有該詞的文件。",
+      "en": "RDBMS's B-Tree index is effective for prefix matching but ineffective for `LIKE %...%`, causing it to scan every row. ES's Inverted Index is like a keyword index at the back of a book, allowing it to directly locate documents containing the term.",
+      "wg": [
+        {
+          "t": "前綴匹配",
+          "en": "prefix matching",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "7",
+    "level": "Medium",
+    "keywords": "Mapping Explosion, Cluster State, Dynamic Mapping, Anti-pattern",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "某 SaaS 平台允許使用者在系統中新增任意數量的「自定義欄位」，並且這些欄位會直接寫入 Elasticsearch (使用預設的 Dynamic Mapping)。",
+        "en": "A SaaS platform allows users to add an arbitrary number of 'custom fields' to the system, which are directly indexed into Elasticsearch (using default Dynamic Mapping).",
+        "wg": [
+          {
+            "t": "自定義欄位",
+            "en": "custom fields",
+            "ps": "noun"
+          },
+          {
+            "t": "動態映射",
+            "en": "Dynamic Mapping",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "隨著時間推移，維運團隊發現 Elasticsearch 的 Master Node 經常回應逾時甚至崩潰，且 Cluster State 變得極其巨大。請問最可能的原因是什麼？",
+        "en": "Over time, the operations team notices that the Elasticsearch Master Node often times out or even crashes, and the Cluster State has become extremely large. What is the most likely cause?",
+        "wg": [
+          {
+            "t": "叢集狀態",
+            "en": "Cluster State",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "因為資料量過大，導致 Data Node 的磁碟空間不足。",
+        "en": "Because the data volume is too large, causing the Data Nodes to run out of disk space.",
+        "wg": []
+      },
+      {
+        "t": "發生了 Mapping Explosion（映射爆炸），過多的欄位定義塞滿了 Cluster State，導致 Master Node 負載過重。",
+        "en": "A Mapping Explosion occurred; too many field definitions filled up the Cluster State, overloading the Master Node.",
+        "wg": [
+          {
+            "t": "映射爆炸",
+            "en": "Mapping Explosion",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "因為使用了深度分頁 (Deep Pagination)，導致 Heap Memory 被耗盡。",
+        "en": "Because Deep Pagination was used, causing Heap Memory to be exhausted.",
+        "wg": []
+      },
+      {
+        "t": "因為 Refresh Interval 設定太短，導致 Segment Merging 過於頻繁。",
+        "en": "Because the Refresh Interval was set too short, causing excessive Segment Merging.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "Elasticsearch 的 Cluster State 儲存了所有的 Index Mapping。當允許無限制的 Dynamic Mapping 時，每個新的欄位名稱都會在 Mapping 中產生一筆記錄。這會導致 Cluster State 變得非常巨大，而 Master Node 負責維護與同步這個狀態，最終導致其崩潰。這被稱為 Mapping Explosion。",
+      "en": "Elasticsearch's Cluster State stores all Index Mappings. When unrestricted Dynamic Mapping is allowed, every new field name creates an entry in the Mapping. This causes the Cluster State to become huge, and since the Master Node is responsible for maintaining and syncing this state, it eventually crashes. This is known as Mapping Explosion.",
+      "wg": []
+    }
+  },
+  {
+    "no": "8",
+    "level": "Medium",
+    "keywords": "Time-Based Indices, Delete By Query, Performance, Logs",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你正在維護一個日誌系統，每天產生約 1TB 的 Log 資料。需求是只保留最近 30 天的資料。",
+        "en": "You are maintaining a logging system that generates about 1TB of log data per day. The requirement is to retain data for only the last 30 days.",
+        "wg": []
+      },
+      {
+        "t": "為了最有效率地移除過期資料並釋放磁碟空間，你應該採用下列哪種策略？",
+        "en": "To most efficiently remove expired data and reclaim disk space, which strategy should you adopt?",
+        "wg": [
+          {
+            "t": "釋放磁碟空間",
+            "en": "reclaim disk space",
+            "ps": "verb phrase"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "將所有 Log 寫入同一個大 Index，每天執行 `delete_by_query` 刪除 30 天前的資料。",
+        "en": "Write all logs to a single large Index and execute `delete_by_query` daily to remove data older than 30 days.",
+        "wg": []
+      },
+      {
+        "t": "採用 Time-Based Indices（如 `logs-2023-10-25`），每天直接刪除（Delete Index）最舊的那個 Index。",
+        "en": "Adopt Time-Based Indices (e.g., `logs-2023-10-25`) and directly delete (Delete Index) the oldest Index each day.",
+        "wg": [
+          {
+            "t": "基於時間的索引",
+            "en": "Time-Based Indices",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "將過期文件的欄位設為 null，利用 Elasticsearch 的自動清理機制。",
+        "en": "Set the fields of expired documents to null and rely on Elasticsearch's automatic cleanup mechanism.",
+        "wg": []
+      },
+      {
+        "t": "使用 Update API 將過期文件標記為 `expired: true`，並在搜尋時過濾掉。",
+        "en": "Use the Update API to mark expired documents as `expired: true` and filter them out during searches.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "在 Elasticsearch 中，`delete_by_query` 只是將文件標記為 `.del`（邏輯刪除），並不會立即釋放磁碟空間，且執行成本極高。刪除整個 Index（`DELETE /index_name`）則是直接刪除底層檔案，速度極快且能立即釋放空間，是處理時序型資料（Time-series data）的最佳實務。",
+      "en": "In Elasticsearch, `delete_by_query` only marks documents as `.del` (logical deletion); it does not immediately reclaim disk space and is very expensive to execute. Deleting an entire Index (`DELETE /index_name`) removes the underlying files directly, is extremely fast, and immediately frees up space, making it the best practice for time-series data.",
+      "wg": [
+        {
+          "t": "邏輯刪除",
+          "en": "logical deletion",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "9",
+    "level": "Easy",
+    "keywords": "Bulk Processing, Performance, Ingestion",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "for row in database_cursor:\n    es.index(index='products', body=row)",
+    "question": [
+      {
+        "t": "一位初階工程師撰寫了如上的 Python 腳本，負責將數百萬筆商品資料從 MySQL 遷移到 Elasticsearch。",
+        "en": "A junior engineer wrote the Python script above to migrate millions of product records from MySQL to Elasticsearch.",
+        "wg": []
+      },
+      {
+        "t": "執行後發現速度極慢，每秒只能寫入幾十筆。請問最有效的優化方式是什麼？",
+        "en": "After execution, it was found to be extremely slow, indexing only a few dozen records per second. What is the most effective way to optimize this?",
+        "wg": []
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "將 Python 腳本改用 C++ 重寫以提升執行效能。",
+        "en": "Rewrite the Python script in C++ to improve execution performance.",
+        "wg": []
+      },
+      {
+        "t": "改用 `_bulk` API，累積一批資料（如 1000 筆或 5MB）後再一次性發送。",
+        "en": "Switch to the `_bulk` API, accumulating a batch of data (e.g., 1000 records or 5MB) before sending it in a single request.",
+        "wg": [
+          {
+            "t": "批次處理",
+            "en": "Bulk Processing",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "在 Elasticsearch 端關閉 `refresh_interval`，設為 `-1` 即可解決單筆寫入慢的問題。",
+        "en": "Disable `refresh_interval` on the Elasticsearch side (set to `-1`) to solve the slow single-record write issue.",
+        "wg": []
+      },
+      {
+        "t": "為每一筆寫入請求增加 `?refresh=true` 參數。",
+        "en": "Add the `?refresh=true` parameter to every write request.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "單筆呼叫 `index` API 會產生巨大的 HTTP Overhead 與 Lucene Segment 建立成本。使用 `_bulk` API 可以大幅減少網路往返次數，並讓 ES 更有效率地批次構建 Inverted Index，是提升寫入吞吐量的標準做法。",
+      "en": "Calling the `index` API record-by-record creates huge HTTP overhead and Lucene Segment creation costs. Using the `_bulk` API significantly reduces network round-trips and allows ES to build the Inverted Index more efficiently in batches, which is the standard practice for improving write throughput.",
+      "wg": []
+    }
+  },
+  {
+    "no": "10",
+    "level": "Medium",
+    "keywords": "ID Strategy, Idempotency, Retry, Best Practice",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你的資料管線（Data Pipeline）負責從 Kafka 讀取訂單資料並寫入 Elasticsearch。為了處理網路不穩，你設定了失敗重試機制。",
+        "en": "Your data pipeline reads order data from Kafka and writes it to Elasticsearch. To handle network instability, you have configured a retry mechanism.",
+        "wg": [
+          {
+            "t": "資料管線",
+            "en": "Data Pipeline",
+            "ps": "noun"
+          },
+          {
+            "t": "重試機制",
+            "en": "retry mechanism",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "然而你發現，當發生網路超時（Timeout）並觸發重試後，Elasticsearch 中出現了重複的訂單資料。請問根本原因與解決方案為何？",
+        "en": "However, you notice that when a network timeout occurs and triggers a retry, duplicate order data appears in Elasticsearch. What is the root cause and solution?",
+        "wg": [
+          {
+            "t": "重複資料",
+            "en": "duplicate data",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "原因：ES 預設不支援 Transaction。解決方案：改用 MySQL。",
+        "en": "Cause: ES does not support Transactions by default. Solution: Switch to MySQL.",
+        "wg": []
+      },
+      {
+        "t": "原因：使用了 ES 自動生成的 ID。解決方案：使用具業務意義的 ID（如訂單號）作為 ES 的 `_id`，確保寫入是冪等（Idempotent）的。",
+        "en": "Cause: Used ES auto-generated IDs. Solution: Use a business-meaningful ID (e.g., Order ID) as the ES `_id` to ensure writes are Idempotent.",
+        "wg": [
+          {
+            "t": "冪等",
+            "en": "Idempotent",
+            "ps": "adjective"
+          }
+        ]
+      },
+      {
+        "t": "原因：Kafka 的 `at-least-once` 特性。解決方案：將 Kafka 改為 `exactly-once` 模式即可，ES 端不需調整。",
+        "en": "Cause: Kafka's `at-least-once` delivery. Solution: Switch Kafka to `exactly-once` mode; no changes needed on the ES side.",
+        "wg": []
+      },
+      {
+        "t": "原因：Refresh Interval 太短。解決方案：延長 Refresh Interval。",
+        "en": "Cause: Refresh Interval is too short. Solution: Increase the Refresh Interval.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "若未指定 `_id`，Elasticsearch 會自動生成一個隨機 ID。當寫入請求因網路超時而重試時，ES 會將其視為一筆「新文件」並生成新的 ID，導致重複。使用業務 ID（如 DB Primary Key）作為 `_id` 可以確保即使重試多次，也只是覆蓋（Upsert）同一筆文件，達成冪等性。",
+      "en": "If `_id` is not specified, Elasticsearch auto-generates a random ID. When a write request retries due to a network timeout, ES treats it as a 'new document' and generates a new ID, causing duplicates. Using a business ID (like a DB Primary Key) as `_id` ensures that even with multiple retries, it simply overwrites (Upserts) the same document, achieving idempotency.",
+      "wg": [
+        {
+          "t": "自動生成",
+          "en": "auto-generate",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "11",
+    "level": "Hard",
+    "keywords": "Architecture, Split-brain, Data Loss, Anti-pattern",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "一家新創公司決定不使用關聯式資料庫（RDBMS），而是將所有的使用者帳戶餘額與交易紀錄「只」儲存在 Elasticsearch 中，以此簡化架構。",
+        "en": "A startup decides not to use a Relational Database (RDBMS) and instead stores all user account balances and transaction records 'only' in Elasticsearch to simplify the architecture.",
+        "wg": [
+          {
+            "t": "帳戶餘額",
+            "en": "account balances",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "身為資深顧問，你最強烈反對這個決策的理由是什麼？",
+        "en": "As a senior consultant, what is your strongest reason for opposing this decision?",
+        "wg": []
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "Elasticsearch 的查詢語法（DSL）比 SQL 難學，會增加開發成本。",
+        "en": "Elasticsearch's query syntax (DSL) is harder to learn than SQL, increasing development costs.",
+        "wg": []
+      },
+      {
+        "t": "Elasticsearch 不支援 Join，無法處理複雜的報表需求。",
+        "en": "Elasticsearch does not support Joins, making it unable to handle complex reporting requirements.",
+        "wg": []
+      },
+      {
+        "t": "Elasticsearch 在發生 Split-brain（腦裂）等極端狀況下，比起 RDBMS 有較高的資料遺失風險，且缺乏 ACID 交易機制保障資金正確性。",
+        "en": "Elasticsearch has a higher risk of data loss than RDBMS in extreme scenarios like Split-brain, and lacks ACID transaction mechanisms to guarantee financial accuracy.",
+        "wg": [
+          {
+            "t": "腦裂",
+            "en": "Split-brain",
+            "ps": "noun"
+          },
+          {
+            "t": "資料遺失",
+            "en": "data loss",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "Elasticsearch 的寫入速度遠慢於 MySQL，無法支撐高併發交易。",
+        "en": "Elasticsearch's write speed is much slower than MySQL, unable to support high-concurrency transactions.",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "雖然 ES 可靠性已提升，但其設計初衷是搜尋引擎而非 Source of Truth。它缺乏嚴格的 Transaction (Rollback) 支援，且在分散式環境下（如腦裂復原時）可能會丟棄部分資料以求叢集恢復。對於涉及金錢或法律責任的資料，必須儲存在具備強一致性與 ACID 的 RDBMS 中。",
+      "en": "Although ES reliability has improved, it is designed as a search engine, not a Source of Truth. It lacks strict Transaction (Rollback) support and may discard some data to recover the cluster in distributed scenarios (like split-brain recovery). Data involving money or legal liability must be stored in an RDBMS with strong consistency and ACID compliance.",
+      "wg": [
+        {
+          "t": "單一真理來源",
+          "en": "Source of Truth",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "12",
+    "level": "Medium",
+    "keywords": "Refresh Interval, Throughput, Tuning, NRT",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你的系統需要大量寫入日誌資料（Write-heavy），且使用者可以接受寫入後延遲 30 秒才搜尋得到資料。",
+        "en": "Your system requires heavy writing of log data (Write-heavy), and users can accept a delay of 30 seconds before the data becomes searchable.",
+        "wg": [
+          {
+            "t": "寫入密集",
+            "en": "Write-heavy",
+            "ps": "adjective"
+          }
+        ]
+      },
+      {
+        "t": "為了最大化寫入吞吐量（Throughput），你應該調整哪個設定？",
+        "en": "To maximize write throughput, which setting should you adjust?",
+        "wg": [
+          {
+            "t": "吞吐量",
+            "en": "Throughput",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "將 `refresh_interval` 從預設的 `1s` 調大至 `30s`。",
+        "en": "Increase `refresh_interval` from the default `1s` to `30s`.",
+        "wg": [
+          {
+            "t": "重新整理間隔",
+            "en": "refresh_interval",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "將 `number_of_replicas` 設為 0。",
+        "en": "Set `number_of_replicas` to 0.",
+        "wg": []
+      },
+      {
+        "t": "使用 `wait_for_completion=true` 參數。",
+        "en": "Use the `wait_for_completion=true` parameter.",
+        "wg": []
+      },
+      {
+        "t": "將 `index.translog.durability` 設為 `async`。",
+        "en": "Set `index.translog.durability` to `async`.",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "Elasticsearch 預設每秒執行一次 Refresh，將 Memory Buffer 的資料寫成新的 Segment。這會消耗大量 CPU 與 I/O。對於寫入量大且對即時性要求不高的場景，調大 `refresh_interval` 可以顯著減少 Segment 的產生與合併次數，進而大幅提升寫入吞吐量。",
+      "en": "Elasticsearch performs a Refresh every second by default, writing data from the Memory Buffer to a new Segment. This consumes significant CPU and I/O. For scenarios with heavy writes and low real-time requirements, increasing `refresh_interval` significantly reduces the creation and merging of Segments, thereby greatly improving write throughput.",
+      "wg": []
+    }
+  }
+]

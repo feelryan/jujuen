@@ -1,0 +1,824 @@
+[
+  {
+    "no": "1",
+    "level": "medium",
+    "keywords": "middleware, hanging requests, debugging",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "app.use((req, res, next) => {\n  if (req.header('x-api-key')) {\n    // Valid key logic\n    next();\n  }\n  // Missing else block or response\n});",
+    "question": [
+      {
+        "t": "在上述 Middleware 程式碼中，如果請求未包含 `x-api-key` 標頭，客戶端會遇到什麼情況？",
+        "en": "In the middleware code above, what will the client experience if the request does not include the `x-api-key` header?",
+        "wg": [
+          {
+            "t": "中介軟體",
+            "en": "Middleware",
+            "ps": "noun"
+          },
+          {
+            "t": "標頭",
+            "en": "header",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "单选",
+    "options": [
+      {
+        "t": "伺服器會立即回傳 404 Not Found。",
+        "en": "The server will immediately return a 404 Not Found.",
+        "wg": []
+      },
+      {
+        "t": "伺服器會拋出 Unhandled Exception 並崩潰。",
+        "en": "The server will throw an Unhandled Exception and crash.",
+        "wg": []
+      },
+      {
+        "t": "請求會被掛起 (Hanging)，直到客戶端或伺服器逾時。",
+        "en": "The request will hang until the client or server times out.",
+        "wg": [
+          {
+            "t": "掛起",
+            "en": "hang",
+            "ps": "verb"
+          },
+          {
+            "t": "逾時",
+            "en": "times out",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "請求會自動跳過此 Middleware 進入下一個路由。",
+        "en": "The request will automatically skip this middleware and proceed to the next route.",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "這是典型的「黑洞 Middleware」反模式。當條件不滿足時，程式碼既沒有呼叫 `next()` 將控制權交給下一層，也沒有呼叫 `res.send()` 結束請求，導致請求停留在該層直到連線逾時。",
+      "en": "This is a classic 'Black Hole Middleware' anti-pattern. When the condition is not met, the code neither calls `next()` to pass control to the next layer nor calls `res.send()` to terminate the request, causing the request to stay stuck in this layer until the connection times out.",
+      "wg": [
+        {
+          "t": "黑洞 Middleware",
+          "en": "Black Hole Middleware",
+          "ps": "noun"
+        },
+        {
+          "t": "反模式",
+          "en": "anti-pattern",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "2",
+    "level": "hard",
+    "keywords": "memory leak, event listener, closure",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "const globalEventBus = new EventEmitter();\n\napp.get('/stream', (req, res) => {\n  // Anti-pattern warning\n  globalEventBus.on('data', (data) => {\n    res.write(JSON.stringify(data));\n  });\n});",
+    "question": [
+      {
+        "t": "這段程式碼包含一個嚴重的記憶體洩漏 (Memory Leak) 風險，其主要原因為何？",
+        "en": "This code contains a serious Memory Leak risk. What is the primary reason?",
+        "wg": [
+          {
+            "t": "記憶體洩漏",
+            "en": "Memory Leak",
+            "ps": "noun"
+          },
+          {
+            "t": "事件發送器",
+            "en": "EventEmitter",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "单选",
+    "options": [
+      {
+        "t": "`res.write` 是同步操作，會阻塞 Event Loop。",
+        "en": "`res.write` is a synchronous operation that blocks the Event Loop.",
+        "wg": []
+      },
+      {
+        "t": "每次請求都會註冊新的 Listener，但請求結束後未移除，且 Closure 引用了 `res` 物件導致無法回收。",
+        "en": "A new Listener is registered for every request but never removed after the request ends, and the Closure references the `res` object, preventing garbage collection.",
+        "wg": [
+          {
+            "t": "閉包",
+            "en": "Closure",
+            "ps": "noun"
+          },
+          {
+            "t": "回收",
+            "en": "garbage collection",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "`globalEventBus` 是全域變數，Node.js 不允許在 Request Handler 中存取全域變數。",
+        "en": "`globalEventBus` is a global variable, and Node.js does not allow accessing global variables inside a Request Handler.",
+        "wg": []
+      },
+      {
+        "t": "`JSON.stringify` 在處理大量資料時會導致 CPU 飆升。",
+        "en": "`JSON.stringify` causes CPU spikes when processing large amounts of data.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "這是常見的記憶體洩漏模式。每次請求都會向 `globalEventBus` 加入一個新的監聽器，但從未呼叫 `off` 或 `removeListener`。由於監聽器的 Callback 是一個 Closure，它捕捉了當次請求的 `res` 物件，導致即使請求結束，`res` 仍被全域物件引用而無法被 GC 回收。",
+      "en": "This is a common memory leak pattern. Every request adds a new listener to `globalEventBus`, but `off` or `removeListener` is never called. Since the listener callback is a Closure capturing the `res` object of that request, `res` remains referenced by the global object and cannot be garbage collected even after the request ends.",
+      "wg": [
+        {
+          "t": "監聽器",
+          "en": "listener",
+          "ps": "noun"
+        },
+        {
+          "t": "引用",
+          "en": "reference",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "3",
+    "level": "medium",
+    "keywords": "async/await, error handling, hanging requests",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "app.get('/data', async (req, res, next) => {\n  try {\n    const data = await db.getData();\n    res.json(data);\n  } catch (e) {\n    console.log(e);\n    // Missing next(e) or response\n  }\n});",
+    "question": [
+      {
+        "t": "在上述 Async/Await 的錯誤處理模式中，若 `db.getData()` 發生錯誤，會導致什麼後果？",
+        "en": "In the Async/Await error handling pattern above, what happens if `db.getData()` fails?",
+        "wg": [
+          {
+            "t": "錯誤處理",
+            "en": "error handling",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "单选",
+    "options": [
+      {
+        "t": "Express 的預設錯誤處理器會捕捉到錯誤並回傳 500。",
+        "en": "Express's default error handler will catch the error and return a 500.",
+        "wg": []
+      },
+      {
+        "t": "請求會被掛起 (Hanging)，因為錯誤被吞噬 (Swallowed) 且未傳遞給 Express。",
+        "en": "The request will hang because the error is swallowed and not passed to Express.",
+        "wg": [
+          {
+            "t": "吞噬",
+            "en": "swallowed",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "Node.js Process 會因為 Unhandled Rejection 而崩潰。",
+        "en": "The Node.js Process will crash due to an Unhandled Rejection.",
+        "wg": []
+      },
+      {
+        "t": "會自動重試資料庫連線。",
+        "en": "The database connection will be automatically retried.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "開發者使用了 `try/catch` 區塊捕捉錯誤，但在 `catch` 中僅做了 `console.log` 而沒有呼叫 `next(e)` 或回傳錯誤回應。這導致 Express 認為請求仍在處理中，客戶端將收不到任何回應直到逾時（即「吞噬錯誤」反模式）。",
+      "en": "The developer used a `try/catch` block to catch the error, but only logged it with `console.log` inside `catch` without calling `next(e)` or sending an error response. This causes Express to think the request is still being processed, and the client receives no response until timeout (the 'Swallowing Errors' anti-pattern).",
+      "wg": [
+        {
+          "t": "吞噬錯誤",
+          "en": "Swallowing Errors",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "4",
+    "level": "medium",
+    "keywords": "performance, clinic.js, event loop",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "使用 `clinic doctor` 診斷 Express 應用程式效能時，若報告顯示「高 Event Loop Delay」同時伴隨「高 CPU Usage」，最可能的原因是什麼？",
+        "en": "When diagnosing an Express application's performance with `clinic doctor`, what is the most likely cause if the report shows 'High Event Loop Delay' accompanied by 'High CPU Usage'?",
+        "wg": [
+          {
+            "t": "診斷",
+            "en": "diagnose",
+            "ps": "verb"
+          },
+          {
+            "t": "事件迴圈延遲",
+            "en": "Event Loop Delay",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "单选",
+    "options": [
+      {
+        "t": "外部 I/O (如資料庫查詢或 API 呼叫) 回應過慢。",
+        "en": "External I/O (such as DB queries or API calls) is responding too slowly.",
+        "wg": []
+      },
+      {
+        "t": "記憶體洩漏導致 Garbage Collection 頻繁運作。",
+        "en": "Memory leaks are causing frequent Garbage Collection.",
+        "wg": []
+      },
+      {
+        "t": "主執行緒中存在同步的密集運算 (Synchronous Intensive Computation)。",
+        "en": "There is synchronous intensive computation on the main thread.",
+        "wg": [
+          {
+            "t": "同步密集運算",
+            "en": "Synchronous Intensive Computation",
+            "ps": "noun"
+          },
+          {
+            "t": "主執行緒",
+            "en": "main thread",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "網路頻寬不足導致請求堆積。",
+        "en": "Insufficient network bandwidth is causing request backlog.",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "根據 `clinic doctor` 的分析模式，高 Loop Delay 加上高 CPU 使用率，通常代表 CPU 正忙於執行同步程式碼（如大型 JSON 解析、加密運算等），導致 Event Loop 無法處理其他請求。若 CPU 低但 Delay 高，才較可能是外部 I/O 等待問題。",
+      "en": "According to `clinic doctor` analysis patterns, high Loop Delay combined with high CPU usage usually indicates the CPU is busy executing synchronous code (like large JSON parsing, encryption, etc.), preventing the Event Loop from handling other requests. If CPU is low but Delay is high, it is more likely an external I/O wait issue.",
+      "wg": [
+        {
+          "t": "同步程式碼",
+          "en": "synchronous code",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "5",
+    "level": "easy",
+    "keywords": "logging, microservices, best practices",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在微服務架構或高併發環境下，為了能夠跨服務或在大量 Log 中追蹤單一請求的流向，最佳實務是實作什麼機制？",
+        "en": "In a microservices architecture or high-concurrency environment, what is the best practice mechanism to implement for tracing a single request flow across services or within massive logs?",
+        "wg": [
+          {
+            "t": "微服務架構",
+            "en": "microservices architecture",
+            "ps": "noun"
+          },
+          {
+            "t": "高併發",
+            "en": "high-concurrency",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "单选",
+    "options": [
+      {
+        "t": "在每個 `console.log` 前面加上 `Date.now()`。",
+        "en": "Prepend `Date.now()` to every `console.log`.",
+        "wg": []
+      },
+      {
+        "t": "使用關聯 ID (Correlation IDs / Request IDs) 並將其附加於 Log 與 HTTP Headers。",
+        "en": "Use Correlation IDs (Request IDs) and attach them to logs and HTTP Headers.",
+        "wg": [
+          {
+            "t": "關聯 ID",
+            "en": "Correlation IDs",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "僅在發生錯誤時記錄 Log，以減少雜訊。",
+        "en": "Only log when an error occurs to reduce noise.",
+        "wg": []
+      },
+      {
+        "t": "使用同步寫入檔案的方式記錄 Log 以確保順序正確。",
+        "en": "Use synchronous file writing for logs to ensure correct order.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "單純依賴時間戳記在高併發下不足以區分請求。最佳實務是為每個進入系統的請求生成唯一的 UUID (Correlation ID)，並透過 `X-Request-ID` Header 在服務間傳遞，且所有 Log 輸出都必須包含此 ID。",
+      "en": "Relying solely on timestamps is insufficient to distinguish requests under high concurrency. The best practice is to generate a unique UUID (Correlation ID) for each incoming request, propagate it across services via the `X-Request-ID` header, and include this ID in all log outputs.",
+      "wg": [
+        {
+          "t": "時間戳記",
+          "en": "timestamp",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "6",
+    "level": "medium",
+    "keywords": "debugging, headers sent, common errors",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "app.get('/user/:id', async (req, res) => {\n  const user = await db.find(req.params.id);\n  if (!user) {\n    res.status(404).send('Not found');\n  }\n  res.json(user);\n});",
+    "question": [
+      {
+        "t": "執行上述程式碼時，若使用者不存在，伺服器 Log 最可能會出現什麼錯誤？",
+        "en": "When executing the code above, if the user does not exist, what error is most likely to appear in the server logs?",
+        "wg": [
+          {
+            "t": "伺服器日誌",
+            "en": "server logs",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "单选",
+    "options": [
+      {
+        "t": "ReferenceError: user is not defined",
+        "en": "ReferenceError: user is not defined",
+        "wg": []
+      },
+      {
+        "t": "Error [ERR_HTTP_HEADERS_SENT]: Cannot set headers after they are sent to the client",
+        "en": "Error [ERR_HTTP_HEADERS_SENT]: Cannot set headers after they are sent to the client",
+        "wg": []
+      },
+      {
+        "t": "TypeError: res.json is not a function",
+        "en": "TypeError: res.json is not a function",
+        "wg": []
+      },
+      {
+        "t": "不會有錯誤，程式正常執行。",
+        "en": "No error, the program executes normally.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "當 `user` 不存在時，程式執行了 `res.send(...)` 但忘記加上 `return`。這導致程式碼繼續往下執行並嘗試呼叫 `res.json(user)`。由於回應已經發送給客戶端，再次設定 Header 或 Body 會觸發 `ERR_HTTP_HEADERS_SENT` 錯誤。",
+      "en": "When `user` does not exist, the program executes `res.send(...)` but forgets to add `return`. This causes the code to continue execution and attempt to call `res.json(user)`. Since the response has already been sent to the client, trying to set headers or body again triggers the `ERR_HTTP_HEADERS_SENT` error.",
+      "wg": [
+        {
+          "t": "回應",
+          "en": "response",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "7",
+    "level": "medium",
+    "keywords": "debug module, environment variables, logging",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "當你在生產環境中遇到路由匹配問題，且不希望修改程式碼加入 `console.log` 時，根據 Express 的最佳實務，應如何啟用內部的路由除錯訊息？",
+        "en": "When encountering routing matching issues in a production environment and you do not want to modify the code to add `console.log`, according to Express best practices, how should you enable internal routing debug messages?",
+        "wg": [
+          {
+            "t": "路由匹配",
+            "en": "routing matching",
+            "ps": "noun phrase"
+          },
+          {
+            "t": "最佳實務",
+            "en": "best practices",
+            "ps": "noun phrase"
+          }
+        ]
+      }
+    ],
+    "type": "单选",
+    "options": [
+      {
+        "t": "在啟動應用程式時，設定環境變數 `NODE_ENV=development`。",
+        "en": "Set the environment variable `NODE_ENV=development` when starting the application.",
+        "wg": []
+      },
+      {
+        "t": "在啟動應用程式時，設定環境變數 `DEBUG=express:router` 或 `DEBUG=express:*`。",
+        "en": "Set the environment variable `DEBUG=express:router` or `DEBUG=express:*` when starting the application.",
+        "wg": []
+      },
+      {
+        "t": "使用 `npm run debug` 指令來啟動伺服器。",
+        "en": "Use the `npm run debug` command to start the server.",
+        "wg": []
+      },
+      {
+        "t": "在 `app.js` 中設定 `app.set('debug', true)`。",
+        "en": "Set `app.set('debug', true)` in `app.js`.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "Express 內部使用 `debug` 模組來處理日誌。透過設定環境變數 `DEBUG` (例如 `express:router` 僅查看路由相關，或 `express:*` 查看所有)，可以在不更動程式碼的情況下，讓 Express 輸出詳細的內部運作日誌。`NODE_ENV` 主要影響效能優化與錯誤頁面顯示，而非開啟詳細除錯日誌。",
+      "en": "Express uses the `debug` module internally for logging. By setting the `DEBUG` environment variable (e.g., `express:router` for routing only, or `express:*` for everything), you can force Express to output detailed internal logs without changing the code. `NODE_ENV` primarily affects performance optimizations and error page rendering, not enabling verbose debug logs.",
+      "wg": [
+        {
+          "t": "環境變數",
+          "en": "environment variable",
+          "ps": "noun phrase"
+        }
+      ]
+    }
+  },
+  {
+    "no": "8",
+    "level": "hard",
+    "keywords": "memory leak, heap snapshot, garbage collection",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在排查記憶體洩漏 (Memory Leak) 時，你依循標準流程：強制 GC -> 拍攝 Snapshot A -> 執行負載測試 -> 強制 GC -> 拍攝 Snapshot B。",
+        "en": "When troubleshooting a memory leak, you follow the standard workflow: Force GC -> Take Snapshot A -> Run Load Test -> Force GC -> Take Snapshot B.",
+        "wg": [
+          {
+            "t": "記憶體洩漏",
+            "en": "Memory Leak",
+            "ps": "noun phrase"
+          },
+          {
+            "t": "負載測試",
+            "en": "Load Test",
+            "ps": "noun phrase"
+          }
+        ]
+      },
+      {
+        "t": "在比較 Snapshot B 與 A 時，下列哪種現象最強烈暗示應用程式存在記憶體洩漏？",
+        "en": "When comparing Snapshot B with A, which of the following phenomena strongly suggests a memory leak in the application?",
+        "wg": []
+      }
+    ],
+    "type": "单选",
+    "options": [
+      {
+        "t": "Snapshot B 的總體積比 Snapshot A 大，但主要由字串 (Strings) 組成。",
+        "en": "The total size of Snapshot B is larger than Snapshot A, but it consists mainly of Strings.",
+        "wg": []
+      },
+      {
+        "t": "發現大量的 `Detached DOM` (或 Detached Objects) 以及數量持續增長的閉包 (Closures) 或陣列。",
+        "en": "Finding a large number of `Detached DOM` (or Detached Objects) and continuously growing Closures or Arrays.",
+        "wg": [
+          {
+            "t": "閉包",
+            "en": "Closures",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "CPU 使用率在負載測試期間維持在 100%。",
+        "en": "CPU usage remains at 100% during the load test.",
+        "wg": []
+      },
+      {
+        "t": "Snapshot B 中包含許多暫存的 Request 物件。",
+        "en": "Snapshot B contains many temporary Request objects.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "記憶體洩漏的特徵是物件在不再需要後仍被引用，導致 GC 無法回收。在 Node.js 的 Heap Snapshot 中，`Detached` 物件或在多次 GC 後仍異常增長的集合 (如 Array/Map)，是洩漏的典型指標。單純體積變大可能是因為快取策略，而 CPU 高使用率則是效能問題，不一定代表記憶體洩漏。",
+      "en": "Memory leaks are characterized by objects being referenced after they are no longer needed, preventing GC from collecting them. In Node.js Heap Snapshots, `Detached` objects or collections (like Arrays/Maps) that grow abnormally even after multiple GCs are typical indicators of leaks. A simple increase in size might be due to caching strategies, and high CPU usage indicates performance issues, not necessarily memory leaks.",
+      "wg": [
+        {
+          "t": "引用",
+          "en": "referenced",
+          "ps": "verb/adjective"
+        },
+        {
+          "t": "指標",
+          "en": "indicator",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "9",
+    "level": "medium",
+    "keywords": "clinic.js, performance, event loop, I/O blocking",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "使用 `clinic doctor` 診斷效能時，若報告顯示「高 Event Loop Delay」但伴隨著「低 CPU Usage」，這通常意味著什麼類型的瓶頸？",
+        "en": "When using `clinic doctor` for performance diagnosis, if the report shows 'High Event Loop Delay' accompanied by 'Low CPU Usage', what type of bottleneck does this usually indicate?",
+        "wg": [
+          {
+            "t": "瓶頸",
+            "en": "bottleneck",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "单选",
+    "options": [
+      {
+        "t": "主執行緒正在進行密集的同步運算 (如加密或大型 JSON 解析)。",
+        "en": "The main thread is performing intensive synchronous computations (e.g., encryption or large JSON parsing).",
+        "wg": []
+      },
+      {
+        "t": "垃圾回收 (Garbage Collection) 正在頻繁觸發。",
+        "en": "Garbage Collection is triggering frequently.",
+        "wg": []
+      },
+      {
+        "t": "應用程式正在等待外部 I/O (如資料庫查詢或外部 API 回應) 且可能存在連線池阻塞。",
+        "en": "The application is waiting for external I/O (e.g., DB queries or external API responses) and there might be connection pool blocking.",
+        "wg": [
+          {
+            "t": "連線池",
+            "en": "connection pool",
+            "ps": "noun phrase"
+          }
+        ]
+      },
+      {
+        "t": "記憶體洩漏導致 Heap 空間不足。",
+        "en": "Memory leak causing insufficient Heap space.",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "高 CPU 使用率通常對應到同步運算阻塞。然而，若 CPU 使用率低但 Event Loop 延遲高，表示 Node.js 並非在忙於運算，而是在等待某些非同步操作完成，或是因為外部資源 (如 DB) 回應過慢導致 Event Loop 調度受到影響 (雖然 Node 是非阻塞的，但過多的 Pending I/O 或底層 Libuv Thread Pool 耗盡仍可能表現為延遲)。這通常指向 I/O 瓶頸而非運算瓶頸。",
+      "en": "High CPU usage typically corresponds to synchronous computation blocking. However, if CPU usage is low but Event Loop delay is high, it indicates Node.js isn't busy computing but is waiting for asynchronous operations, or the Event Loop scheduling is affected by slow external resources (like DB). While Node is non-blocking, excessive pending I/O or exhaustion of the underlying Libuv thread pool can still manifest as delay. This points to an I/O bottleneck rather than a computational one.",
+      "wg": [
+        {
+          "t": "同步運算",
+          "en": "synchronous computations",
+          "ps": "noun phrase"
+        },
+        {
+          "t": "調度",
+          "en": "scheduling",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "10",
+    "level": "medium",
+    "keywords": "unhandledRejection, process exit, stability",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "process.on('unhandledRejection', (reason, promise) => {\n  console.error('Unhandled Rejection:', reason);\n  // Why is process.exit(1) recommended here?\n  process.exit(1);\n});",
+    "question": [
+      {
+        "t": "在處理 `unhandledRejection` 時，為什麼建議在記錄日誌後執行 `process.exit(1)` 並重啟伺服器，而不是讓伺服器繼續運行？",
+        "en": "When handling `unhandledRejection`, why is it recommended to execute `process.exit(1)` and restart the server after logging, rather than letting the server continue running?",
+        "wg": [
+          {
+            "t": "重啟",
+            "en": "restart",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "type": "单选",
+    "options": [
+      {
+        "t": "因為 Node.js 的新版本會強制在發生此錯誤時自動關閉，手動退出只是為了符合規範。",
+        "en": "Because newer versions of Node.js force an automatic shutdown when this error occurs; manual exit is just for compliance.",
+        "wg": []
+      },
+      {
+        "t": "因為未處理的 Promise Rejection 意味著應用程式處於未定義或不穩定的狀態，繼續運行可能導致資料損壞或不可預期的行為。",
+        "en": "Because an unhandled Promise Rejection implies the application is in an undefined or unstable state; continuing to run may lead to data corruption or unpredictable behavior.",
+        "wg": [
+          {
+            "t": "未定義",
+            "en": "undefined",
+            "ps": "adjective"
+          },
+          {
+            "t": "資料損壞",
+            "en": "data corruption",
+            "ps": "noun phrase"
+          }
+        ]
+      },
+      {
+        "t": "為了釋放被該 Promise 佔用的記憶體。",
+        "en": "To release the memory occupied by that Promise.",
+        "wg": []
+      },
+      {
+        "t": "這只是開發環境的建議，生產環境應該忽略此錯誤以保持服務不中斷。",
+        "en": "This is only a recommendation for development environments; production environments should ignore this error to maintain service uptime.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "當發生未處理的 Rejection 時，代表程式碼中存在邏輯漏洞，且應用程式的狀態可能已經與預期不符 (例如資料庫連線中斷但未重連、全域變數狀態錯誤等)。繼續運行不穩定的 Process 比重新啟動 (由 Process Manager 如 PM2 或 Kubernetes 負責) 風險更高，可能導致更嚴重的資料錯誤。",
+      "en": "When an unhandled Rejection occurs, it indicates a logical flaw in the code, and the application state may no longer match expectations (e.g., DB connection lost without reconnection, incorrect global variable state). Continuing to run an unstable process carries higher risk than restarting it (handled by a Process Manager like PM2 or Kubernetes), potentially leading to more severe data errors.",
+      "wg": [
+        {
+          "t": "邏輯漏洞",
+          "en": "logical flaw",
+          "ps": "noun phrase"
+        }
+      ]
+    }
+  },
+  {
+    "no": "11",
+    "level": "medium",
+    "keywords": "timeout, hanging requests, resource exhaustion",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "針對「請求掛起 (Hanging Requests)」問題，為什麼僅依賴客戶端 (Client-side) 的超時設定是不夠的，必須在伺服器端 (如 `server.setTimeout` 或 Middleware) 也設定超時？",
+        "en": "Regarding 'Hanging Requests', why is relying solely on client-side timeout settings insufficient, and why must timeouts also be set on the server side (e.g., `server.setTimeout` or Middleware)?",
+        "wg": [
+          {
+            "t": "請求掛起",
+            "en": "Hanging Requests",
+            "ps": "noun phrase"
+          },
+          {
+            "t": "超時設定",
+            "en": "timeout settings",
+            "ps": "noun phrase"
+          }
+        ]
+      }
+    ],
+    "type": "单选",
+    "options": [
+      {
+        "t": "客戶端的超時設定無法被伺服器讀取。",
+        "en": "Client-side timeout settings cannot be read by the server.",
+        "wg": []
+      },
+      {
+        "t": "即使客戶端斷開連線，若伺服器未設定超時，該請求仍會佔用伺服器的連線數與資源，最終可能耗盡資源。",
+        "en": "Even if the client disconnects, if the server has not set a timeout, the request will still occupy server connections and resources, potentially exhausting them.",
+        "wg": [
+          {
+            "t": "耗盡",
+            "en": "exhausting",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "伺服器端超時設定可以加快資料庫查詢速度。",
+        "en": "Server-side timeout settings can speed up database queries.",
+        "wg": []
+      },
+      {
+        "t": "這是 HTTP/2 協定的強制要求。",
+        "en": "This is a mandatory requirement of the HTTP/2 protocol.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "當客戶端因超時而斷開連線 (abort) 時，如果伺服器端沒有對應的超時或中斷機制，伺服器仍會繼續處理該請求 (例如等待 DB 回應)。這會導致「殭屍請求」佔用 Socket 連線數與記憶體，在高併發下極易導致伺服器資源耗盡 (Resource Exhaustion) 而無法服務新請求。",
+      "en": "When a client disconnects due to a timeout (abort), if the server lacks a corresponding timeout or interruption mechanism, it will continue processing the request (e.g., waiting for a DB response). This leads to 'zombie requests' occupying socket connections and memory, which can easily cause resource exhaustion under high concurrency, preventing the server from handling new requests.",
+      "wg": [
+        {
+          "t": "殭屍請求",
+          "en": "zombie requests",
+          "ps": "noun phrase"
+        },
+        {
+          "t": "資源耗盡",
+          "en": "Resource Exhaustion",
+          "ps": "noun phrase"
+        }
+      ]
+    }
+  },
+  {
+    "no": "12",
+    "level": "easy",
+    "keywords": "global variables, memory leak, anti-pattern",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "const requestLog = []; // Global variable\n\napp.use((req, res, next) => {\n  requestLog.push({ url: req.url, time: Date.now() });\n  next();\n});",
+    "question": [
+      {
+        "t": "上述程式碼展示了一個常見的反模式 (Anti-pattern)。在長期運行的生產環境中，這段程式碼會導致什麼嚴重後果？",
+        "en": "The code above demonstrates a common anti-pattern. In a long-running production environment, what serious consequence will this code cause?",
+        "wg": [
+          {
+            "t": "反模式",
+            "en": "anti-pattern",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "单选",
+    "options": [
+      {
+        "t": "請求處理速度會因為 `push` 操作而顯著變慢。",
+        "en": "Request processing speed will slow down significantly due to the `push` operation.",
+        "wg": []
+      },
+      {
+        "t": "會導致記憶體洩漏 (Memory Leak)，因為 `requestLog` 陣列只增不減，最終導致 Process Crash。",
+        "en": "It will cause a Memory Leak, as the `requestLog` array grows indefinitely, eventually causing the Process to crash.",
+        "wg": [
+          {
+            "t": "只增不減",
+            "en": "grows indefinitely",
+            "ps": "phrase"
+          }
+        ]
+      },
+      {
+        "t": "會導致資料庫連線數耗盡。",
+        "en": "It will cause database connections to be exhausted.",
+        "wg": []
+      },
+      {
+        "t": "會導致跨請求的資料汙染 (Data Contamination)。",
+        "en": "It will cause cross-request Data Contamination.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "將請求資料儲存在全域變數 (如 `requestLog` 陣列) 中且沒有清理機制，是典型的記憶體洩漏原因。隨著請求數量增加，該陣列會無限佔用 Heap 空間，直到達到 V8 引擎的記憶體上限並導致伺服器崩潰。正確做法應是寫入外部 Log 系統或資料庫。",
+      "en": "Storing request data in a global variable (like the `requestLog` array) without a cleanup mechanism is a classic cause of memory leaks. As the number of requests increases, the array will indefinitely occupy Heap space until it hits the V8 engine's memory limit, causing the server to crash. The correct approach is to write to an external logging system or database.",
+      "wg": [
+        {
+          "t": "全域變數",
+          "en": "global variable",
+          "ps": "noun phrase"
+        },
+        {
+          "t": "清理機制",
+          "en": "cleanup mechanism",
+          "ps": "noun phrase"
+        }
+      ]
+    }
+  }
+]

@@ -1,0 +1,826 @@
+[
+  {
+    "no": "1",
+    "level": "Hard",
+    "keywords": "NoSQL Injection, MongoDB, Sanitization, Security",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "app.post('/login', async (req, res) => {\n  const { username, password } = req.body;\n  // 假設使用 MongoDB\n  const user = await db.collection('users').findOne({\n    username: username,\n    password: password\n  });\n  if (user) {\n    // Generate Token...\n  }\n});",
+    "question": [
+      {
+        "t": "請檢視上方的登入程式碼片段。如果攻擊者發送以下的 JSON payload，會發生什麼後果？",
+        "en": "Review the login code snippet above. What would happen if an attacker sends the following JSON payload?",
+        "wg": []
+      },
+      {
+        "t": "Payload: `{\"username\": \"admin\", \"password\": {\"$gt\": \"\"}}`",
+        "en": "Payload: `{\"username\": \"admin\", \"password\": {\"$gt\": \"\"}}`",
+        "wg": []
+      }
+    ],
+    "type": "single",
+    "options": [
+      {
+        "t": "資料庫會拋出錯誤，因為密碼欄位預期是字串而非物件。",
+        "en": "The database will throw an error because the password field expects a string, not an object.",
+        "wg": []
+      },
+      {
+        "t": "登入會失敗，因為密碼不匹配。",
+        "en": "Login will fail because the password does not match.",
+        "wg": []
+      },
+      {
+        "t": "攻擊者將成功以 admin 身份登入，繞過密碼驗證。",
+        "en": "The attacker will successfully log in as admin, bypassing password verification.",
+        "wg": [
+          {
+            "t": "繞過",
+            "en": "bypass",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "Express 的 body parser 會自動過濾掉以 `$` 開頭的特殊運算子。",
+        "en": "Express's body parser will automatically filter out special operators starting with `$`.",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "這是典型的 NoSQL Injection 攻擊。MongoDB 允許查詢條件包含運算子，`{ \"$gt\": \"\" }` 代表「大於空字串」，這對任何非空字串的密碼都成立。由於程式碼直接將 `req.body` 的內容傳給資料庫查詢，攻擊者可以繞過密碼檢查。修復方式是使用 `express-mongo-sanitize` 或在驗證層（如 Zod）強制檢查型別為字串。",
+      "en": "This is a classic NoSQL Injection attack. MongoDB allows query conditions to contain operators; `{ \"$gt\": \"\" }` means 'greater than an empty string', which evaluates to true for any non-empty password string. Since the code passes `req.body` content directly to the database query, the attacker can bypass the password check. The fix is to use `express-mongo-sanitize` or enforce string types in the validation layer (e.g., Zod).",
+      "wg": [
+        {
+          "t": "運算子",
+          "en": "operators",
+          "ps": "noun"
+        },
+        {
+          "t": "強制檢查",
+          "en": "enforce",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "2",
+    "level": "Medium",
+    "keywords": "Rate Limiting, Distributed Systems, Redis, Architecture",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "const rateLimit = require('express-rate-limit');\nconst limiter = rateLimit({\n  windowMs: 15 * 60 * 1000,\n  max: 100,\n});\napp.use(limiter);",
+    "question": [
+      {
+        "t": "你的 Express 應用程式部署在 Kubernetes 上，並運行了 5 個副本（Replicas）。你使用了上述的 `express-rate-limit` 設定（預設儲存方式）。",
+        "en": "Your Express application is deployed on Kubernetes with 5 replicas. You are using the `express-rate-limit` configuration shown above (default storage).",
+        "wg": [
+          {
+            "t": "副本",
+            "en": "replicas",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "請問實際上攻擊者在 15 分鐘內最多可以發送多少請求而不被封鎖？",
+        "en": "In reality, how many requests can an attacker send within 15 minutes without being blocked?",
+        "wg": []
+      }
+    ],
+    "type": "single",
+    "options": [
+      {
+        "t": "100 個請求。",
+        "en": "100 requests.",
+        "wg": []
+      },
+      {
+        "t": "500 個請求。",
+        "en": "500 requests.",
+        "wg": []
+      },
+      {
+        "t": "無法確定，取決於負載平衡器的演算法。",
+        "en": "Indeterminate, depends on the load balancer algorithm.",
+        "wg": []
+      },
+      {
+        "t": "0 個請求，因為預設設定在叢集環境下無效。",
+        "en": "0 requests, because the default setting is invalid in a cluster environment.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "預設情況下，`express-rate-limit` 使用記憶體（Memory Store）來儲存計數器。在分散式環境（如 5 個副本）中，每個實例維護自己的計數器。如果負載平衡器將請求平均分配，攻擊者可以對每個實例發送 100 個請求，總共 500 個。解決方案是使用 Redis Store 來在實例間共享狀態。",
+      "en": "By default, `express-rate-limit` uses Memory Store to keep counters. In a distributed environment (like 5 replicas), each instance maintains its own counter. If the load balancer distributes requests evenly, an attacker can send 100 requests to each instance, totaling 500. The solution is to use a Redis Store to share state across instances.",
+      "wg": [
+        {
+          "t": "分散式環境",
+          "en": "distributed environment",
+          "ps": "noun"
+        },
+        {
+          "t": "負載平衡器",
+          "en": "load balancer",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "3",
+    "level": "Medium",
+    "keywords": "HPP, Parameter Pollution, Middleware, Logic",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "// Client sends: GET /api/search?category=books&category=electronics\n\napp.get('/api/search', (req, res) => {\n  const category = req.query.category;\n  // 預期 category 是字串，執行 string method\n  console.log(category.toUpperCase()); \n});",
+    "question": [
+      {
+        "t": "在未安裝 `hpp` (HTTP Parameter Pollution) middleware 的情況下，上述請求會導致什麼結果？",
+        "en": "Without the `hpp` (HTTP Parameter Pollution) middleware installed, what will be the result of the above request?",
+        "wg": []
+      }
+    ],
+    "type": "single",
+    "options": [
+      {
+        "t": "`category` 會是 `'books'`，程式正常執行。",
+        "en": "`category` will be `'books'`, and the program runs normally.",
+        "wg": []
+      },
+      {
+        "t": "`category` 會是 `'electronics'`，程式正常執行。",
+        "en": "`category` will be `'electronics'`, and the program runs normally.",
+        "wg": []
+      },
+      {
+        "t": "程式會崩潰（Crash），因為 `category` 變成了陣列，而陣列沒有 `toUpperCase` 方法。",
+        "en": "The program will crash because `category` becomes an array, and arrays do not have the `toUpperCase` method.",
+        "wg": [
+          {
+            "t": "崩潰",
+            "en": "crash",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "Express 會自動合併參數為 `'books,electronics'`。",
+        "en": "Express will automatically merge the parameters into `'books,electronics'`.",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "Express 的預設 query parser 行為是：當遇到重複的 key 時，會將其轉換為陣列（例如 `['books', 'electronics']`）。如果程式邏輯預期它是一個字串並呼叫字串方法，就會導致 Runtime Error。`hpp` middleware 的作用就是選取重複參數中的最後一個（或第一個），確保它保持為字串。",
+      "en": "Express's default query parser behavior is to convert duplicate keys into an array (e.g., `['books', 'electronics']`). If the program logic expects a string and calls string methods, it will cause a Runtime Error. The `hpp` middleware works by selecting the last (or first) of the duplicate parameters, ensuring it remains a string.",
+      "wg": [
+        {
+          "t": "預設行為",
+          "en": "default behavior",
+          "ps": "noun"
+        },
+        {
+          "t": "執行時錯誤",
+          "en": "Runtime Error",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "4",
+    "level": "Easy",
+    "keywords": "DoS, Body Parser, Configuration, Availability",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "const express = require('express');\nconst app = express();\n\n// Configuration A\napp.use(express.json());\n\n// Configuration B\napp.use(express.json({ limit: '10kb' }));",
+    "question": [
+      {
+        "t": "關於上述兩種 Body Parser 的配置，為何在生產環境中強烈建議使用配置 B？",
+        "en": "Regarding the two Body Parser configurations above, why is Configuration B strongly recommended for production environments?",
+        "wg": []
+      }
+    ],
+    "type": "single",
+    "options": [
+      {
+        "t": "為了節省使用者的流量。",
+        "en": "To save user bandwidth.",
+        "wg": []
+      },
+      {
+        "t": "為了防止攻擊者發送超大的 JSON payload 導致伺服器記憶體耗盡 (DoS)。",
+        "en": "To prevent attackers from sending oversized JSON payloads causing server Out of Memory (DoS).",
+        "wg": [
+          {
+            "t": "記憶體耗盡",
+            "en": "Out of Memory",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "因為大於 10kb 的 JSON 資料無法被 Node.js 處理。",
+        "en": "Because JSON data larger than 10kb cannot be processed by Node.js.",
+        "wg": []
+      },
+      {
+        "t": "為了強迫前端開發者優化資料結構。",
+        "en": "To force frontend developers to optimize data structures.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "如果不設定 `limit`，Express 預設允許較大的 payload（預設為 100kb，但在某些舊版或配置下可能更大）。攻擊者可以發送數百 MB 的請求塞滿伺服器 RAM，導致服務拒絕（DoS）。明確設定一個合理的上限（如 10kb）是防禦此類攻擊的簡單有效手段。",
+      "en": "If `limit` is not set, Express defaults to allowing larger payloads (default is 100kb, but can be larger in some versions/configs). Attackers can send requests of several hundred MBs to fill up server RAM, causing Denial of Service (DoS). Explicitly setting a reasonable limit (like 10kb) is a simple and effective defense against such attacks.",
+      "wg": [
+        {
+          "t": "上限",
+          "en": "limit / cap",
+          "ps": "noun"
+        },
+        {
+          "t": "服務拒絕",
+          "en": "Denial of Service",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "5",
+    "level": "Easy",
+    "keywords": "Error Handling, Information Leakage, NODE_ENV",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "app.use((err, req, res, next) => {\n  res.status(500).json({\n    error: err.message,\n    stack: process.env.NODE_ENV === 'production' ? null : err.stack\n  });\n});",
+    "question": [
+      {
+        "t": "為什麼在生產環境中隱藏 `err.stack` (Stack Trace) 是至關重要的？",
+        "en": "Why is it crucial to hide `err.stack` (Stack Trace) in a production environment?",
+        "wg": [
+          {
+            "t": "至關重要",
+            "en": "crucial",
+            "ps": "adjective"
+          }
+        ]
+      }
+    ],
+    "type": "single",
+    "options": [
+      {
+        "t": "因為 Stack Trace 會佔用過多的網路頻寬。",
+        "en": "Because Stack Traces consume too much network bandwidth.",
+        "wg": []
+      },
+      {
+        "t": "因為 Stack Trace 可能包含專案結構、檔案路徑與依賴版本，有助於駭客尋找漏洞。",
+        "en": "Because Stack Traces may contain project structure, file paths, and dependency versions, helping hackers find vulnerabilities.",
+        "wg": [
+          {
+            "t": "專案結構",
+            "en": "project structure",
+            "ps": "noun"
+          },
+          {
+            "t": "漏洞",
+            "en": "vulnerabilities",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "因為瀏覽器無法解析 Stack Trace 格式。",
+        "en": "Because browsers cannot parse the Stack Trace format.",
+        "wg": []
+      },
+      {
+        "t": "因為這會導致 Node.js 事件迴圈阻塞。",
+        "en": "Because this causes the Node.js event loop to block.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "Stack Trace 洩露了伺服器的內部實作細節（如使用的 Library 版本、程式碼路徑、檔案名稱）。這些資訊屬於「資訊洩露」（Information Leakage），能大幅降低攻擊者進行偵察（Reconnaissance）的難度，讓他們更容易針對特定漏洞進行攻擊。",
+      "en": "Stack Traces leak internal implementation details of the server (such as library versions used, code paths, file names). This information constitutes 'Information Leakage', significantly reducing the difficulty of reconnaissance for attackers and making it easier for them to target specific vulnerabilities.",
+      "wg": [
+        {
+          "t": "資訊洩露",
+          "en": "Information Leakage",
+          "ps": "noun"
+        },
+        {
+          "t": "偵察",
+          "en": "Reconnaissance",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "6",
+    "level": "Medium",
+    "keywords": "Helmet, Headers, Reconnaissance, Anti-pattern",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "Express 預設會發送 `X-Powered-By: Express` header。為什麼在安全性檢核表中建議移除它？",
+        "en": "Express sends the `X-Powered-By: Express` header by default. Why is it recommended to remove it in the security checklist?",
+        "wg": []
+      }
+    ],
+    "type": "single",
+    "options": [
+      {
+        "t": "它會導致瀏覽器快取失效。",
+        "en": "It causes browser caching to fail.",
+        "wg": []
+      },
+      {
+        "t": "它會增加回應封包的大小，影響效能。",
+        "en": "It increases the response packet size, affecting performance.",
+        "wg": []
+      },
+      {
+        "t": "它向攻擊者揭露了伺服器使用的技術堆疊，有助於針對性攻擊。",
+        "en": "It reveals the technology stack used by the server to attackers, facilitating targeted attacks.",
+        "wg": [
+          {
+            "t": "技術堆疊",
+            "en": "technology stack",
+            "ps": "noun"
+          },
+          {
+            "t": "針對性攻擊",
+            "en": "targeted attacks",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "它是過時的 HTTP 協議標準。",
+        "en": "It is an obsolete HTTP protocol standard.",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "雖然單獨知道使用 Express 並不直接構成漏洞，但這是「減少攻擊面」的一部分。攻擊者通常會使用自動化腳本掃描伺服器特徵。移除此 Header 可以避免成為針對 Express 特定版本漏洞自動化攻擊的明顯目標。使用 `helmet()` 或 `app.disable('x-powered-by')` 即可移除。",
+      "en": "While knowing Express is used doesn't directly constitute a vulnerability, this is part of 'reducing the attack surface'. Attackers often use automated scripts to scan for server fingerprints. Removing this header avoids becoming an obvious target for automated attacks targeting specific Express version vulnerabilities. Use `helmet()` or `app.disable('x-powered-by')` to remove it.",
+      "wg": [
+        {
+          "t": "攻擊面",
+          "en": "attack surface",
+          "ps": "noun"
+        },
+        {
+          "t": "特徵",
+          "en": "fingerprints",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "7",
+    "level": "Medium",
+    "keywords": "CORS, Configuration, Browser Security, Cookies",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "const cors = require('cors');\n\napp.use(cors({\n  origin: '*',\n  credentials: true\n}));",
+    "question": [
+      {
+        "t": "開發者在生產環境中使用了上述的 CORS 配置，希望允許所有來源的請求並攜帶 Cookies。當前端發起一個帶有憑證（Credentials）的請求時，會發生什麼情況？",
+        "en": "A developer uses the above CORS configuration in production, intending to allow requests from all origins with cookies. What happens when a frontend initiates a request with credentials?",
+        "wg": [
+          {
+            "t": "憑證",
+            "en": "credentials",
+            "ps": "noun"
+          },
+          {
+            "t": "來源",
+            "en": "origin",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "single",
+    "options": [
+      {
+        "t": "請求成功，並且瀏覽器允許讀取回應。",
+        "en": "The request succeeds, and the browser allows reading the response.",
+        "wg": []
+      },
+      {
+        "t": "請求被瀏覽器阻擋，因為當 `credentials` 為 `true` 時，`Access-Control-Allow-Origin` 不能設為 `*`。",
+        "en": "The request is blocked by the browser because `Access-Control-Allow-Origin` cannot be `*` when `credentials` is set to `true`.",
+        "wg": [
+          {
+            "t": "阻擋",
+            "en": "blocked",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "請求成功，但 Cookies 不會被發送。",
+        "en": "The request succeeds, but cookies are not sent.",
+        "wg": []
+      },
+      {
+        "t": "伺服器會拋出 500 錯誤，因為配置無效。",
+        "en": "The server throws a 500 error because the configuration is invalid.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "根據 CORS 規範，當請求包含 `credentials: true` 時，伺服器回傳的 `Access-Control-Allow-Origin` 標頭必須是明確的單一來源（Specific Origin），而不能是萬用字元 `*`。瀏覽器會基於安全考量阻擋此類回應。",
+      "en": "According to the CORS specification, when a request includes `credentials: true`, the `Access-Control-Allow-Origin` header returned by the server must be a specific origin, not a wildcard `*`. Browsers will block such responses for security reasons.",
+      "wg": [
+        {
+          "t": "萬用字元",
+          "en": "wildcard",
+          "ps": "noun"
+        },
+        {
+          "t": "規範",
+          "en": "specification",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "8",
+    "level": "Medium",
+    "keywords": "HSTS, HTTPS, SSL Stripping, Network Security",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "檢核表中提到應設定 HSTS (HTTP Strict Transport Security) header。如果伺服器已經設定了從 HTTP 到 HTTPS 的 301 重新導向（Redirect），為什麼還需要 HSTS？",
+        "en": "The checklist mentions setting the HSTS (HTTP Strict Transport Security) header. If the server already has a 301 Redirect from HTTP to HTTPS, why is HSTS still necessary?",
+        "wg": [
+          {
+            "t": "重新導向",
+            "en": "redirect",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "single",
+    "options": [
+      {
+        "t": "HSTS 可以防止中間人攻擊（Man-in-the-Middle）進行 SSL 剝離（SSL Stripping），保護使用者首次或後續請求不被降級為 HTTP。",
+        "en": "HSTS prevents Man-in-the-Middle attacks from performing SSL Stripping, protecting the user's initial or subsequent requests from being downgraded to HTTP.",
+        "wg": [
+          {
+            "t": "中間人攻擊",
+            "en": "Man-in-the-Middle attacks",
+            "ps": "noun"
+          },
+          {
+            "t": "SSL 剝離",
+            "en": "SSL Stripping",
+            "ps": "noun"
+          },
+          {
+            "t": "降級",
+            "en": "downgraded",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "HSTS 用於加密 Cookies，這是 301 重導向無法做到的。",
+        "en": "HSTS is used to encrypt cookies, which a 301 redirect cannot do.",
+        "wg": []
+      },
+      {
+        "t": "HSTS 主要用於加速 HTTPS 握手過程。",
+        "en": "HSTS is primarily used to speed up the HTTPS handshake process.",
+        "wg": []
+      },
+      {
+        "t": "301 重導向在某些舊版瀏覽器中不被支援，HSTS 提供了更好的相容性。",
+        "en": "301 redirects are not supported in some older browsers; HSTS provides better compatibility.",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "單純的 301 重導向允許使用者的第一次請求以不安全的 HTTP 發送，這給了攻擊者攔截並進行 SSL 剝離的機會。HSTS 透過瀏覽器快取機制，強制瀏覽器在未來的所有請求中直接使用 HTTPS，而不嘗試 HTTP 連線。",
+      "en": "A simple 301 redirect allows the user's first request to be sent over insecure HTTP, giving attackers a chance to intercept and perform SSL Stripping. HSTS uses a browser caching mechanism to force the browser to use HTTPS directly for all future requests without attempting an HTTP connection.",
+      "wg": [
+        {
+          "t": "強制",
+          "en": "force",
+          "ps": "verb"
+        },
+        {
+          "t": "攔截",
+          "en": "intercept",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "9",
+    "level": "Easy",
+    "keywords": "Anti-pattern, Cookies, Fingerprinting, Reconnaissance",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在「反模式與踩雷點」中，為什麼建議更改預設的 Session Cookie 名稱（如 `connect.sid`）？",
+        "en": "In 'Anti-patterns & pitfalls', why is it recommended to change the default Session Cookie name (e.g., `connect.sid`)?",
+        "wg": [
+          {
+            "t": "反模式",
+            "en": "Anti-patterns",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "single",
+    "options": [
+      {
+        "t": "預設名稱會導致瀏覽器快取衝突。",
+        "en": "The default name causes browser cache conflicts.",
+        "wg": []
+      },
+      {
+        "t": "預設名稱洩露了後端使用的技術框架（Express/Connect），有助於攻擊者進行針對性偵察。",
+        "en": "The default name leaks the underlying technology stack (Express/Connect), aiding attackers in targeted reconnaissance.",
+        "wg": [
+          {
+            "t": "洩露",
+            "en": "leaks",
+            "ps": "verb"
+          },
+          {
+            "t": "偵察",
+            "en": "reconnaissance",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "預設名稱的長度過短，容易被暴力破解。",
+        "en": "The default name is too short and easily brute-forced.",
+        "wg": []
+      },
+      {
+        "t": "更改名稱可以提升 Session 的讀寫效能。",
+        "en": "Changing the name improves Session read/write performance.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "使用預設名稱（如 `connect.sid` 或 `PHPSESSID`）是一種資訊洩露（Information Leakage）。雖然這本身不是漏洞，但它讓攻擊者確認你正在使用 Express，從而縮小尋找已知漏洞的範圍（Fingerprinting）。",
+      "en": "Using default names (like `connect.sid` or `PHPSESSID`) is a form of Information Leakage. While not a vulnerability in itself, it allows attackers to confirm you are using Express, narrowing down their search for known vulnerabilities (Fingerprinting).",
+      "wg": [
+        {
+          "t": "資訊洩露",
+          "en": "Information Leakage",
+          "ps": "noun"
+        },
+        {
+          "t": "指紋識別",
+          "en": "Fingerprinting",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "10",
+    "level": "Medium",
+    "keywords": "CSP, Helmet, XSS, Security Headers",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "app.use(\n  helmet.contentSecurityPolicy({\n    directives: {\n      defaultSrc: [\"'self'\"],\n      scriptSrc: [\"'self'\", \"trusted-cdn.com\"],\n    },\n  })\n);",
+    "question": [
+      {
+        "t": "你的應用程式配置了上述的 Content Security Policy (CSP)。如果攻擊者成功在頁面中注入了 `<script src=\"https://evil.com/hack.js\"></script>`，瀏覽器會如何反應？",
+        "en": "Your application is configured with the above Content Security Policy (CSP). If an attacker successfully injects `<script src=\"https://evil.com/hack.js\"></script>` into the page, how will the browser react?",
+        "wg": [
+          {
+            "t": "注入",
+            "en": "injects",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "type": "single",
+    "options": [
+      {
+        "t": "瀏覽器會拒絕載入該腳本，因為 `evil.com` 不在 `scriptSrc` 的白名單中。",
+        "en": "The browser will refuse to load the script because `evil.com` is not in the `scriptSrc` whitelist.",
+        "wg": [
+          {
+            "t": "拒絕",
+            "en": "refuse",
+            "ps": "verb"
+          },
+          {
+            "t": "白名單",
+            "en": "whitelist",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "瀏覽器會載入該腳本，但會阻止其執行任何危險操作。",
+        "en": "The browser will load the script but prevent it from executing any dangerous operations.",
+        "wg": []
+      },
+      {
+        "t": "瀏覽器會載入並執行該腳本，因為 `defaultSrc` 包含了 `'self'`。",
+        "en": "The browser will load and execute the script because `defaultSrc` includes `'self'`.",
+        "wg": []
+      },
+      {
+        "t": "CSP 僅在 HTTPS 環境下生效，若為 HTTP 則無效。",
+        "en": "CSP only works in HTTPS environments; it is ineffective over HTTP.",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "CSP 的核心功能是限制資源（如腳本、樣式、圖片）的載入來源。上述配置明確指定 `scriptSrc` 僅允許 `'self'`（同源）與 `trusted-cdn.com`。任何其他網域（如 `evil.com`）的腳本請求都會被瀏覽器直接阻擋。",
+      "en": "The core function of CSP is to restrict the sources from which resources (like scripts, styles, images) can be loaded. The configuration explicitly sets `scriptSrc` to allow only `'self'` (same origin) and `trusted-cdn.com`. Script requests from any other domain (like `evil.com`) will be blocked by the browser.",
+      "wg": [
+        {
+          "t": "限制",
+          "en": "restrict",
+          "ps": "verb"
+        },
+        {
+          "t": "同源",
+          "en": "same origin",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "11",
+    "level": "Easy",
+    "keywords": "NODE_ENV, Performance, Caching, Configuration",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "除了安全性考量（如隱藏錯誤頁面）外，為什麼在生產環境中將 `NODE_ENV` 設定為 `production` 對於「效能」至關重要？",
+        "en": "Besides security considerations (like hiding error pages), why is setting `NODE_ENV` to `production` critical for 'performance' in a production environment?",
+        "wg": [
+          {
+            "t": "效能",
+            "en": "performance",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "single",
+    "options": [
+      {
+        "t": "它會啟用 Express 的視圖快取（View Caching），避免每次請求都重新編譯模板。",
+        "en": "It enables Express view caching, preventing templates from being recompiled on every request.",
+        "wg": [
+          {
+            "t": "視圖快取",
+            "en": "view caching",
+            "ps": "noun"
+          },
+          {
+            "t": "重新編譯",
+            "en": "recompiled",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "它會自動將所有同步程式碼轉換為非同步程式碼。",
+        "en": "It automatically converts all synchronous code to asynchronous code.",
+        "wg": []
+      },
+      {
+        "t": "它會開啟資料庫連線池的自動擴展功能。",
+        "en": "It enables auto-scaling for database connection pools.",
+        "wg": []
+      },
+      {
+        "t": "它會壓縮所有的 HTTP 回應內容（Gzip）。",
+        "en": "It compresses all HTTP response bodies (Gzip).",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "在 Express 中，`NODE_ENV=production` 會觸發多項優化，其中影響最大的是「視圖快取」。在開發模式下，每次請求都會重新讀取並編譯模板檔案（如 Pug/EJS）；在生產模式下，編譯結果會被快取在記憶體中，大幅提升回應速度。",
+      "en": "In Express, `NODE_ENV=production` triggers several optimizations, the most impactful being 'view caching'. In development mode, template files (like Pug/EJS) are re-read and recompiled on every request; in production mode, the compiled results are cached in memory, significantly improving response speed.",
+      "wg": [
+        {
+          "t": "優化",
+          "en": "optimizations",
+          "ps": "noun"
+        },
+        {
+          "t": "大幅提升",
+          "en": "significantly improving",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "12",
+    "level": "Medium",
+    "keywords": "Zero Trust, Validation, Architecture, Mental Model",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "根據手冊中的「零信任（Zero Trust）」心智模型，以下哪種開發者的說法是**錯誤**的？",
+        "en": "According to the 'Zero Trust' mental model in the handbook, which of the following developer statements is **incorrect**?",
+        "wg": [
+          {
+            "t": "心智模型",
+            "en": "mental model",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "single",
+    "options": [
+      {
+        "t": "「因為我們的 API 只有自家的手機 App 會呼叫，所以後端不需要再做嚴格的輸入驗證（Input Validation）。」",
+        "en": "\"Since our API is only called by our own mobile app, the backend doesn't need strict input validation.\"",
+        "wg": [
+          {
+            "t": "輸入驗證",
+            "en": "input validation",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "「我們不應該信任任何來自客戶端的 Header，即使是看似無害的 User-Agent。」",
+        "en": "\"We should not trust any headers from the client, even seemingly harmless ones like User-Agent.\"",
+        "wg": []
+      },
+      {
+        "t": "「即使是在內部網路（Intranet）運行的微服務，也應該驗證彼此的請求。」",
+        "en": "\"Even microservices running within an intranet should validate requests from each other.\"",
+        "wg": []
+      },
+      {
+        "t": "「我們應該假設依賴套件（Dependencies）可能含有漏洞，並定期進行審計。」",
+        "en": "\"We should assume dependencies might contain vulnerabilities and audit them regularly.\"",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "零信任原則的核心是「預設不信任」。API 雖然設計給自家 App 使用，但攻擊者可以輕易透過代理工具（如 Burp Suite）或直接發送 curl 請求來繞過前端驗證。因此，後端必須始終將輸入視為不可信並進行嚴格驗證。",
+      "en": "The core of Zero Trust is 'trust no one by default'. Even if an API is designed for a specific app, attackers can easily bypass frontend validation using proxy tools (like Burp Suite) or direct curl requests. Therefore, the backend must always treat input as untrusted and validate it strictly.",
+      "wg": [
+        {
+          "t": "繞過",
+          "en": "bypass",
+          "ps": "verb"
+        },
+        {
+          "t": "不可信",
+          "en": "untrusted",
+          "ps": "adjective"
+        }
+      ]
+    }
+  }
+]

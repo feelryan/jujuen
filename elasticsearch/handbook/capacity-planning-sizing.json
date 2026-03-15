@@ -1,0 +1,835 @@
+[
+  {
+    "no": "1",
+    "level": "Intermediate",
+    "keywords": "Shard Sizing, Performance, Best Practices",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "根據業界通用的「Shard Sizing 黃金法則」，針對搜尋密集型 (Search-heavy) 的應用場景，單一 Shard 的建議大小範圍是多少？",
+        "en": "According to the industry-standard 'Shard Sizing Golden Rule', what is the recommended size range for a single Shard in search-heavy scenarios?",
+        "wg": [
+          {
+            "t": "搜尋密集型",
+            "en": "Search-heavy",
+            "ps": "adjective"
+          },
+          {
+            "t": "分片",
+            "en": "Shard",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "1GB - 5GB",
+        "en": "1GB - 5GB",
+        "wg": []
+      },
+      {
+        "t": "10GB - 30GB",
+        "en": "10GB - 30GB",
+        "wg": []
+      },
+      {
+        "t": "30GB - 50GB",
+        "en": "30GB - 50GB",
+        "wg": []
+      },
+      {
+        "t": "50GB - 80GB",
+        "en": "50GB - 80GB",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "對於搜尋密集型場景，建議 Shard 大小維持在 10GB 到 30GB 之間。較小的 Shard 搜尋速度較快，且在節點故障恢復時更容易進行 Rebalance。30GB - 50GB 通常適用於日誌類 (Log/Time-series) 場景，而過小 (1-5GB) 或過大 (>50GB) 都會分別導致 Metadata 壓力過大或恢復速度過慢的問題。",
+      "en": "For search-heavy scenarios, it is recommended to keep Shard size between 10GB and 30GB. Smaller shards offer faster search speeds and are easier to rebalance during node recovery. 30GB - 50GB is typically suitable for Log/Time-series scenarios, while sizes too small (1-5GB) or too large (>50GB) lead to excessive metadata pressure or slow recovery speeds, respectively.",
+      "wg": [
+        {
+          "t": "故障恢復",
+          "en": "Recovery",
+          "ps": "noun"
+        },
+        {
+          "t": "重新平衡",
+          "en": "Rebalance",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "2",
+    "level": "Hard",
+    "keywords": "Anti-pattern, Cluster State, Shard Overhead",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "PUT /customer-a-logs\nPUT /customer-b-logs\n...",
+    "question": [
+      {
+        "t": "你接手了一個 ES 叢集，發現前任工程師為系統中的 5,000 個客戶每個都建立了一個獨立索引（如 `customer-A`），且每個索引每天資料量僅 1MB。目前叢集 Master Node CPU 長期飆高且狀態更新緩慢。這是什麼典型的反模式 (Anti-pattern)？",
+        "en": "You inherited an ES cluster where the previous engineer created a separate index for each of the 5,000 customers (e.g., `customer-A`), with each index having only 1MB of data per day. Currently, the Master Node CPU is consistently high, and state updates are slow. What typical anti-pattern is this?",
+        "wg": [
+          {
+            "t": "反模式",
+            "en": "Anti-pattern",
+            "ps": "noun"
+          },
+          {
+            "t": "叢集狀態",
+            "en": "Cluster State",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "磁碟水位過高 (Disk Watermark Breach)",
+        "en": "Disk Watermark Breach",
+        "wg": []
+      },
+      {
+        "t": "過度分片 (Oversharding) / 預設陷阱",
+        "en": "Oversharding / The Default Trap",
+        "wg": []
+      },
+      {
+        "t": "忽略副本成本 (Ignoring Replica Cost)",
+        "en": "Ignoring Replica Cost",
+        "wg": []
+      },
+      {
+        "t": "堆記憶體配置錯誤 (Heap Misconfiguration)",
+        "en": "Heap Misconfiguration",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "這是典型的「過度分片」或「小索引陷阱」。每個 Shard 無論資料多寡都會佔用 Heap Memory 並增加 Cluster State 的大小。5,000 個索引若使用預設設定（如舊版 5 Shards 或即便是 1 Shard + 1 Replica），會產生數萬個幾乎空的 Shard，導致 Master Node 在維護元數據 (Metadata) 時不堪重負。正確做法應是合併索引並使用 Routing。",
+      "en": "This is a classic case of 'Oversharding' or the 'Small Index Trap'. Every Shard consumes Heap Memory and increases the Cluster State size regardless of data volume. 5,000 indices, especially with default settings, result in tens of thousands of nearly empty shards, overwhelming the Master Node with metadata maintenance. The correct approach is to consolidate indices and use Routing.",
+      "wg": [
+        {
+          "t": "元數據",
+          "en": "Metadata",
+          "ps": "noun"
+        },
+        {
+          "t": "不堪重負",
+          "en": "Overwhelmed",
+          "ps": "adjective"
+        }
+      ]
+    }
+  },
+  {
+    "no": "3",
+    "level": "Intermediate",
+    "keywords": "Hot-Warm Architecture, Force Merge, Performance",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "POST /my-index/_forcemerge?max_num_segments=1",
+    "question": [
+      {
+        "t": "在 Hot-Warm 架構中，當索引從 Hot Node 移動到 Warm Node 後（不再寫入），為什麼強烈建議執行 `Force Merge` 將 segment 數量降為 1？",
+        "en": "In a Hot-Warm architecture, why is it strongly recommended to perform a `Force Merge` to reduce the segment count to 1 after an index is moved from a Hot Node to a Warm Node (and is no longer being written to)?",
+        "wg": [
+          {
+            "t": "強制合併",
+            "en": "Force Merge",
+            "ps": "verb"
+          },
+          {
+            "t": "不再寫入",
+            "en": "No longer written to",
+            "ps": "phrase"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "為了釋放磁碟空間，因為 Force Merge 會刪除所有副本。",
+        "en": "To free up disk space, because Force Merge deletes all replicas.",
+        "wg": []
+      },
+      {
+        "t": "為了大幅提升讀取效能，減少查詢時需要檢查的 Segment 數量。",
+        "en": "To significantly improve read performance by reducing the number of segments checked during queries.",
+        "wg": []
+      },
+      {
+        "t": "為了讓索引可以再次被寫入。",
+        "en": "To allow the index to be written to again.",
+        "wg": []
+      },
+      {
+        "t": "為了減少 Master Node 的記憶體壓力。",
+        "en": "To reduce memory pressure on the Master Node.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "Force Merge 能將多個 Segment 合併為一個，這對於 Warm/Cold 階段的唯讀資料至關重要。它能移除被標記刪除的文件以釋放空間，更重要的是，查詢單一 Segment 比查詢多個小 Segment 快得多，能大幅提升查詢效能 (Read Throughput)。Force Merge 並不會刪除副本。",
+      "en": "Force Merge combines multiple segments into one, which is crucial for read-only data in Warm/Cold phases. It reclaims space from deleted documents, but more importantly, querying a single segment is much faster than querying many small ones, significantly boosting Read Throughput. Force Merge does not delete replicas.",
+      "wg": [
+        {
+          "t": "唯讀",
+          "en": "Read-only",
+          "ps": "adjective"
+        },
+        {
+          "t": "吞吐量",
+          "en": "Throughput",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "4",
+    "level": "Intermediate",
+    "keywords": "Capacity Planning, Calculation, Overhead",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "假設你每日產生 100GB 的原始日誌資料 (Source Data)，索引膨脹係數 (Indexing Overhead) 估計為 1.2，且設定 `number_of_replicas: 1`。請問該日誌在磁碟上的實際每日佔用空間約為多少？",
+        "en": "Assume you generate 100GB of raw log data (Source Data) daily, the Indexing Overhead is estimated at 1.2, and `number_of_replicas: 1` is set. What is the approximate daily disk space usage for this log?",
+        "wg": [
+          {
+            "t": "膨脹係數",
+            "en": "Overhead Factor",
+            "ps": "noun"
+          },
+          {
+            "t": "副本",
+            "en": "Replica",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "120GB",
+        "en": "120GB",
+        "wg": []
+      },
+      {
+        "t": "200GB",
+        "en": "200GB",
+        "wg": []
+      },
+      {
+        "t": "240GB",
+        "en": "240GB",
+        "wg": []
+      },
+      {
+        "t": "100GB",
+        "en": "100GB",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "計算公式為：原始大小 (100GB) * 膨脹係數 (1.2) * (1 + 副本數 (1))。即 100 * 1.2 * 2 = 240GB。許多人會忘記乘上副本數，導致容量規劃嚴重不足。",
+      "en": "The calculation formula is: Raw Size (100GB) * Overhead Factor (1.2) * (1 + Number of Replicas (1)). That is 100 * 1.2 * 2 = 240GB. Many people forget to multiply by the replica count, leading to severe under-provisioning in capacity planning.",
+      "wg": [
+        {
+          "t": "容量規劃",
+          "en": "Capacity Planning",
+          "ps": "noun"
+        },
+        {
+          "t": "配置不足",
+          "en": "Under-provisioning",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "5",
+    "level": "Hard",
+    "keywords": "Resource Constraint, Heap Memory, Shard Count",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "根據 ES 的資源限制建議，一個配置了 30GB Heap 的 Data Node，其承載的 Shard 總數量上限建議不超過多少？",
+        "en": "According to ES resource constraint recommendations, what is the suggested maximum number of Shards a Data Node with 30GB Heap should host?",
+        "wg": [
+          {
+            "t": "承載",
+            "en": "Host/Carry",
+            "ps": "verb"
+          },
+          {
+            "t": "上限",
+            "en": "Upper limit",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "300 個",
+        "en": "300",
+        "wg": []
+      },
+      {
+        "t": "600 個",
+        "en": "600",
+        "wg": []
+      },
+      {
+        "t": "1000 個",
+        "en": "1000",
+        "wg": []
+      },
+      {
+        "t": "無限制，取決於硬碟大小",
+        "en": "Unlimited, depends on disk size",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "經驗法則建議每 1GB Heap 最多承載 20 個 Shard。因此 30GB Heap * 20 = 600 個 Shard。超過此數量會導致 Heap 被 Shard Metadata 佔滿，容易引發 OOM (Out of Memory) 或導致叢集不穩定。",
+      "en": "The rule of thumb suggests a maximum of 20 Shards per 1GB of Heap. Therefore, 30GB Heap * 20 = 600 Shards. Exceeding this number causes the Heap to be filled with Shard Metadata, easily leading to OOM (Out of Memory) errors or cluster instability.",
+      "wg": [
+        {
+          "t": "經驗法則",
+          "en": "Rule of thumb",
+          "ps": "noun"
+        },
+        {
+          "t": "不穩定",
+          "en": "Instability",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "6",
+    "level": "Intermediate",
+    "keywords": "Disk Watermark, System Stability, Troubleshooting",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "當 Elasticsearch 節點的磁碟使用率達到 `Flood-stage watermark` (預設 95%) 時，系統會採取什麼自我保護措施？",
+        "en": "When an Elasticsearch node's disk usage reaches the `Flood-stage watermark` (default 95%), what self-protection measure does the system take?",
+        "wg": [
+          {
+            "t": "自我保護措施",
+            "en": "Self-protection measure",
+            "ps": "noun"
+          },
+          {
+            "t": "水位",
+            "en": "Watermark",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "停止分配新的 Shard 到該節點 (Stop allocating new shards)。",
+        "en": "Stop allocating new shards to that node.",
+        "wg": []
+      },
+      {
+        "t": "嘗試將 Shard 搬離該節點 (Relocate shards away)。",
+        "en": "Attempt to relocate shards away from that node.",
+        "wg": []
+      },
+      {
+        "t": "強制將索引設為唯讀 (Enforce read-only block)。",
+        "en": "Enforce a read-only block on indices.",
+        "wg": []
+      },
+      {
+        "t": "自動刪除最舊的索引 (Automatically delete oldest indices)。",
+        "en": "Automatically delete the oldest indices.",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "達到 95% (Flood-stage) 時，ES 會強制將受影響節點上的索引設為 `read_only_allow_delete`，以防止磁碟被寫滿導致節點崩潰。停止分配新 Shard 是 Low watermark (85%) 的行為，搬離 Shard 是 High watermark (90%) 的行為。ES 不會自動刪除資料。",
+      "en": "Upon reaching 95% (Flood-stage), ES enforces `read_only_allow_delete` on indices on the affected node to prevent the disk from filling up and crashing the node. Stopping new shard allocation happens at the Low watermark (85%), and relocating shards happens at the High watermark (90%). ES does not automatically delete data.",
+      "wg": [
+        {
+          "t": "崩潰",
+          "en": "Crash",
+          "ps": "verb"
+        },
+        {
+          "t": "強制執行",
+          "en": "Enforce",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "7",
+    "level": "Intermediate",
+    "keywords": "ILM, Rollover, Sharding Strategy",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "為什麼在日誌管理場景中，使用 ILM (Index Lifecycle Management) 搭配 Rollover 策略，通常比單純「按天切分索引」(如 `logs-2023-10-01`) 更好？",
+        "en": "In log management scenarios, why is using ILM (Index Lifecycle Management) with a Rollover strategy generally better than simply 'splitting indices by day' (e.g., `logs-2023-10-01`)?",
+        "wg": [
+          {
+            "t": "按天切分",
+            "en": "Splitting by day",
+            "ps": "phrase"
+          },
+          {
+            "t": "滾動",
+            "en": "Rollover",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "因為 Rollover 可以自動壓縮資料。",
+        "en": "Because Rollover automatically compresses data.",
+        "wg": []
+      },
+      {
+        "t": "因為 Rollover 能確保每個 Shard 的大小均勻，避免因週末或離峰時間流量差異導致 Shard 大小不均。",
+        "en": "Because Rollover ensures uniform Shard sizes, avoiding uneven Shard sizes caused by traffic differences during weekends or off-peak hours.",
+        "wg": []
+      },
+      {
+        "t": "因為按天切分索引不支援 Hot-Warm 架構。",
+        "en": "Because splitting indices by day does not support Hot-Warm architecture.",
+        "wg": []
+      },
+      {
+        "t": "因為 Rollover 不需要 Master Node 參與。",
+        "en": "Because Rollover does not require Master Node involvement.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "按天切分會導致 Shard 大小極度不均（例如週日流量只有週一的 10%），這會造成資源分配困難。ILM + Rollover 可以設定「當索引滿 50GB 或過期時」才切分，保證了 Shard 大小的穩定性與可預測性，符合 Shard Sizing 的最佳實務。",
+      "en": "Splitting by day leads to extremely uneven Shard sizes (e.g., Sunday traffic might be only 10% of Monday's), making resource allocation difficult. ILM + Rollover allows splitting only 'when the index reaches 50GB or expires', ensuring Shard size stability and predictability, aligning with Shard Sizing best practices.",
+      "wg": [
+        {
+          "t": "可預測性",
+          "en": "Predictability",
+          "ps": "noun"
+        },
+        {
+          "t": "離峰時間",
+          "en": "Off-peak hours",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "8",
+    "level": "Hard",
+    "keywords": "High QPS, Read Throughput, Replica Strategy",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "針對一個資料總量僅 20GB，但讀取併發 (QPS) 極高的電商商品搜尋系統，下列哪種分片策略最能提升讀取效能？",
+        "en": "For an e-commerce product search system with only 20GB of total data but extremely high read concurrency (QPS), which of the following sharding strategies best improves read performance?",
+        "wg": [
+          {
+            "t": "讀取併發",
+            "en": "Read Concurrency",
+            "ps": "noun"
+          },
+          {
+            "t": "電商",
+            "en": "E-commerce",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "切分為 5 個 Primary Shard，Replica 設為 1。",
+        "en": "Split into 5 Primary Shards, set Replica to 1.",
+        "wg": []
+      },
+      {
+        "t": "設定 1 個 Primary Shard，並設定多個 Replica (如 3-5 個) 以填滿 Data Nodes。",
+        "en": "Set 1 Primary Shard, and set multiple Replicas (e.g., 3-5) to populate Data Nodes.",
+        "wg": []
+      },
+      {
+        "t": "使用 Hot-Warm 架構將資料移至 Warm Node。",
+        "en": "Use Hot-Warm architecture to move data to Warm Nodes.",
+        "wg": []
+      },
+      {
+        "t": "將 Refresh Interval 設為 -1。",
+        "en": "Set Refresh Interval to -1.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "20GB 的資料量非常小，不需要切分多個 Primary Shard（這只會增加 Coordinator Node 彙總結果的負擔）。最佳策略是 1 個 Primary Shard（保持完整性）加上多個 Replica。這樣可以讓每個 Data Node 都有完整的資料副本，實現完全的本地讀取 (Local Read) 與負載平衡，最大化讀取吞吐量。",
+      "en": "20GB is very small, so splitting into multiple Primary Shards is unnecessary (it only adds burden to the Coordinator Node for aggregation). The best strategy is 1 Primary Shard (integrity) plus multiple Replicas. This allows every Data Node to hold a full copy of the data, enabling complete Local Reads and load balancing, thus maximizing read throughput.",
+      "wg": [
+        {
+          "t": "彙總",
+          "en": "Aggregation",
+          "ps": "noun"
+        },
+        {
+          "t": "負載平衡",
+          "en": "Load balancing",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "9",
+    "level": "Intermediate",
+    "keywords": "Disk Space, Segment Merging, Immutability, I/O",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在進行 Elasticsearch 的磁碟容量規劃時，最佳實務建議預留約 15% 到 20% 的剩餘空間，不要將磁碟完全填滿。",
+        "en": "When planning disk capacity for Elasticsearch, best practices suggest reserving about 15% to 20% of free space and not filling the disk completely.",
+        "wg": [
+          {
+            "t": "磁碟容量規劃",
+            "en": "disk capacity planning",
+            "ps": "noun phrase"
+          },
+          {
+            "t": "最佳實務",
+            "en": "best practices",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "除了作業系統本身的運作需求外，這部分預留空間對於 Elasticsearch 內部的哪項核心機制至關重要？",
+        "en": "Besides the operating system's own requirements, for which core mechanism inside Elasticsearch is this reserved space crucial?",
+        "wg": [
+          {
+            "t": "核心機制",
+            "en": "core mechanism",
+            "ps": "noun phrase"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "JVM Heap 的動態擴展 (Heap Expansion)",
+        "en": "Dynamic expansion of JVM Heap",
+        "wg": []
+      },
+      {
+        "t": "Segment 的合併操作 (Segment Merging)",
+        "en": "Segment Merging operations",
+        "wg": [
+          {
+            "t": "合併操作",
+            "en": "Merging operations",
+            "ps": "noun phrase"
+          }
+        ]
+      },
+      {
+        "t": "Cluster State 的廣播與同步",
+        "en": "Broadcasting and synchronization of Cluster State",
+        "wg": []
+      },
+      {
+        "t": "Circuit Breaker 的緩衝區",
+        "en": "Buffer for Circuit Breaker",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "由於 Lucene 的倒排索引具有不可變性 (Immutability)，更新或刪除資料實際上是寫入新的 Segment 並標記舊的為刪除。Segment Merging 過程需要同時讀取舊 Segments 並寫入新的合併後 Segment，這會暫時佔用大量額外磁碟空間，直到合併完成並刪除舊檔為止。",
+      "en": "Because Lucene's inverted index is immutable, updating or deleting data actually involves writing new segments and marking old ones as deleted. The Segment Merging process requires reading old segments while writing a new merged segment, temporarily consuming significant extra disk space until the merge is complete and old files are deleted.",
+      "wg": [
+        {
+          "t": "不可變性",
+          "en": "Immutability",
+          "ps": "noun"
+        },
+        {
+          "t": "倒排索引",
+          "en": "inverted index",
+          "ps": "noun phrase"
+        }
+      ]
+    }
+  },
+  {
+    "no": "10",
+    "level": "Hard",
+    "keywords": "Hardware Sizing, Heap:Storage Ratio, Warm Nodes, Architecture",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你正在設計一個專門用於儲存歷史日誌的 Warm Node 架構。",
+        "en": "You are designing a Warm Node architecture specifically for storing historical logs.",
+        "wg": [
+          {
+            "t": "歷史日誌",
+            "en": "historical logs",
+            "ps": "noun phrase"
+          }
+        ]
+      },
+      {
+        "t": "假設該節點配置了 30GB 的 Heap Memory，根據業界常見的「Heap:Storage 比例」建議 (針對日誌/溫層節點)，該節點掛載的磁碟總容量最接近下列哪個數值時較為合理？",
+        "en": "Assuming the node is configured with 30GB of Heap Memory, based on common industry 'Heap:Storage Ratio' recommendations (for log/warm nodes), which of the following values is the most reasonable total disk capacity for this node?",
+        "wg": [
+          {
+            "t": "掛載",
+            "en": "mount/attached",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "500 GB (約 1:16)",
+        "en": "500 GB (approx 1:16)",
+        "wg": []
+      },
+      {
+        "t": "3 TB (約 1:100)",
+        "en": "3 TB (approx 1:100)",
+        "wg": []
+      },
+      {
+        "t": "10 TB (約 1:300)",
+        "en": "10 TB (approx 1:300)",
+        "wg": []
+      },
+      {
+        "t": "60 TB (約 1:2000)",
+        "en": "60 TB (approx 1:2000)",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "針對 Log 或 Warm 節點，由於查詢頻率較低且主要為循序寫入/讀取，Heap 與儲存的比例建議在 1:48 到 1:96 之間。30GB Heap * 96 ≈ 2.88TB，因此 3TB 是最接近且合理的配置。1:16 通常用於高效能搜尋節點 (Search/Hot Nodes)。",
+      "en": "For Log or Warm nodes, since query frequency is lower and operations are mostly sequential reads/writes, the recommended Heap-to-Storage ratio is between 1:48 and 1:96. 30GB Heap * 96 ≈ 2.88TB, so 3TB is the closest and most reasonable configuration. 1:16 is typically used for high-performance Search/Hot Nodes.",
+      "wg": [
+        {
+          "t": "循序寫入",
+          "en": "sequential write",
+          "ps": "noun phrase"
+        }
+      ]
+    }
+  },
+  {
+    "no": "11",
+    "level": "Intermediate",
+    "keywords": "Shard Sizing, Recovery, Rebalance, Trade-off",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "雖然減少 Shard 數量可以降低 Cluster State 的壓力，但如果單一 Shard 過大（例如超過 80GB-100GB），在維運上最容易遭遇下列哪項嚴重問題？",
+        "en": "While reducing the number of shards can lower the pressure on Cluster State, if a single shard becomes too large (e.g., exceeding 80GB-100GB), which of the following severe operational issues is most likely to occur?",
+        "wg": [
+          {
+            "t": "維運",
+            "en": "operations/maintenance",
+            "ps": "noun"
+          },
+          {
+            "t": "遭遇",
+            "en": "encounter",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "Master Node 會因為無法管理大檔案而崩潰",
+        "en": "The Master Node will crash because it cannot manage large files",
+        "wg": []
+      },
+      {
+        "t": "節點故障後的 Recovery 與 Rebalance 速度極慢",
+        "en": "Recovery and Rebalance speeds after a node failure will be extremely slow",
+        "wg": [
+          {
+            "t": "故障",
+            "en": "failure",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "無法對該 Shard 執行任何寫入操作",
+        "en": "Unable to perform any write operations on that shard",
+        "wg": []
+      },
+      {
+        "t": "該 Shard 的資料會自動被刪除以釋放空間",
+        "en": "Data in that shard will be automatically deleted to free up space",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "Shard 是資料移動的最小單位。當節點故障或新增節點時，ES 需要在網路間搬移 Shard。單一 Shard 過大會導致搬移時間過長，增加資料不一致的風險視窗，且在恢復期間可能影響磁碟 I/O 與網路頻寬。",
+      "en": "A shard is the smallest unit of data movement. When a node fails or a new node is added, ES needs to move shards across the network. If a single shard is too large, the movement time becomes excessive, increasing the risk window for data inconsistency and potentially impacting disk I/O and network bandwidth during recovery.",
+      "wg": [
+        {
+          "t": "風險視窗",
+          "en": "risk window",
+          "ps": "noun phrase"
+        },
+        {
+          "t": "搬移",
+          "en": "move/relocate",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "12",
+    "level": "Hard",
+    "keywords": "Oversharding, Performance, Coordinator Node, Context Switch",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "開發者為了追求「極致的並行處理速度」，將一個 50GB 的索引設定了 50 個 Primary Shards（每個 Shard 僅 1GB）。",
+        "en": "In pursuit of 'extreme parallel processing speed', a developer configured a 50GB index with 50 Primary Shards (only 1GB per shard).",
+        "wg": [
+          {
+            "t": "極致的",
+            "en": "extreme/ultimate",
+            "ps": "adjective"
+          },
+          {
+            "t": "並行處理",
+            "en": "parallel processing",
+            "ps": "noun phrase"
+          }
+        ]
+      },
+      {
+        "t": "在高併發查詢 (High Concurrency Search) 的場景下，這種做法最可能導致什麼負面後果？",
+        "en": "In a High Concurrency Search scenario, what is the most likely negative consequence of this approach?",
+        "wg": [
+          {
+            "t": "高併發",
+            "en": "high concurrency",
+            "ps": "noun phrase"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "磁碟空間會因為 Shard 數量過多而瞬間耗盡",
+        "en": "Disk space will be instantly exhausted due to the excessive number of shards",
+        "wg": []
+      },
+      {
+        "t": "Coordinator Node 的 CPU 負載過高，導致整體延遲上升",
+        "en": "The Coordinator Node's CPU load will become too high, causing overall latency to increase",
+        "wg": [
+          {
+            "t": "延遲",
+            "en": "latency",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "單一查詢速度會變慢，因為 ES 限制一次只能查詢 5 個 Shard",
+        "en": "Single query speed will slow down because ES limits querying to only 5 shards at a time",
+        "wg": []
+      },
+      {
+        "t": "資料寫入會失敗，因為超過了單一節點的 Shard 上限",
+        "en": "Data writes will fail because the single node shard limit has been exceeded",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "這就是典型的「過度分片 (Oversharding)」問題。雖然並行度提高，但每個搜尋請求都需要 Coordinator Node 發送 50 個子請求並彙總結果 (Scatter-Gather)。這會造成大量的執行緒 Context Switch 與 CPU 開銷，在高併發下反而成為效能瓶頸。",
+      "en": "This is a classic 'Oversharding' problem. Although parallelism increases, every search request requires the Coordinator Node to send 50 sub-requests and aggregate the results (Scatter-Gather). This causes massive thread Context Switching and CPU overhead, becoming a performance bottleneck under high concurrency.",
+      "wg": [
+        {
+          "t": "彙總",
+          "en": "aggregate",
+          "ps": "verb"
+        },
+        {
+          "t": "效能瓶頸",
+          "en": "performance bottleneck",
+          "ps": "noun phrase"
+        }
+      ]
+    }
+  }
+]

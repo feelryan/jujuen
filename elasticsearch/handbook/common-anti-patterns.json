@@ -1,0 +1,813 @@
+[
+  {
+    "no": "1",
+    "level": "Medium",
+    "keywords": "Deep Pagination, Performance, Architecture",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "GET /orders/_search\n{\n  \"from\": 10000,\n  \"size\": 10,\n  \"query\": { \"match_all\": {} }\n}",
+    "question": [
+      {
+        "t": "在 Elasticsearch 中執行如上所示的深度分頁查詢（Deep Pagination）時，為什麼會對叢集造成巨大的效能負擔？",
+        "en": "Why does executing a deep pagination query like the one shown above cause a significant performance burden on the Elasticsearch cluster?",
+        "wg": [
+          {
+            "t": "深度分頁",
+            "en": "Deep Pagination",
+            "ps": "noun"
+          },
+          {
+            "t": "叢集",
+            "en": "cluster",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "因為它會導致大量的磁碟 I/O 來讀取所有文件內容。",
+        "en": "Because it causes massive disk I/O to read all document contents.",
+        "wg": []
+      },
+      {
+        "t": "因為每個分片都需要排序前 10,010 筆資料，並將結果傳回協調節點進行二次排序與拋棄。",
+        "en": "Because each shard needs to sort the top 10,010 records and send the results to the coordinating node for resorting and discarding.",
+        "wg": [
+          {
+            "t": "分片",
+            "en": "shard",
+            "ps": "noun"
+          },
+          {
+            "t": "協調節點",
+            "en": "coordinating node",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "因為 `from` 參數會鎖定索引以防止寫入，導致並發效能下降。",
+        "en": "Because the `from` parameter locks the index to prevent writes, causing concurrency degradation.",
+        "wg": []
+      },
+      {
+        "t": "因為這會觸發 Elasticsearch 自動進行強制合併（Force Merge）。",
+        "en": "Because this triggers an automatic Force Merge in Elasticsearch.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "這是分散式系統的 Scatter-Gather 代價。若請求 `from: 10000, size: 10`，每個相關的分片（Shard）都必須在本地優先佇列中排序前 10,010 筆文件，並將這些資料傳輸給協調節點（Coordinating Node）。協調節點必須彙總所有分片的結果，再次排序，最後拋棄前 10,000 筆。這會消耗大量的 CPU 與記憶體。",
+      "en": "This is the Scatter-Gather cost of a distributed system. If requesting `from: 10000, size: 10`, each relevant shard must sort the top 10,010 documents in its local priority queue and transfer these to the coordinating node. The coordinating node must then aggregate results from all shards, resort them, and finally discard the top 10,000. This consumes significant CPU and memory.",
+      "wg": [
+        {
+          "t": "分散式系統",
+          "en": "distributed system",
+          "ps": "noun"
+        },
+        {
+          "t": "優先佇列",
+          "en": "priority queue",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "2",
+    "level": "Hard",
+    "keywords": "Oversharding, Cluster State, Performance",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "某新創公司使用 Logstash 按日建立索引（如 `logs-2024-01-01`），且預設每個索引有 5 個主分片。一年後，雖然總資料量僅 30GB，但叢集變得極不穩定，Master 節點頻繁超時。請問這是什麼問題？該如何解決？",
+        "en": "A startup uses Logstash to create daily indices (e.g., `logs-2024-01-01`), with a default of 5 primary shards per index. After a year, although the total data size is only 30GB, the cluster becomes extremely unstable, and the Master node frequently times out. What is the problem and how should it be fixed?",
+        "wg": [
+          {
+            "t": "主分片",
+            "en": "primary shards",
+            "ps": "noun"
+          },
+          {
+            "t": "超時",
+            "en": "time out",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "這是「深度分頁」問題。應改用 Scroll API 來查詢舊資料。",
+        "en": "This is a 'Deep Pagination' problem. Should switch to Scroll API for querying old data.",
+        "wg": []
+      },
+      {
+        "t": "這是「映射爆炸」問題。應將所有欄位設為 `dynamic: false`。",
+        "en": "This is a 'Mapping Explosion' problem. Should set all fields to `dynamic: false`.",
+        "wg": []
+      },
+      {
+        "t": "這是「分片過多（Oversharding）」問題。應使用 Shrink API 合併分片，並實作 ILM 策略以控制分片大小。",
+        "en": "This is an 'Oversharding' problem. Should use the Shrink API to merge shards and implement an ILM policy to control shard size.",
+        "wg": [
+          {
+            "t": "分片過多",
+            "en": "Oversharding",
+            "ps": "noun"
+          },
+          {
+            "t": "合併",
+            "en": "merge",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "這是「磁碟空間不足」問題。應立即增加更多 Data Node。",
+        "en": "This is a 'Disk Space' problem. Should immediately add more Data Nodes.",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "每個分片都需要消耗 Heap Memory 來維護 Lucene 結構，且過多的分片會導致 Cluster State 變得非常巨大，加重 Master 節點的負擔。案例中 30GB 資料卻產生了約 1800 個分片（365 * 5），遠低於每個分片建議的 10GB-50GB 大小。解決方案是減少分片數量（Shrink/Reindex）並使用 ILM 管理。",
+      "en": "Each shard consumes Heap Memory to maintain Lucene structures, and too many shards cause the Cluster State to become huge, burdening the Master node. In the scenario, 30GB of data generated about 1800 shards (365 * 5), far below the recommended 10GB-50GB per shard. The solution is to reduce the number of shards (Shrink/Reindex) and use ILM for management.",
+      "wg": [
+        {
+          "t": "堆積記憶體",
+          "en": "Heap Memory",
+          "ps": "noun"
+        },
+        {
+          "t": "叢集狀態",
+          "en": "Cluster State",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "3",
+    "level": "Medium",
+    "keywords": "Mapping, Anti-pattern, Schema Design",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "PUT /my-index/_doc/1\n{\n  \"http_headers\": {\n    \"X-Request-ID\": \"...\",\n    \"User-Agent\": \"...\",\n    \"Custom-Header-123\": \"...\"\n  }\n}",
+    "question": [
+      {
+        "t": "當你需要索引包含大量隨機或不可預測 Key 的 JSON 物件（例如 HTTP Headers 或使用者自訂標籤）時，直接寫入可能會導致 `Limit of total fields [1000] has been exceeded` 錯誤。為了避免此「映射爆炸（Mapping Explosion）」問題，最佳做法是什麼？",
+        "en": "When you need to index JSON objects with many random or unpredictable keys (e.g., HTTP Headers or user custom tags), writing them directly may cause a `Limit of total fields [1000] has been exceeded` error. To avoid this 'Mapping Explosion' problem, what is the best practice?",
+        "wg": [
+          {
+            "t": "映射爆炸",
+            "en": "Mapping Explosion",
+            "ps": "noun"
+          },
+          {
+            "t": "不可預測的",
+            "en": "unpredictable",
+            "ps": "adjective"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "將 `index.mapping.total_fields.limit` 設定為 100,000。",
+        "en": "Set `index.mapping.total_fields.limit` to 100,000.",
+        "wg": []
+      },
+      {
+        "t": "使用 `flattened` 資料類型來處理該欄位。",
+        "en": "Use the `flattened` data type for that field.",
+        "wg": [
+          {
+            "t": "資料類型",
+            "en": "data type",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "為每個新的 Key 建立一個獨立的索引。",
+        "en": "Create a separate index for each new key.",
+        "wg": []
+      },
+      {
+        "t": "使用 `nested` 資料類型並開啟 `dynamic: true`。",
+        "en": "Use the `nested` data type and enable `dynamic: true`.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "單純增加欄位上限只是延後問題爆發，過多欄位仍會拖慢 Cluster State 更新。`flattened` 類型允許將整個 JSON 物件視為單一欄位進行索引，既保留了部分搜尋能力，又避免了為每個 Key 建立獨立的 Mapping，從而防止映射爆炸。",
+      "en": "Simply increasing the field limit only delays the problem; too many fields will still slow down Cluster State updates. The `flattened` type allows indexing the entire JSON object as a single field, preserving some search capabilities while avoiding the creation of separate mappings for each key, thus preventing mapping explosion.",
+      "wg": [
+        {
+          "t": "延後",
+          "en": "delay",
+          "ps": "verb"
+        },
+        {
+          "t": "保留",
+          "en": "preserve",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "4",
+    "level": "Medium",
+    "keywords": "Performance, Query, Wildcard",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "GET /users/_search\n{\n  \"query\": {\n    \"wildcard\": {\n      \"username\": \"*admin\"\n    }\n  }\n}",
+    "question": [
+      {
+        "t": "為什麼在 Elasticsearch 中使用前綴萬用字元查詢（Leading Wildcard Query，如 `*admin`）被視為一種反模式（Anti-pattern）？",
+        "en": "Why is using a Leading Wildcard Query (e.g., `*admin`) considered an anti-pattern in Elasticsearch?",
+        "wg": [
+          {
+            "t": "前綴萬用字元",
+            "en": "Leading Wildcard",
+            "ps": "noun"
+          },
+          {
+            "t": "反模式",
+            "en": "Anti-pattern",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "因為它會強制 Elasticsearch 掃描倒排索引中的每一個 Term，無法利用索引的前綴匹配優勢。",
+        "en": "Because it forces Elasticsearch to scan every Term in the inverted index, unable to leverage the prefix matching advantage of the index.",
+        "wg": [
+          {
+            "t": "倒排索引",
+            "en": "inverted index",
+            "ps": "noun"
+          },
+          {
+            "t": "掃描",
+            "en": "scan",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "因為它會導致 Elasticsearch 忽略所有分析器（Analyzers），直接比對原始文字。",
+        "en": "Because it causes Elasticsearch to ignore all Analyzers and match against raw text directly.",
+        "wg": []
+      },
+      {
+        "t": "因為這種查詢只能在 Keyword 欄位上執行，不能在 Text 欄位上執行。",
+        "en": "Because this type of query can only be executed on Keyword fields, not Text fields.",
+        "wg": []
+      },
+      {
+        "t": "因為它會自動觸發 Fuzzy Search，導致結果不精確。",
+        "en": "Because it automatically triggers Fuzzy Search, leading to inaccurate results.",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "倒排索引（Inverted Index）是按字母順序排序的，這使得前綴搜尋（如 `admin*`）非常快速。然而，前綴萬用字元（`*admin`）意味著系統不知道開頭是什麼，因此必須檢查索引中的**每一個** Term 是否以 `admin` 結尾，這在大數據量下效能極差。正確做法是使用 `ngram` 或 `reverse` token filter。",
+      "en": "The Inverted Index is sorted alphabetically, making prefix searches (like `admin*`) very fast. However, a leading wildcard (`*admin`) means the system doesn't know the start, so it must check **every** Term in the index to see if it ends with `admin`, which performs very poorly with large data. The correct approach is to use `ngram` or `reverse` token filters.",
+      "wg": [
+        {
+          "t": "按字母順序",
+          "en": "alphabetically",
+          "ps": "adverb"
+        },
+        {
+          "t": "詞項",
+          "en": "Term",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "5",
+    "level": "Easy",
+    "keywords": "Architecture, Mental Model",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "關於 Elasticsearch 的角色定位，下列哪一種觀點符合「最佳實務」與「正確心智模型」？",
+        "en": "Regarding the role of Elasticsearch, which of the following views aligns with 'Best Practices' and the 'Correct Mental Model'?",
+        "wg": [
+          {
+            "t": "角色定位",
+            "en": "role definition",
+            "ps": "noun"
+          },
+          {
+            "t": "心智模型",
+            "en": "Mental Model",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "Elasticsearch 應作為唯一的「真相來源（Source of Truth）」，取代傳統關聯式資料庫。",
+        "en": "Elasticsearch should serve as the sole 'Source of Truth', replacing traditional relational databases.",
+        "wg": []
+      },
+      {
+        "t": "Elasticsearch 就像是一個 RDBMS，只是它使用 JSON 而不是 SQL。",
+        "en": "Elasticsearch is just like an RDBMS, except it uses JSON instead of SQL.",
+        "wg": []
+      },
+      {
+        "t": "Elasticsearch 應被視為「唯讀的搜尋視圖（Read-only Search View）」，真正的資料應保存在 RDBMS 或 Event Log 中。",
+        "en": "Elasticsearch should be treated as a 'Read-only Search View', with the actual data persisted in an RDBMS or Event Log.",
+        "wg": [
+          {
+            "t": "唯讀",
+            "en": "Read-only",
+            "ps": "adjective"
+          },
+          {
+            "t": "視圖",
+            "en": "View",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "Elasticsearch 擅長處理頻繁的單一文件更新與交易一致性（ACID）。",
+        "en": "Elasticsearch excels at handling frequent single-document updates and transactional consistency (ACID).",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "Elasticsearch 缺乏跨文件的交易機制（ACID），且在發生 Split-brain 或 Mapping 需要重大變更（Breaking Change）時，若沒有外部的 Source of Truth 進行重建（Reindex），資料可能會遺失或無法遷移。因此，它更適合定位為加速搜尋用的「視圖」。",
+      "en": "Elasticsearch lacks cross-document transaction mechanisms (ACID). In cases of Split-brain or when Mapping requires major changes (Breaking Change), data might be lost or impossible to migrate without an external Source of Truth for reconstruction (Reindex). Therefore, it is better positioned as a 'View' for accelerating search.",
+      "wg": [
+        {
+          "t": "交易機制",
+          "en": "transaction mechanism",
+          "ps": "noun"
+        },
+        {
+          "t": "重建索引",
+          "en": "Reindex",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "6",
+    "level": "Medium",
+    "keywords": "Sharding, Best Practice, Capacity Planning",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在規劃 Elasticsearch 的分片（Shard）策略時，根據手冊建議，單一分片的目標大小範圍應維持在多少之間，以達到效能與資源的最佳平衡？",
+        "en": "When planning an Elasticsearch sharding strategy, according to the handbook recommendations, what should be the target size range for a single shard to achieve the best balance between performance and resources?",
+        "wg": [
+          {
+            "t": "平衡",
+            "en": "balance",
+            "ps": "noun"
+          },
+          {
+            "t": "容量規劃",
+            "en": "Capacity Planning",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "100MB ~ 500MB",
+        "en": "100MB ~ 500MB",
+        "wg": []
+      },
+      {
+        "t": "1GB ~ 5GB",
+        "en": "1GB ~ 5GB",
+        "wg": []
+      },
+      {
+        "t": "10GB ~ 50GB",
+        "en": "10GB ~ 50GB",
+        "wg": []
+      },
+      {
+        "t": "100GB ~ 200GB",
+        "en": "100GB ~ 200GB",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "手冊建議的最佳實務是讓每個分片保持在 10GB 到 50GB 之間。太小會導致分片過多（Oversharding），浪費 Heap Memory；太大則會導致移動分片或發生故障復原時速度過慢。",
+      "en": "The handbook recommends keeping each shard between 10GB and 50GB. Too small leads to Oversharding, wasting Heap Memory; too large makes shard relocation or failure recovery too slow.",
+      "wg": [
+        {
+          "t": "故障復原",
+          "en": "failure recovery",
+          "ps": "noun"
+        },
+        {
+          "t": "移動分片",
+          "en": "shard relocation",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "7",
+    "level": "Hard",
+    "keywords": "Pagination, Best Practice, PIT, search_after",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "假設你需要開發一個後台功能，允許管理者匯出超過 50 萬筆的完整訂單紀錄。為了避免造成叢集記憶體溢出（OOM）並確保匯出過程中資料的一致性，根據手冊建議，下列哪一種實作方式是現代 Elasticsearch 版本中的最佳解法？",
+        "en": "Suppose you need to develop a backend feature that allows administrators to export over 500,000 complete order records. To avoid causing Cluster OOM and to ensure data consistency during the export process, which implementation is the best practice in modern Elasticsearch versions according to the handbook?",
+        "wg": [
+          {
+            "t": "記憶體溢出",
+            "en": "Out of Memory (OOM)",
+            "ps": "noun"
+          },
+          {
+            "t": "一致性",
+            "en": "Consistency",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "使用迴圈遞增 `from` 參數，每次讀取 1000 筆，直到讀完所有資料。",
+        "en": "Use a loop to increment the `from` parameter, reading 1000 records at a time until all data is read.",
+        "wg": []
+      },
+      {
+        "t": "將 `index.max_result_window` 設定調大至 500,000，並一次性請求所有資料。",
+        "en": "Increase the `index.max_result_window` setting to 500,000 and request all data at once.",
+        "wg": []
+      },
+      {
+        "t": "結合 `Point In Time (PIT)` API 建立快照，並搭配 `search_after` 進行游標式分頁讀取。",
+        "en": "Combine the `Point In Time (PIT)` API to create a snapshot, and use `search_after` for cursor-based pagination.",
+        "wg": [
+          {
+            "t": "游標式分頁",
+            "en": "Cursor-based pagination",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "使用 `function_score` 查詢隨機讀取資料，直到湊滿 50 萬筆。",
+        "en": "Use a `function_score` query to read data randomly until 500,000 records are collected.",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "選項 2 是正確的。對於深度分頁或全量匯出，`search_after` 避免了 `from/size` 的排序成本，而 `PIT` 則確保了搜尋視圖的一致性（即使匯出期間有新資料寫入也不受影響）。選項 0 會導致深度分頁效能陷阱；選項 1 會直接導致記憶體耗盡。",
+      "en": "Option 2 is correct. For deep pagination or full exports, `search_after` avoids the sorting cost of `from/size`, and `PIT` ensures the consistency of the search view (unaffected by new data writes during export). Option 0 leads to the deep pagination performance trap; Option 1 will directly cause memory exhaustion.",
+      "wg": []
+    }
+  },
+  {
+    "no": "8",
+    "level": "Medium",
+    "keywords": "ILM, Rollover, Sharding, Best Practice",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在設定索引生命週期管理（ILM）時，為什麼手冊建議優先使用「基於大小（Rollover by Size）」的策略，而非單純「基於時間（如每日一個索引）」的策略？",
+        "en": "When configuring Index Lifecycle Management (ILM), why does the handbook recommend prioritizing a 'Rollover by Size' strategy over a purely 'Time-based (e.g., daily index)' strategy?",
+        "wg": [
+          {
+            "t": "索引生命週期管理",
+            "en": "Index Lifecycle Management (ILM)",
+            "ps": "noun"
+          },
+          {
+            "t": "滾動",
+            "en": "Rollover",
+            "ps": "verb/noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "因為基於時間的索引無法使用快取功能。",
+        "en": "Because time-based indices cannot use caching features.",
+        "wg": []
+      },
+      {
+        "t": "因為資料流量通常不穩定，基於時間容易導致分片大小不均（過大或過小），影響效能。",
+        "en": "Because data traffic is often unstable, time-based strategies easily lead to uneven shard sizes (too large or too small), affecting performance.",
+        "wg": [
+          {
+            "t": "分片大小不均",
+            "en": "Uneven shard sizes",
+            "ps": "phrase"
+          }
+        ]
+      },
+      {
+        "t": "因為 Elasticsearch 不支援以日期命名的索引。",
+        "en": "Because Elasticsearch does not support indices named with dates.",
+        "wg": []
+      },
+      {
+        "t": "因為基於大小的策略可以自動壓縮資料，節省硬碟空間。",
+        "en": "Because size-based strategies automatically compress data to save disk space.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "選項 1 是正確的。最佳實務是讓分片保持在 10GB–50GB 的最佳區間。若強制按日切分，流量低時會產生大量小分片（Oversharding），流量高時則產生巨大分片，兩者皆不利於效能。",
+      "en": "Option 1 is correct. The best practice is to keep shards within the optimal range of 10GB–50GB. Forcing daily segmentation results in many small shards during low traffic (Oversharding) or huge shards during high traffic, both of which are detrimental to performance.",
+      "wg": []
+    }
+  },
+  {
+    "no": "9",
+    "level": "Medium",
+    "keywords": "Architecture, Mapping, Reindex, Data Safety",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "手冊中提到「Elasticsearch 是視圖而非真相（Source of Truth）」。若你違反此原則，將 ES 作為唯一的資料儲存庫，當遇到需要修改 Mapping 的「破壞性變更（Breaking Change）」時，會面臨什麼嚴重後果？",
+        "en": "The handbook states 'Elasticsearch is a View, not the Source of Truth'. If you violate this principle and use ES as the sole data store, what serious consequence will you face when encountering a 'Breaking Change' in Mapping?",
+        "wg": [
+          {
+            "t": "真相",
+            "en": "Source of Truth",
+            "ps": "noun"
+          },
+          {
+            "t": "破壞性變更",
+            "en": "Breaking Change",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "叢集會自動拒絕寫入新資料，直到舊資料被刪除。",
+        "en": "The cluster will automatically reject new data writes until old data is deleted.",
+        "wg": []
+      },
+      {
+        "t": "由於沒有原始資料來源，你將無法執行 Reindex 來遷移資料至新結構，導致系統陷入僵局。",
+        "en": "Since there is no original data source, you will be unable to perform a Reindex to migrate data to the new structure, leading to a system deadlock.",
+        "wg": [
+          {
+            "t": "重建索引",
+            "en": "Reindex",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "Elasticsearch 會強制將所有欄位轉為 Text 類型以避免錯誤。",
+        "en": "Elasticsearch will force all fields to be converted to Text type to avoid errors.",
+        "wg": []
+      },
+      {
+        "t": "查詢速度會因為 Mapping 衝突而變慢，但資料仍然安全。",
+        "en": "Query speed will slow down due to Mapping conflicts, but the data remains safe.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "選項 1 是正確的。Elasticsearch 的 Mapping 修改通常需要重建索引（Reindex）。若 ES 是唯一的資料來源，一旦需要變更欄位類型（例如從 Integer 改為 String），你將沒有「原始資料」可以重新寫入新索引，造成維護上的死胡同。",
+      "en": "Option 1 is correct. Modifying Mapping in Elasticsearch usually requires reindexing. If ES is the sole data source, once you need to change a field type (e.g., from Integer to String), you will have no 'source data' to rewrite into the new index, creating a maintenance dead end.",
+      "wg": []
+    }
+  },
+  {
+    "no": "10",
+    "level": "Medium",
+    "keywords": "Mapping, Flattened, Schema Design",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "當你需要儲存包含大量隨機 Key 的 JSON 物件（例如 HTTP Headers 或使用者自訂標籤），為了避免「Mapping Explosion（映射爆炸）」導致叢集崩潰，應將該欄位設定為哪種資料類型？",
+        "en": "When you need to store JSON objects with many random keys (e.g., HTTP Headers or user-defined tags), which data type should you assign to the field to avoid 'Mapping Explosion' that could crash the cluster?",
+        "wg": [
+          {
+            "t": "映射爆炸",
+            "en": "Mapping Explosion",
+            "ps": "noun"
+          },
+          {
+            "t": "隨機",
+            "en": "Random / Unpredictable",
+            "ps": "adjective"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "Nested",
+        "en": "Nested",
+        "wg": []
+      },
+      {
+        "t": "Object (Default)",
+        "en": "Object (Default)",
+        "wg": []
+      },
+      {
+        "t": "Flattened",
+        "en": "Flattened",
+        "wg": []
+      },
+      {
+        "t": "Text",
+        "en": "Text",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "選項 2 是正確的。`flattened` 類型會將整個 JSON 物件視為單一欄位進行索引，允許搜尋其內容，但不會為每個新的 Key 建立獨立的 Mapping，從而徹底解決欄位數量過多的問題。",
+      "en": "Option 2 is correct. The `flattened` type treats the entire JSON object as a single field for indexing, allowing its content to be searched without creating a separate Mapping for each new Key, thus solving the problem of excessive field counts.",
+      "wg": []
+    }
+  },
+  {
+    "no": "11",
+    "level": "Hard",
+    "keywords": "Performance, Internals, Update Cost",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "為什麼將 Elasticsearch 用於「高頻率單一文件更新」（例如：每秒更新 100 次的計數器）被視為一種反模式？",
+        "en": "Why is using Elasticsearch for 'high-frequency single document updates' (e.g., a counter updated 100 times per second) considered an anti-pattern?",
+        "wg": [
+          {
+            "t": "高頻率更新",
+            "en": "High-frequency updates",
+            "ps": "phrase"
+          },
+          {
+            "t": "反模式",
+            "en": "Anti-pattern",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "因為 Elasticsearch 的文件是不可變的（Immutable），每次更新實際上是標記刪除舊文件並寫入新文件，這會引發頻繁的 Segment Merge，消耗大量 CPU 與 I/O。",
+        "en": "Because Elasticsearch documents are immutable, each update actually marks the old document as deleted and writes a new one, triggering frequent Segment Merges that consume significant CPU and I/O.",
+        "wg": [
+          {
+            "t": "不可變的",
+            "en": "Immutable",
+            "ps": "adjective"
+          },
+          {
+            "t": "區段合併",
+            "en": "Segment Merge",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "因為 Elasticsearch 預設使用關聯式資料庫的鎖定機制，會導致死鎖（Deadlock）。",
+        "en": "Because Elasticsearch uses relational database locking mechanisms by default, which leads to deadlocks.",
+        "wg": []
+      },
+      {
+        "t": "因為高頻率更新會導致 Master 節點的 Cluster State 過大。",
+        "en": "Because high-frequency updates cause the Master node's Cluster State to become too large.",
+        "wg": []
+      },
+      {
+        "t": "因為 Elasticsearch 無法保證寫入順序，計數器數值會錯亂。",
+        "en": "Because Elasticsearch cannot guarantee write order, the counter value will become corrupted.",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "選項 0 是正確的。ES 的底層 Lucene Segment 是唯讀的。更新操作的成本極高，因為它涉及「寫入新 Segment」與「背景合併（Merge）」。高頻更新會讓系統忙於合併與垃圾回收（GC），而非處理查詢。",
+      "en": "Option 0 is correct. The underlying Lucene Segments in ES are read-only. Updates are very expensive as they involve 'writing new Segments' and 'background Merging'. High-frequency updates keep the system busy with merging and Garbage Collection (GC) instead of processing queries.",
+      "wg": []
+    }
+  },
+  {
+    "no": "12",
+    "level": "Medium",
+    "keywords": "Query, Performance, Ngram, Wildcard",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "若業務需求必須支援「任意子字串搜尋」（例如在 'A123B' 中搜尋 '123'），為了避免使用效能極差的前綴萬用字元查詢（Leading Wildcard Query, `*123*`），手冊建議在「索引階段（Index Time）」採用什麼技術來優化？",
+        "en": "If business requirements demand support for 'arbitrary substring search' (e.g., finding '123' in 'A123B'), what technique does the handbook recommend using at 'Index Time' to avoid the poor performance of Leading Wildcard Queries (`*123*`)?",
+        "wg": [
+          {
+            "t": "子字串搜尋",
+            "en": "Substring search",
+            "ps": "noun"
+          },
+          {
+            "t": "前綴萬用字元",
+            "en": "Leading Wildcard",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "使用 `keyword` 類型並開啟 `doc_values`。",
+        "en": "Use the `keyword` type and enable `doc_values`.",
+        "wg": []
+      },
+      {
+        "t": "使用 `ngram` Tokenizer 或 `reverse` Token Filter。",
+        "en": "Use an `ngram` Tokenizer or `reverse` Token Filter.",
+        "wg": [
+          {
+            "t": "分詞器",
+            "en": "Tokenizer",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "增加 `search.max_buckets` 的限制。",
+        "en": "Increase the `search.max_buckets` limit.",
+        "wg": []
+      },
+      {
+        "t": "使用 Script Query 進行正規表示式比對。",
+        "en": "Use a Script Query to perform regex matching.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "選項 1 是正確的。透過 `ngram` 將文字切分為多個子字串（如 '123' 切為 '1', '12', '123', '23'...）並建立索引，可以將昂貴的「掃描成本」轉移到「索引空間成本」，讓搜尋變回高效的 Term Query。",
+      "en": "Option 1 is correct. By using `ngram` to break text into multiple substrings (e.g., '123' becomes '1', '12', '123', '23'...) and indexing them, you shift the expensive 'scanning cost' to 'index space cost', making the search an efficient Term Query again.",
+      "wg": []
+    }
+  }
+]

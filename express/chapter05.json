@@ -1,0 +1,1368 @@
+[
+  {
+    "no": "6",
+    "level": "intermediate",
+    "keywords": "Transaction, Connection Pool, Atomicity, Anti-pattern",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "async function createOrder(user, items) {\n  // 試圖使用 pool.query 的簡寫方式來執行交易\n  await pool.query('BEGIN');\n  const { rows } = await pool.query('INSERT INTO orders ... RETURNING id');\n  await pool.query('INSERT INTO order_items ...');\n  await pool.query('COMMIT');\n}",
+    "question": [
+      {
+        "t": "一位初階工程師提交了上述程式碼，試圖透過 `pool.query` 的簡寫語法來執行資料庫交易。",
+        "en": "A junior engineer submitted the above code, attempting to execute a database transaction using the `pool.query` shorthand syntax.",
+        "wg": [
+          {
+            "t": "簡寫語法",
+            "en": "shorthand syntax",
+            "ps": "N"
+          },
+          {
+            "t": "提交",
+            "en": "submit",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "這段程式碼在併發環境下會產生什麼嚴重的後果？",
+        "en": "What serious consequence will this code cause in a concurrent environment?",
+        "wg": [
+          {
+            "t": "併發環境",
+            "en": "concurrent environment",
+            "ps": "N"
+          },
+          {
+            "t": "後果",
+            "en": "consequence",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 程式碼會拋出語法錯誤，因為 `pool.query` 不支援 `BEGIN` 指令。",
+        "en": "(A) The code will throw a syntax error because `pool.query` does not support the `BEGIN` command.",
+        "wg": []
+      },
+      {
+        "t": "(B) 交易無法保證原子性 (Atomicity)，因為每個 `pool.query` 可能會從連線池中借用不同的連線實例。",
+        "en": "(B) The transaction cannot guarantee Atomicity because each `pool.query` might checkout a different connection instance from the pool.",
+        "wg": [
+          {
+            "t": "原子性",
+            "en": "Atomicity",
+            "ps": "N"
+          },
+          {
+            "t": "借用",
+            "en": "checkout",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(C) 會造成死鎖 (Deadlock)，因為連線沒有被正確釋放。",
+        "en": "(C) It will cause a Deadlock because connections are not properly released.",
+        "wg": [
+          {
+            "t": "死鎖",
+            "en": "Deadlock",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(D) 效能會極差，因為每次查詢都需要重新建立 TCP 連線。",
+        "en": "(D) Performance will be extremely poor because a new TCP connection needs to be established for every query.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "`pool.query()` 是一個無狀態的輔助方法，它會自動執行「借出連線 -> 執行查詢 -> 歸還連線」的流程。因此，上述的三個查詢可能分別在三個不同的資料庫連線（Session）上執行，導致 `BEGIN` 對後續的 `INSERT` 無效，破壞了交易的完整性。正確做法是顯式呼叫 `pool.connect()` 獲取單一 Client 實例。",
+      "en": "`pool.query()` is a stateless helper method that automatically executes the flow of 'checkout connection -> execute query -> release connection'. Therefore, the three queries above might execute on three different database connections (Sessions), rendering the `BEGIN` ineffective for the subsequent `INSERT`s and breaking transaction integrity. The correct approach is to explicitly call `pool.connect()` to acquire a single Client instance.",
+      "wg": [
+        {
+          "t": "無狀態",
+          "en": "stateless",
+          "ps": "Adj"
+        },
+        {
+          "t": "輔助方法",
+          "en": "helper method",
+          "ps": "N"
+        },
+        {
+          "t": "完整性",
+          "en": "integrity",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "7",
+    "level": "advanced",
+    "keywords": "Streams, Error Handling, Pipeline, Stability",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "app.get('/download', async (req, res) => {\n  const client = await pool.connect();\n  const stream = client.query(new QueryStream('SELECT * FROM large_table'));\n  \n  // 危險的操作\n  stream.pipe(res);\n  \n  stream.on('end', () => client.release());\n});",
+    "question": [
+      {
+        "t": "您正在審查一段負責串流下載大檔案的程式碼（如上所示）。",
+        "en": "You are reviewing a piece of code responsible for streaming large file downloads (as shown above).",
+        "wg": [
+          {
+            "t": "審查",
+            "en": "review",
+            "ps": "V"
+          },
+          {
+            "t": "串流下載",
+            "en": "streaming download",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "如果資料庫連線在傳輸過程中突然中斷（例如網路閃斷），這段程式碼最可能導致什麼後果？",
+        "en": "If the database connection is suddenly interrupted (e.g., network glitch) during transmission, what is the most likely consequence of this code?",
+        "wg": [
+          {
+            "t": "中斷",
+            "en": "interrupt",
+            "ps": "V"
+          },
+          {
+            "t": "網路閃斷",
+            "en": "network glitch",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) `res` 會自動發送 500 錯誤給客戶端。",
+        "en": "(A) `res` will automatically send a 500 error to the client.",
+        "wg": []
+      },
+      {
+        "t": "(B) Node.js Process 可能會因為未捕獲的錯誤（Unhandled Error）而崩潰。",
+        "en": "(B) The Node.js Process might crash due to an Unhandled Error.",
+        "wg": [
+          {
+            "t": "未捕獲的錯誤",
+            "en": "Unhandled Error",
+            "ps": "N"
+          },
+          {
+            "t": "崩潰",
+            "en": "crash",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(C) `client.release()` 會自動被呼叫，資源會被安全回收。",
+        "en": "(C) `client.release()` will be automatically called, and resources will be safely reclaimed.",
+        "wg": []
+      },
+      {
+        "t": "(D) 串流會自動重試，直到連線恢復。",
+        "en": "(D) The stream will automatically retry until the connection is restored.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "原生的 `.pipe()` 方法不會自動轉發錯誤，且若來源 Stream 發出 `error` 事件而沒有被監聽（Listener），Node.js 會將其視為未捕獲的異常並導致 Process 退出。應改用 `stream.pipeline()`，它能統一處理錯誤並確保資源釋放。",
+      "en": "The native `.pipe()` method does not automatically forward errors. If the source Stream emits an `error` event without a listener, Node.js treats it as an unhandled exception, causing the Process to exit. `stream.pipeline()` should be used instead, as it handles errors centrally and ensures resource release.",
+      "wg": [
+        {
+          "t": "轉發",
+          "en": "forward",
+          "ps": "V"
+        },
+        {
+          "t": "監聽",
+          "en": "listen",
+          "ps": "V"
+        },
+        {
+          "t": "異常",
+          "en": "exception",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "8",
+    "level": "intermediate",
+    "keywords": "Timeouts, Configuration, Resilience, Database",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您的監控系統顯示，某個 Express 服務的資料庫連線池經常處於「滿載」狀態，且應用程式回應時間極長。",
+        "en": "Your monitoring system shows that the database connection pool of an Express service is frequently in a 'saturated' state, and application response times are extremely high.",
+        "wg": [
+          {
+            "t": "滿載",
+            "en": "saturated",
+            "ps": "Adj"
+          },
+          {
+            "t": "回應時間",
+            "en": "response time",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "調查發現，這是因為某些複雜的查詢在資料庫端執行了數分鐘之久。",
+        "en": "Investigation reveals that this is because certain complex queries are running for minutes on the database side.",
+        "wg": [
+          {
+            "t": "調查",
+            "en": "investigation",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "為了防止單一慢查詢拖垮整個服務，您應該優先實作下列哪項設定？",
+        "en": "To prevent a single slow query from bringing down the entire service, which configuration should you prioritize implementing?",
+        "wg": [
+          {
+            "t": "拖垮",
+            "en": "bring down",
+            "ps": "V"
+          },
+          {
+            "t": "優先實作",
+            "en": "prioritize implementing",
+            "ps": "V"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 增加連線池的最大連線數 (Max Pool Size)。",
+        "en": "(A) Increase the Max Pool Size.",
+        "wg": []
+      },
+      {
+        "t": "(B) 設定 `statement_timeout` 或查詢層級的 Timeout。",
+        "en": "(B) Configure `statement_timeout` or query-level Timeout.",
+        "wg": [
+          {
+            "t": "查詢層級",
+            "en": "query-level",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "(C) 在 Express 層級設定 `keepAliveTimeout`。",
+        "en": "(C) Set `keepAliveTimeout` at the Express level.",
+        "wg": []
+      },
+      {
+        "t": "(D) 將資料庫遷移到更強大的機器類型。",
+        "en": "(D) Migrate the database to a more powerful machine type.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "增加 Pool Size 或升級硬體只是治標不治本，慢查詢仍會佔用連線。設定 `statement_timeout` (Postgres) 或 Driver 層級的 Timeout 可以強制終止執行過久的查詢，釋放連線資源回 Pool，保護系統不被「殭屍查詢」耗盡資源。",
+      "en": "Increasing Pool Size or upgrading hardware only treats the symptoms; slow queries will still occupy connections. Setting `statement_timeout` (Postgres) or Driver-level Timeout forcibly terminates queries running too long, releasing connection resources back to the Pool and protecting the system from being exhausted by 'zombie queries'.",
+      "wg": [
+        {
+          "t": "治標不治本",
+          "en": "treat the symptoms but not the root cause",
+          "ps": "Idiopm"
+        },
+        {
+          "t": "強制終止",
+          "en": "forcibly terminate",
+          "ps": "V"
+        },
+        {
+          "t": "耗盡",
+          "en": "exhaust",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "9",
+    "level": "advanced",
+    "keywords": "Nested Transactions, Savepoints, Architecture, SQL",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在設計一個模組化的後端系統時，Service A 的函數 `funcA` 開啟了一個資料庫交易，並呼叫了 Service B 的 `funcB`。",
+        "en": "When designing a modular backend system, function `funcA` in Service A starts a database transaction and calls `funcB` in Service B.",
+        "wg": [
+          {
+            "t": "模組化",
+            "en": "modular",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "若 `funcB` 內部也試圖執行 `BEGIN` 來開啟交易，在大多數 SQL 資料庫（如 Postgres）中會發生什麼問題？",
+        "en": "If `funcB` also attempts to execute `BEGIN` internally to start a transaction, what issue will occur in most SQL databases (like Postgres)?",
+        "wg": [
+          {
+            "t": "內部",
+            "en": "internally",
+            "ps": "Adv"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 資料庫會自動將內部交易合併到外部交易中（Implicit Merge）。",
+        "en": "(A) The database will automatically merge the inner transaction into the outer transaction (Implicit Merge).",
+        "wg": [
+          {
+            "t": "合併",
+            "en": "merge",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(B) 會產生警告，但程式仍能正常執行。",
+        "en": "(B) A warning will be generated, but the program will continue to execute normally.",
+        "wg": []
+      },
+      {
+        "t": "(C) 大多數 SQL 資料庫不支援真正的巢狀交易（Nested Transactions），這可能導致語法錯誤或邏輯混亂。",
+        "en": "(C) Most SQL databases do not support true Nested Transactions, which may lead to syntax errors or logical confusion.",
+        "wg": [
+          {
+            "t": "巢狀交易",
+            "en": "Nested Transactions",
+            "ps": "N"
+          },
+          {
+            "t": "邏輯混亂",
+            "en": "logical confusion",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(D) 內部交易會強制 Commit 外部交易。",
+        "en": "(D) The inner transaction will force the outer transaction to Commit.",
+        "wg": []
+      }
+    ],
+    "answer": "(C)",
+    "why": {
+      "t": "標準 SQL 通常不支援在一個已經 `BEGIN` 的交易中再次執行 `BEGIN`。若需要類似巢狀交易的行為（例如 `funcB` 失敗時只 Rollback 自己的部分），應使用 `SAVEPOINT` 機制，或在架構設計上將交易邊界（Transaction Boundary）控制在最上層。",
+      "en": "Standard SQL typically does not support executing `BEGIN` again inside a transaction that has already started. If nested transaction-like behavior is needed (e.g., rolling back only `funcB`'s part upon failure), one should use the `SAVEPOINT` mechanism, or architecturally control the Transaction Boundary at the top level.",
+      "wg": [
+        {
+          "t": "交易邊界",
+          "en": "Transaction Boundary",
+          "ps": "N"
+        },
+        {
+          "t": "最上層",
+          "en": "top level",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "10",
+    "level": "intermediate",
+    "keywords": "Streams, ETL, Transform, Data Masking",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您需要實作一個 API，將資料庫中的 100 萬筆使用者資料匯出為 JSON 格式，但在輸出前必須將 Email 欄位進行遮罩處理（Masking）。",
+        "en": "You need to implement an API to export 1 million user records from the database in JSON format, but the Email field must be masked before output.",
+        "wg": [
+          {
+            "t": "遮罩處理",
+            "en": "masking",
+            "ps": "N"
+          },
+          {
+            "t": "匯出",
+            "en": "export",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "為了保持最低的記憶體佔用（Memory Footprint），下列哪種實作方式最佳？",
+        "en": "To maintain the lowest Memory Footprint, which implementation approach is best?",
+        "wg": [
+          {
+            "t": "記憶體佔用",
+            "en": "Memory Footprint",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 使用 `pool.query` 獲取所有資料，使用 `Array.map` 處理遮罩，最後 `res.json()` 回傳。",
+        "en": "(A) Use `pool.query` to fetch all data, use `Array.map` for masking, and finally return with `res.json()`.",
+        "wg": []
+      },
+      {
+        "t": "(B) 建立一個 Node.js `Transform` Stream，串接在資料庫查詢 Stream 與 Response 之間，在 `transform` 函式中逐筆處理。",
+        "en": "(B) Create a Node.js `Transform` Stream, pipe it between the database query Stream and the Response, and process record-by-record in the `transform` function.",
+        "wg": [
+          {
+            "t": "串接",
+            "en": "pipe/connect",
+            "ps": "V"
+          },
+          {
+            "t": "逐筆",
+            "en": "record-by-record",
+            "ps": "Adv"
+          }
+        ]
+      },
+      {
+        "t": "(C) 將資料寫入伺服器的暫存檔案，讀取檔案內容進行字串取代後再傳送。",
+        "en": "(C) Write data to a temporary file on the server, read the file content to perform string replacement, and then send.",
+        "wg": [
+          {
+            "t": "暫存檔案",
+            "en": "temporary file",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(D) 在資料庫層級使用 SQL `REPLACE` 函數，並一次性將結果載入記憶體傳送。",
+        "en": "(D) Use the SQL `REPLACE` function at the database level, and load the results into memory at once to send.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "選項 (A) 和 (D) 都會將所有資料一次載入記憶體，導致 OOM 風險。選項 (C) 增加了磁碟 I/O 開銷。選項 (B) 利用 Stream 的特性，在資料流動過程中逐筆（Chunk）修改資料，記憶體使用量為 O(1)（僅取決於 Buffer 大小），是處理大量資料 ETL 的標準做法。",
+      "en": "Options (A) and (D) load all data into memory at once, leading to OOM risks. Option (C) adds disk I/O overhead. Option (B) leverages Stream characteristics to modify data record-by-record (Chunk) as it flows, resulting in O(1) memory usage (dependent only on Buffer size), which is the standard practice for handling large-scale ETL.",
+      "wg": [
+        {
+          "t": "開銷",
+          "en": "overhead",
+          "ps": "N"
+        },
+        {
+          "t": "標準做法",
+          "en": "standard practice",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "11",
+    "level": "advanced",
+    "keywords": "Observability, Connection Pool, Monitoring, Performance",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在監控 Express 應用程式的資料庫連線池時，您發現 `pool_active_connections`（活躍連線數）很低，但 `pool_waiting_count`（等待連線數）卻很高。",
+        "en": "When monitoring the database connection pool of an Express application, you notice that `pool_active_connections` is low, but `pool_waiting_count` is high.",
+        "wg": [
+          {
+            "t": "活躍連線數",
+            "en": "active connections count",
+            "ps": "N"
+          },
+          {
+            "t": "等待連線數",
+            "en": "waiting connections count",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "這最可能暗示系統存在什麼問題？",
+        "en": "What problem does this most likely suggest in the system?",
+        "wg": [
+          {
+            "t": "暗示",
+            "en": "suggest/imply",
+            "ps": "V"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 資料庫伺服器的 CPU 已滿載。",
+        "en": "(A) The database server CPU is maxed out.",
+        "wg": []
+      },
+      {
+        "t": "(B) 連線池的 `max` (Max Pool Size) 設定過小，導致大量請求在排隊等待建立連線。",
+        "en": "(B) The connection pool's `max` (Max Pool Size) is set too low, causing many requests to queue up waiting for a connection.",
+        "wg": [
+          {
+            "t": "排隊",
+            "en": "queue up",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(C) 應用程式發生了記憶體洩漏 (Memory Leak)。",
+        "en": "(C) The application has a Memory Leak.",
+        "wg": []
+      },
+      {
+        "t": "(D) 這是不可能的狀態，監控指標可能有誤。",
+        "en": "(D) This is an impossible state; the monitoring metrics might be incorrect.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "如果活躍連線數已達上限（相對於設定值）或很低（如果設定值本身就很低），而等待數很高，代表連線池本身成為了瓶頸。請求需要連線但拿不到，只能排隊。這通常意味著需要重新評估 Pool Size 的設定，或者檢查是否有連線建立過慢的問題。",
+      "en": "If the active connection count has reached its limit (relative to the setting) or is low (if the setting itself is low), and the waiting count is high, it means the connection pool itself has become a bottleneck. Requests need connections but can't get them, so they queue up. This usually implies a need to re-evaluate the Pool Size setting or check if connection establishment is too slow.",
+      "wg": [
+        {
+          "t": "瓶頸",
+          "en": "bottleneck",
+          "ps": "N"
+        },
+        {
+          "t": "重新評估",
+          "en": "re-evaluate",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "12",
+    "level": "intermediate",
+    "keywords": "Transaction, ACID, Crash Recovery, Database Consistency",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "const client = await pool.connect();\ntry {\n  await client.query('BEGIN');\n  await client.query('UPDATE accounts SET balance = balance - 100 WHERE id = 1');\n  \n  // 模擬伺服器在此刻發生崩潰 (Simulate server crash here)\n  // e.g., process.exit(1) or Uncaught Exception\n  \n  await client.query('UPDATE accounts SET balance = balance + 100 WHERE id = 2');\n  await client.query('COMMIT');\n} catch (e) {\n  await client.query('ROLLBACK');\n} finally {\n  client.release();\n}",
+    "question": [
+      {
+        "t": "假設在執行上述程式碼的交易過程中，Node.js 伺服器在執行完第一個 UPDATE 後突然崩潰（Crash），導致程式立即終止。",
+        "en": "Suppose the Node.js server crashes immediately after executing the first UPDATE in the code above, causing the process to terminate.",
+        "wg": [
+          {
+            "t": "崩潰",
+            "en": "crash",
+            "ps": "V"
+          },
+          {
+            "t": "終止",
+            "en": "terminate",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "此時資料庫（如 PostgreSQL）的狀態會發生什麼變化？",
+        "en": "What happens to the state of the database (e.g., PostgreSQL) at this point?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 資料庫會保留第一個 UPDATE 的結果，但第二個 UPDATE 不會執行，導致資料不一致。",
+        "en": "(A) The database retains the result of the first UPDATE, but the second UPDATE is not executed, leading to data inconsistency.",
+        "wg": [
+          {
+            "t": "資料不一致",
+            "en": "data inconsistency",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(B) 資料庫會無限期鎖定該筆資料，直到管理員手動介入解鎖。",
+        "en": "(B) The database will lock the record indefinitely until an administrator manually intervenes to unlock it.",
+        "wg": [
+          {
+            "t": "介入",
+            "en": "intervene",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(C) 資料庫會偵測到連線中斷，自動回滾（Rollback）該未提交的交易並釋放鎖定。",
+        "en": "(C) The database detects the connection drop, automatically rolls back the uncommitted transaction, and releases the locks.",
+        "wg": [
+          {
+            "t": "回滾",
+            "en": "rollback",
+            "ps": "V"
+          },
+          {
+            "t": "釋放",
+            "en": "release",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(D) Node.js 會在重啟後自動恢復該交易的上下文並繼續執行。",
+        "en": "(D) Node.js will automatically resume the transaction context and continue execution after restarting.",
+        "wg": [
+          {
+            "t": "恢復",
+            "en": "resume",
+            "ps": "V"
+          }
+        ]
+      }
+    ],
+    "answer": "(C)",
+    "why": {
+      "t": "當 Node.js 崩潰時，與資料庫的 TCP 連線會中斷。大多數關聯式資料庫（如 PostgreSQL）在偵測到客戶端連線斷開且交易尚未 COMMIT 時，會將其視為失敗並自動執行 Rollback，同時釋放所有持有的 Row Locks，確保資料庫的一致性（Atomicity）。",
+      "en": "When Node.js crashes, the TCP connection to the database is dropped. Most relational databases (like PostgreSQL) treat uncommitted transactions as failed upon detecting a client disconnect and automatically execute a Rollback, releasing all held Row Locks to ensure database consistency (Atomicity).",
+      "wg": [
+        {
+          "t": "連線中斷",
+          "en": "connection drop",
+          "ps": "N"
+        },
+        {
+          "t": "一致性",
+          "en": "consistency",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "13",
+    "level": "advanced",
+    "keywords": "Streams, Performance, Batch Size, Network Latency",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "const query = new QueryStream('SELECT * FROM large_table', [], { batchSize: 10 });\nconst stream = client.query(query);\n// ... pipeline logic ...",
+    "question": [
+      {
+        "t": "您正在使用 `pg-query-stream` 匯出含有數百萬筆資料的報表，並將 `batchSize` 設定為 `10`（如上所示）。",
+        "en": "You are exporting a report with millions of records using `pg-query-stream` and have set the `batchSize` to `10` (as shown above).",
+        "wg": [
+          {
+            "t": "匯出",
+            "en": "exporting",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "從效能優化的角度來看，這個設定值可能會帶來什麼負面影響？",
+        "en": "From a performance optimization perspective, what negative impact might this setting have?",
+        "wg": [
+          {
+            "t": "負面影響",
+            "en": "negative impact",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 會導致 Node.js 記憶體溢位（OOM），因為 `batchSize` 過小無法觸發垃圾回收。",
+        "en": "(A) It will cause Node.js Out of Memory (OOM) because a small `batchSize` prevents garbage collection triggering.",
+        "wg": []
+      },
+      {
+        "t": "(B) 會顯著增加資料庫與應用程式之間的網路往返次數（Round-trips），降低整體吞吐量。",
+        "en": "(B) It will significantly increase the number of network round-trips between the database and the application, reducing overall throughput.",
+        "wg": [
+          {
+            "t": "網路往返",
+            "en": "network round-trips",
+            "ps": "N"
+          },
+          {
+            "t": "吞吐量",
+            "en": "throughput",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) 會導致資料庫連線池被佔滿，因為小的 `batchSize` 需要開啟多個連線。",
+        "en": "(C) It will cause the database connection pool to fill up because a small `batchSize` requires opening multiple connections.",
+        "wg": []
+      },
+      {
+        "t": "(D) `batchSize` 僅影響客戶端記憶體，對傳輸速度沒有影響。",
+        "en": "(D) `batchSize` only affects client memory and has no impact on transfer speed.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "`batchSize` 決定了 Cursor 每次從資料庫 Fetch 的資料筆數。設定過小（如 10）意味著對於 100 萬筆資料，需要進行 10 萬次網路請求往返，這會產生巨大的網路延遲開銷。適度調大（如 1000 或 5000）可以在記憶體使用與網路效率間取得平衡。",
+      "en": "`batchSize` determines the number of rows the Cursor fetches from the database each time. Setting it too low (e.g., 10) means that for 1 million records, 100,000 network round-trips are required, creating massive network latency overhead. Increasing it moderately (e.g., 1000 or 5000) balances memory usage and network efficiency.",
+      "wg": [
+        {
+          "t": "開銷",
+          "en": "overhead",
+          "ps": "N"
+        },
+        {
+          "t": "取得平衡",
+          "en": "strike a balance",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "14",
+    "level": "intermediate",
+    "keywords": "Security, SQL Injection, Dynamic SQL, Code Review",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "app.get('/api/users', async (req, res) => {\n  const { orderBy } = req.query;\n  // 警告：此為反模式 (Warning: Anti-pattern)\n  const query = `SELECT * FROM users ORDER BY ${orderBy}`;\n  const result = await pool.query(query);\n  res.json(result.rows);\n});",
+    "question": [
+      {
+        "t": "在 Code Review 中，您發現上述程式碼試圖實作動態排序功能。",
+        "en": "During a Code Review, you notice the code above attempting to implement dynamic sorting.",
+        "wg": [
+          {
+            "t": "動態排序",
+            "en": "dynamic sorting",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "為什麼即使使用了 `pg` 套件，這段程式碼仍然存在嚴重的安全漏洞？",
+        "en": "Why does this code still have a serious security vulnerability even though the `pg` package is used?",
+        "wg": [
+          {
+            "t": "漏洞",
+            "en": "vulnerability",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) `pg` 套件不支援 `ORDER BY` 子句，這會導致語法錯誤。",
+        "en": "(A) The `pg` package does not support the `ORDER BY` clause, which will cause a syntax error.",
+        "wg": []
+      },
+      {
+        "t": "(B) 資料庫參數化查詢（Parameterized Queries）僅支援「值」的替換，不支援「識別字（如欄位名稱）」，因此這裡發生了 SQL Injection。",
+        "en": "(B) Database Parameterized Queries only support value substitution, not identifiers (like column names), so SQL Injection occurs here.",
+        "wg": [
+          {
+            "t": "參數化查詢",
+            "en": "parameterized queries",
+            "ps": "N"
+          },
+          {
+            "t": "識別字",
+            "en": "identifiers",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) 使用 Template Literals 會導致記憶體洩漏，因為字串無法被快取。",
+        "en": "(C) Using Template Literals causes memory leaks because the strings cannot be cached.",
+        "wg": []
+      },
+      {
+        "t": "(D) 應該使用 `pool.connect()` 而非 `pool.query()` 來執行排序。",
+        "en": "(D) `pool.connect()` should be used instead of `pool.query()` to execute sorting.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "SQL 參數化（如 `$1`）是用來處理資料值（Values），不能用來替換表格名稱或欄位名稱（Identifiers）。直接將使用者輸入拼接到 SQL 字串中會導致 SQL Injection。正確做法是使用白名單（Allow-list）驗證 `orderBy` 的值，或使用專門的識別字跳脫函式（如 `pg-format`）。",
+      "en": "SQL parameterization (like `$1`) is for handling data values, not for substituting table or column names (Identifiers). Concatenating user input directly into the SQL string leads to SQL Injection. The correct approach is to validate `orderBy` against an allow-list or use a dedicated identifier escaping function (like `pg-format`).",
+      "wg": [
+        {
+          "t": "白名單",
+          "en": "allow-list",
+          "ps": "N"
+        },
+        {
+          "t": "跳脫",
+          "en": "escape",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "15",
+    "level": "advanced",
+    "keywords": "Event Loop, Blocking, Streams, Performance",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "const transform = new Transform({\n  objectMode: true,\n  transform(row, encoding, callback) {\n    // 假設這是一個同步且極度耗時的計算 (Assume this is a synchronous and extremely CPU-intensive calculation)\n    const hash = crypto.pbkdf2Sync(row.secret, 'salt', 100000, 64, 'sha512');\n    callback(null, `${row.id},${hash}\\n`);\n  }\n});\n// pipeline(dbStream, transform, res, ...)",
+    "question": [
+      {
+        "t": "您的團隊將匯出功能改為 Stream 架構以節省記憶體，但在匯出大量資料時，監控系統顯示該服務的「其他 API 端點」回應時間急劇惡化（Latency Spike）。",
+        "en": "Your team refactored the export feature to a Stream architecture to save memory, but during large data exports, monitoring shows a severe latency spike for \"other API endpoints\" of the service.",
+        "wg": [
+          {
+            "t": "急劇惡化",
+            "en": "severe spike",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "根據上述程式碼，最可能的原因是什麼？",
+        "en": "Based on the code above, what is the most likely cause?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) Stream 的背壓機制失效，導致資料庫傳送資料過快。",
+        "en": "(A) The stream backpressure mechanism failed, causing the database to send data too fast.",
+        "wg": []
+      },
+      {
+        "t": "(B) 同步的 CPU 密集型操作阻塞了 Node.js 的主 Event Loop，導致無法處理其他請求。",
+        "en": "(B) The synchronous CPU-intensive operation blocked the main Node.js Event Loop, preventing it from handling other requests.",
+        "wg": [
+          {
+            "t": "阻塞",
+            "en": "block",
+            "ps": "V"
+          },
+          {
+            "t": "密集型",
+            "en": "intensive",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "(C) `pbkdf2Sync` 消耗了過多的記憶體，導致頻繁的 Garbage Collection。",
+        "en": "(C) `pbkdf2Sync` consumed too much memory, causing frequent Garbage Collection.",
+        "wg": []
+      },
+      {
+        "t": "(D) 資料庫連線被長時間佔用，導致其他請求無法取得連線。",
+        "en": "(D) The database connection was held for too long, preventing other requests from acquiring a connection.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "雖然 Stream 解決了記憶體問題，但 `transform` 函式是在 Node.js 的主執行緒中執行的。如果其中包含同步且耗時的計算（如 `pbkdf2Sync`），會阻塞 Event Loop，使得伺服器在計算完成前無法回應任何其他請求（即便是簡單的 Health Check）。應改用非同步版本或 Worker Threads。",
+      "en": "While Streams solve memory issues, the `transform` function runs on the main Node.js thread. If it contains synchronous and time-consuming calculations (like `pbkdf2Sync`), it blocks the Event Loop, rendering the server unable to respond to any other requests (even simple Health Checks) until the calculation completes. Asynchronous versions or Worker Threads should be used.",
+      "wg": [
+        {
+          "t": "主執行緒",
+          "en": "main thread",
+          "ps": "N"
+        },
+        {
+          "t": "非同步版本",
+          "en": "asynchronous version",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "11",
+    "level": "intermediate",
+    "keywords": "Performance, Latency, Streams, TTFB, User Experience",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您的團隊開發了一個儀表板 API，負責回傳大量的歷史分析數據（約 20MB JSON）。",
+        "en": "Your team has developed a dashboard API responsible for returning a large amount of historical analysis data (approx. 20MB JSON).",
+        "wg": [
+          {
+            "t": "儀表板",
+            "en": "dashboard",
+            "ps": "N"
+          },
+          {
+            "t": "歷史分析數據",
+            "en": "historical analysis data",
+            "ps": "NP"
+          }
+        ]
+      },
+      {
+        "t": "目前使用 `res.json(await db.query(...))` 的方式回傳，使用者抱怨點擊後會看到長達 3-5 秒的空白畫面，接著資料才一次性顯示。",
+        "en": "Currently using `res.json(await db.query(...))`, users complain about seeing a blank screen for 3-5 seconds after clicking, followed by the data appearing all at once.",
+        "wg": [
+          {
+            "t": "空白畫面",
+            "en": "blank screen",
+            "ps": "NP"
+          },
+          {
+            "t": "一次性",
+            "en": "all at once",
+            "ps": "Adv"
+          }
+        ]
+      },
+      {
+        "t": "在不改變資料總量的前提下，哪種技術手段最能改善使用者的「感知等待時間」（Perceived Latency）？",
+        "en": "Without changing the total amount of data, which technical approach best improves the user's \"Perceived Latency\"?",
+        "wg": [
+          {
+            "t": "感知等待時間",
+            "en": "Perceived Latency",
+            "ps": "NP"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 在資料庫層級啟用 Query Caching。",
+        "en": "(A) Enable Query Caching at the database level.",
+        "wg": []
+      },
+      {
+        "t": "(B) 改用 Stream 方式將資料庫游標（Cursor）的結果即時 Pipe 到 Response。",
+        "en": "(B) Switch to using Streams to Pipe the database cursor results directly to the Response in real-time.",
+        "wg": [
+          {
+            "t": "游標",
+            "en": "cursor",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) 使用 Gzip 壓縮 Response Body。",
+        "en": "(C) Use Gzip compression for the Response Body.",
+        "wg": []
+      },
+      {
+        "t": "(D) 增加資料庫連線池（Connection Pool）的大小。",
+        "en": "(D) Increase the size of the database Connection Pool.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "使用 Stream 可以顯著改善「首字節時間」（Time to First Byte, TTFB）。瀏覽器可以在接收到第一批資料時就開始渲染或處理，而不需要等待伺服器將所有資料載入記憶體並序列化後才開始傳輸。",
+      "en": "Using Streams significantly improves \"Time to First Byte\" (TTFB). The browser can start rendering or processing as soon as the first batch of data arrives, without waiting for the server to load all data into memory and serialize it before transmission begins.",
+      "wg": [
+        {
+          "t": "首字節時間",
+          "en": "Time to First Byte",
+          "ps": "NP"
+        },
+        {
+          "t": "渲染",
+          "en": "render",
+          "ps": "V"
+        },
+        {
+          "t": "序列化",
+          "en": "serialize",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "12",
+    "level": "advanced",
+    "keywords": "ACID, Crash Recovery, Locks, Database Internals",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "const client = await pool.connect();\ntry {\n  await client.query('BEGIN');\n  await client.query('UPDATE accounts SET balance = balance - 100 WHERE id = 1');\n  // --> Node.js Process Crashes Here (e.g., OOM or Power Failure) <--\n  await client.query('UPDATE accounts SET balance = balance + 100 WHERE id = 2');\n  await client.query('COMMIT');\n} catch (e) {\n  await client.query('ROLLBACK');\n} finally {\n  client.release();\n}",
+    "question": [
+      {
+        "t": "請參考上述程式碼。假設在執行完第一個 `UPDATE` 後，Node.js 伺服器行程（Process）突然因為記憶體溢位（OOM）而崩潰（Crash）。",
+        "en": "Refer to the code above. Suppose that after executing the first `UPDATE`, the Node.js server process suddenly crashes due to Out of Memory (OOM).",
+        "wg": [
+          {
+            "t": "行程",
+            "en": "process",
+            "ps": "N"
+          },
+          {
+            "t": "記憶體溢位",
+            "en": "Out of Memory",
+            "ps": "NP"
+          },
+          {
+            "t": "崩潰",
+            "en": "crash",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "此時資料庫（如 PostgreSQL）的狀態與鎖（Lock）會發生什麼變化？",
+        "en": "What happens to the database (e.g., PostgreSQL) state and locks at this point?",
+        "wg": [
+          {
+            "t": "鎖",
+            "en": "lock",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 該筆交易會保持在「未提交」狀態，且 Row Lock 會一直存在，直到資料庫管理員手動殺死連線。",
+        "en": "(A) The transaction remains in an \"uncommitted\" state, and the Row Lock persists until a database administrator manually kills the connection.",
+        "wg": []
+      },
+      {
+        "t": "(B) 資料庫偵測到 TCP 連線中斷，自動 Rollback 該交易並釋放所有鎖。",
+        "en": "(B) The database detects the TCP connection drop, automatically Rolls back the transaction, and releases all locks.",
+        "wg": [
+          {
+            "t": "中斷",
+            "en": "drop/disconnect",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) 資料庫會自動 Commit 已執行的 SQL 指令，以確保資料不遺失。",
+        "en": "(C) The database automatically Commits the executed SQL commands to ensure no data is lost.",
+        "wg": []
+      },
+      {
+        "t": "(D) Node.js 的 `finally` 區塊會被觸發，執行 `client.release()` 並關閉交易。",
+        "en": "(D) The Node.js `finally` block is triggered, executing `client.release()` and closing the transaction.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "當 Node.js 行程崩潰（非正常關閉）時，與資料庫的 TCP 連線會中斷。資料庫伺服器會偵測到此事件，將該連線視為失敗，並自動對該 Session 進行 Rollback，同時釋放該連線持有的所有鎖（Locks）。(D) 是錯誤的，因為 `kill -9` 或 OOM 發生時，Event Loop 會立即終止，不會執行 `finally`。",
+      "en": "When the Node.js process crashes (abnormal termination), the TCP connection to the database is dropped. The database server detects this event, treats the connection as failed, automatically Rolls back the session, and releases all locks held by that connection. (D) is incorrect because when `kill -9` or OOM occurs, the Event Loop terminates immediately, and `finally` is not executed.",
+      "wg": [
+        {
+          "t": "偵測",
+          "en": "detect",
+          "ps": "V"
+        },
+        {
+          "t": "非正常關閉",
+          "en": "abnormal termination",
+          "ps": "NP"
+        }
+      ]
+    }
+  },
+  {
+    "no": "13",
+    "level": "intermediate",
+    "keywords": "Streams, Debugging, Node.js API, Transformation",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "const dbStream = client.query(new QueryStream('SELECT * FROM users'));\n\nconst transformStream = new Transform({\n  // Missing configuration here\n  transform(row, encoding, callback) {\n    const csv = `${row.id},${row.name}\\n`;\n    callback(null, csv);\n  }\n});\n\nawait pipeline(dbStream, transformStream, res);",
+    "question": [
+      {
+        "t": "您正在撰寫一個將資料庫查詢結果轉換為 CSV 的 Stream（如上圖）。",
+        "en": "You are writing a Stream to convert database query results into CSV (as shown above).",
+        "wg": []
+      },
+      {
+        "t": "執行時程式拋出了 `ERR_INVALID_ARG_TYPE` 錯誤，提示 chunk 必須是 string 或 Buffer。",
+        "en": "During execution, the program throws an `ERR_INVALID_ARG_TYPE` error, indicating that the chunk must be a string or Buffer.",
+        "wg": [
+          {
+            "t": "拋出",
+            "en": "throw",
+            "ps": "V"
+          },
+          {
+            "t": "提示",
+            "en": "indicate",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "這是因為 `pg-query-stream` 產出的是物件（Object），而 Transform Stream 預設預期的是 Buffer。您應該如何修正？",
+        "en": "This is because `pg-query-stream` emits Objects, while the Transform Stream expects Buffers by default. How should you fix this?",
+        "wg": [
+          {
+            "t": "產出",
+            "en": "emit/produce",
+            "ps": "V"
+          },
+          {
+            "t": "預期",
+            "en": "expect",
+            "ps": "V"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 在 Transform 的建構子中設定 `writableObjectMode: true`。",
+        "en": "(A) Set `writableObjectMode: true` in the Transform constructor.",
+        "wg": [
+          {
+            "t": "建構子",
+            "en": "constructor",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(B) 在 Transform 的建構子中設定 `readableObjectMode: true`。",
+        "en": "(B) Set `readableObjectMode: true` in the Transform constructor.",
+        "wg": []
+      },
+      {
+        "t": "(C) 使用 `JSON.stringify(row)` 將輸入強制轉為字串。",
+        "en": "(C) Use `JSON.stringify(row)` to force convert the input to a string.",
+        "wg": [
+          {
+            "t": "強制轉為",
+            "en": "force convert to",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(D) 將 `dbStream` 替換為一般的 `fs.createReadStream`。",
+        "en": "(D) Replace `dbStream` with a standard `fs.createReadStream`.",
+        "wg": []
+      }
+    ],
+    "answer": "(A)",
+    "why": {
+      "t": "Transform Stream 介於 Readable（DB）與 Writable（Response）之間。由於輸入端（DB Stream）傳來的是 JavaScript 物件（Row），因此 Transform 的寫入端必須開啟 `writableObjectMode: true`。輸出端是要寫入 HTTP Response（Buffer/String），所以 `readableObjectMode` 應保持預設（false）。",
+      "en": "The Transform Stream sits between the Readable (DB) and Writable (Response). Since the input (DB Stream) sends JavaScript Objects (Rows), the Transform's writable side must have `writableObjectMode: true` enabled. The output side writes to the HTTP Response (Buffer/String), so `readableObjectMode` should remain default (false).",
+      "wg": [
+        {
+          "t": "介於",
+          "en": "sit between",
+          "ps": "V"
+        },
+        {
+          "t": "輸入端",
+          "en": "input side/writable side",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "14",
+    "level": "intermediate",
+    "keywords": "Configuration, Connection Pool, Resource Management, Idle Timeout",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您的應用程式流量具有明顯的「突發性」（Bursty），例如每小時只有 5 分鐘的高流量，其餘時間幾乎無請求。",
+        "en": "Your application traffic is highly \"Bursty\", for example, only 5 minutes of high traffic per hour, with almost no requests the rest of the time.",
+        "wg": [
+          {
+            "t": "突發性",
+            "en": "bursty",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "監控顯示，在高流量過後，資料庫連線數（Connection Count）長時間維持在最大值（Max Pool Size），浪費了資料庫資源。",
+        "en": "Monitoring shows that after high traffic, the database Connection Count remains at the Max Pool Size for a long time, wasting database resources.",
+        "wg": [
+          {
+            "t": "維持",
+            "en": "remain/sustain",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "您應該調整 Connection Pool 的哪項設定來改善此問題？",
+        "en": "Which Connection Pool setting should you adjust to fix this issue?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 增加 `connectionTimeoutMillis`。",
+        "en": "(A) Increase `connectionTimeoutMillis`.",
+        "wg": []
+      },
+      {
+        "t": "(B) 減少 `idleTimeoutMillis`。",
+        "en": "(B) Decrease `idleTimeoutMillis`.",
+        "wg": []
+      },
+      {
+        "t": "(C) 增加 `max` (Pool Size)。",
+        "en": "(C) Increase `max` (Pool Size).",
+        "wg": []
+      },
+      {
+        "t": "(D) 設定 `keepAlive: true`。",
+        "en": "(D) Set `keepAlive: true`.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "`idleTimeoutMillis` 控制閒置連線在被關閉並從 Pool 中移除前可以存活多久。減少此數值可以讓 Pool 在流量高峰過後，更快地釋放不再需要的連線，將資源歸還給資料庫伺服器。",
+      "en": "`idleTimeoutMillis` controls how long an idle connection can remain alive before being closed and removed from the Pool. Decreasing this value allows the Pool to release unneeded connections faster after a traffic spike, returning resources to the database server.",
+      "wg": [
+        {
+          "t": "閒置連線",
+          "en": "idle connection",
+          "ps": "NP"
+        },
+        {
+          "t": "歸還",
+          "en": "return",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "15",
+    "level": "advanced",
+    "keywords": "Anti-pattern, Concurrency, Database Driver, Promise.all",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "const client = await pool.connect();\ntry {\n  await client.query('BEGIN');\n  // 試圖平行執行兩個查詢以加速交易\n  await Promise.all([\n    client.query('INSERT INTO logs ...'),\n    client.query('UPDATE users ...')\n  ]);\n  await client.query('COMMIT');\n} catch (e) {\n  await client.query('ROLLBACK');\n} finally {\n  client.release();\n}",
+    "question": [
+      {
+        "t": "一位資深工程師在 Code Review 時指出了上述程式碼的一個嚴重錯誤。",
+        "en": "A senior engineer pointed out a critical error in the code above during Code Review.",
+        "wg": [
+          {
+            "t": "嚴重錯誤",
+            "en": "critical error",
+            "ps": "NP"
+          }
+        ]
+      },
+      {
+        "t": "雖然 `Promise.all` 在 JavaScript 中常用於平行處理，但在這裡使用它會導致什麼問題？",
+        "en": "Although `Promise.all` is commonly used for parallel processing in JavaScript, what problem does using it here cause?",
+        "wg": [
+          {
+            "t": "平行處理",
+            "en": "parallel processing",
+            "ps": "NP"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 會導致 Deadlock，因為兩個查詢試圖同時鎖定同一個 Table。",
+        "en": "(A) It will cause a Deadlock because both queries try to lock the same Table simultaneously.",
+        "wg": []
+      },
+      {
+        "t": "(B) 違反資料庫通訊協定（Protocol Violation）。單一 TCP 連線（Client）一次只能處理一個查詢。",
+        "en": "(B) Protocol Violation. A single TCP connection (Client) can only handle one query at a time.",
+        "wg": [
+          {
+            "t": "違反",
+            "en": "violation",
+            "ps": "N"
+          },
+          {
+            "t": "通訊協定",
+            "en": "protocol",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) `Promise.all` 無法捕捉到其中一個查詢失敗的錯誤，導致交易無法 Rollback。",
+        "en": "(C) `Promise.all` cannot catch the error if one of the queries fails, causing the transaction to fail to Rollback.",
+        "wg": []
+      },
+      {
+        "t": "(D) 這樣寫沒有問題，這是優化交易效能的標準做法。",
+        "en": "(D) There is no issue with this code; it is a standard practice for optimizing transaction performance.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "大多數 SQL 資料庫驅動程式（包括 `pg`）在單一 Client 實例上是序列運作的。你不能在同一個連線中同時發送多個查詢（除非使用 Pipeline 模式，但通常不建議在交易中混用）。這會導致競爭條件，破壞通訊協定狀態，產生不可預期的錯誤。",
+      "en": "Most SQL database drivers (including `pg`) operate sequentially on a single Client instance. You cannot send multiple queries simultaneously on the same connection (unless using Pipeline mode, which is generally not recommended within transactions). This causes race conditions, corrupts the protocol state, and produces unpredictable errors.",
+      "wg": [
+        {
+          "t": "序列運作",
+          "en": "operate sequentially",
+          "ps": "VP"
+        },
+        {
+          "t": "競爭條件",
+          "en": "race condition",
+          "ps": "NP"
+        }
+      ]
+    }
+  }
+]

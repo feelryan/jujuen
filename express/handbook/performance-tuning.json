@@ -1,0 +1,882 @@
+[
+  {
+    "no": "1",
+    "level": "medium",
+    "keywords": "Event Loop,Blocking,Performance,Concept",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "根據 Express 的效能心智模型，若將伺服器比喻為餐廳，其中「櫃檯經理」(Manager) 代表 Event Loop，「廚房」(Kitchen) 代表 Worker Pool。",
+        "en": "According to the performance mental model of Express, if the server is compared to a restaurant, the 'Manager' represents the Event Loop and the 'Kitchen' represents the Worker Pool.",
+        "wg": [
+          {
+            "t": "事件迴圈",
+            "en": "Event Loop",
+            "ps": "noun"
+          },
+          {
+            "t": "工作執行緒池",
+            "en": "Worker Pool",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "當我們在 Request Handler 中執行繁重的 CPU 運算（如複雜數學計算或同步讀檔）時，這相當於發生了什麼情況？",
+        "en": "When we perform heavy CPU operations (like complex math or synchronous file reading) in a Request Handler, what does this correspond to in the analogy?",
+        "wg": [
+          {
+            "t": "請求處理器",
+            "en": "Request Handler",
+            "ps": "noun"
+          },
+          {
+            "t": "同步",
+            "en": "Synchronous",
+            "ps": "adjective"
+          }
+        ]
+      }
+    ],
+    "type": "single",
+    "options": [
+      {
+        "t": "廚房太忙碌，導致出餐變慢，但經理仍可接單。",
+        "en": "The kitchen is too busy, causing slow service, but the manager can still take orders.",
+        "wg": []
+      },
+      {
+        "t": "經理親自跑去切洋蔥（執行任務），導致門口排隊的客人全部卡住，無法接收新訂單。",
+        "en": "The manager goes to chop onions personally (executing the task), causing all customers in line to get stuck and unable to place new orders.",
+        "wg": [
+          {
+            "t": "卡住",
+            "en": "Stuck/Blocked",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "餐廳聘請了更多經理來處理這些運算。",
+        "en": "The restaurant hires more managers to handle these calculations.",
+        "wg": []
+      },
+      {
+        "t": "經理將任務丟給廚房後，立即回來處理下一個客人的需求。",
+        "en": "The manager delegates the task to the kitchen and immediately returns to handle the next customer.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "Node.js 是單執行緒的（Single Threaded）。如果 Main Thread（經理）執行 CPU 密集任務（阻塞操作），他將無法處理任何新的 Request 或回呼，導致整個伺服器對所有用戶無回應。",
+      "en": "Node.js is single-threaded. If the Main Thread (Manager) executes a CPU-intensive task (blocking operation), it cannot handle any new requests or callbacks, causing the entire server to become unresponsive to all users.",
+      "wg": [
+        {
+          "t": "單執行緒",
+          "en": "Single Threaded",
+          "ps": "adjective"
+        },
+        {
+          "t": "阻塞操作",
+          "en": "Blocking operation",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "2",
+    "level": "hard",
+    "keywords": "Code Review,Sync,Blocking,Anti-pattern",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "app.get('/report', (req, res) => {\n  // 讀取一個 50MB 的模板檔案\n  const template = fs.readFileSync('./large-template.html', 'utf-8');\n  const html = template.replace('{{user}}', req.query.user);\n  res.send(html);\n});",
+    "question": [
+      {
+        "t": "請檢視上方的程式碼片段。在高流量的生產環境中，這段程式碼最大的效能隱憂是什麼？",
+        "en": "Please review the code snippet above. What is the biggest performance concern with this code in a high-traffic production environment?",
+        "wg": [
+          {
+            "t": "生產環境",
+            "en": "Production environment",
+            "ps": "noun"
+          },
+          {
+            "t": "隱憂",
+            "en": "Concern/Risk",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "single",
+    "options": [
+      {
+        "t": "字串替換 (`replace`) 效率太低。",
+        "en": "String replacement (`replace`) is too inefficient.",
+        "wg": []
+      },
+      {
+        "t": "使用 `fs.readFileSync` 會阻塞 Event Loop，在檔案讀取完成前，伺服器無法處理其他任何請求。",
+        "en": "Using `fs.readFileSync` blocks the Event Loop; the server cannot handle any other requests until the file reading is complete.",
+        "wg": [
+          {
+            "t": "阻塞",
+            "en": "Block",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "應該使用 `res.json` 而不是 `res.send`。",
+        "en": "Should use `res.json` instead of `res.send`.",
+        "wg": []
+      },
+      {
+        "t": "變數 `template` 沒有被快取 (Cache)，導致記憶體浪費。",
+        "en": "The `template` variable is not cached, leading to memory waste.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "雖然缺乏快取也是問題，但最致命的是使用了同步 I/O (`readFileSync`)。這會暫停 Main Thread，導致併發處理能力歸零。應改用 `fs.readFile` (Callback/Promise) 或 `fs.createReadStream`。",
+      "en": "While lack of caching is an issue, the most fatal one is using synchronous I/O (`readFileSync`). This pauses the Main Thread, reducing concurrency capability to zero. Should use `fs.readFile` (Callback/Promise) or `fs.createReadStream` instead.",
+      "wg": [
+        {
+          "t": "併發處理能力",
+          "en": "Concurrency capability",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "3",
+    "level": "medium",
+    "keywords": "Clustering,PM2,CPU,Scaling",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你的 Express 應用程式部署在一台擁有 8 核心 CPU 的伺服器上。在預設情況下（未特別配置 Cluster），Node.js 會如何使用這些核心？",
+        "en": "Your Express application is deployed on a server with an 8-core CPU. By default (without specific Cluster configuration), how will Node.js utilize these cores?",
+        "wg": [
+          {
+            "t": "核心",
+            "en": "Core",
+            "ps": "noun"
+          },
+          {
+            "t": "部署",
+            "en": "Deploy",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "type": "single",
+    "options": [
+      {
+        "t": "自動平均分配負載到 8 個核心。",
+        "en": "Automatically distributes load evenly across 8 cores.",
+        "wg": []
+      },
+      {
+        "t": "只使用 1 個核心來執行 JavaScript 程式碼，其他核心閒置（除非有背景 I/O 執行緒使用）。",
+        "en": "Uses only 1 core to execute JavaScript code, leaving other cores idle (unless used by background I/O threads).",
+        "wg": [
+          {
+            "t": "閒置",
+            "en": "Idle",
+            "ps": "adjective"
+          }
+        ]
+      },
+      {
+        "t": "使用 2 個核心，一個處理 HTTP 請求，一個處理資料庫連線。",
+        "en": "Uses 2 cores: one for HTTP requests and one for database connections.",
+        "wg": []
+      },
+      {
+        "t": "會根據流量動態開啟核心。",
+        "en": "Dynamically opens cores based on traffic.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "Node.js 本質是單執行緒的，預設只會跑在一個 CPU 核心上。要利用多核優勢，必須使用 Cluster 模組或 Process Manager（如 PM2）將應用程式複製成多個 Instances。",
+      "en": "Node.js is inherently single-threaded and runs on a single CPU core by default. To leverage multi-core benefits, you must use the Cluster module or a Process Manager (like PM2) to replicate the application into multiple instances.",
+      "wg": [
+        {
+          "t": "實例",
+          "en": "Instances",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "4",
+    "level": "medium",
+    "keywords": "Session,Anti-pattern,MemoryStore,Redis",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在生產環境中使用 `express-session` 預設的 `MemoryStore` 被視為 Anti-pattern。除了會導致記憶體洩漏 (Memory Leak) 外，它在「多核心擴展 (Clustering)」場景下會造成什麼嚴重問題？",
+        "en": "Using the default `MemoryStore` of `express-session` in production is considered an Anti-pattern. Besides causing memory leaks, what serious issue does it cause in a 'Clustering' scenario?",
+        "wg": [
+          {
+            "t": "反模式",
+            "en": "Anti-pattern",
+            "ps": "noun"
+          },
+          {
+            "t": "記憶體洩漏",
+            "en": "Memory Leak",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "single",
+    "options": [
+      {
+        "t": "Session ID 會變得容易被偽造。",
+        "en": "Session IDs become easy to forge.",
+        "wg": []
+      },
+      {
+        "t": "Session 資料無法在不同的 Process 間共享，導致使用者重新整理或被負載平衡導向不同 Process 時被登出。",
+        "en": "Session data cannot be shared across different processes, causing users to be logged out when refreshing or being routed to a different process by the load balancer.",
+        "wg": [
+          {
+            "t": "負載平衡",
+            "en": "Load balancing",
+            "ps": "noun"
+          },
+          {
+            "t": "共享",
+            "en": "Share",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "會導致資料庫連線數耗盡。",
+        "en": "It causes database connections to be exhausted.",
+        "wg": []
+      },
+      {
+        "t": "會導致 HTTP Header 過大。",
+        "en": "It causes HTTP headers to become too large.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "`MemoryStore` 將 Session 存在該 Process 的記憶體中。在 Cluster 模式下，Process A 的記憶體無法被 Process B 存取，因此必須使用外部儲存（如 Redis 或 MongoDB）來共享 Session。",
+      "en": "`MemoryStore` stores sessions in the memory of that specific process. In Cluster mode, Process A's memory cannot be accessed by Process B, so an external store (like Redis or MongoDB) must be used to share sessions.",
+      "wg": [
+        {
+          "t": "外部儲存",
+          "en": "External store",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "5",
+    "level": "easy",
+    "keywords": "Logging,Console,Performance,Anti-pattern",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "為什麼在 Express 的高流量生產環境中，應避免大量使用 `console.log`？",
+        "en": "Why should heavy use of `console.log` be avoided in a high-traffic Express production environment?",
+        "wg": [
+          {
+            "t": "高流量",
+            "en": "High-traffic",
+            "ps": "adjective"
+          }
+        ]
+      }
+    ],
+    "type": "single",
+    "options": [
+      {
+        "t": "因為它會將日誌寫入資料庫，導致資料庫變慢。",
+        "en": "Because it writes logs to the database, slowing it down.",
+        "wg": []
+      },
+      {
+        "t": "因為 `console.log` 在某些環境（如 TTY）是同步阻塞的，且字串格式化消耗 CPU。",
+        "en": "Because `console.log` is synchronous and blocking in some environments (like TTY), and string formatting consumes CPU.",
+        "wg": [
+          {
+            "t": "同步阻塞",
+            "en": "Synchronous blocking",
+            "ps": "adjective"
+          },
+          {
+            "t": "字串格式化",
+            "en": "String formatting",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "因為它無法輸出 JSON 格式。",
+        "en": "Because it cannot output in JSON format.",
+        "wg": []
+      },
+      {
+        "t": "因為它會暴露原始碼路徑。",
+        "en": "Because it exposes source code paths.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "`console.log` 並非總是異步的，且其格式化功能有 CPU 開銷。在生產環境應改用高效能、支援非同步寫入的 Logger（如 Pino 或 Winston）。",
+      "en": "`console.log` is not always asynchronous, and its formatting features have CPU overhead. In production, high-performance loggers with asynchronous writing support (like Pino or Winston) should be used.",
+      "wg": [
+        {
+          "t": "開銷",
+          "en": "Overhead",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "6",
+    "level": "medium",
+    "keywords": "Middleware,Optimization,Code Structure",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "const app = express();\n// Bad Practice: Global Middleware\napp.use(bodyParser.xml()); \n\napp.get('/', (req, res) => res.send('Hello'));\napp.post('/api/xml-endpoint', (req, res) => { ... });",
+    "question": [
+      {
+        "t": "在上述程式碼中，XML Body Parser 被全域掛載 (`app.use`)。若只有極少數 Endpoint 需要處理 XML，這種寫法有什麼缺點？應如何優化？",
+        "en": "In the code above, the XML Body Parser is mounted globally (`app.use`). If only a very few endpoints need to handle XML, what is the downside of this approach, and how should it be optimized?",
+        "wg": [
+          {
+            "t": "全域掛載",
+            "en": "Mounted globally",
+            "ps": "verb"
+          },
+          {
+            "t": "端點",
+            "en": "Endpoint",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "single",
+    "options": [
+      {
+        "t": "缺點是記憶體佔用過高；優化方式是改用 JSON。",
+        "en": "Downside is high memory usage; optimization is to switch to JSON.",
+        "wg": []
+      },
+      {
+        "t": "缺點是所有請求（包括不需要 XML 的）都會經過此解析邏輯，浪費 CPU；優化方式是只在特定 Route 掛載該 Middleware。",
+        "en": "Downside is that all requests (including those not needing XML) pass through this parsing logic, wasting CPU; optimization is to mount the middleware only on specific routes.",
+        "wg": [
+          {
+            "t": "解析邏輯",
+            "en": "Parsing logic",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "缺點是安全性降低；優化方式是加入驗證。",
+        "en": "Downside is reduced security; optimization is to add validation.",
+        "wg": []
+      },
+      {
+        "t": "缺點是 XML 解析器不支援串流；優化方式是使用 Stream。",
+        "en": "Downside is XML parser doesn't support streaming; optimization is to use Streams.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "不必要的 Middleware 會增加每個 Request 的處理時間（Latency）。最佳實務是將昂貴的 Middleware（如 Body Parsing）限制在真正需要的路由上。",
+      "en": "Unnecessary middleware increases the processing time (latency) for every request. Best practice is to restrict expensive middleware (like body parsing) to the routes that actually need them.",
+      "wg": [
+        {
+          "t": "延遲",
+          "en": "Latency",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "7",
+    "level": "medium",
+    "keywords": "Compression,Gzip,Nginx,Best Practice",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "關於 Express 的回應壓縮（Compression，如 Gzip/Brotli），在極高流量的架構下，Handbook 建議的最佳實務為何？",
+        "en": "Regarding response compression (Compression, like Gzip/Brotli) in Express, what is the best practice recommended by the Handbook for very high-traffic architectures?",
+        "wg": [
+          {
+            "t": "回應壓縮",
+            "en": "Response compression",
+            "ps": "noun"
+          },
+          {
+            "t": "架構",
+            "en": "Architecture",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "single",
+    "options": [
+      {
+        "t": "務必在 Express 中使用 `compression` middleware，因為它最靈活。",
+        "en": "Always use `compression` middleware in Express because it is the most flexible.",
+        "wg": []
+      },
+      {
+        "t": "建議將壓縮工作交由 Reverse Proxy（如 Nginx）處理，以減輕 Node.js 的 CPU 負擔；若無法控制 Proxy 才在 Express 層處理。",
+        "en": "It is recommended to offload compression to a Reverse Proxy (like Nginx) to reduce Node.js CPU load; handle it in Express only if you cannot control the Proxy.",
+        "wg": [
+          {
+            "t": "反向代理",
+            "en": "Reverse Proxy",
+            "ps": "noun"
+          },
+          {
+            "t": "卸載/分擔",
+            "en": "Offload",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "不應該使用壓縮，因為解壓縮會消耗 Client 端的電力。",
+        "en": "Compression should not be used because decompression consumes Client-side battery.",
+        "wg": []
+      },
+      {
+        "t": "使用 `zlib` 模組手動壓縮每一個回應。",
+        "en": "Use the `zlib` module to manually compress every response.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "壓縮是 CPU 密集操作。Node.js 應專注於應用邏輯，將壓縮這類通用任務交給專門的基礎設施（如 Nginx 或 Load Balancer）通常效率更高。",
+      "en": "Compression is a CPU-intensive operation. Node.js should focus on application logic, and delegating generic tasks like compression to specialized infrastructure (like Nginx or Load Balancers) is usually more efficient.",
+      "wg": [
+        {
+          "t": "基礎設施",
+          "en": "Infrastructure",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "8",
+    "level": "hard",
+    "keywords": "Security,ReDoS,Regex,Event Loop",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "什麼是 ReDoS (Regular Expression Denial of Service)，以及它為何能癱瘓 Node.js 伺服器？",
+        "en": "What is ReDoS (Regular Expression Denial of Service), and why can it paralyze a Node.js server?",
+        "wg": [
+          {
+            "t": "癱瘓",
+            "en": "Paralyze",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "type": "single",
+    "options": [
+      {
+        "t": "攻擊者發送超大字串，導致記憶體溢出 (OOM)。",
+        "en": "Attackers send oversized strings, causing Out of Memory (OOM).",
+        "wg": []
+      },
+      {
+        "t": "攻擊者利用巢狀量詞 (Nested Quantifiers) 的 Regex 弱點，構造特殊輸入觸發災難性回溯 (Catastrophic Backtracking)，長時間佔用 Event Loop。",
+        "en": "Attackers exploit Regex weaknesses with nested quantifiers, crafting special inputs to trigger catastrophic backtracking, occupying the Event Loop for a long time.",
+        "wg": [
+          {
+            "t": "巢狀量詞",
+            "en": "Nested Quantifiers",
+            "ps": "noun"
+          },
+          {
+            "t": "災難性回溯",
+            "en": "Catastrophic Backtracking",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "攻擊者注入惡意的 Regex 程式碼來竊取資料。",
+        "en": "Attackers inject malicious Regex code to steal data.",
+        "wg": []
+      },
+      {
+        "t": "Regex 引擎在 Node.js 中是多執行緒的，會導致 Context Switch 過多。",
+        "en": "The Regex engine in Node.js is multi-threaded, causing excessive Context Switching.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "ReDoS 攻擊利用了 Regex 引擎在匹配失敗時的回溯機制。對於設計不良的 Regex（如 `(a+)+`），特定輸入會導致計算量呈指數級增長，完全卡死單執行緒的 Event Loop。",
+      "en": "ReDoS attacks exploit the backtracking mechanism of Regex engines upon match failure. For poorly designed Regex (e.g., `(a+)+`), specific inputs cause computational cost to grow exponentially, completely freezing the single-threaded Event Loop.",
+      "wg": [
+        {
+          "t": "指數級增長",
+          "en": "Grow exponentially",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "9",
+    "level": "hard",
+    "keywords": "JSON, CPU, Blocking, Event Loop, Performance",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "當 Express 應用程式接收到一個巨大的 JSON Payload（例如 10MB 的請求主體）時，即使後續的資料庫操作是完全非同步的，開發者仍可能觀察到伺服器對「其他使用者的請求」出現短暫的無回應（卡頓）。造成這種現象的主要技術原因為何？",
+        "en": "When an Express application receives a massive JSON payload (e.g., a 10MB request body), developers might observe that the server becomes briefly unresponsive to 'other users' requests', even if the subsequent database operations are fully asynchronous. What is the primary technical reason for this blocking behavior?",
+        "wg": [
+          {
+            "t": "巨大的",
+            "en": "massive",
+            "ps": "adj"
+          },
+          {
+            "t": "無回應",
+            "en": "unresponsive",
+            "ps": "adj"
+          },
+          {
+            "t": "卡頓",
+            "en": "lag/freeze",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "single",
+    "options": [
+      {
+        "t": "因為 Node.js 的 HTTP Parser 在接收大檔案時會自動切換為同步模式。",
+        "en": "Because the Node.js HTTP parser automatically switches to synchronous mode when receiving large files.",
+        "wg": []
+      },
+      {
+        "t": "因為 `JSON.parse` 與 `JSON.stringify` 是 CPU 密集且同步執行的操作，會阻塞 Event Loop。",
+        "en": "Because `JSON.parse` and `JSON.stringify` are CPU-intensive and synchronous operations that block the Event Loop.",
+        "wg": [
+          {
+            "t": "CPU 密集",
+            "en": "CPU-intensive",
+            "ps": "adj"
+          },
+          {
+            "t": "阻塞",
+            "en": "block",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "因為 Express 的 Router 在處理大型請求時會鎖定記憶體。",
+        "en": "Because the Express Router locks memory when processing large requests.",
+        "wg": []
+      },
+      {
+        "t": "因為 TCP 連線在傳輸大量資料時佔用了所有的網路頻寬。",
+        "en": "Because the TCP connection consumes all network bandwidth when transferring large amounts of data.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "在 Node.js 中，JSON 的解析（Parsing）與序列化（Serialization）是同步執行的。解析一個 10MB 的 JSON 物件可能需要數十至數百毫秒的 CPU 時間，這段時間內 Event Loop 無法處理任何其他請求（即「櫃檯經理」正在忙著拆巨大的包裹，無法接待新客人）。解決方案包括使用串流（Streaming）處理或將解析工作移交給 Worker Thread。",
+      "en": "In Node.js, JSON parsing and serialization are executed synchronously. Parsing a 10MB JSON object can take tens to hundreds of milliseconds of CPU time. During this period, the Event Loop cannot handle any other requests (metaphorically, the 'Manager' is busy unwrapping a huge package and cannot greet new guests). Solutions include using streaming processing or offloading the parsing task to a Worker Thread.",
+      "wg": [
+        {
+          "t": "序列化",
+          "en": "serialization",
+          "ps": "noun"
+        },
+        {
+          "t": "移交",
+          "en": "offload",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "10",
+    "level": "medium",
+    "keywords": "Static Files, Nginx, CDN, Architecture, Best Practice",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在建構高流量的網站時，Handbook 建議將靜態檔案（如圖片、CSS、影片）的服務從 Express 應用程式中移出，改由 Nginx 或 CDN 處理。主要原因為何？",
+        "en": "When building high-traffic websites, the Handbook recommends moving the serving of static files (like images, CSS, videos) out of the Express application and handling them via Nginx or a CDN instead. What is the primary reason for this?",
+        "wg": [
+          {
+            "t": "靜態檔案",
+            "en": "static files",
+            "ps": "noun"
+          },
+          {
+            "t": "移出",
+            "en": "offload/move out",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "type": "single",
+    "options": [
+      {
+        "t": "Express 完全不支援靜態檔案服務功能。",
+        "en": "Express does not support static file serving functionality at all.",
+        "wg": []
+      },
+      {
+        "t": "為了節省硬碟空間，因為 Express 會複製檔案副本。",
+        "en": "To save disk space, because Express creates duplicate copies of files.",
+        "wg": []
+      },
+      {
+        "t": "讓 Node.js 專注於處理 API 邏輯與動態內容，避免將寶貴的 CPU 資源浪費在單純的檔案 I/O 傳輸上。",
+        "en": "To let Node.js focus on API logic and dynamic content, avoiding wasting precious CPU resources on simple file I/O transfers.",
+        "wg": [
+          {
+            "t": "動態內容",
+            "en": "dynamic content",
+            "ps": "noun"
+          },
+          {
+            "t": "寶貴的",
+            "en": "precious",
+            "ps": "adj"
+          }
+        ]
+      },
+      {
+        "t": "因為 Express 的 `res.sendFile` 存在嚴重的安全漏洞。",
+        "en": "Because Express's `res.sendFile` has critical security vulnerabilities.",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "雖然 Express 提供了 `express.static`，但 Node.js 的強項在於處理邏輯與非同步 I/O，而非單純的檔案搬運。專用的 Web Server（如 Nginx）或 CDN 針對靜態資源傳輸有極致的優化（如使用 `sendfile` 系統呼叫直接在 Kernel 層傳輸），效率遠高於讓請求經過 Node.js 的應用層。",
+      "en": "Although Express provides `express.static`, Node.js's strength lies in handling logic and asynchronous I/O, not simple file shuffling. Dedicated Web Servers (like Nginx) or CDNs are highly optimized for static resource delivery (e.g., using `sendfile` syscalls to transfer directly at the Kernel level), which is far more efficient than routing requests through the Node.js application layer.",
+      "wg": [
+        {
+          "t": "應用層",
+          "en": "application layer",
+          "ps": "noun"
+        },
+        {
+          "t": "系統呼叫",
+          "en": "syscall",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "11",
+    "level": "easy",
+    "keywords": "Configuration, NODE_ENV, Optimization, View Caching",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在「效能審計清單」(Performance Audit Checklist) 中，將環境變數 `NODE_ENV` 設定為 `production` 是一個簡單卻關鍵的步驟。針對 Express 框架本身，這個設定主要會帶來什麼效能優勢？",
+        "en": "In the 'Performance Audit Checklist', setting the environment variable `NODE_ENV` to `production` is a simple yet critical step. Specifically for the Express framework itself, what is the main performance benefit of this setting?",
+        "wg": [
+          {
+            "t": "審計",
+            "en": "audit",
+            "ps": "noun"
+          },
+          {
+            "t": "優勢",
+            "en": "benefit/advantage",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "single",
+    "options": [
+      {
+        "t": "它會自動啟用多執行緒模式 (Multi-threading)。",
+        "en": "It automatically enables multi-threading mode.",
+        "wg": []
+      },
+      {
+        "t": "它會快取 View Templates（視圖模板）並停用詳細的除錯訊息與錯誤堆疊追蹤。",
+        "en": "It caches View Templates and disables verbose debug messages and error stack traces.",
+        "wg": [
+          {
+            "t": "視圖模板",
+            "en": "View Templates",
+            "ps": "noun"
+          },
+          {
+            "t": "堆疊追蹤",
+            "en": "stack traces",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "它會強制將所有 HTTP 請求升級為 HTTPS。",
+        "en": "It forces all HTTP requests to upgrade to HTTPS.",
+        "wg": []
+      },
+      {
+        "t": "它會自動連接到 Redis 進行 Session 管理。",
+        "en": "It automatically connects to Redis for session management.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "在開發模式下，Express 為了方便除錯，每次請求都會重新編譯 View Templates 且不會快取。設定 `NODE_ENV=production` 會啟用 View Cache，並減少錯誤訊息的生成開銷，這在渲染頁面時能帶來顯著的效能提升（有時可達 3 倍）。",
+      "en": "In development mode, Express recompiles View Templates on every request for easier debugging and does not cache them. Setting `NODE_ENV=production` enables View Caching and reduces the overhead of generating error messages, which can lead to significant performance gains (sometimes up to 3x) when rendering pages.",
+      "wg": [
+        {
+          "t": "重新編譯",
+          "en": "recompile",
+          "ps": "verb"
+        },
+        {
+          "t": "開銷",
+          "en": "overhead",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "12",
+    "level": "medium",
+    "keywords": "Caching, Redis, Database, Pattern, Cache-Aside",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "app.get('/data', async (req, res) => {\n  const key = 'my-data';\n  // Step A\n  // Step B\n  // Step C\n});",
+    "question": [
+      {
+        "t": "你正在實作一個使用 Redis 的快取策略來減少資料庫負擔。根據標準的 Cache-Aside (Lazy Loading) 模式，上述程式碼中的步驟順序應為何？",
+        "en": "You are implementing a caching strategy using Redis to reduce database load. According to the standard Cache-Aside (Lazy Loading) pattern, what should be the order of steps in the code above?",
+        "wg": [
+          {
+            "t": "負擔",
+            "en": "load/burden",
+            "ps": "noun"
+          },
+          {
+            "t": "順序",
+            "en": "order/sequence",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "single",
+    "options": [
+      {
+        "t": "先查詢 DB -> 將結果寫入 Cache -> 回傳結果。",
+        "en": "Query DB first -> Write result to Cache -> Return result.",
+        "wg": []
+      },
+      {
+        "t": "先檢查 Cache -> 若有值則回傳；若無值則查詢 DB -> 將結果寫入 Cache -> 回傳結果。",
+        "en": "Check Cache first -> If value exists, return it; If not, query DB -> Write result to Cache -> Return result.",
+        "wg": [
+          {
+            "t": "若有值",
+            "en": "if value exists / on hit",
+            "ps": "phrase"
+          },
+          {
+            "t": "若無值",
+            "en": "if not / on miss",
+            "ps": "phrase"
+          }
+        ]
+      },
+      {
+        "t": "同時查詢 Cache 與 DB -> 誰先回應就用誰的結果。",
+        "en": "Query both Cache and DB simultaneously -> Use the result from whichever responds first.",
+        "wg": []
+      },
+      {
+        "t": "先寫入 Cache -> 再非同步更新 DB -> 回傳結果。",
+        "en": "Write to Cache first -> Asynchronously update DB -> Return result.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "Cache-Aside 模式的核心邏輯是「先讀快取」。如果快取命中 (Cache Hit)，則直接回傳以節省 DB 資源；只有在快取未命中 (Cache Miss) 時，才去查詢資料庫，並將結果回寫到快取中以供下次使用。選項 0 每次都查 DB，失去了快取的意義；選項 3 比較接近 Write-Through 或 Write-Behind 策略。",
+      "en": "The core logic of the Cache-Aside pattern is 'Read Cache First'. If there is a Cache Hit, return immediately to save DB resources; only upon a Cache Miss do you query the database, and then write the result back to the cache for future use. Option 0 queries the DB every time, defeating the purpose of caching; Option 3 is closer to Write-Through or Write-Behind strategies.",
+      "wg": [
+        {
+          "t": "命中",
+          "en": "hit",
+          "ps": "verb"
+        },
+        {
+          "t": "未命中",
+          "en": "miss",
+          "ps": "verb"
+        }
+      ]
+    }
+  }
+]

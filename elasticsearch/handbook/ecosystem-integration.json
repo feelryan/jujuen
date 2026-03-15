@@ -1,0 +1,822 @@
+[
+  {
+    "no": "1",
+    "level": "Medium",
+    "keywords": "Idempotency, Kafka, Architecture",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在基於 Kafka 的 CDC 架構中，為什麼強烈建議將 Elasticsearch 的文件 `_id` 設定為與 RDBMS 的 Primary Key 相同？",
+        "en": "In a Kafka-based CDC architecture, why is it highly recommended to set the Elasticsearch document `_id` to match the RDBMS Primary Key?",
+        "wg": [
+          {
+            "t": "變更資料擷取",
+            "en": "CDC (Change Data Capture)",
+            "ps": "noun"
+          },
+          {
+            "t": "主鍵",
+            "en": "Primary Key",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "為了加快 Elasticsearch 的寫入速度。",
+        "en": "To speed up indexing in Elasticsearch.",
+        "wg": []
+      },
+      {
+        "t": "為了確保冪等性，處理訊息重複發送的情況。",
+        "en": "To ensure idempotency and handle duplicate message delivery.",
+        "wg": [
+          {
+            "t": "冪等性",
+            "en": "Idempotency",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "為了節省 Elasticsearch 的儲存空間。",
+        "en": "To save storage space in Elasticsearch.",
+        "wg": []
+      },
+      {
+        "t": "為了支援 Parent-Child 關聯查詢。",
+        "en": "To support Parent-Child relationship queries.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "分散式系統（如 Kafka）通常保證「至少傳送一次 (At-least-once delivery)」，這意味著消費者可能會收到重複訊息。若未指定 `_id`，ES 會自動生成 ID，導致重複資料被寫入。強制 `_id` 等於 DB Primary Key 可確保即使訊息重複，操作也是冪等的（Idempotent），即重複的寫入只會覆蓋原文件而不會產生副本。",
+      "en": "Distributed systems like Kafka typically guarantee 'At-least-once delivery', meaning consumers may receive duplicate messages. If `_id` is not specified, ES generates a new ID, causing duplicate records. Forcing `_id` to match the DB Primary Key ensures the operation is Idempotent: duplicate writes will simply overwrite the existing document instead of creating a copy.",
+      "wg": [
+        {
+          "t": "至少傳送一次",
+          "en": "At-least-once delivery",
+          "ps": "phrase"
+        }
+      ]
+    }
+  },
+  {
+    "no": "2",
+    "level": "Easy",
+    "keywords": "Dual Write, Anti-pattern, Consistency",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "def save_user(user):\n    db.save(user)       # 1. Write to DB\n    es.index(user)      # 2. Write to ES",
+    "question": [
+      {
+        "t": "請檢視上方的程式碼片段。這種「應用層雙寫 (Dual Write)」模式最主要的風險是什麼？",
+        "en": "Review the code snippet above. What is the primary risk of this 'Application Layer Dual Write' pattern?",
+        "wg": [
+          {
+            "t": "雙寫",
+            "en": "Dual Write",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "語法錯誤，無法執行。",
+        "en": "Syntax error; it cannot execute.",
+        "wg": []
+      },
+      {
+        "t": "資料不一致 (Data Drift)，例如 DB 寫入成功但 ES 寫入失敗。",
+        "en": "Data inconsistency (Drift), such as DB write success but ES write failure.",
+        "wg": [
+          {
+            "t": "資料漂移/不一致",
+            "en": "Data Drift",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "造成資料庫連線數過多。",
+        "en": "Causing too many database connections.",
+        "wg": []
+      },
+      {
+        "t": "Elasticsearch 的索引速度會變慢。",
+        "en": "Elasticsearch indexing speed will slow down.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "這是經典的「雙寫陷阱」。如果步驟 2 (ES) 因網路或負載問題失敗，或者步驟 1 (DB) 交易回滾但步驟 2 已經送出，兩邊的資料就會永久不一致。除非搭配額外的對帳 (Reconciliation) 機制，否則不建議用於關鍵業務。",
+      "en": "This is the classic 'Dual Write Trap'. If step 2 (ES) fails due to network or load issues, or if step 1 (DB) transaction rolls back after step 2 is sent, the data will become permanently inconsistent. It is not recommended for critical business logic unless paired with a reconciliation mechanism.",
+      "wg": [
+        {
+          "t": "對帳",
+          "en": "Reconciliation",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "3",
+    "level": "Hard",
+    "keywords": "Kafka, Ordering, Partition Key, CDC",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在使用 Kafka 同步資料庫變更至 Elasticsearch 時，若發現同一筆資料的「刪除 (Delete)」事件比「更新 (Update)」事件更早被處理，導致本該刪除的資料卻復活了。最可能的根本原因是什麼？",
+        "en": "When syncing database changes to Elasticsearch using Kafka, you notice that a 'Delete' event for a record is processed before an 'Update' event, causing a record that should be deleted to reappear. What is the most likely root cause?",
+        "wg": [
+          {
+            "t": "根本原因",
+            "en": "Root cause",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "Elasticsearch 的 Refresh Interval 設定太長。",
+        "en": "Elasticsearch Refresh Interval is set too long.",
+        "wg": []
+      },
+      {
+        "t": "Kafka Topic 未使用資料的主鍵 (Primary Key) 作為 Partition Key。",
+        "en": "The Kafka Topic is not using the data's Primary Key as the Partition Key.",
+        "wg": [
+          {
+            "t": "分區鍵",
+            "en": "Partition Key",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "Logstash 的 Batch Size 設定過大。",
+        "en": "Logstash Batch Size is set too large.",
+        "wg": []
+      },
+      {
+        "t": "Debezium Connector 版本過舊。",
+        "en": "The Debezium Connector version is too old.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "Kafka 僅保證在同一個 Partition 內的訊息順序。如果沒有使用 Primary Key 作為 Partition Key，同一筆資料的 Update 和 Delete 事件可能會被分發到不同的 Partition，進而被不同的 Consumer 並行或亂序處理，導致狀態錯亂。",
+      "en": "Kafka only guarantees message ordering within a single Partition. If the Primary Key is not used as the Partition Key, Update and Delete events for the same record might be distributed to different partitions. This leads to them being processed by different consumers in parallel or out of order, causing state corruption.",
+      "wg": [
+        {
+          "t": "順序性",
+          "en": "Ordering",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "4",
+    "level": "Medium",
+    "keywords": "Logstash, JDBC, Hard Delete",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你使用 Logstash 的 `jdbc` input plugin 每分鐘同步一次 MySQL 資料表。你發現當 MySQL 中的資料被「物理刪除 (Hard Delete)」後，Elasticsearch 中對應的文件卻依然存在。這是為什麼？",
+        "en": "You are using the Logstash `jdbc` input plugin to sync a MySQL table every minute. You notice that when data is 'Hard Deleted' in MySQL, the corresponding document remains in Elasticsearch. Why is this?",
+        "wg": [
+          {
+            "t": "物理刪除",
+            "en": "Hard Delete",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "Logstash 的排程設定有誤。",
+        "en": "The Logstash schedule configuration is incorrect.",
+        "wg": []
+      },
+      {
+        "t": "JDBC Input Plugin 僅執行 SELECT 查詢，無法感知資料庫中已消失的列。",
+        "en": "The JDBC Input Plugin only executes SELECT queries and cannot detect rows that have disappeared from the database.",
+        "wg": []
+      },
+      {
+        "t": "Elasticsearch 預設開啟了防止刪除保護。",
+        "en": "Elasticsearch has delete protection enabled by default.",
+        "wg": []
+      },
+      {
+        "t": "必須手動執行 `_flush` API 才能看到刪除效果。",
+        "en": "You must manually execute the `_flush` API to see the deletion effect.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "Logstash JDBC input 的運作原理是定期執行 SQL 查詢（如 `SELECT * FROM table WHERE updated_at > last_value`）。當資料被物理刪除後，它就不會出現在查詢結果中，Logstash 自然無從得知這筆資料已消失，因此不會發送刪除指令給 ES。解法通常是改用軟刪除 (Soft Delete) 或 CDC。",
+      "en": "The Logstash JDBC input works by periodically executing a SQL query. When data is physically deleted, it no longer appears in the query results. Logstash has no way of knowing the record is gone and thus sends no delete command to ES. Common solutions involve using Soft Deletes or CDC.",
+      "wg": [
+        {
+          "t": "軟刪除",
+          "en": "Soft Delete",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "5",
+    "level": "Medium",
+    "keywords": "Mapping, Anti-pattern, Performance",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在將 RDBMS 資料同步到 Elasticsearch 時，若直接將包含大量不定鍵值的 JSON 欄位寫入，且開啟 Dynamic Mapping，最容易導致什麼嚴重的反模式 (Anti-pattern)？",
+        "en": "When syncing RDBMS data to Elasticsearch, what serious anti-pattern is most likely to occur if you directly write a JSON column containing many arbitrary keys with Dynamic Mapping enabled?",
+        "wg": [
+          {
+            "t": "動態映射",
+            "en": "Dynamic Mapping",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "Mapping Explosion (映射爆炸)",
+        "en": "Mapping Explosion",
+        "wg": [
+          {
+            "t": "映射爆炸",
+            "en": "Mapping Explosion",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "Split Brain (腦裂)",
+        "en": "Split Brain",
+        "wg": []
+      },
+      {
+        "t": "Deep Paging (深度分頁)",
+        "en": "Deep Paging",
+        "wg": []
+      },
+      {
+        "t": "Thread Pool Rejection (執行緒池拒絕)",
+        "en": "Thread Pool Rejection",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "Dynamic Mapping 會為每一個新的 JSON Key 自動建立欄位。如果來源資料包含大量隨機或髒資料的 Key，會導致 Index 的 Mapping 欄位數量激增（Mapping Explosion），消耗大量記憶體並導致 Cluster 不穩定（Cluster Instability）。應設定 `dynamic: false` 或 `strict`。",
+      "en": "Dynamic Mapping automatically creates a field for every new JSON key. If the source data contains many random or dirty keys, it causes the number of fields in the Index Mapping to skyrocket (Mapping Explosion), consuming excessive memory and causing Cluster Instability. You should set `dynamic: false` or `strict`.",
+      "wg": [
+        {
+          "t": "叢集不穩定",
+          "en": "Cluster Instability",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "6",
+    "level": "Medium",
+    "keywords": "Data Modeling, Join, Performance",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "針對高流量的電商搜尋場景，商品資料分散在 `products`、`inventory` 與 `brands` 三張資料表中。為了獲得最佳的讀取效能 (Read Performance)，你應採取哪種策略？",
+        "en": "For a high-traffic e-commerce search scenario where product data is scattered across `products`, `inventory`, and `brands` tables, which strategy should you adopt for the best Read Performance?",
+        "wg": [
+          {
+            "t": "讀取效能",
+            "en": "Read Performance",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "在 Elasticsearch 中使用 Nested Type 來儲存關聯資料。",
+        "en": "Use Nested Type in Elasticsearch to store related data.",
+        "wg": []
+      },
+      {
+        "t": "在 Elasticsearch 中使用 Join Type (Parent-Child) 建立關聯。",
+        "en": "Use Join Type (Parent-Child) in Elasticsearch to establish relationships.",
+        "wg": []
+      },
+      {
+        "t": "在寫入前（Index Time）將資料 Join 成一個寬表 (Wide Document)。",
+        "en": "Join the data into a single Wide Document before writing (at Index Time).",
+        "wg": [
+          {
+            "t": "寬表",
+            "en": "Wide Document/Table",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "在應用層先查詢 ES 取得 ID，再查詢 RDBMS 取得詳細資料。",
+        "en": "Query ES first to get IDs, then query RDBMS for details in the application layer.",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "Elasticsearch 是為反正規化 (Denormalized) 資料設計的。雖然 Nested 和 Join (Parent-Child) 提供了類似關聯式資料庫的功能，但在高併發讀取時效能較差。最佳實務是在資料進入 ES 前（例如在 Kafka Streams 或 Logstash 中）就將多張表的資料組裝成一個完整的 JSON 文件，這樣搜尋時完全不需要 Join，速度最快。",
+      "en": "Elasticsearch is designed for denormalized data. While Nested and Join (Parent-Child) types offer relational-like features, they suffer in performance under high concurrent reads. The best practice is to assemble data from multiple tables into a single complete JSON document before ingestion (e.g., in Kafka Streams or Logstash), enabling join-free and fastest search.",
+      "wg": [
+        {
+          "t": "反正規化",
+          "en": "Denormalized",
+          "ps": "adjective"
+        }
+      ]
+    }
+  },
+  {
+    "no": "7",
+    "level": "Easy",
+    "keywords": "Anti-pattern, Architecture, Source of Truth",
+    "parentNo": null,
+    "images": "",
+    "codeSnippet": "",
+    "question": [
+      {
+        "t": "團隊中的一位開發者建議，為了簡化架構，將所有的使用者 Session 紀錄與交易細節直接寫入 Elasticsearch，而不再存入 RDBMS。",
+        "en": "A developer on your team suggests writing all user session logs and transaction details directly to Elasticsearch, skipping the RDBMS to simplify the architecture.",
+        "wg": [
+          {
+            "t": "使用者 Session",
+            "en": "User Session",
+            "ps": "noun"
+          },
+          {
+            "t": "交易細節",
+            "en": "Transaction Details",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "根據手冊中的「心智模型」與「反模式」章節，為什麼這通常被視為一個危險的決策？",
+        "en": "According to the 'Mental Model' and 'Anti-patterns' sections of the handbook, why is this generally considered a dangerous decision?",
+        "wg": []
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "因為 Elasticsearch 的寫入效能遠低於 RDBMS，無法處理高併發的 Session 寫入。",
+        "en": "Because Elasticsearch has much lower write performance than RDBMS and cannot handle high-concurrency session writes.",
+        "wg": []
+      },
+      {
+        "t": "因為 Elasticsearch 在極端狀況下（如腦裂）可能會遺失資料，且缺乏像 RDBMS 那樣嚴謹的交易保證 (Transaction Guarantee)。",
+        "en": "Because Elasticsearch may lose data in extreme cases (like Split Brain) and lacks the strict Transaction Guarantees of an RDBMS.",
+        "wg": [
+          {
+            "t": "腦裂",
+            "en": "Split Brain",
+            "ps": "noun"
+          },
+          {
+            "t": "交易保證",
+            "en": "Transaction Guarantee",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "因為 Elasticsearch 不支援 JSON 格式的資料儲存，需要複雜的轉換。",
+        "en": "Because Elasticsearch does not support JSON format data storage, requiring complex transformations.",
+        "wg": []
+      },
+      {
+        "t": "因為 Elasticsearch 的查詢語言 (DSL) 無法支援對 Session 資料的聚合分析。",
+        "en": "Because Elasticsearch's Query DSL cannot support aggregation analysis on session data.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "Elasticsearch 應被視為「衍生資料系統 (Derived Data System)」而非「真實資料源 (Source of Truth)」。雖然它寫入效能極佳，但在分散式環境下（如發生腦裂或分片損壞）的資料耐久性與交易一致性不如關聯式資料庫。",
+      "en": "Elasticsearch should be treated as a 'Derived Data System' rather than a 'Source of Truth'. While it has excellent write performance, its data durability and transactional consistency in distributed environments (e.g., during split brain or shard corruption) are not as robust as RDBMS.",
+      "wg": [
+        {
+          "t": "衍生資料系統",
+          "en": "Derived Data System",
+          "ps": "noun"
+        },
+        {
+          "t": "真實資料源",
+          "en": "Source of Truth",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "8",
+    "level": "Medium",
+    "keywords": "Error Handling, DLQ, Pipeline",
+    "parentNo": null,
+    "images": "",
+    "codeSnippet": "",
+    "question": [
+      {
+        "t": "你維護著一個基於 Kafka Connect 的 CDC 同步管道。某天 RDBMS 中的一個欄位從整數 (Integer) 被意外改為字串 (String)，導致寫入 Elasticsearch 時發生 Mapping 解析錯誤。",
+        "en": "You maintain a CDC sync pipeline based on Kafka Connect. One day, a field in the RDBMS is accidentally changed from Integer to String, causing Mapping parsing errors when writing to Elasticsearch.",
+        "wg": [
+          {
+            "t": "同步管道",
+            "en": "Sync Pipeline",
+            "ps": "noun"
+          },
+          {
+            "t": "解析錯誤",
+            "en": "Parsing Error",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "為了避免整個管道因此卡死 (Stall)，導致後續正確的資料也無法同步，最佳的實作策略是什麼？",
+        "en": "To prevent the entire pipeline from stalling and blocking subsequent valid data, what is the best implementation strategy?",
+        "wg": [
+          {
+            "t": "卡死",
+            "en": "Stall",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "在 Elasticsearch 端設定 `ignore_malformed` 為 false，強制拋出例外並停止 Consumer。",
+        "en": "Set `ignore_malformed` to false in Elasticsearch to force an exception and stop the Consumer.",
+        "wg": []
+      },
+      {
+        "t": "配置 Dead Letter Queue (DLQ)，將失敗的訊息轉存至另一個 Topic 或儲存體，並讓管道繼續處理下一筆資料。",
+        "en": "Configure a Dead Letter Queue (DLQ) to divert failed messages to another Topic or storage, allowing the pipeline to proceed to the next record.",
+        "wg": [
+          {
+            "t": "死信佇列",
+            "en": "Dead Letter Queue",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "在應用層實作「雙寫」機制，當 Kafka 失敗時自動切換回 API 直接寫入。",
+        "en": "Implement a 'Dual Write' mechanism in the application layer to automatically switch to direct API writes when Kafka fails.",
+        "wg": []
+      },
+      {
+        "t": "將 Elasticsearch 的 Mapping 全部改為 `text` 類型以容納所有格式。",
+        "en": "Change all Elasticsearch Mappings to `text` type to accommodate all formats.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "在資料同步管道中，單一筆髒資料不應阻塞整個系統。配置 DLQ (Dead Letter Queue) 可以隔離錯誤資料供後續排查，同時確保系統的高可用性與持續同步。",
+      "en": "In a data sync pipeline, a single piece of dirty data should not block the entire system. Configuring a DLQ (Dead Letter Queue) isolates erroneous data for later investigation while ensuring high availability and continuous synchronization.",
+      "wg": [
+        {
+          "t": "髒資料",
+          "en": "Dirty Data",
+          "ps": "noun"
+        },
+        {
+          "t": "高可用性",
+          "en": "High Availability",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "9",
+    "level": "Hard",
+    "keywords": "Concurrency, Versioning, Consistency",
+    "parentNo": null,
+    "images": "",
+    "codeSnippet": "",
+    "question": [
+      {
+        "t": "在分散式系統中，即使使用 Kafka，網路重試 (Retry) 仍可能導致舊的資料更新 (Stale Update) 晚於新的更新到達 Elasticsearch。",
+        "en": "In a distributed system, even with Kafka, network retries can cause a stale update to arrive at Elasticsearch after a newer update.",
+        "wg": [
+          {
+            "t": "舊的資料更新",
+            "en": "Stale Update",
+            "ps": "noun"
+          },
+          {
+            "t": "網路重試",
+            "en": "Network Retry",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "為了防止舊資料覆蓋新資料，手冊建議使用什麼機制來確保正確的並發控制？",
+        "en": "To prevent stale data from overwriting new data, what mechanism does the handbook recommend for ensuring correct concurrency control?",
+        "wg": [
+          {
+            "t": "並發控制",
+            "en": "Concurrency Control",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "依賴 Kafka 的 FIFO 特性，嚴格禁止任何 Producer 端的重試。",
+        "en": "Rely on Kafka's FIFO property and strictly prohibit any retries on the Producer side.",
+        "wg": []
+      },
+      {
+        "t": "使用 Elasticsearch 的 `version_type=external`，並將 RDBMS 的 `updated_at` 或版本號對應到 ES 的 `_version`。",
+        "en": "Use Elasticsearch's `version_type=external` and map the RDBMS `updated_at` or version number to ES `_version`.",
+        "wg": [
+          {
+            "t": "版本號",
+            "en": "Version Number",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "使用 Optimistic Concurrency Control (OCC) 並依賴 ES 內部的 `_seq_no` 與 `_primary_term`。",
+        "en": "Use Optimistic Concurrency Control (OCC) relying on ES internal `_seq_no` and `_primary_term`.",
+        "wg": []
+      },
+      {
+        "t": "在寫入前先執行 `GET` 請求比對資料內容，若內容相同則略過寫入。",
+        "en": "Perform a `GET` request to compare data content before writing, and skip writing if the content is identical.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "使用 `version_type=external` 讓 Elasticsearch 依據外部系統（如 DB）提供的時間戳記或版本號來判斷。只有當傳入的版本號大於現有版本號時，寫入才會成功，從而解決亂序問題。依賴 ES 內部版本號 (OCC) 無法解決「舊資料晚到」的問題，因為舊資料會被視為一次新的修改。",
+      "en": "Using `version_type=external` allows Elasticsearch to judge based on a timestamp or version number provided by the external system (like DB). The write succeeds only if the incoming version is greater than the existing one, solving the out-of-order issue. Relying on ES internal versioning (OCC) cannot solve the 'late arrival of stale data' problem, as the stale data would be treated as a new modification.",
+      "wg": [
+        {
+          "t": "亂序問題",
+          "en": "Out-of-order Issue",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "10",
+    "level": "Medium",
+    "keywords": "Operations, Reindexing, Alias",
+    "parentNo": null,
+    "images": "",
+    "codeSnippet": "",
+    "question": [
+      {
+        "t": "你的生產環境索引 `products-v1` 需要變更某個欄位的 Mapping 類型（例如從 `text` 改為 `keyword`），但你不能停止服務或中斷搜尋功能。",
+        "en": "Your production index `products-v1` requires a Mapping type change for a field (e.g., from `text` to `keyword`), but you cannot stop the service or interrupt search functionality.",
+        "wg": [
+          {
+            "t": "生產環境",
+            "en": "Production Environment",
+            "ps": "noun"
+          },
+          {
+            "t": "中斷",
+            "en": "Interrupt",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "根據手冊的最佳實務，應如何達成「零停機 (Zero Downtime)」的變更？",
+        "en": "According to the handbook's best practices, how should you achieve this 'Zero Downtime' change?",
+        "wg": [
+          {
+            "t": "零停機",
+            "en": "Zero Downtime",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "直接使用 `_mapping` API 更新該欄位的定義。",
+        "en": "Directly use the `_mapping` API to update the field definition.",
+        "wg": []
+      },
+      {
+        "t": "建立新索引 `products-v2`，使用 Reindex API 同步資料，最後原子性地切換 Alias 指向新索引。",
+        "en": "Create a new index `products-v2`, use the Reindex API to sync data, and finally atomically switch the Alias to point to the new index.",
+        "wg": [
+          {
+            "t": "原子性地",
+            "en": "Atomically",
+            "ps": "adverb"
+          }
+        ]
+      },
+      {
+        "t": "刪除 `products-v1` 索引，修改 Logstash 設定後重新從 DB 同步所有資料。",
+        "en": "Delete the `products-v1` index, modify the Logstash configuration, and re-sync all data from the DB.",
+        "wg": []
+      },
+      {
+        "t": "使用 `update_by_query` API 強制轉換欄位類型。",
+        "en": "Use the `update_by_query` API to forcibly convert the field type.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "Elasticsearch 的既有欄位 Mapping 通常無法直接修改。標準做法是建立新索引、重新索引資料 (Reindex)，並利用 Alias 的原子切換功能，讓應用程式無感知地切換到新索引。",
+      "en": "Existing field Mappings in Elasticsearch typically cannot be modified directly. The standard approach is to create a new index, reindex the data, and use the atomic switching capability of Aliases to switch the application to the new index seamlessly.",
+      "wg": [
+        {
+          "t": "無感知地",
+          "en": "Seamlessly / Without awareness",
+          "ps": "adverb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "11",
+    "level": "Medium",
+    "keywords": "Logstash, JDBC, Incremental Sync",
+    "parentNo": null,
+    "images": "",
+    "codeSnippet": "input {\n  jdbc {\n    statement => \"SELECT * FROM products WHERE updated_at > :sql_last_value\"\n    use_column_value => true\n    tracking_column => \"updated_at\"\n    ...\n  }\n}",
+    "question": [
+      {
+        "t": "在上述 Logstash JDBC input 的設定中，`:sql_last_value` 參數扮演了什麼關鍵角色？",
+        "en": "In the Logstash JDBC input configuration above, what critical role does the `:sql_last_value` parameter play?",
+        "wg": [
+          {
+            "t": "關鍵角色",
+            "en": "Critical Role",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "它代表資料庫中目前最大的 Primary Key 值，用於分頁查詢。",
+        "en": "It represents the current maximum Primary Key value in the database, used for pagination queries.",
+        "wg": []
+      },
+      {
+        "t": "它是一個內建變數，儲存了上一次執行查詢時最後一筆資料的 `tracking_column` 值，用於實現增量同步。",
+        "en": "It is a built-in variable that stores the `tracking_column` value of the last record from the previous query execution, used to implement incremental synchronization.",
+        "wg": [
+          {
+            "t": "增量同步",
+            "en": "Incremental Synchronization",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "它是用來防止 SQL Injection 的安全參數。",
+        "en": "It is a security parameter used to prevent SQL Injection.",
+        "wg": []
+      },
+      {
+        "t": "它會自動將資料庫的時間格式轉換為 Elasticsearch 的 UTC 時間。",
+        "en": "It automatically converts the database time format to Elasticsearch's UTC time.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "`sql_last_value` 搭配 `use_column_value` 與 `tracking_column`，讓 Logstash 能夠記住上一次同步到了哪裡（例如最後更新時間），下一次只撈取該時間點之後變更的資料，達成增量同步。",
+      "en": "`sql_last_value`, combined with `use_column_value` and `tracking_column`, allows Logstash to remember where the last sync left off (e.g., the last update time), fetching only data changed after that point in the next run to achieve incremental synchronization.",
+      "wg": []
+    }
+  },
+  {
+    "no": "12",
+    "level": "Hard",
+    "keywords": "CDC, Kafka Streams, Data Modeling",
+    "parentNo": null,
+    "images": "",
+    "codeSnippet": "",
+    "question": [
+      {
+        "t": "在「電商商品搜尋」的實戰案例中，商品資料分散在 `products` 與 `inventory` 兩張資料表。若採用 CDC 架構，為了避免在 Elasticsearch 使用效能較差的 Join (Nested/Parent-Child)，手冊推薦在寫入 ES 之前採用哪種策略來整合資料？",
+        "en": "In the 'E-commerce Product Search' real-world example, product data is scattered across `products` and `inventory` tables. If using a CDC architecture, to avoid using low-performance Joins (Nested/Parent-Child) in Elasticsearch, which strategy does the handbook recommend for integrating data before writing to ES?",
+        "wg": [
+          {
+            "t": "分散",
+            "en": "Scattered / Distributed",
+            "ps": "adjective"
+          },
+          {
+            "t": "整合",
+            "en": "Integrate",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "在 Logstash 使用多個 JDBC input 分別寫入同一個 Index。",
+        "en": "Use multiple JDBC inputs in Logstash to write to the same Index separately.",
+        "wg": []
+      },
+      {
+        "t": "使用 Kafka Streams 或 KSQL 在串流層進行 Join，組裝成寬表 (Wide Document) 後再寫入 ES。",
+        "en": "Use Kafka Streams or KSQL to perform a Join at the streaming layer, assembling a Wide Document before writing to ES.",
+        "wg": [
+          {
+            "t": "串流層",
+            "en": "Streaming Layer",
+            "ps": "noun"
+          },
+          {
+            "t": "寬表",
+            "en": "Wide Table / Wide Document",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "依賴 Elasticsearch 的 Application-side Joins，在查詢時發送兩次 Request。",
+        "en": "Rely on Application-side Joins in Elasticsearch, sending two requests during query time.",
+        "wg": []
+      },
+      {
+        "t": "在 RDBMS 建立一個 View，讓 Debezium 直接監聽該 View 的變更。",
+        "en": "Create a View in the RDBMS and let Debezium listen directly to changes in that View.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "手冊推薦「Join at Index Time」模式。透過 Kafka Streams 等串流處理工具，將分散的變更事件（如庫存變更、商品資訊變更）即時組裝成一個完整的物件（寬表），再寫入 ES。這能提供最佳的讀取效能，並避免 ES 內部的 Join 開銷。監聽 View 通常有技術限制（如無法取得 Primary Key 或 Binlog 限制）。",
+      "en": "The handbook recommends the 'Join at Index Time' pattern. Using stream processing tools like Kafka Streams, scattered change events (e.g., inventory changes, product info changes) are assembled into a complete object (Wide Document) in real-time before being written to ES. This provides the best read performance and avoids the overhead of internal Joins in ES. Listening to Views often has technical limitations (e.g., lack of Primary Keys or Binlog constraints).",
+      "wg": [
+        {
+          "t": "開銷",
+          "en": "Overhead",
+          "ps": "noun"
+        }
+      ]
+    }
+  }
+]

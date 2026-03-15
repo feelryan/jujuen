@@ -1,0 +1,1216 @@
+[
+  {
+    "no": "chapter09-q06",
+    "level": "intermediate",
+    "keywords": "Global State, Test Pollution, Database Cleanup, Jest",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "describe('User API', () => {\n  it('should create a user', async () => {\n    await request(app).post('/users').send(mockUser);\n    // Assertions...\n  });\n\n  it('should list empty users initially', async () => {\n    const res = await request(app).get('/users');\n    expect(res.body.length).toBe(0);\n  });\n});",
+    "question": [
+      {
+        "t": "請檢視上方的測試程式碼。第二個測試案例 `should list empty users initially` 經常失敗，但在單獨執行時卻能通過。",
+        "en": "Please review the test code above. The second test case `should list empty users initially` often fails, but passes when run in isolation.",
+        "wg": [
+          {
+            "t": "單獨執行",
+            "en": "run in isolation",
+            "ps": "V phrase"
+          },
+          {
+            "t": "測試案例",
+            "en": "test case",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "這最可能反映了哪種測試反模式（Anti-pattern），以及該如何修正？",
+        "en": "Which testing anti-pattern does this most likely reflect, and how should it be fixed?",
+        "wg": [
+          {
+            "t": "反模式",
+            "en": "anti-pattern",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "這是「過度 Mocking」(Over-Mocking)；應移除所有 Mock。",
+        "en": "This is \"Over-Mocking\"; all mocks should be removed.",
+        "wg": []
+      },
+      {
+        "t": "這是「全域狀態污染」(Global State Pollution)；應在 `afterEach` 中清理資料庫。",
+        "en": "This is \"Global State Pollution\"; the database should be cleaned in `afterEach`.",
+        "wg": [
+          {
+            "t": "全域狀態污染",
+            "en": "Global State Pollution",
+            "ps": "N"
+          },
+          {
+            "t": "清理",
+            "en": "clean/truncate",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "這是「測試實作細節」(Testing Implementation Details)；應改用 TDD 開發。",
+        "en": "This is \"Testing Implementation Details\"; TDD should be used instead.",
+        "wg": []
+      },
+      {
+        "t": "這是「不穩定的網路依賴」(Flaky Network Dependency)；應使用 Nock。",
+        "en": "This is \"Flaky Network Dependency\"; Nock should be used.",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "第一個測試寫入了資料庫但未清理，導致狀態殘留影響了第二個測試。這是典型的全域狀態污染。解決方案是使用 `afterEach` 進行資料庫 Truncate 或 Transaction Rollback。",
+      "en": "The first test wrote to the database but did not clean it up, causing residual state to affect the second test. This is typical Global State Pollution. The solution is to use `afterEach` to perform a database Truncate or Transaction Rollback.",
+      "wg": [
+        {
+          "t": "狀態殘留",
+          "en": "residual state",
+          "ps": "N"
+        },
+        {
+          "t": "交易回復",
+          "en": "Transaction Rollback",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "chapter09-q07",
+    "level": "advanced",
+    "keywords": "Over-Mocking, ORM, False Positive, Integration Testing",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "// Service Code\nconst createUser = async (data) => {\n  return await User.create(data);\n};\n\n// Test Code\njest.mock('../models/User');\nUser.create.mockResolvedValue({ id: 1, ...data });\n\ntest('should create user', async () => {\n  await createUser({ username: 'test' });\n  expect(User.create).toHaveBeenCalled();\n});",
+    "question": [
+      {
+        "t": "您的團隊正在審查上述測試程式碼。雖然測試通過了，但在生產環境中，該功能卻因為資料庫 Schema 的 `NOT NULL` 限制而失敗。",
+        "en": "Your team is reviewing the test code above. Although the test passes, the feature fails in production due to a `NOT NULL` constraint in the database schema.",
+        "wg": [
+          {
+            "t": "生產環境",
+            "en": "production environment",
+            "ps": "N"
+          },
+          {
+            "t": "限制",
+            "en": "constraint",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "這個現象突顯了哪種測試策略的風險？",
+        "en": "Which testing strategy risk does this phenomenon highlight?",
+        "wg": [
+          {
+            "t": "突顯",
+            "en": "highlight",
+            "ps": "V"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "過度 Mocking (Over-Mocking)：測試僅驗證了 Mock 的設定，而非真實的資料庫行為。",
+        "en": "Over-Mocking: The test only verifies the Mock configuration, not the actual database behavior.",
+        "wg": [
+          {
+            "t": "真實的",
+            "en": "actual/real",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "測試金字塔 (Testing Pyramid)：單元測試數量過少。",
+        "en": "Testing Pyramid: Too few unit tests.",
+        "wg": []
+      },
+      {
+        "t": "依賴注入 (Dependency Injection)：手動注入導致測試脆弱。",
+        "en": "Dependency Injection: Manual injection leads to brittle tests.",
+        "wg": []
+      },
+      {
+        "t": "膠水程式碼 (Glue Code)：未能正確測試 Controller 層。",
+        "en": "Glue Code: Failure to properly test the Controller layer.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "當我們 Mock 了資料庫層（ORM），測試便失去了驗證 SQL 語法或 Schema 限制（如 Constraints）的能力。這導致測試雖然通過（False Positive），但程式碼在真實環境下無法運作。",
+      "en": "When we mock the database layer (ORM), the test loses the ability to verify SQL syntax or Schema constraints. This leads to tests passing (False Positive) while the code fails to work in the real environment.",
+      "wg": [
+        {
+          "t": "偽陽性",
+          "en": "False Positive",
+          "ps": "N"
+        },
+        {
+          "t": "語法",
+          "en": "syntax",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "chapter09-q08",
+    "level": "advanced",
+    "keywords": "Flaky Tests, CI/CD, Network Isolation, Nock",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在 CI/CD 流程中，您發現某個整合測試偶爾會失敗（Flaky Test），錯誤訊息顯示 `ETIMEDOUT` 連線至第三方支付 API。",
+        "en": "In your CI/CD pipeline, you notice an integration test fails intermittently (Flaky Test), with an error message `ETIMEDOUT` connecting to a third-party payment API.",
+        "wg": [
+          {
+            "t": "偶爾",
+            "en": "intermittently/occasionally",
+            "ps": "Adv"
+          },
+          {
+            "t": "連線",
+            "en": "connecting",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "為了確保測試的穩定性與速度，身為資深工程師，您應該採取什麼行動？",
+        "en": "To ensure test stability and speed, as a senior engineer, what action should you take?",
+        "wg": [
+          {
+            "t": "穩定性",
+            "en": "stability",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "增加 `jest --retry` 的次數，直到測試通過為止。",
+        "en": "Increase the `jest --retry` count until the test passes.",
+        "wg": []
+      },
+      {
+        "t": "使用 Nock 或 MSW 攔截 HTTP 請求，模擬第三方 API 的回應，避免真實網路呼叫。",
+        "en": "Use Nock or MSW to intercept HTTP requests, mocking the third-party API response to avoid real network calls.",
+        "wg": [
+          {
+            "t": "攔截",
+            "en": "intercept",
+            "ps": "V"
+          },
+          {
+            "t": "模擬",
+            "en": "mock/simulate",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "在測試環境中配置真實的 API Key，並確保網路頻寬足夠。",
+        "en": "Configure real API keys in the test environment and ensure sufficient network bandwidth.",
+        "wg": []
+      },
+      {
+        "t": "將該測試標記為 `skip`，因為第三方服務的穩定性不在我們控制範圍內。",
+        "en": "Mark the test as `skip` because the stability of third-party services is out of our control.",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "測試不應依賴外部網路，這會導致執行緩慢且不穩定。正確做法是隔離外部服務，使用 Nock 或 MSW 在 HTTP 層級攔截並模擬回應。",
+      "en": "Tests should not rely on external networks, as this leads to slowness and instability. The correct approach is to isolate external services using Nock or MSW to intercept and mock responses at the HTTP level.",
+      "wg": [
+        {
+          "t": "隔離",
+          "en": "isolate",
+          "ps": "V"
+        },
+        {
+          "t": "依賴",
+          "en": "rely on",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "chapter09-q09",
+    "level": "advanced",
+    "keywords": "Webhooks, Security, Stripe, Testing Strategy",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您的 Express 應用程式需要處理來自 Stripe 的 Webhook 事件（例如付款成功）。",
+        "en": "Your Express application needs to handle Webhook events from Stripe (e.g., payment success).",
+        "wg": [
+          {
+            "t": "處理",
+            "en": "handle",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "在撰寫針對 Webhook Handler 的整合測試時，除了驗證業務邏輯外，最關鍵的安全驗證步驟是什麼？",
+        "en": "When writing integration tests for the Webhook Handler, besides verifying business logic, what is the most critical security verification step?",
+        "wg": [
+          {
+            "t": "業務邏輯",
+            "en": "business logic",
+            "ps": "N"
+          },
+          {
+            "t": "關鍵的",
+            "en": "critical",
+            "ps": "Adj"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "驗證 Webhook 請求的簽章 (Signature Verification) 是否被正確處理，拒絕無效簽章的請求。",
+        "en": "Verify that the Webhook request signature (Signature Verification) is handled correctly, rejecting requests with invalid signatures.",
+        "wg": [
+          {
+            "t": "簽章",
+            "en": "signature",
+            "ps": "N"
+          },
+          {
+            "t": "拒絕",
+            "en": "reject",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "驗證資料庫是否正確寫入了交易紀錄。",
+        "en": "Verify that the transaction record is correctly written to the database.",
+        "wg": []
+      },
+      {
+        "t": "確保 Webhook 回應狀態碼為 200 OK。",
+        "en": "Ensure the Webhook response status code is 200 OK.",
+        "wg": []
+      },
+      {
+        "t": "使用 `console.log` 印出 Payload 以便除錯。",
+        "en": "Use `console.log` to print the Payload for debugging.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "Webhook 的安全性依賴於簽章驗證，以防止偽造請求。測試必須涵蓋「有效簽章」與「無效簽章」的場景，確保系統不會處理惡意請求。",
+      "en": "Webhook security relies on signature verification to prevent forged requests. Tests must cover both \"valid signature\" and \"invalid signature\" scenarios to ensure the system does not process malicious requests.",
+      "wg": [
+        {
+          "t": "偽造",
+          "en": "forge",
+          "ps": "V"
+        },
+        {
+          "t": "惡意請求",
+          "en": "malicious requests",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "chapter09-q10",
+    "level": "intermediate",
+    "keywords": "Async Testing, Jest, Supertest, Pitfalls",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "it('should return 200 OK', () => {\n  request(app)\n    .get('/')\n    .expect(200);\n});",
+    "question": [
+      {
+        "t": "一位初階工程師寫了上方的測試程式碼。這個測試雖然可能會通過，但存在一個嚴重的非同步處理錯誤。",
+        "en": "A junior engineer wrote the test code above. Although this test might pass, it contains a serious asynchronous handling error.",
+        "wg": [
+          {
+            "t": "非同步",
+            "en": "asynchronous",
+            "ps": "Adj"
+          },
+          {
+            "t": "嚴重",
+            "en": "serious",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "請問這個錯誤是什麼？",
+        "en": "What is this error?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "沒有使用 `await` 等待 Promise 解析，也沒有返回 Promise，導致 Jest 在請求完成前就結束測試。",
+        "en": "It does not use `await` to wait for the Promise to resolve, nor does it return the Promise, causing Jest to end the test before the request completes.",
+        "wg": [
+          {
+            "t": "解析",
+            "en": "resolve",
+            "ps": "V"
+          },
+          {
+            "t": "完成",
+            "en": "complete",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "應該使用 `expect(200)` 而不是 `.expect(200)`。",
+        "en": "It should use `expect(200)` instead of `.expect(200)`.",
+        "wg": []
+      },
+      {
+        "t": "Supertest 不支援 GET 請求。",
+        "en": "Supertest does not support GET requests.",
+        "wg": []
+      },
+      {
+        "t": "測試案例缺少 `describe` 區塊。",
+        "en": "The test case is missing a `describe` block.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "在 Jest 中測試非同步邏輯時，必須 `await` 該 Promise 或將其 `return` 給 Jest。否則，測試函數會立即執行完畢，任何後續的斷言失敗都不會被捕獲（或導致 False Positive）。",
+      "en": "When testing asynchronous logic in Jest, you must `await` the Promise or `return` it to Jest. Otherwise, the test function completes immediately, and any subsequent assertion failures will not be caught (or lead to False Positives).",
+      "wg": [
+        {
+          "t": "斷言",
+          "en": "assertion",
+          "ps": "N"
+        },
+        {
+          "t": "捕獲",
+          "en": "catch",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "chapter09-q11",
+    "level": "intermediate",
+    "keywords": "Testing Strategy, Private Methods, Refactoring, Anti-patterns",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在 Code Review 中，您發現同事為了測試一個複雜的私有函數（Private Function），將其從模組中匯出（Export）。",
+        "en": "During a Code Review, you notice a colleague has exported a complex private function from a module in order to test it.",
+        "wg": [
+          {
+            "t": "私有函數",
+            "en": "private function",
+            "ps": "N"
+          },
+          {
+            "t": "匯出",
+            "en": "export",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "根據最佳實務，您應該給予什麼建議？",
+        "en": "According to best practices, what advice should you give?",
+        "wg": [
+          {
+            "t": "最佳實務",
+            "en": "best practices",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "這是「測試實作細節」的反模式。應透過公開介面（Public Interface）來測試該邏輯，或將其重構為獨立的模組。",
+        "en": "This is a \"Testing Implementation Details\" anti-pattern. Test the logic via the Public Interface, or refactor it into a separate module.",
+        "wg": [
+          {
+            "t": "公開介面",
+            "en": "Public Interface",
+            "ps": "N"
+          },
+          {
+            "t": "重構",
+            "en": "refactor",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "這是好的做法，可以提高程式碼覆蓋率。",
+        "en": "This is a good practice as it increases code coverage.",
+        "wg": []
+      },
+      {
+        "t": "應該使用 `rewire` 套件來測試未匯出的變數，而不是修改程式碼。",
+        "en": "You should use the `rewire` package to test unexported variables instead of modifying the code.",
+        "wg": []
+      },
+      {
+        "t": "只要加上 `_` 前綴表示這是內部函數即可。",
+        "en": "Just add a `_` prefix to indicate it is an internal function.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "測試私有函數會導致測試與實作細節高度耦合，阻礙未來的重構。若邏輯夠複雜值得單獨測試，應將其提取為獨立的 Helper 或 Service（使其成為公開介面）。",
+      "en": "Testing private functions leads to high coupling between tests and implementation details, hindering future refactoring. If the logic is complex enough to warrant separate testing, extract it into an independent Helper or Service (making it a public interface).",
+      "wg": [
+        {
+          "t": "耦合",
+          "en": "coupling",
+          "ps": "N"
+        },
+        {
+          "t": "阻礙",
+          "en": "hinder",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "chapter09-q12",
+    "level": "intermediate",
+    "keywords": "Fake Timers, Jest, Time-Dependent Logic",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您需要測試一個「密碼重置 Token 在 15 分鐘後過期」的功能。",
+        "en": "You need to test a feature where \"Password reset tokens expire after 15 minutes.\"",
+        "wg": [
+          {
+            "t": "過期",
+            "en": "expire",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "為了避免測試執行需要等待真實的 15 分鐘，最合適的做法是什麼？",
+        "en": "To avoid waiting for a real 15 minutes during test execution, what is the most appropriate approach?",
+        "wg": [
+          {
+            "t": "最合適的",
+            "en": "most appropriate",
+            "ps": "Adj"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "使用 Jest 的 Fake Timers (`jest.useFakeTimers`) 來快轉時間。",
+        "en": "Use Jest's Fake Timers (`jest.useFakeTimers`) to fast-forward time.",
+        "wg": [
+          {
+            "t": "快轉",
+            "en": "fast-forward",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "修改程式碼，在測試環境下將過期時間改為 1 秒。",
+        "en": "Modify the code to change the expiration time to 1 second in the test environment.",
+        "wg": []
+      },
+      {
+        "t": "使用 `setTimeout` 等待 15 分鐘。",
+        "en": "Use `setTimeout` to wait for 15 minutes.",
+        "wg": []
+      },
+      {
+        "t": "Mock Date 物件，手動覆寫 `Date.now()`。",
+        "en": "Mock the Date object and manually override `Date.now()`.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "Jest Fake Timers 是處理時間依賴邏輯的標準做法，它允許精確控制時間流逝，而無需修改業務邏輯或等待真實時間。手動 Mock Date 較為繁瑣且容易出錯。",
+      "en": "Jest Fake Timers is the standard practice for handling time-dependent logic, allowing precise control over time passage without modifying business logic or waiting for real time. Manually mocking Date is cumbersome and error-prone.",
+      "wg": [
+        {
+          "t": "時間流逝",
+          "en": "time passage",
+          "ps": "N"
+        },
+        {
+          "t": "繁瑣",
+          "en": "cumbersome",
+          "ps": "Adj"
+        }
+      ]
+    }
+  },
+  {
+    "no": "chapter09-q13",
+    "level": "intermediate",
+    "keywords": "TDD, BDD, Integration Testing, Strategy",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在開發一個標準的 RESTful API（如使用者 CRUD）時，相較於傳統的 TDD（先寫單元測試），資深工程師通常傾向採用什麼策略？",
+        "en": "When developing a standard RESTful API (e.g., User CRUD), compared to traditional TDD (Unit Test First), what strategy do senior engineers often prefer?",
+        "wg": [
+          {
+            "t": "傾向",
+            "en": "prefer/tend to",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "為什麼？",
+        "en": "Why?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "整合測試優先 (Integration Test First)；因為 Express 主要是膠水程式碼，驗證路由與資料庫的整合比測試單一函數更具價值。",
+        "en": "Integration Test First; because Express is primarily glue code, verifying the integration of routes and the database is more valuable than testing individual functions.",
+        "wg": [
+          {
+            "t": "膠水程式碼",
+            "en": "glue code",
+            "ps": "N"
+          },
+          {
+            "t": "更具價值",
+            "en": "more valuable",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "端對端測試優先 (E2E First)；因為這樣最接近使用者行為。",
+        "en": "E2E First; because this is closest to user behavior.",
+        "wg": []
+      },
+      {
+        "t": "單元測試優先 (Unit Test First)；因為這樣能確保最高的程式碼覆蓋率。",
+        "en": "Unit Test First; because this ensures the highest code coverage.",
+        "wg": []
+      },
+      {
+        "t": "手動測試優先 (Manual Test First)；因為自動化測試維護成本太高。",
+        "en": "Manual Test First; because the maintenance cost of automated tests is too high.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "對於 CRUD 類型的 API，邏輯分散在 Router、Middleware 和 DB 之間。整合測試（類似 BDD 風格）能定義 API 的輸入輸出合約（Contract），提供最高的投資報酬率（ROI）。",
+      "en": "For CRUD APIs, logic is distributed across Routers, Middleware, and the DB. Integration tests (BDD style) define the API input/output contract, providing the highest Return on Investment (ROI).",
+      "wg": [
+        {
+          "t": "合約",
+          "en": "contract",
+          "ps": "N"
+        },
+        {
+          "t": "投資報酬率",
+          "en": "ROI",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "chapter09-q14",
+    "level": "advanced",
+    "keywords": "Dependency Injection, Mocking, Architecture, Maintainability",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在大型 Express 專案中，為了提升測試的可維護性並減少對 `jest.mock` 等框架特定功能的依賴，您可能會考慮引入什麼架構模式？",
+        "en": "In a large-scale Express project, to improve test maintainability and reduce reliance on framework-specific features like `jest.mock`, what architectural pattern might you consider introducing?",
+        "wg": [
+          {
+            "t": "可維護性",
+            "en": "maintainability",
+            "ps": "N"
+          },
+          {
+            "t": "依賴",
+            "en": "reliance/dependency",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "手動依賴注入 (Manual Dependency Injection)，在 Controller 初始化時傳入 Service 或 DB 實例。",
+        "en": "Manual Dependency Injection, passing Service or DB instances when initializing Controllers.",
+        "wg": [
+          {
+            "t": "初始化",
+            "en": "initialize",
+            "ps": "V"
+          },
+          {
+            "t": "實例",
+            "en": "instance",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "單例模式 (Singleton Pattern)，確保全域只有一個 DB 連線。",
+        "en": "Singleton Pattern, ensuring only one global DB connection.",
+        "wg": []
+      },
+      {
+        "t": "外觀模式 (Facade Pattern)，隱藏所有複雜邏輯。",
+        "en": "Facade Pattern, hiding all complex logic.",
+        "wg": []
+      },
+      {
+        "t": "使用全域變數 (Global Variables) 來存儲依賴。",
+        "en": "Use Global Variables to store dependencies.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "雖然 `jest.mock` 很方便，但它攔截 `require` 的方式屬於「黑魔法」，容易造成測試脆弱。手動 DI 讓依賴關係顯式化（Explicit），使單元測試更乾淨且不依賴特定測試 Runner。",
+      "en": "While `jest.mock` is convenient, its interception of `require` is \"black magic\" that can lead to brittle tests. Manual DI makes dependencies explicit, resulting in cleaner unit tests that don't rely on a specific test runner.",
+      "wg": [
+        {
+          "t": "顯式化",
+          "en": "explicit",
+          "ps": "Adj"
+        },
+        {
+          "t": "脆弱",
+          "en": "brittle",
+          "ps": "Adj"
+        }
+      ]
+    }
+  },
+  {
+    "no": "chapter09-q15",
+    "level": "intermediate",
+    "keywords": "Middleware, Testing Strategy, Unit Testing, Integration Testing",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您開發了一個通用的 `authMiddleware`，負責驗證 Header 並將使用者資訊附加到 `req.user`。",
+        "en": "You have developed a generic `authMiddleware` responsible for validating headers and attaching user info to `req.user`.",
+        "wg": [
+          {
+            "t": "附加",
+            "en": "attach",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "若要針對此 Middleware 進行最完整的測試（包含與 Express 錯誤處理機制的互動），下列何者是最佳策略？",
+        "en": "To test this Middleware most comprehensively (including interaction with Express error handling mechanisms), which of the following is the best strategy?",
+        "wg": [
+          {
+            "t": "互動",
+            "en": "interaction",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "建立一個包含該 Middleware 與 Dummy Controller 的小型 Express App，使用 Supertest 進行整合測試。",
+        "en": "Create a small Express App containing the Middleware and a Dummy Controller, and use Supertest for integration testing.",
+        "wg": [
+          {
+            "t": "虛擬的",
+            "en": "dummy",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "僅撰寫單元測試，Mock `req`, `res`, `next` 函式。",
+        "en": "Write only unit tests, mocking `req`, `res`, and `next` functions.",
+        "wg": []
+      },
+      {
+        "t": "直接在生產環境的路由上進行測試。",
+        "en": "Test directly on production routes.",
+        "wg": []
+      },
+      {
+        "t": "Middleware 無法被獨立測試，必須依賴完整的應用程式。",
+        "en": "Middleware cannot be tested independently and must rely on the full application.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "雖然單元測試（Mock req/res）可行，但整合測試能確保 Middleware 正確呼叫 `next()` 或 `next(err)`，並驗證其在真實 Express Request Pipeline 中的行為，這通常更具信心。",
+      "en": "While unit tests (mocking req/res) are feasible, integration tests ensure the Middleware correctly calls `next()` or `next(err)` and verify its behavior within the real Express Request Pipeline, usually providing higher confidence.",
+      "wg": [
+        {
+          "t": "管道",
+          "en": "pipeline",
+          "ps": "N"
+        },
+        {
+          "t": "信心",
+          "en": "confidence",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "11",
+    "level": "advanced",
+    "keywords": "Dependency Injection, Inversion of Control, Refactoring, Testability",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "const userController = require('./controllers/userController');\n// Current usage in routes:\n// router.post('/register', userController.register);\n\n// Inside userController.js:\n// const db = require('../db');\n// const emailService = require('../services/emailService');\n// exports.register = async (req, res) => { ... }",
+    "question": [
+      {
+        "t": "您的團隊希望重構上述的 Express 控制器 (Controller)，以擺脫對 `jest.mock` 等模組攔截工具的依賴，並採用「手動依賴注入」(Manual DI) 模式。",
+        "en": "Your team wants to refactor the Express controller above to move away from relying on module interception tools like `jest.mock` and adopt a 'Manual Dependency Injection' (Manual DI) pattern.",
+        "wg": [
+          {
+            "t": "模組攔截",
+            "en": "module interception",
+            "ps": "N"
+          },
+          {
+            "t": "手動依賴注入",
+            "en": "Manual Dependency Injection",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "下列哪一種重構方式最能達成此目標，同時保持程式碼的清晰度與可測試性？",
+        "en": "Which of the following refactoring approaches best achieves this goal while maintaining code clarity and testability?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 將 `db` 與 `emailService` 掛載到 `req` 物件上 (例如 `req.db`)，並在 Middleware 中注入。",
+        "en": "(A) Attach `db` and `emailService` to the `req` object (e.g., `req.db`) and inject them via middleware.",
+        "wg": []
+      },
+      {
+        "t": "(B) 將控制器改寫為一個高階函數 (Higher-Order Function) 或類別，在初始化時接收 `db` 與 `emailService` 作為參數。",
+        "en": "(B) Rewrite the controller as a Higher-Order Function or Class that accepts `db` and `emailService` as arguments during initialization.",
+        "wg": [
+          {
+            "t": "高階函數",
+            "en": "Higher-Order Function",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) 使用 `proxyquire` 或 `rewire` 在測試執行時動態替換依賴。",
+        "en": "(C) Use `proxyquire` or `rewire` to dynamically replace dependencies at test runtime.",
+        "wg": []
+      },
+      {
+        "t": "(D) 在全域變數 (Global Variables) 中定義服務實例，並在測試開始前覆寫它們。",
+        "en": "(D) Define service instances in Global Variables and override them before tests start.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "選項 (B) 是實作手動依賴注入的標準做法。透過工廠模式 (Factory Pattern) 或類別建構子傳入依賴，測試時可以直接傳入 Mock 物件，而無需依賴測試框架的模組攔截魔法。選項 (A) 雖然可行但會污染 Request 物件；選項 (C) 仍屬於模組攔截；選項 (D) 會導致嚴重的全域狀態污染。",
+      "en": "Option (B) is the standard practice for implementing Manual DI. By passing dependencies via a Factory Pattern or Class Constructor, you can inject Mock objects directly during testing without relying on the test framework's module interception magic. Option (A) is viable but pollutes the Request object; Option (C) is still module interception; Option (D) leads to severe global state pollution.",
+      "wg": [
+        {
+          "t": "工廠模式",
+          "en": "Factory Pattern",
+          "ps": "N"
+        },
+        {
+          "t": "建構子",
+          "en": "Constructor",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "12",
+    "level": "intermediate",
+    "keywords": "Fake Timers, Flaky Tests, Jest, Time-dependent Logic",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "it('should expire the token after 15 minutes', async () => {\n  const token = await generateToken({ expiresIn: '15m' });\n  // How to test expiration without waiting 15 minutes?\n});",
+    "question": [
+      {
+        "t": "您正在撰寫一個測試案例，用以驗證「密碼重設 Token」是否會在 15 分鐘後正確過期。",
+        "en": "You are writing a test case to verify that a 'Password Reset Token' correctly expires after 15 minutes.",
+        "wg": [
+          {
+            "t": "過期",
+            "en": "expire",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "為了避免測試執行緩慢或產生不穩定的結果 (Flaky Tests)，下列哪項策略是最佳實務？",
+        "en": "To avoid slow test execution or flaky results, which of the following strategies is the best practice?",
+        "wg": [
+          {
+            "t": "不穩定的結果",
+            "en": "flaky results",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 修改業務邏輯，在測試環境下將過期時間縮短為 1 秒，並使用 `setTimeout` 等待。",
+        "en": "(A) Modify the business logic to shorten the expiration time to 1 second in the test environment, and use `setTimeout` to wait.",
+        "wg": []
+      },
+      {
+        "t": "(B) 使用測試框架提供的 Fake Timers (如 Jest 的 `useFakeTimers`) 來程式化地快轉時間。",
+        "en": "(B) Use Fake Timers provided by the test framework (e.g., Jest's `useFakeTimers`) to programmatically fast-forward time.",
+        "wg": [
+          {
+            "t": "快轉",
+            "en": "fast-forward",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(C) Mock `Date.now()` 方法，但在每個測試結束後不需還原，以免影響後續測試。",
+        "en": "(C) Mock the `Date.now()` method, but do not restore it after each test to avoid affecting subsequent tests.",
+        "wg": []
+      },
+      {
+        "t": "(D) 直接查詢資料庫，手動修改該 Token 的 `created_at` 欄位為 15 分鐘前。",
+        "en": "(D) Query the database directly and manually modify the `created_at` field of the token to 15 minutes ago.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "使用 Fake Timers 是處理時間依賴邏輯的標準做法，它允許測試在毫秒內模擬長時間的流逝，且不需修改業務邏輯程式碼。選項 (A) 會讓測試變慢且依賴真實時間；選項 (D) 測試的是資料庫行為而非應用程式的時間邏輯；選項 (C) 不還原 Mock 會導致嚴重的測試污染。",
+      "en": "Using Fake Timers is the standard practice for handling time-dependent logic, allowing tests to simulate the passage of long periods in milliseconds without modifying business logic code. Option (A) slows down tests and relies on real time; Option (D) tests database behavior rather than application time logic; Option (C) failing to restore mocks leads to severe test pollution.",
+      "wg": [
+        {
+          "t": "時間依賴",
+          "en": "time-dependent",
+          "ps": "Adj"
+        },
+        {
+          "t": "測試污染",
+          "en": "test pollution",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "13",
+    "level": "intermediate",
+    "keywords": "Middleware Testing, Unit Testing, Spies, Mocking",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "const authMiddleware = (req, res, next) => {\n  if (!req.headers['x-api-key']) {\n    return res.status(401).json({ error: 'Missing API Key' });\n  }\n  next();\n};\n\n// Test file:\nit('should call next() if api key is present', () => {\n  const req = { headers: { 'x-api-key': '123' } };\n  const res = { status: jest.fn().mockReturnThis(), json: jest.fn() };\n  const next = jest.fn();\n\n  authMiddleware(req, res, next);\n  // Assertions...\n});",
+    "question": [
+      {
+        "t": "您決定對上述的 `authMiddleware` 進行單元測試 (Unit Test)，而非整合測試。",
+        "en": "You decide to perform a Unit Test on the `authMiddleware` above, rather than an Integration Test.",
+        "wg": []
+      },
+      {
+        "t": "在此情境下，使用 Jest 的 Spy (`jest.fn()`) 來模擬 `next` 函式的主要目的是什麼？",
+        "en": "In this context, what is the primary purpose of using a Jest Spy (`jest.fn()`) to mock the `next` function?",
+        "wg": [
+          {
+            "t": "模擬",
+            "en": "mock",
+            "ps": "V"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 確保 Middleware 能夠正確地發送 HTTP 請求到下一個微服務。",
+        "en": "(A) Ensure the middleware can correctly send HTTP requests to the next microservice.",
+        "wg": []
+      },
+      {
+        "t": "(B) 驗證當條件滿足時，控制權是否正確地傳遞給下一個 Middleware 或 Controller。",
+        "en": "(B) Verify that control is correctly passed to the next middleware or controller when conditions are met.",
+        "wg": [
+          {
+            "t": "控制權",
+            "en": "control",
+            "ps": "N"
+          },
+          {
+            "t": "傳遞",
+            "en": "pass",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(C) 測試 Express 框架本身的路由匹配邏輯是否正常運作。",
+        "en": "(C) Test if the Express framework's own route matching logic is working correctly.",
+        "wg": []
+      },
+      {
+        "t": "(D) 模擬資料庫連線，以防止 Middleware 存取真實資料。",
+        "en": "(D) Mock the database connection to prevent the middleware from accessing real data.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "在 Middleware 的單元測試中，`next` 是一個回呼函式 (Callback)。使用 Spy (`jest.fn()`) 可以讓我們斷言 (Assert) 該函式是否被呼叫，從而驗證 Middleware 是否正確地「放行」了請求。這與 HTTP 請求或資料庫無關，純粹是測試控制流 (Control Flow)。",
+      "en": "In middleware unit testing, `next` is a callback function. Using a Spy (`jest.fn()`) allows us to assert whether the function was called, thereby verifying if the middleware correctly 'passed' the request. This is unrelated to HTTP requests or databases; it is purely testing Control Flow.",
+      "wg": [
+        {
+          "t": "回呼函式",
+          "en": "callback function",
+          "ps": "N"
+        },
+        {
+          "t": "斷言",
+          "en": "assert",
+          "ps": "V"
+        },
+        {
+          "t": "控制流",
+          "en": "control flow",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "14",
+    "level": "intermediate",
+    "keywords": "Testing Strategy, TDD, BDD, Business Logic vs Glue Code",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "根據「測試獎盃」(Testing Trophy) 與實務經驗，針對 Express 應用程式中不同性質的模組，應採取不同的測試策略。",
+        "en": "According to the 'Testing Trophy' and practical experience, different testing strategies should be adopted for modules of different natures in an Express application.",
+        "wg": [
+          {
+            "t": "性質",
+            "en": "nature",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "若您正在開發一個「複雜的定價演算法模組」(Pure Logic) 與一個「標準的 CRUD API」(Glue Code)，下列哪種組合最為合適？",
+        "en": "If you are developing a 'Complex Pricing Algorithm Module' (Pure Logic) and a 'Standard CRUD API' (Glue Code), which of the following combinations is most appropriate?",
+        "wg": [
+          {
+            "t": "定價演算法",
+            "en": "pricing algorithm",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 兩者皆優先使用 Supertest 進行整合測試，以確保端對端功能正確。",
+        "en": "(A) Prioritize Integration Testing with Supertest for both to ensure end-to-end correctness.",
+        "wg": []
+      },
+      {
+        "t": "(B) 定價演算法優先採用 TDD (單元測試)；CRUD API 優先採用整合測試 (類似 BDD)。",
+        "en": "(B) Prioritize TDD (Unit Testing) for the Pricing Algorithm; prioritize Integration Testing (BDD-like) for the CRUD API.",
+        "wg": []
+      },
+      {
+        "t": "(C) 兩者皆優先撰寫單元測試，並 Mock 所有外部依賴，以追求 100% 覆蓋率。",
+        "en": "(C) Prioritize Unit Testing for both, mocking all external dependencies to aim for 100% coverage.",
+        "wg": []
+      },
+      {
+        "t": "(D) 定價演算法不需測試，僅需人工驗證；CRUD API 則需大量單元測試。",
+        "en": "(D) The Pricing Algorithm does not need testing, only manual verification; the CRUD API requires extensive Unit Testing.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "純邏輯 (Pure Logic) 模組如演算法，適合透過大量的單元測試 (TDD) 來驗證各種邊界條件。而 Express 的 CRUD API 多為「膠水程式碼」(Glue Code)，單元測試效益低，應優先使用 Supertest 進行整合測試，驗證 Router、Middleware 與 Controller 的協作。",
+      "en": "Pure Logic modules like algorithms are best suited for extensive Unit Testing (TDD) to verify various edge cases. Express CRUD APIs are mostly 'Glue Code' where Unit Testing has low ROI; Integration Testing with Supertest should be prioritized to verify the collaboration of Routers, Middleware, and Controllers.",
+      "wg": [
+        {
+          "t": "邊界條件",
+          "en": "edge cases",
+          "ps": "N"
+        },
+        {
+          "t": "協作",
+          "en": "collaboration",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "15",
+    "level": "advanced",
+    "keywords": "Error Handling, Middleware, Integration Testing, Express Signature",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "app.use((err, req, res, next) => {\n  console.error(err);\n  res.status(500).json({ error: 'Internal Server Error' });\n});",
+    "question": [
+      {
+        "t": "您正在為 Express 應用程式的「全域錯誤處理 Middleware」(Global Error Handler) 撰寫測試。",
+        "en": "You are writing tests for the 'Global Error Handler Middleware' of an Express application.",
+        "wg": [
+          {
+            "t": "全域錯誤處理",
+            "en": "Global Error Handler",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "為了確保此 Middleware 能在真實運作中被正確觸發，下列哪一種測試方式最具驗證價值？",
+        "en": "To ensure this middleware is correctly triggered in real operation, which of the following testing methods provides the most validation value?",
+        "wg": [
+          {
+            "t": "觸發",
+            "en": "trigger",
+            "ps": "V"
+          },
+          {
+            "t": "驗證價值",
+            "en": "validation value",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 單元測試：直接呼叫該函式，傳入 mock 的 `err`, `req`, `res` 物件，檢查 `res.status`。",
+        "en": "(A) Unit Test: Directly call the function with mock `err`, `req`, `res` objects and check `res.status`.",
+        "wg": []
+      },
+      {
+        "t": "(B) 整合測試：建立一個測試專用的 Route，該 Route 會刻意拋出錯誤 (throw Error)，然後使用 Supertest 發送請求並驗證回應為 500。",
+        "en": "(B) Integration Test: Create a test-specific Route that intentionally throws an Error, then use Supertest to send a request and verify the response is 500.",
+        "wg": [
+          {
+            "t": "刻意",
+            "en": "intentionally",
+            "ps": "Adv"
+          }
+        ]
+      },
+      {
+        "t": "(C) 整合測試：使用 Supertest 發送一個格式錯誤的 JSON Body，驗證是否回傳 400 Bad Request。",
+        "en": "(C) Integration Test: Use Supertest to send a malformed JSON Body and verify if it returns 400 Bad Request.",
+        "wg": []
+      },
+      {
+        "t": "(D) 靜態分析：使用 ESLint 檢查該 Middleware 是否具有 4 個參數 `(err, req, res, next)`。",
+        "en": "(D) Static Analysis: Use ESLint to check if the middleware has 4 parameters `(err, req, res, next)`.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "雖然 (A) 和 (D) 有其價值，但 (B) 是唯一能驗證 Express 錯誤傳遞機制 (Error Propagation) 的方式。它能確保當 Route 發生異常時，Express 能夠正確識別並將控制權交給具有 4 個參數的錯誤處理 Middleware，而非被預設行為攔截或導致 Process Crash。",
+      "en": "While (A) and (D) have value, (B) is the only way to verify the Express Error Propagation mechanism. It ensures that when an exception occurs in a Route, Express correctly identifies it and passes control to the 4-argument error handling middleware, rather than being intercepted by default behavior or causing a Process Crash.",
+      "wg": [
+        {
+          "t": "錯誤傳遞機制",
+          "en": "Error Propagation mechanism",
+          "ps": "N"
+        }
+      ]
+    }
+  }
+]

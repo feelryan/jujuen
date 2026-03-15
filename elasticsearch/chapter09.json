@@ -1,0 +1,1177 @@
+[
+  {
+    "no": "chapter09-q06",
+    "level": "intermediate",
+    "keywords": "OS Cache, Lucene, Heap Size, Performance",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您的團隊正在配置一台擁有 64GB 實體記憶體的伺服器作為 ElasticSearch 的 Data Node。",
+        "en": "Your team is configuring a server with 64GB of physical RAM as an ElasticSearch Data Node.",
+        "wg": [
+          {
+            "t": "實體記憶體",
+            "en": "physical RAM",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "一位初階工程師建議將 `Xmx` (Heap Size) 設定為 50GB，以最大化 Java 應用程式的可用記憶體。",
+        "en": "A junior engineer suggests setting `Xmx` (Heap Size) to 50GB to maximize available memory for the Java application.",
+        "wg": []
+      },
+      {
+        "t": "身為資深工程師，您應該如何回應這個建議？",
+        "en": "As a senior engineer, how should you respond to this suggestion?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 同意該建議，因為更多的 Heap 代表可以快取更多查詢結果，提升效能。",
+        "en": "(A) Agree with the suggestion, as more Heap means more query results can be cached, improving performance.",
+        "wg": []
+      },
+      {
+        "t": "(B) 反對該建議，Heap Size 不應超過 32GB，且必須保留約 50% 的記憶體給 OS Cache 以供 Lucene 使用。",
+        "en": "(B) Reject the suggestion; Heap Size should not exceed 32GB, and about 50% of memory must be reserved for OS Cache for Lucene usage.",
+        "wg": [
+          {
+            "t": "保留",
+            "en": "reserved",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(C) 反對該建議，應該將 Heap 設定為 64GB (100%) 以避免任何記憶體浪費。",
+        "en": "(C) Reject the suggestion; Heap should be set to 64GB (100%) to avoid any memory waste.",
+        "wg": []
+      },
+      {
+        "t": "(D) 同意該建議，但需啟用 Compressed OOPs 以支援大於 32GB 的 Heap。",
+        "en": "(D) Agree with the suggestion, but Compressed OOPs must be enabled to support Heap sizes larger than 32GB.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "ElasticSearch 的效能高度依賴底層 Lucene 的 Segment 檔案，這些檔案存放在 Off-Heap 的 OS Cache 中。若 Heap 佔用過多，OS Cache 將不足，導致嚴重的 I/O 效能問題。此外，超過 32GB 會導致 Compressed OOPs 失效，降低記憶體效率。",
+      "en": "ElasticSearch performance relies heavily on underlying Lucene Segment files, which are stored in the Off-Heap OS Cache. If the Heap takes too much, OS Cache will be insufficient, causing severe I/O performance issues. Additionally, exceeding 32GB disables Compressed OOPs, reducing memory efficiency.",
+      "wg": [
+        {
+          "t": "底層",
+          "en": "underlying",
+          "ps": "Adj"
+        },
+        {
+          "t": "失效",
+          "en": "disable/invalidate",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "chapter09-q07",
+    "level": "advanced",
+    "keywords": "Mapping Explosion, Cluster State, Master Node, Dynamic Mapping",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您的 ElasticSearch 叢集出現嚴重的不穩定狀況，Master Node 頻繁無回應，且 Cluster State 的大小已增長至數百 MB。",
+        "en": "Your ElasticSearch cluster is experiencing severe instability, the Master Node is frequently unresponsive, and the Cluster State size has grown to hundreds of MB.",
+        "wg": [
+          {
+            "t": "無回應",
+            "en": "unresponsive",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "經檢查 Log，發現有大量的 Mapping 更新操作。最可能導致此問題的根本原因是什麼？",
+        "en": "Checking the logs reveals a massive amount of Mapping update operations. What is the most likely root cause of this issue?",
+        "wg": [
+          {
+            "t": "根本原因",
+            "en": "root cause",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 寫入請求的 QPS 過高，導致 Master Node 的 CPU 資源耗盡。",
+        "en": "(A) The write request QPS is too high, exhausting the Master Node's CPU resources.",
+        "wg": []
+      },
+      {
+        "t": "(B) 發生了 Mapping Explosion，應用程式可能將不固定的鍵值（如 URL 參數或 User Agent）作為欄位名稱寫入。",
+        "en": "(B) Mapping Explosion has occurred; the application might be writing variable keys (like URL parameters or User Agents) as field names.",
+        "wg": [
+          {
+            "t": "不固定的",
+            "en": "variable/unfixed",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "(C) Replica Shard 數量設定過多，導致 Cluster State 同步流量過大。",
+        "en": "(C) The number of Replica Shards is set too high, causing excessive Cluster State synchronization traffic.",
+        "wg": []
+      },
+      {
+        "t": "(D) 節點間的網路延遲過高，導致 Gossip 協議失敗。",
+        "en": "(D) Network latency between nodes is too high, causing the Gossip protocol to fail.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "當允許動態 Mapping 且寫入大量不重複的欄位名稱時，會導致 Cluster State 急劇膨脹（Mapping Explosion）。由於 Master 必須將 Cluster State 同步給所有節點，巨大的 State 會阻塞 Master 的處理能力，導致全叢集卡死。",
+      "en": "When dynamic mapping is allowed and a large number of unique field names are written, it causes the Cluster State to balloon (Mapping Explosion). Since the Master must sync the Cluster State to all nodes, a huge State blocks the Master's processing capacity, stalling the entire cluster.",
+      "wg": [
+        {
+          "t": "急劇膨脹",
+          "en": "balloon/expand rapidly",
+          "ps": "V"
+        },
+        {
+          "t": "阻塞",
+          "en": "block/stall",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "chapter09-q08",
+    "level": "intermediate",
+    "keywords": "Master Node, Data Node, Node Separation, Stability",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您正在維護一個包含 20 個節點的生產環境叢集，目前所有節點均同時扮演 Master 與 Data 的角色。",
+        "en": "You are maintaining a production cluster with 20 nodes, where currently all nodes act as both Master and Data nodes.",
+        "wg": [
+          {
+            "t": "扮演",
+            "en": "act as",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "在高負載查詢期間，叢集經常發生 Master 重新選舉 (Election) 與節點震盪 (Flapping)。為了改善穩定性，您應該採取什麼架構變更？",
+        "en": "During high query load, the cluster frequently experiences Master re-elections and node flapping. To improve stability, what architectural change should you implement?",
+        "wg": [
+          {
+            "t": "震盪",
+            "en": "flapping",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 增加更多混合角色節點，以分散查詢壓力。",
+        "en": "(A) Add more mixed-role nodes to distribute the query load.",
+        "wg": []
+      },
+      {
+        "t": "(B) 實施 Master 與 Data 節點分離 (Dedicated Master Nodes)，確保 Master 不受繁重的 CRUD 操作影響。",
+        "en": "(B) Implement separation of Master and Data nodes (Dedicated Master Nodes) to ensure Masters are not affected by heavy CRUD operations.",
+        "wg": [
+          {
+            "t": "繁重的",
+            "en": "heavy/intensive",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "(C) 將所有節點的 Heap Size 增加一倍。",
+        "en": "(C) Double the Heap Size of all nodes.",
+        "wg": []
+      },
+      {
+        "t": "(D) 停用所有 Replica Shards 以減少節點間的通訊。",
+        "en": "(D) Disable all Replica Shards to reduce inter-node communication.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "Data Node 負責耗費資源的索引與搜尋操作。若 Master 與 Data 混用，資源耗盡會導致 Master 無法及時回應健康檢查，被誤判為故障，引發不必要的選舉與震盪。分離職責是大型叢集穩定性的基石。",
+      "en": "Data nodes handle resource-intensive indexing and search operations. If Master and Data roles are mixed, resource exhaustion can prevent the Master from responding to health checks in time, leading to false failure detections, unnecessary elections, and flapping. Separating duties is the cornerstone of stability for large clusters.",
+      "wg": [
+        {
+          "t": "誤判",
+          "en": "false detection/misjudgment",
+          "ps": "N"
+        },
+        {
+          "t": "基石",
+          "en": "cornerstone",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "chapter09-q09",
+    "level": "intermediate",
+    "keywords": "Task Management API, Troubleshooting, Slow Query",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "監控系統顯示 ES 叢集當前的 CPU 使用率飆升，您懷疑有一個耗時的搜尋查詢正在執行。",
+        "en": "Monitoring shows a spike in ES cluster CPU usage, and you suspect a long-running search query is executing.",
+        "wg": [
+          {
+            "t": "飆升",
+            "en": "spike/surge",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "為了找出具體的「元兇查詢」與其 Task ID，您應該使用哪一個 API？",
+        "en": "To identify the specific 'culprit query' and its Task ID, which API should you use?",
+        "wg": [
+          {
+            "t": "元兇",
+            "en": "culprit",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) `GET /_cluster/health`",
+        "en": "(A) `GET /_cluster/health`",
+        "wg": []
+      },
+      {
+        "t": "(B) `GET /_nodes/stats/jvm`",
+        "en": "(B) `GET /_nodes/stats/jvm`",
+        "wg": []
+      },
+      {
+        "t": "(C) `GET /_tasks?detailed=true&actions=*search`",
+        "en": "(C) `GET /_tasks?detailed=true&actions=*search`",
+        "wg": []
+      },
+      {
+        "t": "(D) `GET /_cat/indices?v`",
+        "en": "(D) `GET /_cat/indices?v`",
+        "wg": []
+      }
+    ],
+    "answer": "(C)",
+    "why": {
+      "t": "Task Management API (`_tasks`) 允許管理者查看當前正在執行的任務細節。透過 `detailed=true` 和 `actions=*search` 過濾，可以精確定位正在消耗資源的搜尋請求及其內容。",
+      "en": "The Task Management API (`_tasks`) allows administrators to view details of currently executing tasks. By filtering with `detailed=true` and `actions=*search`, you can pinpoint the search requests consuming resources and their content.",
+      "wg": [
+        {
+          "t": "精確定位",
+          "en": "pinpoint",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "chapter09-q10",
+    "level": "advanced",
+    "keywords": "Field Data, Doc Values, Memory Usage, Aggregation",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "開發團隊回報，當他們針對某個 `text` 類型的欄位進行聚合 (Aggregation) 時，經常觸發 `CircuitBreakingException`。",
+        "en": "The development team reports that `CircuitBreakingException` is frequently triggered when they perform aggregations on a `text` type field.",
+        "wg": [
+          {
+            "t": "觸發",
+            "en": "trigger",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "為了徹底解決此記憶體問題，最佳的長期解決方案是什麼？",
+        "en": "To permanently resolve this memory issue, what is the best long-term solution?",
+        "wg": [
+          {
+            "t": "徹底解決",
+            "en": "permanently resolve",
+            "ps": "V"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 增加 `indices.breaker.fielddata.limit` 的上限值。",
+        "en": "(A) Increase the limit of `indices.breaker.fielddata.limit`.",
+        "wg": []
+      },
+      {
+        "t": "(B) 修改 Mapping，將該欄位增加 `keyword` 子欄位或改為 `keyword` 類型，並針對 `keyword` 進行聚合。",
+        "en": "(B) Modify the Mapping to add a `keyword` sub-field or change it to `keyword` type, and aggregate on the `keyword`.",
+        "wg": []
+      },
+      {
+        "t": "(C) 增加節點的 Heap Size。",
+        "en": "(C) Increase the Heap Size of the nodes.",
+        "wg": []
+      },
+      {
+        "t": "(D) 停用 Circuit Breaker 以允許查詢執行。",
+        "en": "(D) Disable the Circuit Breaker to allow the query to execute.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "對 `text` 欄位聚合會強迫 ES 將倒排索引解壓並載入 Heap (Field Data)，極易導致 OOM。`keyword` 類型使用 Doc Values，這是一種列式儲存結構，存放在磁碟並由 OS Cache 管理，不會佔用 Heap 空間，適合聚合與排序。",
+      "en": "Aggregating on `text` fields forces ES to uncompress the inverted index and load it into the Heap (Field Data), easily causing OOM. The `keyword` type uses Doc Values, a columnar storage structure stored on disk and managed by OS Cache, which does not consume Heap space and is suitable for aggregation and sorting.",
+      "wg": [
+        {
+          "t": "倒排索引",
+          "en": "inverted index",
+          "ps": "N"
+        },
+        {
+          "t": "列式儲存",
+          "en": "columnar storage",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "chapter09-q11",
+    "level": "intermediate",
+    "keywords": "Shard Allocation Awareness, High Availability, Rack Awareness",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您的叢集狀態為 Green，但所有節點都位於同一個實體機架 (Rack) 上。",
+        "en": "Your cluster status is Green, but all nodes are located in the same physical rack.",
+        "wg": [
+          {
+            "t": "機架",
+            "en": "rack",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "為了防止機架斷電導致資料完全遺失，您應該設定什麼機制？",
+        "en": "To prevent total data loss due to a rack power failure, what mechanism should you configure?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) Cross-Cluster Replication (CCR)",
+        "en": "(A) Cross-Cluster Replication (CCR)",
+        "wg": []
+      },
+      {
+        "t": "(B) Shard Allocation Awareness",
+        "en": "(B) Shard Allocation Awareness",
+        "wg": []
+      },
+      {
+        "t": "(C) Index Lifecycle Management (ILM)",
+        "en": "(C) Index Lifecycle Management (ILM)",
+        "wg": []
+      },
+      {
+        "t": "(D) Force Merge API",
+        "en": "(D) Force Merge API",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "Shard Allocation Awareness 強制 ES 識別節點的屬性（如 `rack_id` 或 `zone`），並確保 Primary 和 Replica Shard 分配在不同的實體位置，從而實現硬體故障隔離。",
+      "en": "Shard Allocation Awareness forces ES to recognize node attributes (like `rack_id` or `zone`) and ensures that Primary and Replica Shards are allocated to different physical locations, achieving hardware failure isolation.",
+      "wg": [
+        {
+          "t": "隔離",
+          "en": "isolation",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "chapter09-q12",
+    "level": "intermediate",
+    "keywords": "GC, Monitoring, Memory Leak, Troubleshooting",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在排查效能問題時，您使用 `_nodes/stats/jvm` 檢查 GC 狀態。",
+        "en": "While troubleshooting performance issues, you use `_nodes/stats/jvm` to check GC status.",
+        "wg": []
+      },
+      {
+        "t": "如果發現 `jvm.gc.collectors.old.collection_count` 在短時間內急劇增加，這通常意味著什麼？",
+        "en": "If you notice that `jvm.gc.collectors.old.collection_count` increases rapidly in a short period, what does this usually indicate?",
+        "wg": [
+          {
+            "t": "急劇增加",
+            "en": "increase rapidly",
+            "ps": "V"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 系統運作正常，這是定期清理快取的行為。",
+        "en": "(A) The system is functioning normally; this is routine cache clearing behavior.",
+        "wg": []
+      },
+      {
+        "t": "(B) Heap 記憶體壓力極大，JVM 正在頻繁執行 Full GC 試圖回收空間，可能即將發生 OOM。",
+        "en": "(B) Heap memory pressure is extreme; the JVM is frequently performing Full GC to reclaim space, and an OOM may be imminent.",
+        "wg": [
+          {
+            "t": "回收",
+            "en": "reclaim",
+            "ps": "V"
+          },
+          {
+            "t": "即將發生",
+            "en": "imminent",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "(C) Young Gen 空間不足，物件過早晉升到 Old Gen。",
+        "en": "(C) Young Gen space is insufficient, causing objects to be promoted to Old Gen prematurely.",
+        "wg": []
+      },
+      {
+        "t": "(D) CPU 資源過剩，JVM 正在進行預防性記憶體重組。",
+        "en": "(D) CPU resources are excessive, and the JVM is performing preventive memory reorganization.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "Old Gen GC (通常是 Full GC) 是昂貴且會暫停應用程式的操作。計數器快速增加代表記憶體回收困難，是記憶體洩漏或 Heap 不足的強烈訊號。",
+      "en": "Old Gen GC (usually Full GC) is an expensive operation that pauses the application. A rapidly increasing counter indicates difficulty in reclaiming memory and is a strong signal of a memory leak or insufficient Heap.",
+      "wg": [
+        {
+          "t": "訊號",
+          "en": "signal",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "chapter09-q13",
+    "level": "advanced",
+    "keywords": "Thread Pool, Queue Size, OOM, Write Rejection",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "面對頻繁的寫入拒絕 (429 Errors)，有同事建議將 `write` Thread Pool 的 `queue_size` 從預設值大幅調升至 10,000。",
+        "en": "Facing frequent write rejections (429 Errors), a colleague suggests drastically increasing the `queue_size` of the `write` Thread Pool to 10,000.",
+        "wg": [
+          {
+            "t": "大幅調升",
+            "en": "drastically increase",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "為什麼這通常被視為一個危險的反模式 (Anti-pattern)？",
+        "en": "Why is this generally considered a dangerous Anti-pattern?",
+        "wg": [
+          {
+            "t": "反模式",
+            "en": "anti-pattern",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 較大的 Queue 會導致 CPU Context Switch 過於頻繁。",
+        "en": "(A) A larger Queue causes excessive CPU Context Switching.",
+        "wg": []
+      },
+      {
+        "t": "(B) 堆積在 Queue 中的請求會佔用大量 Heap 記憶體，容易引發 Out of Memory (OOM) 錯誤。",
+        "en": "(B) Requests piling up in the Queue consume a large amount of Heap memory, easily triggering Out of Memory (OOM) errors.",
+        "wg": [
+          {
+            "t": "堆積",
+            "en": "pile up",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(C) ES 的 Queue 大小是硬編碼的，無法修改。",
+        "en": "(C) ES Queue size is hard-coded and cannot be modified.",
+        "wg": []
+      },
+      {
+        "t": "(D) 這會導致磁碟 I/O 飽和。",
+        "en": "(D) This will cause disk I/O saturation.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "Thread Pool Queue 中的每個請求都需要在記憶體中保存其數據結構。盲目增加 Queue 大小只是將壓力從 CPU 轉移到記憶體，當 Queue 填滿時，極可能撐爆 Heap 導致節點崩潰。",
+      "en": "Every request in the Thread Pool Queue requires memory to hold its data structure. Blindly increasing the Queue size just shifts pressure from CPU to memory; when the Queue fills up, it is highly likely to exhaust the Heap and crash the node.",
+      "wg": [
+        {
+          "t": "盲目",
+          "en": "blindly",
+          "ps": "Adv"
+        },
+        {
+          "t": "撐爆",
+          "en": "exhaust/burst",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "chapter09-q14",
+    "level": "intermediate",
+    "keywords": "Yellow Status, Data Loss, Replica Shard, Risk Assessment",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您的叢集長期處於 Yellow 狀態，因為您認為「反正讀寫功能都正常，這不緊急」。",
+        "en": "Your cluster has been in Yellow status for a long time because you think 'Read/Write functions are normal, so it's not urgent'.",
+        "wg": []
+      },
+      {
+        "t": "在這種狀態下，如果持有 Primary Shard 的節點發生硬體故障，會發生什麼後果？",
+        "en": "In this state, what is the consequence if the node holding the Primary Shard suffers a hardware failure?",
+        "wg": [
+          {
+            "t": "後果",
+            "en": "consequence",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 叢集會自動從 Snapshot 恢復數據。",
+        "en": "(A) The cluster will automatically restore data from a Snapshot.",
+        "wg": []
+      },
+      {
+        "t": "(B) 該 Shard 的數據將永久遺失，因為沒有已分配的 Replica 可供晉升。",
+        "en": "(B) Data for that Shard will be permanently lost because there are no allocated Replicas available for promotion.",
+        "wg": [
+          {
+            "t": "永久遺失",
+            "en": "permanently lost",
+            "ps": "V"
+          },
+          {
+            "t": "晉升",
+            "en": "promotion",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) 叢集會暫時變為 Red，但在節點重啟後會自動修復數據。",
+        "en": "(C) The cluster will temporarily turn Red, but data will automatically repair after the node restarts.",
+        "wg": []
+      },
+      {
+        "t": "(D) 寫入操作會失敗，但讀取操作仍然可以從其他節點服務。",
+        "en": "(D) Write operations will fail, but read operations can still be served from other nodes.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "Yellow 狀態意味著 Primary Shard 已分配，但 Replica Shard 未分配。如果此時 Primary 所在的節點發生不可恢復的故障，由於沒有副本備份，該分片的數據將會遺失。",
+      "en": "Yellow status means Primary Shards are allocated, but Replica Shards are not. If the node hosting the Primary suffers an unrecoverable failure at this time, the data in that shard will be lost due to the lack of a replica backup.",
+      "wg": [
+        {
+          "t": "不可恢復的",
+          "en": "unrecoverable",
+          "ps": "Adj"
+        }
+      ]
+    }
+  },
+  {
+    "no": "chapter09-q15",
+    "level": "intermediate",
+    "keywords": "Client Side, Load Balancing, Round-robin, Architecture",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在設計應用程式連接 ES 叢集的架構時，為了避免單點過載並提升效率，客戶端 (Client) 應該採取什麼策略？",
+        "en": "When designing the architecture for an application connecting to an ES cluster, what strategy should the Client adopt to avoid single-point overload and improve efficiency?",
+        "wg": [
+          {
+            "t": "過載",
+            "en": "overload",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "假設您沒有使用專用的硬體負載平衡器。",
+        "en": "Assuming you are not using a dedicated hardware load balancer.",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 只連接 Master Node，由 Master 轉發請求。",
+        "en": "(A) Connect only to the Master Node and let the Master forward requests.",
+        "wg": []
+      },
+      {
+        "t": "(B) 硬編碼單一 Data Node 的 IP 地址。",
+        "en": "(B) Hardcode the IP address of a single Data Node.",
+        "wg": []
+      },
+      {
+        "t": "(C) 實作客戶端負載平衡 (Client-side Load Balancing)，輪詢 (Round-robin) 所有 Data Nodes。",
+        "en": "(C) Implement Client-side Load Balancing, round-robin through all Data Nodes.",
+        "wg": [
+          {
+            "t": "輪詢",
+            "en": "round-robin",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(D) 隨機連接任意節點，失敗後不重試。",
+        "en": "(D) Randomly connect to any node and do not retry upon failure.",
+        "wg": []
+      }
+    ],
+    "answer": "(C)",
+    "why": {
+      "t": "最佳實務是讓客戶端知道叢集中所有可用 Data Node 的地址（可透過 Sniffing 機制），並使用 Round-robin 分散請求。這能避免單一節點成為瓶頸，並減少請求轉發的跳躍次數 (Double-hop)。",
+      "en": "Best practice is for the client to know the addresses of all available Data Nodes in the cluster (via Sniffing mechanism) and use Round-robin to distribute requests. This prevents a single node from becoming a bottleneck and reduces request forwarding hops (Double-hop).",
+      "wg": [
+        {
+          "t": "瓶頸",
+          "en": "bottleneck",
+          "ps": "N"
+        },
+        {
+          "t": "跳躍次數",
+          "en": "hops",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "chapter09-q11",
+    "level": "advanced",
+    "keywords": "Garbage Collection, JVM, Performance, Troubleshooting, Stop-the-world",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "GET /_nodes/stats/jvm?human",
+    "question": [
+      {
+        "t": "您的監控系統顯示 ElasticSearch 叢集的回應延遲忽高忽低，且節點偶爾會短暫無回應。",
+        "en": "Your monitoring system shows that ElasticSearch cluster response latency is fluctuating, and nodes occasionally become unresponsive for short periods.",
+        "wg": [
+          {
+            "t": "忽高忽低",
+            "en": "fluctuating",
+            "ps": "Adj"
+          },
+          {
+            "t": "無回應",
+            "en": "unresponsive",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "檢查 `_nodes/stats` 後發現 `jvm.gc.collectors.old.collection_count` 在短時間內急劇增加，而 `heap_used_percent` 居高不下。",
+        "en": "After checking `_nodes/stats`, you find that `jvm.gc.collectors.old.collection_count` is increasing rapidly in a short time, and `heap_used_percent` remains high.",
+        "wg": [
+          {
+            "t": "急劇增加",
+            "en": "increasing rapidly",
+            "ps": "V"
+          },
+          {
+            "t": "居高不下",
+            "en": "remains high",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "這最可能代表什麼狀況？",
+        "en": "What does this most likely indicate?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 這是高併發寫入時的正常現象，Young GC 正在頻繁運作。",
+        "en": "(A) This is normal behavior during high concurrency writes, as Young GC is operating frequently.",
+        "wg": [
+          {
+            "t": "高併發",
+            "en": "high concurrency",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(B) 節點正面臨嚴重的記憶體壓力，頻繁的 Full GC (Old Gen GC) 導致了 Stop-the-world 停頓。",
+        "en": "(B) The node is facing severe memory pressure; frequent Full GC (Old Gen GC) is causing Stop-the-world pauses.",
+        "wg": [
+          {
+            "t": "記憶體壓力",
+            "en": "memory pressure",
+            "ps": "N"
+          },
+          {
+            "t": "停頓",
+            "en": "pauses",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) 磁碟 I/O 達到瓶頸，導致 JVM 無法寫入 Segment 檔案。",
+        "en": "(C) Disk I/O has reached a bottleneck, preventing the JVM from writing Segment files.",
+        "wg": [
+          {
+            "t": "瓶頸",
+            "en": "bottleneck",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(D) CPU 被 Lucene 的複雜查詢佔滿，與記憶體無關。",
+        "en": "(D) CPU is fully occupied by complex Lucene queries, unrelated to memory.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "Old GC (Full GC) 的計數急劇增加意味著 JVM 正在拼命嘗試回收老年代物件但效果不彰，這通常會觸發 Stop-the-world 機制，導致節點暫時無法回應請求，是記憶體不足或洩漏的典型徵兆。",
+      "en": "A rapid increase in Old GC (Full GC) counts means the JVM is desperately trying to reclaim Old Generation objects with little success. This usually triggers Stop-the-world mechanisms, causing the node to become temporarily unresponsive, which is a classic sign of memory exhaustion or leaks.",
+      "wg": [
+        {
+          "t": "效果不彰",
+          "en": "little success",
+          "ps": "Adj"
+        },
+        {
+          "t": "徵兆",
+          "en": "sign",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "chapter09-q12",
+    "level": "intermediate",
+    "keywords": "High Availability, Shard Allocation Awareness, Rack Awareness, Disaster Recovery",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您的公司在自建機房運行 ES 叢集，硬體分布在三個不同的實體機架 (Rack) 上。",
+        "en": "Your company runs an ES cluster in an on-premise data center, with hardware distributed across three different physical racks.",
+        "wg": [
+          {
+            "t": "實體機架",
+            "en": "physical racks",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "為了防止單一機架斷電導致資料遺失或服務中斷，您應該配置哪項設定？",
+        "en": "To prevent data loss or service interruption caused by a single rack power failure, which setting should you configure?",
+        "wg": [
+          {
+            "t": "斷電",
+            "en": "power failure",
+            "ps": "N"
+          },
+          {
+            "t": "服務中斷",
+            "en": "service interruption",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 增加 `number_of_replicas` 到 3，確保每個節點都有一份資料。",
+        "en": "(A) Increase `number_of_replicas` to 3 to ensure every node has a copy of the data.",
+        "wg": []
+      },
+      {
+        "t": "(B) 配置 Shard Allocation Awareness，強制將 Primary 與 Replica 分配到具有不同 Rack 屬性的節點。",
+        "en": "(B) Configure Shard Allocation Awareness to force Primary and Replica shards to be allocated to nodes with different Rack attributes.",
+        "wg": [
+          {
+            "t": "強制",
+            "en": "force",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(C) 啟用 Snapshot Lifecycle Management (SLM) 進行每小時備份。",
+        "en": "(C) Enable Snapshot Lifecycle Management (SLM) for hourly backups.",
+        "wg": []
+      },
+      {
+        "t": "(D) 將所有 Master 節點部署在同一個機架上以確保 quorum 穩定。",
+        "en": "(D) Deploy all Master nodes on the same rack to ensure quorum stability.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "Shard Allocation Awareness (分片分配感知) 允許 ES 根據節點屬性（如 `rack_id`）來決定分片位置，確保主分片與副本分片不會落在同一個機架上，從而實現機架級別的高可用性。",
+      "en": "Shard Allocation Awareness allows ES to determine shard placement based on node attributes (like `rack_id`), ensuring that Primary and Replica shards do not land on the same rack, thereby achieving rack-level high availability.",
+      "wg": [
+        {
+          "t": "分片分配感知",
+          "en": "Shard Allocation Awareness",
+          "ps": "N"
+        },
+        {
+          "t": "機架級別",
+          "en": "rack-level",
+          "ps": "Adj"
+        }
+      ]
+    }
+  },
+  {
+    "no": "chapter09-q13",
+    "level": "intermediate",
+    "keywords": "Thread Pool, Queue Size, OOM, Anti-pattern, Write Rejection",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "為了減少大量寫入時發生的 `429 Too Many Requests` 錯誤，團隊成員建議將 `write` Thread Pool 的 `queue_size` 從預設值大幅調高至 100,000。",
+        "en": "To reduce `429 Too Many Requests` errors during heavy writes, a team member suggests significantly increasing the `queue_size` of the `write` Thread Pool from the default to 100,000.",
+        "wg": [
+          {
+            "t": "大幅調高",
+            "en": "significantly increasing",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "身為資深工程師，您會如何評估這個建議？",
+        "en": "As a Senior Engineer, how would you evaluate this suggestion?",
+        "wg": [
+          {
+            "t": "評估",
+            "en": "evaluate",
+            "ps": "V"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 這是一個好主意，因為佇列越大，能緩衝的突發流量就越多。",
+        "en": "(A) This is a good idea because a larger queue can buffer more burst traffic.",
+        "wg": [
+          {
+            "t": "突發流量",
+            "en": "burst traffic",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(B) 這是一個危險的操作，因為堆積在佇列中的請求會佔用大量 Heap 記憶體，極易導致 OOM。",
+        "en": "(B) This is a dangerous operation because requests piled up in the queue consume a large amount of Heap memory, easily leading to OOM.",
+        "wg": [
+          {
+            "t": "堆積",
+            "en": "piled up",
+            "ps": "V"
+          },
+          {
+            "t": "極易",
+            "en": "easily",
+            "ps": "Adv"
+          }
+        ]
+      },
+      {
+        "t": "(C) 這會導致 CPU 使用率過低，因為執行緒都在等待佇列填滿。",
+        "en": "(C) This will cause CPU usage to be too low because threads are waiting for the queue to fill up.",
+        "wg": []
+      },
+      {
+        "t": "(D) 只有在使用 SSD 硬碟時才建議這樣做，否則 I/O 會跟不上。",
+        "en": "(D) This is only recommended when using SSDs; otherwise, I/O will not keep up.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "盲目增加 Queue Size 是常見的反模式。每個排隊中的請求都需要記憶體來保存其數據結構，過大的佇列會隱藏背壓 (Backpressure) 問題，最終導致 Heap 耗盡並引發 OutOfMemoryError。",
+      "en": "Blindly increasing Queue Size is a common anti-pattern. Each queued request requires memory to hold its data structure. An excessively large queue hides backpressure issues and eventually leads to Heap exhaustion and OutOfMemoryError.",
+      "wg": [
+        {
+          "t": "反模式",
+          "en": "anti-pattern",
+          "ps": "N"
+        },
+        {
+          "t": "背壓",
+          "en": "backpressure",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "chapter09-q14",
+    "level": "intermediate",
+    "keywords": "Client Configuration, Load Balancing, Best Practices, Performance",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您的應用程式目前透過單一 VIP (Virtual IP) 連線至 ES 叢集，該 VIP 僅指向其中一台 Data Node。",
+        "en": "Your application currently connects to the ES cluster via a single VIP (Virtual IP), which points to only one specific Data Node.",
+        "wg": [
+          {
+            "t": "指向",
+            "en": "points to",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "監控顯示該節點的網路流量與 CPU 負載遠高於其他節點。為了改善此狀況，最佳的客戶端配置策略為何？",
+        "en": "Monitoring shows that this node's network traffic and CPU load are much higher than others. To improve this, what is the best client-side configuration strategy?",
+        "wg": [
+          {
+            "t": "配置策略",
+            "en": "configuration strategy",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 為該節點增加更多 CPU 與記憶體資源。",
+        "en": "(A) Add more CPU and memory resources to that node.",
+        "wg": []
+      },
+      {
+        "t": "(B) 在客戶端啟用「嗅探 (Sniffing)」功能或提供完整的節點清單，並使用 Round-robin 負載平衡。",
+        "en": "(B) Enable \"Sniffing\" on the client side or provide a full list of nodes, and use Round-robin load balancing.",
+        "wg": [
+          {
+            "t": "嗅探",
+            "en": "Sniffing",
+            "ps": "N"
+          },
+          {
+            "t": "負載平衡",
+            "en": "load balancing",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) 將該節點升級為 Master Node 以處理更多請求。",
+        "en": "(C) Promote that node to a Master Node to handle more requests.",
+        "wg": []
+      },
+      {
+        "t": "(D) 限制應用程式的併發連線數。",
+        "en": "(D) Limit the number of concurrent connections from the application.",
+        "wg": [
+          {
+            "t": "併發連線數",
+            "en": "concurrent connections",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "最佳實務是讓客戶端知道叢集中所有可用的 Data Nodes，並在客戶端進行輪詢 (Round-robin)。這樣可以避免單點瓶頸，並在某節點故障時自動切換。",
+      "en": "The best practice is for the client to be aware of all available Data Nodes in the cluster and perform Round-robin on the client side. This avoids single-point bottlenecks and allows automatic failover if a node goes down.",
+      "wg": [
+        {
+          "t": "單點瓶頸",
+          "en": "single-point bottlenecks",
+          "ps": "N"
+        },
+        {
+          "t": "自動切換",
+          "en": "automatic failover",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "chapter09-q15",
+    "level": "advanced",
+    "keywords": "Circuit Breaker, Bulk API, Request Circuit Breaker, Troubleshooting",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在執行 Bulk Indexing 時，您收到了 `CircuitBreakingException: [parent] Data too large`。",
+        "en": "While performing Bulk Indexing, you received a `CircuitBreakingException: [parent] Data too large`.",
+        "wg": []
+      },
+      {
+        "t": "檢查監控後發現 `fielddata` 的記憶體使用率極低（接近 0）。",
+        "en": "After checking monitoring, you found that `fielddata` memory usage is very low (near 0).",
+        "wg": [
+          {
+            "t": "極低",
+            "en": "very low",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "請問最可能觸發斷路器的原因是什麼？",
+        "en": "What is the most likely cause for triggering the circuit breaker?",
+        "wg": [
+          {
+            "t": "觸發",
+            "en": "triggering",
+            "ps": "V"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 您的查詢包含了複雜的 `text` 欄位聚合 (Aggregation)。",
+        "en": "(A) Your query contains complex aggregations on `text` fields.",
+        "wg": []
+      },
+      {
+        "t": "(B) 單次 Bulk 請求的 JSON Body 過大，觸發了 Request Circuit Breaker。",
+        "en": "(B) The JSON Body of a single Bulk request is too large, triggering the Request Circuit Breaker.",
+        "wg": []
+      },
+      {
+        "t": "(C) OS Cache 已滿，導致無法分配更多記憶體給 Heap。",
+        "en": "(C) OS Cache is full, preventing more memory allocation to the Heap.",
+        "wg": []
+      },
+      {
+        "t": "(D) 節點的 `indices.breaker.total.limit` 設定過低（例如低於 10%）。",
+        "en": "(D) The node's `indices.breaker.total.limit` is set too low (e.g., below 10%).",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "當 Field Data 使用率很低時，`Data too large` 通常是由 `Request Circuit Breaker` 觸發的。這發生在單個請求（如巨大的 Bulk 批次）的結構大小超過了限制，ES 會在處理前預估並拒絕該請求以防止 OOM。",
+      "en": "When Field Data usage is low, `Data too large` is usually triggered by the `Request Circuit Breaker`. This happens when the structure size of a single request (like a huge Bulk batch) exceeds the limit; ES estimates and rejects the request before processing to prevent OOM.",
+      "wg": [
+        {
+          "t": "預估",
+          "en": "estimates",
+          "ps": "V"
+        },
+        {
+          "t": "拒絕",
+          "en": "rejects",
+          "ps": "V"
+        }
+      ]
+    }
+  }
+]

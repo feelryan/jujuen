@@ -1,0 +1,1319 @@
+[
+  {
+    "no": "chapter02-q12",
+    "level": "intermediate",
+    "keywords": "NRT, Refresh, GET API, Visibility, Real-time",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "開發團隊向您回報一個奇怪的現象：應用程式寫入一筆新資料後，立即透過 ID 呼叫 `GET API` 可以成功讀取該文件，",
+        "en": "The development team reports a strange phenomenon to you: after the application writes a new record, calling the `GET API` by ID immediately successfully retrieves the document,",
+        "wg": [
+          {
+            "t": "現象",
+            "en": "phenomenon",
+            "ps": "N"
+          },
+          {
+            "t": "立即",
+            "en": "immediately",
+            "ps": "Adv"
+          }
+        ]
+      },
+      {
+        "t": "但若同一時間透過 `_search API` 進行搜尋，卻找不到該筆資料。",
+        "en": "but if the `_search API` is used to search for it at the same time, the record cannot be found.",
+        "wg": [
+          {
+            "t": "搜尋",
+            "en": "search",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "根據 ElasticSearch 的寫入機制，這是什麼原因造成的？",
+        "en": "Based on ElasticSearch's write mechanism, what is the cause of this?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 這是正常的 NRT (Near Real-Time) 行為；`GET` 是即時的，而 `_search` 需等待 Refresh 操作後資料才可見。",
+        "en": "(A) This is normal NRT (Near Real-Time) behavior; `GET` is real-time, while `_search` requires waiting for a Refresh operation for data to be visible.",
+        "wg": [
+          {
+            "t": "即時的",
+            "en": "real-time",
+            "ps": "Adj"
+          },
+          {
+            "t": "可見",
+            "en": "visible",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "(B) 資料尚未寫入 Translog，因此搜尋引擎無法索引該文件。",
+        "en": "(B) The data has not yet been written to the Translog, so the search engine cannot index the document.",
+        "wg": []
+      },
+      {
+        "t": "(C) 該文件尚未複製 (Replicate) 到所有 Replica Shards，因此 `_search` 為了一致性而隱藏了結果。",
+        "en": "(C) The document has not yet been replicated to all Replica Shards, so `_search` hides the result for consistency.",
+        "wg": [
+          {
+            "t": "隱藏",
+            "en": "hide",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(D) 發生了 Split-brain，寫入請求被送往了錯誤的 Master 節點。",
+        "en": "(D) A Split-brain occurred, and the write request was sent to the wrong Master node.",
+        "wg": []
+      }
+    ],
+    "answer": "(A)",
+    "why": {
+      "t": "ElasticSearch 的 `GET <id>` API 是即時的（Real-time），它會檢查 Translog 或 Memory Buffer；而 `_search` 依賴 Lucene Segment，必須等待 `refresh_interval`（預設 1 秒）觸發 Refresh 後，資料才會進入 Segment 並可被搜尋。",
+      "en": "ElasticSearch's `GET <id>` API is real-time, checking the Translog or Memory Buffer; whereas `_search` relies on Lucene Segments and must wait for the `refresh_interval` (default 1s) to trigger a Refresh before data enters a Segment and becomes searchable.",
+      "wg": [
+        {
+          "t": "依賴",
+          "en": "rely on",
+          "ps": "V"
+        },
+        {
+          "t": "觸發",
+          "en": "trigger",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "chapter02-q13",
+    "level": "advanced",
+    "keywords": "Translog, Flush, Recovery, Performance, Trade-off",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "為了減少磁碟 I/O 開銷，您考慮大幅調高 `index.translog.flush_threshold_size`（例如設為 10GB），以減少 Flush 發生的頻率。",
+        "en": "To reduce disk I/O overhead, you are considering significantly increasing `index.translog.flush_threshold_size` (e.g., to 10GB) to reduce the frequency of Flushes.",
+        "wg": [
+          {
+            "t": "開銷",
+            "en": "overhead",
+            "ps": "N"
+          },
+          {
+            "t": "頻率",
+            "en": "frequency",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "這樣做最主要的潛在負面影響是什麼？",
+        "en": "What is the main potential negative impact of doing this?",
+        "wg": [
+          {
+            "t": "潛在的",
+            "en": "potential",
+            "ps": "Adj"
+          },
+          {
+            "t": "負面影響",
+            "en": "negative impact",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 會導致搜尋結果嚴重延遲，因為資料只有在 Flush 後才可被搜尋。",
+        "en": "(A) It will cause significant delays in search results because data is only searchable after a Flush.",
+        "wg": [
+          {
+            "t": "延遲",
+            "en": "delay",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(B) 節點重啟或故障復原（Recovery）的時間會顯著變長，因為需要重播（Replay）大量的 Translog。",
+        "en": "(B) Node restart or failure recovery time will significantly increase because a large amount of Translog needs to be replayed.",
+        "wg": [
+          {
+            "t": "重啟",
+            "en": "restart",
+            "ps": "V"
+          },
+          {
+            "t": "重播",
+            "en": "replay",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(C) 會增加資料遺失的風險，因為 Translog 越大越容易損壞。",
+        "en": "(C) It increases the risk of data loss because larger Translogs are more prone to corruption.",
+        "wg": [
+          {
+            "t": "損壞",
+            "en": "corruption",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(D) 會導致記憶體溢出（OOM），因為 Translog 必須全部載入 Heap Memory。",
+        "en": "(D) It will cause Out Of Memory (OOM) because the entire Translog must be loaded into Heap Memory.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "Flush 的作用是執行 Lucene Commit 並清空 Translog。若 Translog 累積很大才 Flush，當節點當機重啟時，ES 必須從 Translog 重播所有未 Commit 的操作來恢復資料，這會導致啟動時間大幅增加。",
+      "en": "The purpose of Flush is to execute a Lucene Commit and clear the Translog. If the Translog accumulates significantly before a Flush, upon node crash and restart, ES must replay all uncommitted operations from the Translog to recover data, leading to a drastically increased startup time.",
+      "wg": [
+        {
+          "t": "累積",
+          "en": "accumulate",
+          "ps": "V"
+        },
+        {
+          "t": "恢復",
+          "en": "recover",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "chapter02-q14",
+    "level": "intermediate",
+    "keywords": "Cluster Coordination, Quorum, Master Election, High Availability",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在 ElasticSearch 7.x+ 的叢集中，您配置了 3 個 Master-eligible 節點。",
+        "en": "In an ElasticSearch 7.x+ cluster, you have configured 3 Master-eligible nodes.",
+        "wg": [
+          {
+            "t": "配置",
+            "en": "configure",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "假設因為電力故障，其中 2 個節點同時當機，只剩下 1 個節點存活。",
+        "en": "Suppose due to a power failure, 2 of these nodes crash simultaneously, leaving only 1 node alive.",
+        "wg": [
+          {
+            "t": "存活",
+            "en": "alive",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "此時叢集的狀態會如何？",
+        "en": "What will be the state of the cluster at this point?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 剩餘的 1 個節點會自動宣告自己為 Master，叢集繼續運作。",
+        "en": "(A) The remaining 1 node will automatically declare itself as Master, and the cluster continues to operate.",
+        "wg": [
+          {
+            "t": "宣告",
+            "en": "declare",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(B) 叢集將無法選出 Master 並停止接受寫入，因為存活節點數未達法定人數（Quorum）。",
+        "en": "(B) The cluster will fail to elect a Master and stop accepting writes because the number of alive nodes does not meet the Quorum.",
+        "wg": [
+          {
+            "t": "法定人數",
+            "en": "quorum",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) 叢集會進入唯讀模式（Read-only），允許搜尋但不允許寫入。",
+        "en": "(C) The cluster will enter Read-only mode, allowing searches but not writes.",
+        "wg": []
+      },
+      {
+        "t": "(D) 剩餘的節點會等待 30 秒，若其他節點未恢復，則強制接管叢集。",
+        "en": "(D) The remaining node will wait for 30 seconds, and if other nodes do not recover, it will forcibly take over the cluster.",
+        "wg": [
+          {
+            "t": "接管",
+            "en": "take over",
+            "ps": "V"
+          }
+        ]
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "為了防止 Split-brain，ES 需要多數決（Quorum）才能選出 Master。3 個節點的 Quorum 是 2 `(3/2 + 1)`。當只剩 1 個節點時，無法滿足 Quorum，因此叢集無法運作（Unavailable）。",
+      "en": "To prevent Split-brain, ES requires a Quorum (majority) to elect a Master. The Quorum for 3 nodes is 2 `(3/2 + 1)`. When only 1 node remains, the Quorum cannot be met, so the cluster becomes Unavailable.",
+      "wg": [
+        {
+          "t": "多數決",
+          "en": "majority rule",
+          "ps": "N"
+        },
+        {
+          "t": "無法運作",
+          "en": "unavailable",
+          "ps": "Adj"
+        }
+      ]
+    }
+  },
+  {
+    "no": "chapter02-q15",
+    "level": "intermediate",
+    "keywords": "Coordinating Node, Architecture, Performance, Scatter-Gather",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您的 ES 叢集面臨大量的複雜聚合查詢（Aggregations），導致 Data Nodes 的 Heap Memory 經常告急。",
+        "en": "Your ES cluster is facing a large volume of complex aggregation queries, causing Data Nodes to frequently run low on Heap Memory.",
+        "wg": [
+          {
+            "t": "聚合",
+            "en": "aggregation",
+            "ps": "N"
+          },
+          {
+            "t": "告急",
+            "en": "run low",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "在不增加 Data Nodes 的前提下，引入「Coordinating Only Nodes」（協調節點）對架構有何幫助？",
+        "en": "Without adding more Data Nodes, how does introducing 'Coordinating Only Nodes' help the architecture?",
+        "wg": [
+          {
+            "t": "引入",
+            "en": "introduce",
+            "ps": "V"
+          },
+          {
+            "t": "前提",
+            "en": "premise",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 它們可以分擔 Scatter-Gather 階段的 Reduce 工作，減少 Data Nodes 處理最終結果合併的記憶體消耗。",
+        "en": "(A) They can offload the Reduce work of the Scatter-Gather phase, reducing the memory consumption on Data Nodes for merging final results.",
+        "wg": [
+          {
+            "t": "分擔",
+            "en": "offload",
+            "ps": "V"
+          },
+          {
+            "t": "消耗",
+            "en": "consumption",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(B) 它們可以儲存 Translog 的副本，加快寫入速度。",
+        "en": "(B) They can store copies of the Translog to speed up writes.",
+        "wg": []
+      },
+      {
+        "t": "(C) 它們會接管 Master 的職責，讓 Data Nodes 專注於搜尋。",
+        "en": "(C) They will take over Master duties, allowing Data Nodes to focus on search.",
+        "wg": [
+          {
+            "t": "職責",
+            "en": "duty",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(D) 它們可以快取所有的 Lucene Segments，提供更快的讀取速度。",
+        "en": "(D) They can cache all Lucene Segments to provide faster read speeds.",
+        "wg": []
+      }
+    ],
+    "answer": "(A)",
+    "why": {
+      "t": "在搜尋請求中，Coordinating Node 負責將請求分發（Scatter）給相關 Shards，並收集（Gather/Reduce）結果。對於複雜聚合，Reduce 階段可能消耗大量記憶體。獨立的 Coordinating Nodes 可以將此負載從 Data Nodes 移出。",
+      "en": "In a search request, the Coordinating Node is responsible for distributing (Scatter) the request to relevant Shards and collecting (Gather/Reduce) the results. For complex aggregations, the Reduce phase can consume significant memory. Dedicated Coordinating Nodes can move this load away from Data Nodes.",
+      "wg": [
+        {
+          "t": "分發",
+          "en": "distribute",
+          "ps": "V"
+        },
+        {
+          "t": "負載",
+          "en": "load",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "chapter02-q05",
+    "level": "advanced",
+    "keywords": "Concurrency Control, OCC, _seq_no, _primary_term",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您正在設計一個高併發的庫存管理系統，多個應用程式實例可能會同時嘗試更新同一個商品的庫存數量。",
+        "en": "You are designing a high-concurrency inventory management system where multiple application instances may attempt to update the stock quantity of the same item simultaneously.",
+        "wg": [
+          {
+            "t": "高併發",
+            "en": "high-concurrency",
+            "ps": "Adj"
+          },
+          {
+            "t": "庫存",
+            "en": "inventory",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "為了防止「遺失更新」(Lost Update) 問題，您決定採用 ElasticSearch 的樂觀併發控制 (Optimistic Concurrency Control) 機制。",
+        "en": "To prevent the 'Lost Update' problem, you decide to use ElasticSearch's Optimistic Concurrency Control mechanism.",
+        "wg": [
+          {
+            "t": "遺失更新",
+            "en": "Lost Update",
+            "ps": "N"
+          },
+          {
+            "t": "樂觀併發控制",
+            "en": "Optimistic Concurrency Control",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "在 ElasticSearch 7.x 及以上版本，下列哪一種實作方式是正確且推薦的？",
+        "en": "In ElasticSearch 7.x and above, which of the following implementation approaches is correct and recommended?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 在更新請求中帶上 `_version` 參數，確保版本號碼匹配。",
+        "en": "(A) Include the `_version` parameter in the update request to ensure the version number matches.",
+        "wg": []
+      },
+      {
+        "t": "(B) 使用 `if_seq_no` 與 `if_primary_term` 參數來確保操作是基於最新的資料狀態。",
+        "en": "(B) Use the `if_seq_no` and `if_primary_term` parameters to ensure the operation is based on the latest data state.",
+        "wg": [
+          {
+            "t": "參數",
+            "en": "parameter",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) 使用 `ctx._source.lock = true` 在 Painless Script 中實作自定義鎖。",
+        "en": "(C) Implement a custom lock in a Painless Script using `ctx._source.lock = true`.",
+        "wg": []
+      },
+      {
+        "t": "(D) 依賴 ElasticSearch 預設的 Last-Write-Wins 機制，不需要額外參數。",
+        "en": "(D) Rely on ElasticSearch's default Last-Write-Wins mechanism without extra parameters.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "在 ES 7.x+ 中，推薦使用 `_seq_no` (序列號) 與 `_primary_term` 進行樂觀鎖控制。當寫入請求攜帶的序列號與目前儲存的不符時，ES 會拋出 `VersionConflictEngineException`。雖然 `_version` 在舊版中被使用，但新版機制能更精確地處理 Primary Failover 後的併發狀況。",
+      "en": "In ES 7.x+, it is recommended to use `_seq_no` (Sequence Number) and `_primary_term` for optimistic locking. When the sequence number in the write request does not match the stored one, ES throws a `VersionConflictEngineException`. While `_version` was used in older versions, the new mechanism handles concurrency more accurately after a Primary Failover.",
+      "wg": [
+        {
+          "t": "序列號",
+          "en": "Sequence Number",
+          "ps": "N"
+        },
+        {
+          "t": "拋出",
+          "en": "throw",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "chapter02-q06",
+    "level": "intermediate",
+    "keywords": "Performance, Bulk Indexing, Refresh Interval, NRT",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您的團隊需要將數 TB 的歷史 Log 資料匯入到一個全新的 ElasticSearch 叢集中。",
+        "en": "Your team needs to import several TBs of historical log data into a brand new ElasticSearch cluster.",
+        "wg": [
+          {
+            "t": "匯入",
+            "en": "import",
+            "ps": "V"
+          },
+          {
+            "t": "叢集",
+            "en": "cluster",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "目前的寫入速度不如預期。由於這是初始資料載入，匯入過程中不需要立即搜尋到剛寫入的資料。",
+        "en": "The current write speed is below expectations. Since this is an initial data load, the newly written data does not need to be immediately searchable during the import.",
+        "wg": [
+          {
+            "t": "初始",
+            "en": "initial",
+            "ps": "Adj"
+          },
+          {
+            "t": "不如預期",
+            "en": "below expectations",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "根據系統設計的最佳實務，調整下列哪一項設定能帶來最顯著的寫入效能提升？",
+        "en": "According to system design best practices, adjusting which of the following settings will yield the most significant write performance improvement?",
+        "wg": [
+          {
+            "t": "顯著的",
+            "en": "significant",
+            "ps": "Adj"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 將 `index.translog.durability` 設定為 `async`。",
+        "en": "(A) Set `index.translog.durability` to `async`.",
+        "wg": []
+      },
+      {
+        "t": "(B) 將 `refresh_interval` 設定為 `-1` 或較大的數值（如 `30s`）。",
+        "en": "(B) Set `refresh_interval` to `-1` or a larger value (e.g., `30s`).",
+        "wg": []
+      },
+      {
+        "t": "(C) 增加 `number_of_replicas` 以分散寫入壓力。",
+        "en": "(C) Increase `number_of_replicas` to distribute write pressure.",
+        "wg": []
+      },
+      {
+        "t": "(D) 手動頻繁呼叫 `_flush` API 以清空 Buffer。",
+        "en": "(D) Manually call the `_flush` API frequently to clear the Buffer.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "預設的 `refresh_interval` 為 1 秒，這意味著 ES 每秒都會建立新的 Lucene Segment，這對大量寫入非常消耗資源。將其設為 `-1` (關閉自動 Refresh) 可以大幅減少 Segment 的建立與合併開銷，顯著提升吞吐量。增加 Replica 反而會降低寫入速度，因為資料需要複製更多份。",
+      "en": "The default `refresh_interval` is 1 second, meaning ES creates a new Lucene Segment every second, which is resource-intensive for heavy writes. Setting it to `-1` (disabling automatic Refresh) significantly reduces the overhead of Segment creation and merging, boosting throughput. Increasing Replicas would actually slow down writes as data needs to be copied more times.",
+      "wg": [
+        {
+          "t": "開銷",
+          "en": "overhead",
+          "ps": "N"
+        },
+        {
+          "t": "吞吐量",
+          "en": "throughput",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "chapter02-q07",
+    "level": "intermediate",
+    "keywords": "Routing, Coordinating Node, Sharding",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "當 Client 發送一個寫入請求到 ElasticSearch 叢集中的 Node A，但根據 Routing 規則，該文件的 Primary Shard 位於 Node B。",
+        "en": "When a Client sends a write request to Node A in an ElasticSearch cluster, but according to Routing rules, the document's Primary Shard is located on Node B.",
+        "wg": [
+          {
+            "t": "寫入請求",
+            "en": "write request",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "關於 Node A 在此請求中的角色與行為，下列敘述何者正確？",
+        "en": "Regarding Node A's role and behavior in this request, which of the following statements is correct?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) Node A 會拒絕請求，並回傳 HTTP 307 Redirect 指示 Client 直接連線到 Node B。",
+        "en": "(A) Node A will reject the request and return an HTTP 307 Redirect instructing the Client to connect directly to Node B.",
+        "wg": []
+      },
+      {
+        "t": "(B) Node A 擔任 Coordinating Node 的角色，它會計算 Routing Hash，將請求轉發給 Node B，並等待 Node B 回應後再回傳給 Client。",
+        "en": "(B) Node A acts as a Coordinating Node. It calculates the Routing Hash, forwards the request to Node B, and waits for Node B's response before replying to the Client.",
+        "wg": [
+          {
+            "t": "轉發",
+            "en": "forward",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(C) Node A 會先將資料寫入自己的 Translog，然後非同步地將資料複製到 Node B。",
+        "en": "(C) Node A will first write the data to its own Translog, then asynchronously replicate the data to Node B.",
+        "wg": []
+      },
+      {
+        "t": "(D) Node A 必須是 Master Node 才能處理此類跨節點的寫入請求。",
+        "en": "(D) Node A must be a Master Node to handle such cross-node write requests.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "在 ES 中，任何節點都可以接收請求並成為 Coordinating Node。該節點負責根據 `hash(routing)` 公式確定 Primary Shard 的位置，將請求轉發過去，並負責彙整結果回傳給 Client。Client 不需要知道具體的 Shard 分佈。",
+      "en": "In ES, any node can receive a request and become the Coordinating Node. This node is responsible for determining the Primary Shard's location based on the `hash(routing)` formula, forwarding the request, and aggregating the result to return to the Client. The Client does not need to know the specific Shard distribution.",
+      "wg": [
+        {
+          "t": "彙整",
+          "en": "aggregate",
+          "ps": "V"
+        },
+        {
+          "t": "分佈",
+          "en": "distribution",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "chapter02-q08",
+    "level": "advanced",
+    "keywords": "Durability, Translog, Refresh, Crash Recovery",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在 ElasticSearch 的寫入流程中，假設一個文件剛完成了 `Refresh` 操作，但尚未觸發 `Flush` (Lucene Commit)。",
+        "en": "In the ElasticSearch write flow, assume a document has just completed the `Refresh` operation but has not yet triggered a `Flush` (Lucene Commit).",
+        "wg": [
+          {
+            "t": "觸發",
+            "en": "trigger",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "此時若該伺服器發生斷電故障，關於該文件的狀態，下列何者正確？",
+        "en": "If a power failure occurs on the server at this moment, which of the following is true regarding the status of the document?",
+        "wg": [
+          {
+            "t": "斷電",
+            "en": "power failure",
+            "ps": "N"
+          },
+          {
+            "t": "故障",
+            "en": "failure/fault",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 資料會遺失，因為 Refresh 僅將資料寫入 OS Cache，並未寫入磁碟。",
+        "en": "(A) Data will be lost because Refresh only writes data to the OS Cache, not to the disk.",
+        "wg": []
+      },
+      {
+        "t": "(B) 資料不會遺失，因為在寫入 Memory Buffer 的同時，資料已被寫入並 fsync 到 Translog 中。",
+        "en": "(B) Data will not be lost because, simultaneously with writing to the Memory Buffer, the data was written and fsync-ed to the Translog.",
+        "wg": []
+      },
+      {
+        "t": "(C) 資料會遺失，除非 `refresh_interval` 被設定為 0。",
+        "en": "(C) Data will be lost unless `refresh_interval` is set to 0.",
+        "wg": []
+      },
+      {
+        "t": "(D) 資料狀態未知，取決於 Replica 是否已經完成同步。",
+        "en": "(D) Data status is unknown, depending on whether the Replica has completed synchronization.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "這是 ES 資料安全的核心機制。雖然 Refresh 產生的 Lucene Segment 僅在 OS Cache 中（未 fsync），但在寫入 Buffer 的第一步，資料就已經被追加到 Translog 並預設執行 fsync（request level）。因此即使斷電，重啟後 ES 可以重播 Translog 來恢復資料。",
+      "en": "This is the core mechanism of ES data safety. Although the Lucene Segment created by Refresh is only in the OS Cache (not fsync-ed), the data is appended to the Translog and fsync-ed (request level by default) as the first step of writing to the Buffer. Therefore, even if power fails, ES can replay the Translog to recover the data upon restart.",
+      "wg": [
+        {
+          "t": "重播",
+          "en": "replay",
+          "ps": "V"
+        },
+        {
+          "t": "恢復",
+          "en": "recover",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "chapter02-q09",
+    "level": "intermediate",
+    "keywords": "Legacy, Zen Discovery, Split-brain, Quorum",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您正在維護一個舊版的 ElasticSearch (6.8) 叢集，該叢集擁有 5 個 Master-eligible 節點。",
+        "en": "You are maintaining a legacy ElasticSearch (6.8) cluster which has 5 Master-eligible nodes.",
+        "wg": [
+          {
+            "t": "維護",
+            "en": "maintain",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "為了防止腦裂 (Split-brain) 問題，`discovery.zen.minimum_master_nodes` 參數應該設定為多少？",
+        "en": "To prevent Split-brain issues, what should the `discovery.zen.minimum_master_nodes` parameter be set to?",
+        "wg": [
+          {
+            "t": "腦裂",
+            "en": "Split-brain",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "請選出正確的數值與計算邏輯。",
+        "en": "Please select the correct value and calculation logic.",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 3，計算公式為 `(master_eligible_nodes / 2) + 1`。",
+        "en": "(A) 3, the formula is `(master_eligible_nodes / 2) + 1`.",
+        "wg": []
+      },
+      {
+        "t": "(B) 2，只要有超過 1 個節點存活即可。",
+        "en": "(B) 2, as long as more than 1 node is alive.",
+        "wg": []
+      },
+      {
+        "t": "(C) 5，必須所有 Master 節點都同意才能選出 Master。",
+        "en": "(C) 5, all Master nodes must agree to elect a Master.",
+        "wg": []
+      },
+      {
+        "t": "(D) 1，預設值即可，ES 會自動處理。",
+        "en": "(D) 1, the default value is fine, ES handles it automatically.",
+        "wg": []
+      }
+    ],
+    "answer": "(A)",
+    "why": {
+      "t": "在 ES 7.x 之前的版本（使用 Zen Discovery），必須手動設定 `minimum_master_nodes` 以滿足多數決（Quorum）原則，公式為 `N/2 + 1`。對於 5 個節點，`5/2 + 1 = 3`。若設為 2 或更低，網路分區時可能產生兩個都擁有 2 個節點的子叢集，導致腦裂。",
+      "en": "In versions prior to ES 7.x (using Zen Discovery), `minimum_master_nodes` must be manually configured to satisfy the Quorum principle, with the formula `N/2 + 1`. For 5 nodes, `5/2 + 1 = 3`. If set to 2 or lower, a network partition could result in two sub-clusters each with 2 nodes, leading to Split-brain.",
+      "wg": [
+        {
+          "t": "多數決",
+          "en": "Quorum",
+          "ps": "N"
+        },
+        {
+          "t": "網路分區",
+          "en": "network partition",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "chapter02-q10",
+    "level": "advanced",
+    "keywords": "Consistency, Availability, wait_for_active_shards, Trade-off",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您的索引設定了 `wait_for_active_shards: all`，且配置為 1 Primary + 2 Replicas。",
+        "en": "Your index is configured with `wait_for_active_shards: all` and has 1 Primary + 2 Replicas.",
+        "wg": [
+          {
+            "t": "配置",
+            "en": "configure",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "目前叢集中有一個 Replica 所在的節點因硬體維護而離線。此時 Client 發送寫入請求，會發生什麼情況？",
+        "en": "Currently, one node hosting a Replica is offline for hardware maintenance. What happens when a Client sends a write request at this time?",
+        "wg": [
+          {
+            "t": "離線",
+            "en": "offline",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "（假設在預設的 timeout 時間內節點未恢復）",
+        "en": "(Assuming the node does not recover within the default timeout period)",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) Primary 寫入成功，但因為無法滿足一致性要求，最後會回傳錯誤給 Client（寫入實際上已發生）。",
+        "en": "(A) The Primary writes successfully, but since consistency requirements aren't met, it returns an error to the Client (the write actually happened).",
+        "wg": []
+      },
+      {
+        "t": "(B) 請求會立即失敗，並回傳 `NoShardAvailableActionException`。",
+        "en": "(B) The request fails immediately and returns `NoShardAvailableActionException`.",
+        "wg": []
+      },
+      {
+        "t": "(C) 請求會被阻塞（Block），直到超時（預設 1 分鐘），然後回傳錯誤。",
+        "en": "(C) The request will be blocked until it times out (default 1 minute), and then return an error.",
+        "wg": [
+          {
+            "t": "阻塞",
+            "en": "block",
+            "ps": "V"
+          },
+          {
+            "t": "超時",
+            "en": "time out",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(D) 系統會自動將 `wait_for_active_shards` 降級為 `1` 以確保可用性，寫入成功。",
+        "en": "(D) The system will automatically downgrade `wait_for_active_shards` to `1` to ensure availability, and the write succeeds.",
+        "wg": [
+          {
+            "t": "降級",
+            "en": "downgrade",
+            "ps": "V"
+          }
+        ]
+      }
+    ],
+    "answer": "(C)",
+    "why": {
+      "t": "當活躍的分片數量不足以滿足 `wait_for_active_shards` 時，ES 不會立即失敗，而是會阻塞並等待其他分片上線，直到 timeout（預設 60s）。這體現了在一致性（Consistency）與可用性（Availability）之間的 Trade-off：為了強一致性，我們犧牲了部分可用性（請求被阻塞）。",
+      "en": "When the number of active shards is insufficient to meet `wait_for_active_shards`, ES does not fail immediately. Instead, it blocks and waits for other shards to come online until a timeout (default 60s). This reflects the trade-off between Consistency and Availability: for strong consistency, we sacrifice some availability (requests are blocked).",
+      "wg": [
+        {
+          "t": "犧牲",
+          "en": "sacrifice",
+          "ps": "V"
+        },
+        {
+          "t": "體現",
+          "en": "reflect/embody",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "chapter02-q11",
+    "level": "advanced",
+    "keywords": "Translog, Durability, Performance, Async, fsync",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您的團隊正在維運一個高吞吐量的 Log 收集系統，該系統的寫入瓶頸目前在於磁碟 I/O。",
+        "en": "Your team is operating a high-throughput log ingestion system where the current write bottleneck is disk I/O.",
+        "wg": [
+          {
+            "t": "高吞吐量",
+            "en": "high-throughput",
+            "ps": "Adj"
+          },
+          {
+            "t": "瓶頸",
+            "en": "bottleneck",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "業務需求允許在系統崩潰（Crash）的情況下遺失最近 5 秒內的 Log 資料。",
+        "en": "Business requirements allow for the loss of the last 5 seconds of log data in the event of a system crash.",
+        "wg": [
+          {
+            "t": "系統崩潰",
+            "en": "system crash",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "為了最大化寫入效能，您應該調整下列哪一項設定？",
+        "en": "To maximize write performance, which of the following settings should you adjust?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "將 `index.translog.durability` 設定為 `async`。",
+        "en": "Set `index.translog.durability` to `async`.",
+        "wg": []
+      },
+      {
+        "t": "將 `refresh_interval` 設定為 `5s`。",
+        "en": "Set `refresh_interval` to `5s`.",
+        "wg": []
+      },
+      {
+        "t": "將 `index.translog.sync_interval` 設定為 `0`。",
+        "en": "Set `index.translog.sync_interval` to `0`.",
+        "wg": []
+      },
+      {
+        "t": "將 `wait_for_active_shards` 設定為 `0`。",
+        "en": "Set `wait_for_active_shards` to `0`.",
+        "wg": []
+      }
+    ],
+    "answer": "將 `index.translog.durability` 設定為 `async`。",
+    "why": {
+      "t": "預設情況下，Translog 的 durability 為 `request`，意味著每次寫入請求都會觸發 `fsync` 落盤，這對 I/O 消耗極大。改為 `async` 後，ES 會在背景每隔一段時間（預設 5 秒）才執行 `fsync`，顯著提升效能但犧牲了這段時間內的資料安全性。",
+      "en": "By default, Translog durability is set to `request`, meaning every write request triggers an `fsync` to disk, which is I/O intensive. Changing it to `async` allows ES to perform `fsync` in the background at intervals (default 5 seconds), significantly improving performance at the cost of data safety during that window.",
+      "wg": [
+        {
+          "t": "落盤",
+          "en": "flush to disk / fsync",
+          "ps": "V"
+        },
+        {
+          "t": "犧牲",
+          "en": "sacrifice",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "chapter02-q12",
+    "level": "intermediate",
+    "keywords": "Immutable Segments, Updates, Storage, Merge, .del",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您正在管理一個頻繁更新（Update）現有文件的 ElasticSearch 索引。",
+        "en": "You are managing an ElasticSearch index with frequent updates to existing documents.",
+        "wg": [
+          {
+            "t": "頻繁更新",
+            "en": "frequent updates",
+            "ps": "Phrase"
+          }
+        ]
+      },
+      {
+        "t": "監控顯示，儘管文件總數（Document Count）保持穩定，但磁碟使用量卻持續顯著增長。",
+        "en": "Monitoring shows that while the total document count remains stable, disk usage continues to grow significantly.",
+        "wg": [
+          {
+            "t": "磁碟使用量",
+            "en": "disk usage",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "根據 Lucene 的底層機制，造成此現象最主要的原因是什麼？",
+        "en": "Based on Lucene's underlying mechanisms, what is the primary cause of this phenomenon?",
+        "wg": [
+          {
+            "t": "底層機制",
+            "en": "underlying mechanisms",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "Lucene Segment 是不可變的（Immutable），更新操作實際上是「標記刪除」舊文件並「新增」新文件，舊文件空間需等待 Merge 才會釋放。",
+        "en": "Lucene Segments are immutable; an update operation is actually 'marking as deleted' the old document and 'inserting' a new one. Space for old documents is not reclaimed until a Merge occurs.",
+        "wg": [
+          {
+            "t": "不可變的",
+            "en": "immutable",
+            "ps": "Adj"
+          },
+          {
+            "t": "標記刪除",
+            "en": "mark as deleted",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "Translog 檔案未被正確截斷（Truncate），導致歷史交易紀錄佔滿磁碟。",
+        "en": "The Translog files are not being correctly truncated, causing historical transaction logs to fill up the disk.",
+        "wg": []
+      },
+      {
+        "t": "Replica Shard 的同步機制發生延遲，導致產生了多份暫存資料。",
+        "en": "The synchronization mechanism of Replica Shards is lagging, resulting in multiple copies of temporary data.",
+        "wg": []
+      },
+      {
+        "t": "ElasticSearch 自動為每個更新的版本保留了備份（Versioning），以支援樂觀鎖控制。",
+        "en": "ElasticSearch automatically keeps backups of every updated version (Versioning) to support optimistic concurrency control.",
+        "wg": []
+      }
+    ],
+    "answer": "Lucene Segment 是不可變的（Immutable），更新操作實際上是「標記刪除」舊文件並「新增」新文件，舊文件空間需等待 Merge 才會釋放。",
+    "why": {
+      "t": "這是 Lucene 的核心特性。Segment 一旦寫入便不可修改，Update 本質上是 Delete + Insert。被標記刪除的文件（在 .del 檔中）仍會佔用磁碟空間，直到 Segment Merge 發生時才會被真正物理移除。",
+      "en": "This is a core feature of Lucene. Once a Segment is written, it is immutable. An Update is essentially a Delete + Insert. Documents marked as deleted (in .del files) still consume disk space until they are physically removed during a Segment Merge.",
+      "wg": [
+        {
+          "t": "物理移除",
+          "en": "physically removed",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "chapter02-q13",
+    "level": "advanced",
+    "keywords": "Peer Recovery, Translog Retention, Operations-based, File-based",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "當一個節點短暫離線後重新加入叢集，有時恢復速度極快（幾秒鐘），有時卻需要很長時間（複製整個 Shard）。",
+        "en": "When a node rejoins the cluster after being briefly offline, sometimes recovery is extremely fast (seconds), while other times it takes a long time (copying the entire Shard).",
+        "wg": [
+          {
+            "t": "離線",
+            "en": "offline",
+            "ps": "Adj"
+          },
+          {
+            "t": "恢復速度",
+            "en": "recovery speed",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "這主要取決於 Translog 的哪一項機制？",
+        "en": "Which Translog mechanism does this primarily depend on?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "Translog Retention（保留策略）：若 Translog 中仍保留著離線期間的操作紀錄，則可進行快速的 Operations-based Recovery。",
+        "en": "Translog Retention: If the Translog still retains the operation records from the offline period, fast Operations-based Recovery can be performed.",
+        "wg": [
+          {
+            "t": "保留策略",
+            "en": "retention policy",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "Translog Fsync：若 Translog 設定為 async，則恢復時需要重新重播所有記憶體中的資料。",
+        "en": "Translog Fsync: If Translog is set to async, recovery requires replaying all data from memory.",
+        "wg": []
+      },
+      {
+        "t": "Flush Interval：若離線期間發生了 Flush，則必須強制進行 File-based Recovery。",
+        "en": "Flush Interval: If a Flush occurred during the offline period, File-based Recovery is mandatory.",
+        "wg": []
+      },
+      {
+        "t": "Refresh Interval：若資料尚未 Refresh，則無法進行 Peer Recovery。",
+        "en": "Refresh Interval: If data has not been Refreshed, Peer Recovery cannot be performed.",
+        "wg": []
+      }
+    ],
+    "answer": "Translog Retention（保留策略）：若 Translog 中仍保留著離線期間的操作紀錄，則可進行快速的 Operations-based Recovery。",
+    "why": {
+      "t": "Peer Recovery 有兩種模式：Operations-based（重播 Translog）與 File-based（複製 Segment 檔案）。若離線時間短且 Translog 未被截斷（受 `index.translog.retention.age/size` 控制），ES 僅需重播遺漏的操作，速度極快；否則需複製檔案，速度慢。",
+      "en": "Peer Recovery has two modes: Operations-based (replaying Translog) and File-based (copying Segment files). If the offline duration is short and the Translog hasn't been truncated (controlled by `index.translog.retention.age/size`), ES only needs to replay missing operations, which is very fast; otherwise, it must copy files, which is slow.",
+      "wg": [
+        {
+          "t": "重播",
+          "en": "replay",
+          "ps": "V"
+        },
+        {
+          "t": "截斷",
+          "en": "truncate",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "chapter02-q14",
+    "level": "intermediate",
+    "keywords": "Split-brain, Quorum, Availability Zones, Master-eligible",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您在兩個資料中心（DC A 與 DC B）部署了一個跨區域的 ElasticSearch 叢集，配置了 3 個 Master-eligible 節點：DC A 有 2 個，DC B 有 1 個。",
+        "en": "You have deployed a cross-region ElasticSearch cluster across two data centers (DC A and DC B), configured with 3 Master-eligible nodes: 2 in DC A and 1 in DC B.",
+        "wg": [
+          {
+            "t": "資料中心",
+            "en": "data center",
+            "ps": "N"
+          },
+          {
+            "t": "跨區域",
+            "en": "cross-region",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "若 DC A 發生完全斷電（Power Outage），DC B 的節點將會發生什麼情況？",
+        "en": "If DC A experiences a complete power outage, what will happen to the node in DC B?",
+        "wg": [
+          {
+            "t": "完全斷電",
+            "en": "complete power outage",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "（假設使用標準的 Quorum 機制）",
+        "en": "(Assuming standard Quorum mechanisms are used)",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "DC B 的節點無法組成多數（Quorum），叢集將停止 Master 相關功能（如無法寫入或變更狀態）。",
+        "en": "The node in DC B cannot form a Quorum, and the cluster will stop Master-related functions (e.g., unable to write or change state).",
+        "wg": [
+          {
+            "t": "多數",
+            "en": "quorum / majority",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "DC B 的節點會自動宣告自己為新的 Master，並繼續提供服務。",
+        "en": "The node in DC B will automatically declare itself as the new Master and continue to provide service.",
+        "wg": []
+      },
+      {
+        "t": "DC B 的節點會進入唯讀模式（Read-only），但仍允許搜尋。",
+        "en": "The node in DC B will enter Read-only mode but still allow searches.",
+        "wg": []
+      },
+      {
+        "t": "DC B 的節點會等待 DC A 恢復，期間會將寫入請求暫存於 Memory Buffer。",
+        "en": "The node in DC B will wait for DC A to recover, buffering write requests in the Memory Buffer during this time.",
+        "wg": []
+      }
+    ],
+    "answer": "DC B 的節點無法組成多數（Quorum），叢集將停止 Master 相關功能（如無法寫入或變更狀態）。",
+    "why": {
+      "t": "根據 Quorum 公式 `(master_eligible_nodes / 2) + 1`，3 個節點需要至少 2 個節點存活才能選出 Master。當 DC A（2 個節點）失效，DC B 僅剩 1 個節點，無法滿足 Quorum，因此叢集不可用（以防止腦裂）。",
+      "en": "According to the Quorum formula `(master_eligible_nodes / 2) + 1`, with 3 nodes, at least 2 must be active to elect a Master. When DC A (2 nodes) fails, DC B has only 1 node left, which fails to satisfy the Quorum, rendering the cluster unavailable (to prevent split-brain).",
+      "wg": [
+        {
+          "t": "腦裂",
+          "en": "split-brain",
+          "ps": "N"
+        },
+        {
+          "t": "不可用",
+          "en": "unavailable",
+          "ps": "Adj"
+        }
+      ]
+    }
+  },
+  {
+    "no": "chapter02-q15",
+    "level": "intermediate",
+    "keywords": "Flush, Refresh, Translog, Disk Usage",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您觀察到生產環境的 ElasticSearch 節點上，Translog 檔案佔用了數 GB 的磁碟空間，儘管 `refresh_interval` 設定為預設的 1 秒。",
+        "en": "You observe that on your production ElasticSearch nodes, Translog files are consuming GBs of disk space, even though `refresh_interval` is set to the default 1 second.",
+        "wg": [
+          {
+            "t": "佔用",
+            "en": "consume / occupy",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "這是什麼原因造成的？",
+        "en": "What is the cause of this?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "Refresh 操作僅建立新的 Lucene Segment，並不會清空 Translog；只有 Flush 操作才會截斷 Translog。",
+        "en": "The Refresh operation only creates new Lucene Segments and does not clear the Translog; only the Flush operation truncates the Translog.",
+        "wg": [
+          {
+            "t": "清空",
+            "en": "clear / empty",
+            "ps": "V"
+          },
+          {
+            "t": "截斷",
+            "en": "truncate",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "Translog 只有在叢集重啟（Restart）時才會被清理。",
+        "en": "The Translog is only cleaned up when the cluster is restarted.",
+        "wg": []
+      },
+      {
+        "t": "這是正常的，Translog 必須永久保存所有歷史資料以供備份。",
+        "en": "This is normal; the Translog must permanently store all historical data for backup purposes.",
+        "wg": []
+      },
+      {
+        "t": "可能是 `wait_for_active_shards` 設定過高，導致寫入請求卡在 Translog 中等待。",
+        "en": "It might be that `wait_for_active_shards` is set too high, causing write requests to get stuck in the Translog waiting.",
+        "wg": []
+      }
+    ],
+    "answer": "Refresh 操作僅建立新的 Lucene Segment，並不會清空 Translog；只有 Flush 操作才會截斷 Translog。",
+    "why": {
+      "t": "這是一個常見的誤解。Refresh 負責讓資料「可被搜尋」（寫入 OS Cache），頻率較高（預設 1s）。Flush 負責執行 Lucene Commit（fsync 到磁碟）並「清空/截斷 Translog」，頻率較低（預設 30 分鐘或 Translog 過大時）。因此 Translog 累積變大是正常的，直到 Flush 觸發。",
+      "en": "This is a common misconception. Refresh is responsible for making data 'searchable' (writing to OS Cache) and happens frequently (default 1s). Flush is responsible for executing a Lucene Commit (fsync to disk) and 'clearing/truncating the Translog', which happens less frequently (default 30 mins or when Translog gets too large). Thus, it is normal for the Translog to accumulate until a Flush is triggered.",
+      "wg": [
+        {
+          "t": "誤解",
+          "en": "misconception",
+          "ps": "N"
+        },
+        {
+          "t": "累積",
+          "en": "accumulate",
+          "ps": "V"
+        }
+      ]
+    }
+  }
+]
