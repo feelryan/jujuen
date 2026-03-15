@@ -1,0 +1,754 @@
+[
+  {
+    "no": "1",
+    "level": "Hard",
+    "keywords": "ESR Rule, Compound Index, Performance",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "db.orders.find({\n  status: \"SHIPPED\",\n  total: { $gt: 500 }\n}).sort({ orderDate: -1 })",
+    "question": [
+      {
+        "t": "針對上述查詢語句，根據 ESR (Equality, Sort, Range) 法則，下列哪一個複合索引設計能提供最佳效能，並避免記憶體內排序（In-memory Sort）？",
+        "en": "Based on the ESR (Equality, Sort, Range) rule, which of the following compound index designs provides the best performance for the query above and avoids in-memory sort?",
+        "wg": [
+          {
+            "t": "複合索引",
+            "en": "Compound Index",
+            "ps": "noun"
+          },
+          {
+            "t": "記憶體內排序",
+            "en": "In-memory Sort",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "{ status: 1, total: 1, orderDate: -1 }",
+        "en": "{ status: 1, total: 1, orderDate: -1 }",
+        "wg": []
+      },
+      {
+        "t": "{ status: 1, orderDate: -1, total: 1 }",
+        "en": "{ status: 1, orderDate: -1, total: 1 }",
+        "wg": []
+      },
+      {
+        "t": "{ orderDate: -1, status: 1, total: 1 }",
+        "en": "{ orderDate: -1, status: 1, total: 1 }",
+        "wg": []
+      },
+      {
+        "t": "{ total: 1, orderDate: -1, status: 1 }",
+        "en": "{ total: 1, orderDate: -1, status: 1 }",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "根據 ESR 法則，索引順序應為：精確匹配 (Equality) -> 排序 (Sort) -> 範圍 (Range)。\n1. **Equality**: `status` 是精確匹配，應放首位。\n2. **Sort**: `orderDate` 是排序欄位，應放中間。若放在範圍查詢之後，MongoDB 無法利用索引順序，必須進行記憶體排序。\n3. **Range**: `total` 是範圍查詢，應放最後。\n因此最佳索引為 `{ status: 1, orderDate: -1, total: 1 }`。",
+      "en": "According to the ESR rule, the index order should be: Equality -> Sort -> Range.\n1. **Equality**: `status` is an exact match and should be first.\n2. **Sort**: `orderDate` determines the sort order and should be in the middle. If placed after the range query, MongoDB cannot utilize the index order and must perform an in-memory sort.\n3. **Range**: `total` is a range query and should be last.\nThus, the optimal index is `{ status: 1, orderDate: -1, total: 1 }`.",
+      "wg": [
+        {
+          "t": "精確匹配",
+          "en": "Equality",
+          "ps": "noun"
+        },
+        {
+          "t": "範圍查詢",
+          "en": "Range Query",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "2",
+    "level": "Medium",
+    "keywords": "Covered Query, Projection, Performance",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "// Index: { username: 1, email: 1 }\n\ndb.users.find(\n  { username: \"alice\" },\n  { email: 1 }\n)",
+    "question": [
+      {
+        "t": "假設 `users` 集合擁有索引 `{ username: 1, email: 1 }`。執行上述查詢時，MongoDB 是否會執行「覆蓋查詢 (Covered Query)」？為什麼？",
+        "en": "Assuming the `users` collection has an index `{ username: 1, email: 1 }`. Will MongoDB execute a 'Covered Query' for the statement above? Why or why not?",
+        "wg": [
+          {
+            "t": "覆蓋查詢",
+            "en": "Covered Query",
+            "ps": "noun"
+          },
+          {
+            "t": "集合",
+            "en": "Collection",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "是，因為查詢條件與回傳欄位都在索引中。",
+        "en": "Yes, because both the query condition and the returned fields are in the index.",
+        "wg": []
+      },
+      {
+        "t": "否，因為預設會回傳 `_id` 欄位，而它不在索引中。",
+        "en": "No, because the `_id` field is returned by default and it is not in the index.",
+        "wg": []
+      },
+      {
+        "t": "否，因為 `email` 欄位必須放在索引的第一個位置才能被覆蓋。",
+        "en": "No, because the `email` field must be in the first position of the index to be covered.",
+        "wg": []
+      },
+      {
+        "t": "是，MongoDB 會自動優化並排除 `_id`。",
+        "en": "Yes, MongoDB will automatically optimize and exclude `_id`.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "這不是覆蓋查詢。雖然 `username` 和 `email` 都在索引中，但 MongoDB 查詢預設會回傳 `_id` 欄位。除非顯式指定 `_id: 0`，否則 MongoDB 仍需執行 `FETCH` 階段去硬碟讀取文件中的 `_id`，導致無法達成僅讀取索引 (Index Only) 的優化。",
+      "en": "This is not a covered query. Although `username` and `email` are in the index, MongoDB queries return the `_id` field by default. Unless `_id: 0` is explicitly specified, MongoDB still needs to execute a `FETCH` stage to read the `_id` from the document on disk, preventing the Index Only optimization.",
+      "wg": [
+        {
+          "t": "顯式指定",
+          "en": "explicitly specify",
+          "ps": "verb"
+        },
+        {
+          "t": "僅讀取索引",
+          "en": "Index Only",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "3",
+    "level": "Medium",
+    "keywords": "Index Prefixing, Compound Index",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "// Index: { manufacturer: 1, model: 1, year: 1 }",
+    "question": [
+      {
+        "t": "給定上述複合索引，下列哪一個查詢 **無法** 有效利用此索引的前綴 (Index Prefix) 特性？",
+        "en": "Given the compound index above, which of the following queries CANNOT effectively utilize the Index Prefix property?",
+        "wg": [
+          {
+            "t": "索引前綴",
+            "en": "Index Prefix",
+            "ps": "noun"
+          },
+          {
+            "t": "有效利用",
+            "en": "effectively utilize",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "db.cars.find({ manufacturer: \"Toyota\" })",
+        "en": "db.cars.find({ manufacturer: \"Toyota\" })",
+        "wg": []
+      },
+      {
+        "t": "db.cars.find({ manufacturer: \"Toyota\", model: \"Camry\" })",
+        "en": "db.cars.find({ manufacturer: \"Toyota\", model: \"Camry\" })",
+        "wg": []
+      },
+      {
+        "t": "db.cars.find({ model: \"Camry\", year: 2020 })",
+        "en": "db.cars.find({ model: \"Camry\", year: 2020 })",
+        "wg": []
+      },
+      {
+        "t": "db.cars.find({ manufacturer: \"Toyota\", model: \"Camry\", year: 2020 })",
+        "en": "db.cars.find({ manufacturer: \"Toyota\", model: \"Camry\", year: 2020 })",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "複合索引遵循「最左前綴原則 (Leftmost Prefix Rule)」。索引 `{ manufacturer, model, year }` 支援查詢 `manufacturer` 或 `manufacturer + model`。\n選項 `{ model: \"Camry\", year: 2020 }` 跳過了索引的第一個欄位 `manufacturer`，因此無法使用此索引進行查找，可能會導致全表掃描 (Collection Scan)。",
+      "en": "Compound indexes follow the 'Leftmost Prefix Rule'. The index `{ manufacturer, model, year }` supports queries on `manufacturer` or `manufacturer + model`.\nThe option `{ model: \"Camry\", year: 2020 }` skips the first field `manufacturer`, so it cannot use this index for lookup, likely resulting in a Collection Scan.",
+      "wg": [
+        {
+          "t": "最左前綴原則",
+          "en": "Leftmost Prefix Rule",
+          "ps": "noun"
+        },
+        {
+          "t": "全表掃描",
+          "en": "Collection Scan",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "4",
+    "level": "Hard",
+    "keywords": "Troubleshooting, Sort Limit, Memory",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "Error: Executor error during find command :: caused by :: Sort operation used more than the maximum 33554432 bytes of RAM",
+    "question": [
+      {
+        "t": "你在正式環境收到上述錯誤訊息。該查詢包含 `find()` 與 `sort()`。這通常意味著什麼問題？",
+        "en": "You receive the above error message in production. The query involves a `find()` and a `sort()`. What does this usually indicate?",
+        "wg": [
+          {
+            "t": "正式環境",
+            "en": "Production Environment",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "伺服器的實體 RAM 不足，需要升級硬體。",
+        "en": "The server's physical RAM is insufficient and hardware needs to be upgraded.",
+        "wg": []
+      },
+      {
+        "t": "查詢沒有使用索引，或者使用的索引無法提供所需的排序順序，導致 MongoDB 嘗試在記憶體中進行排序。",
+        "en": "The query is not using an index, or the index used cannot provide the requested sort order, causing MongoDB to attempt an in-memory sort.",
+        "wg": []
+      },
+      {
+        "t": "查詢回傳的結果集太大，超過了 BSON 文件的 16MB 限制。",
+        "en": "The result set returned by the query is too large, exceeding the 16MB BSON document limit.",
+        "wg": []
+      },
+      {
+        "t": "索引已經損壞，需要執行 `reIndex` 指令。",
+        "en": "The index is corrupted and the `reIndex` command needs to be executed.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "當查詢包含排序但無法利用索引順序時（例如索引順序不符，或 ESR 規則中 Sort 被 Range 阻斷），MongoDB 必須將符合條件的文件載入記憶體進行排序 (Blocking Sort)。\nMongoDB 預設限制此操作的記憶體使用量為 100MB（舊版為 32MB）。超過此限制會導致查詢失敗。解決方案通常是建立支援該排序的正確索引。",
+      "en": "When a query includes a sort but cannot utilize the index order (e.g., index order mismatch, or Sort is blocked by Range in ESR), MongoDB must load matching documents into memory to perform a Blocking Sort.\nMongoDB limits this operation's memory usage to 100MB (32MB in older versions) by default. Exceeding this limit causes the query to fail. The solution is usually to create a proper index that supports the sort.",
+      "wg": [
+        {
+          "t": "阻塞式排序",
+          "en": "Blocking Sort",
+          "ps": "noun"
+        },
+        {
+          "t": "預設限制",
+          "en": "Default Limit",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "5",
+    "level": "Medium",
+    "keywords": "Explain Plan, Performance Metrics, Scan Ratio",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "\"executionStats\": {\n  \"nReturned\": 5,\n  \"totalKeysExamined\": 10000,\n  \"totalDocsExamined\": 5\n}",
+    "question": [
+      {
+        "t": "你在分析慢查詢日誌時，看到某個查詢的 `explain()` 輸出如上。這代表目前的索引狀況如何？",
+        "en": "While analyzing slow query logs, you see the `explain()` output above for a query. What does this indicate about the current index status?",
+        "wg": [
+          {
+            "t": "慢查詢日誌",
+            "en": "Slow Query Log",
+            "ps": "noun"
+          },
+          {
+            "t": "索引狀況",
+            "en": "Index Status",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "索引非常高效，因為 `totalDocsExamined` 很低。",
+        "en": "The index is very efficient because `totalDocsExamined` is low.",
+        "wg": []
+      },
+      {
+        "t": "索引效率低落，掃描比例 (Scan Ratio) 極差。",
+        "en": "The index efficiency is poor; the Scan Ratio is extremely bad.",
+        "wg": []
+      },
+      {
+        "t": "這是覆蓋查詢 (Covered Query) 的典型表現。",
+        "en": "This is typical behavior for a Covered Query.",
+        "wg": []
+      },
+      {
+        "t": "查詢使用了全表掃描 (Collection Scan)。",
+        "en": "The query used a Collection Scan.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "這裡的關鍵指標是 `totalKeysExamined` (10000) 與 `nReturned` (5) 的比例。\n這意味著 MongoDB 掃描了 10,000 個索引項目，卻只找到了 5 個符合條件的結果。這通常發生在索引欄位選擇性低，或者查詢過濾條件無法有效利用索引邊界時。理想的比例應接近 1:1。",
+      "en": "The key metric here is the ratio between `totalKeysExamined` (10000) and `nReturned` (5).\nThis means MongoDB scanned 10,000 index entries but only found 5 matching results. This usually happens when the index field has low selectivity or the query filter cannot effectively use index boundaries. The ideal ratio should be close to 1:1.",
+      "wg": [
+        {
+          "t": "選擇性",
+          "en": "Selectivity",
+          "ps": "noun"
+        },
+        {
+          "t": "索引邊界",
+          "en": "Index Boundaries",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "6",
+    "level": "Medium",
+    "keywords": "Regex, Anti-pattern, Performance",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "A: db.users.find({ name: /^John/ })\nB: db.users.find({ name: /John/ })",
+    "question": [
+      {
+        "t": "關於上述兩個 Regex 查詢的效能差異，下列敘述何者正確（假設 `name` 欄位有建立索引）？",
+        "en": "Regarding the performance difference between the two Regex queries above (assuming an index exists on the `name` field), which statement is correct?",
+        "wg": [
+          {
+            "t": "效能差異",
+            "en": "Performance Difference",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "兩者效能相同，都會觸發全索引掃描 (Full Index Scan)。",
+        "en": "Both have the same performance and will trigger a Full Index Scan.",
+        "wg": []
+      },
+      {
+        "t": "A 較快，因為它使用了前綴匹配，可以利用 B-Tree 索引縮小範圍。",
+        "en": "A is faster because it uses prefix matching, allowing the B-Tree index to narrow down the range.",
+        "wg": []
+      },
+      {
+        "t": "B 較快，因為它不需要檢查字串開頭。",
+        "en": "B is faster because it doesn't need to check the start of the string.",
+        "wg": []
+      },
+      {
+        "t": "兩者都無法使用索引，會退化成全表掃描 (Collection Scan)。",
+        "en": "Neither can use the index, and both will degrade to a Collection Scan.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "B-Tree 索引依賴排序。查詢 A (`/^John/`) 明確指定了開頭，MongoDB 可以直接跳到索引中 'J' 的位置並開始掃描，直到不符合為止（範圍掃描）。\n查詢 B (`/John/`) 是模糊搜尋，目標可能出現在字串的任何位置，因此 MongoDB 必須檢查索引中的每一個項目 (Full Index Scan)，效率遠低於 A。",
+      "en": "B-Tree indexes rely on sorting. Query A (`/^John/`) explicitly specifies the start, so MongoDB can jump directly to 'J' in the index and scan until a mismatch is found (Range Scan).\nQuery B (`/John/`) is a wildcard search where the target can appear anywhere, forcing MongoDB to inspect every entry in the index (Full Index Scan), which is much less efficient than A.",
+      "wg": [
+        {
+          "t": "前綴匹配",
+          "en": "Prefix Matching",
+          "ps": "noun"
+        },
+        {
+          "t": "模糊搜尋",
+          "en": "Wildcard Search",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "7",
+    "level": "Medium",
+    "keywords": "Partial Index, Storage Optimization, Soft Delete",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "db.users.createIndex(\n  { email: 1 },\n  { unique: true, partialFilterExpression: { deletedAt: null } }\n)",
+    "question": [
+      {
+        "t": "在設計支援「軟刪除 (Soft Delete)」機制的系統時，你決定使用上述指令建立索引。這樣做的主要優勢是什麼？",
+        "en": "When designing a system that supports 'Soft Delete', you decide to create an index using the command above. What is the primary benefit of this approach?",
+        "wg": [
+          {
+            "t": "軟刪除",
+            "en": "Soft Delete",
+            "ps": "noun"
+          },
+          {
+            "t": "部分索引",
+            "en": "Partial Index",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "它能加快對已刪除資料 (deletedAt != null) 的查詢速度。",
+        "en": "It speeds up queries for deleted data (deletedAt != null).",
+        "wg": []
+      },
+      {
+        "t": "它能大幅減少索引佔用的記憶體與硬碟空間，因為僅索引活躍用戶。",
+        "en": "It significantly reduces index memory and disk usage by only indexing active users.",
+        "wg": []
+      },
+      {
+        "t": "它強制所有查詢都必須包含 `deletedAt: null` 條件，否則會報錯。",
+        "en": "It forces all queries to include the `deletedAt: null` condition, otherwise an error is thrown.",
+        "wg": []
+      },
+      {
+        "t": "它允許 `email` 欄位在已刪除的文件中重複，但在活躍文件中保持唯一。",
+        "en": "It allows duplicate `email` fields in deleted documents while maintaining uniqueness in active ones.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "部分索引 (Partial Index) 僅會對符合 `partialFilterExpression` 的文件建立索引項目。在軟刪除場景中，活躍資料通常遠少於歷史資料（或我們只關心活躍資料的唯一性），這能顯著降低索引大小並節省 RAM。選項 3 錯誤，因為不包含該條件的查詢只是無法使用此索引，並不會報錯；選項 0 錯誤，因為此索引不包含已刪除資料。",
+      "en": "A Partial Index only creates index entries for documents matching the `partialFilterExpression`. In soft delete scenarios, this significantly reduces index size and saves RAM since it ignores deleted records. Option 3 is incorrect because queries missing the condition simply won't use the index, not throw an error; Option 0 is incorrect because the index does not contain deleted data.",
+      "wg": [
+        {
+          "t": "唯一性",
+          "en": "uniqueness",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "8",
+    "level": "Hard",
+    "keywords": "Multikey Index, Array, Error Handling",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "// Document Structure\n{\n  _id: 1,\n  tags: [\"electronics\", \"sale\"],\n  categories: [\"A\", \"B\"]\n}\n\n// Operation\ndb.products.createIndex({ tags: 1, categories: 1 })",
+    "question": [
+      {
+        "t": "給定上述文件結構，當你嘗試建立包含兩個陣列欄位的複合索引 `{ tags: 1, categories: 1 }` 時，MongoDB 會發生什麼反應？",
+        "en": "Given the document structure above, what happens when you attempt to create a compound index `{ tags: 1, categories: 1 }` that includes two array fields?",
+        "wg": [
+          {
+            "t": "複合索引",
+            "en": "Compound Index",
+            "ps": "noun"
+          },
+          {
+            "t": "陣列欄位",
+            "en": "Array Fields",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "成功建立索引，但會導致索引大小呈幾何級數爆炸 (Index Explosion)。",
+        "en": "The index is created successfully, but it leads to geometric index size explosion.",
+        "wg": []
+      },
+      {
+        "t": "建立失敗，MongoDB 禁止在複合索引中同時包含兩個以上的陣列欄位 (Parallel Arrays)。",
+        "en": "Creation fails; MongoDB forbids including more than one array field in a compound index (Parallel Arrays).",
+        "wg": []
+      },
+      {
+        "t": "成功建立索引，但只有第一個陣列元素會被索引。",
+        "en": "The index is created successfully, but only the first element of each array is indexed.",
+        "wg": []
+      },
+      {
+        "t": "成功建立索引，查詢效能會因為笛卡兒積 (Cartesian Product) 而極度低落。",
+        "en": "The index is created successfully, but query performance will be extremely poor due to the Cartesian Product.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "MongoDB 不支援「平行陣列 (Parallel Arrays)」的複合索引。如果一個複合索引中的多個欄位在同一個文件中都是陣列，MongoDB 無法建立該索引，因為這會導致索引項目的笛卡兒積爆炸，系統會直接拋出錯誤。",
+      "en": "MongoDB does not support compound indexes on 'Parallel Arrays'. If multiple fields in a compound index are arrays within the same document, MongoDB cannot create the index because it would cause a Cartesian product explosion of index entries. The system will throw an error explicitly.",
+      "wg": [
+        {
+          "t": "平行陣列",
+          "en": "Parallel Arrays",
+          "ps": "noun"
+        },
+        {
+          "t": "笛卡兒積",
+          "en": "Cartesian Product",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "9",
+    "level": "Medium",
+    "keywords": "Write Performance, Over-indexing, Trade-off",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你的團隊負責維護一個高頻寫入的 IoT 日誌系統。近期發現 `INSERT` 操作的延遲顯著增加，但 CPU 與記憶體資源充足。經檢查發現該集合 (Collection) 擁有 15 個不同的索引。根據「成本階梯」與最佳實務，這最可能是什麼原因？",
+        "en": "Your team maintains a high-write IoT logging system. Recently, `INSERT` latency has increased significantly despite ample CPU and memory. You find the collection has 15 different indexes. Based on the 'Cost Ladder' and best practices, what is the most likely cause?",
+        "wg": [
+          {
+            "t": "高頻寫入",
+            "en": "High-write",
+            "ps": "adjective"
+          },
+          {
+            "t": "延遲",
+            "en": "Latency",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "索引過多導致每次寫入都需要同步更新所有索引，增加了寫入成本。",
+        "en": "Too many indexes require synchronous updates for every write, increasing the write cost.",
+        "wg": []
+      },
+      {
+        "t": "索引過多導致 MongoDB 無法正確選擇查詢計畫，影響了寫入鎖 (Write Lock)。",
+        "en": "Too many indexes prevent MongoDB from choosing the correct query plan, affecting write locks.",
+        "wg": []
+      },
+      {
+        "t": "索引佔據了過多硬碟空間，導致寫入時磁碟 I/O 飽和。",
+        "en": "Indexes are taking up too much disk space, causing disk I/O saturation during writes.",
+        "wg": []
+      },
+      {
+        "t": "這與索引無關，應該是網路頻寬不足。",
+        "en": "This is unrelated to indexes; it is likely due to insufficient network bandwidth.",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "這是「索引過多 (Over-indexing)」的典型代價。每當文件被插入、更新或刪除時，MongoDB 必須更新該集合上的每一個索引。對於寫入密集的應用，過多的索引會顯著拖慢寫入速度。最佳實務建議將單一集合的索引數量控制在 5 個以內。",
+      "en": "This is the typical cost of 'Over-indexing'. Whenever a document is inserted, updated, or deleted, MongoDB must update every single index on that collection. For write-heavy applications, excessive indexes significantly slow down write speeds. Best practice suggests keeping indexes under 5 per collection.",
+      "wg": [
+        {
+          "t": "寫入密集",
+          "en": "Write-heavy",
+          "ps": "adjective"
+        }
+      ]
+    }
+  },
+  {
+    "no": "10",
+    "level": "Medium",
+    "keywords": "Negation, Anti-pattern, Performance",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "db.products.find({ status: { $ne: \"DISCONTINUED\" } })",
+    "question": [
+      {
+        "t": "即使 `status` 欄位上有建立索引，為什麼上述使用 `$ne` (not equal) 的查詢通常效率不佳？",
+        "en": "Even with an index on the `status` field, why is the query above using `$ne` (not equal) generally inefficient?",
+        "wg": [
+          {
+            "t": "效率不佳",
+            "en": "Inefficient",
+            "ps": "adjective"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "因為 `$ne` 會導致 MongoDB 放棄使用索引，直接進行全表掃描 (Collection Scan)。",
+        "en": "Because `$ne` causes MongoDB to abandon the index and perform a full Collection Scan.",
+        "wg": []
+      },
+      {
+        "t": "因為否定查詢的選擇性 (Selectivity) 通常很低，導致必須掃描絕大多數的索引項目。",
+        "en": "Because the selectivity of negation queries is usually low, requiring a scan of the vast majority of index entries.",
+        "wg": []
+      },
+      {
+        "t": "因為 `$ne` 操作符在 MongoDB 內部需要進行記憶體排序。",
+        "en": "Because the `$ne` operator requires in-memory sorting within MongoDB.",
+        "wg": []
+      },
+      {
+        "t": "因為索引只能儲存正向匹配的值，無法儲存否定條件。",
+        "en": "Because indexes can only store positive matches, not negative conditions.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "雖然 `$ne` 可以使用索引，但它的本質是「除了 X 以外的所有東西」。如果大部分資料都不是 \"DISCONTINUED\"，那麼這個查詢將會匹配並掃描索引中的絕大多數項目（低選擇性），這與全表掃描的成本相差無幾，甚至可能因為隨機 I/O 而更慢。",
+      "en": "While `$ne` can use an index, its nature is 'everything except X'. If most data is not 'DISCONTINUED', the query will match and scan the vast majority of index entries (low selectivity). This incurs a cost similar to, or sometimes worse than, a full collection scan due to random I/O.",
+      "wg": [
+        {
+          "t": "選擇性",
+          "en": "Selectivity",
+          "ps": "noun"
+        },
+        {
+          "t": "隨機 I/O",
+          "en": "Random I/O",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "11",
+    "level": "Hard",
+    "keywords": "ESR Rule, Sort Optimization, Performance Pitfall",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "// Index\n{ price: 1, timestamp: -1 }\n\n// Query\ndb.orders.find({ price: { $gt: 100 } }).sort({ timestamp: -1 })",
+    "question": [
+      {
+        "t": "觀察上述索引與查詢。根據 ESR 法則，為什麼這個查詢 **無法** 利用索引來進行排序（Sort），導致必須在記憶體中排序？",
+        "en": "Observe the index and query above. According to the ESR Rule, why can this query **NOT** use the index for sorting, resulting in an in-memory sort?",
+        "wg": [
+          {
+            "t": "記憶體中排序",
+            "en": "In-memory Sort",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "因為範圍查詢 (Range) `price > 100` 出現在排序欄位之前，破壞了後續欄位的排序順序。",
+        "en": "Because the Range query `price > 100` appears before the sort field, breaking the sort order of subsequent fields.",
+        "wg": []
+      },
+      {
+        "t": "因為 `price` 是升序 (1) 而 `timestamp` 是降序 (-1)，方向不一致導致無法使用索引。",
+        "en": "Because `price` is ascending (1) and `timestamp` is descending (-1), the mixed directions prevent index usage.",
+        "wg": []
+      },
+      {
+        "t": "因為 `$gt` 操作符不支援複合索引。",
+        "en": "Because the `$gt` operator does not support compound indexes.",
+        "wg": []
+      },
+      {
+        "t": "因為沒有包含 Equality (精確匹配) 條件，ESR 法則無法啟動。",
+        "en": "Because there is no Equality condition, the ESR rule cannot be activated.",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "在複合索引中，一旦對某個欄位進行了範圍查詢 (Range)，索引中後續欄位的物理順序就不再是連續的了。在這個例子中，`price` 大於 100 的記錄在索引中是分散的，雖然每條記錄內部的 `timestamp` 有序，但跨越不同 `price` 的記錄之間，`timestamp` 並沒有整體排序。因此，Sort 必須放在 Range 之前 (ESR) 才能利用索引排序。",
+      "en": "In a compound index, once a Range query is applied to a field, the physical order of subsequent fields in the index is no longer continuous. In this example, records with `price > 100` are scattered. While `timestamp` is sorted within each specific price, there is no global sort order for `timestamp` across different prices. Therefore, Sort must precede Range (ESR) to utilize the index for sorting.",
+      "wg": [
+        {
+          "t": "物理順序",
+          "en": "Physical Order",
+          "ps": "noun"
+        },
+        {
+          "t": "連續的",
+          "en": "Continuous",
+          "ps": "adjective"
+        }
+      ]
+    }
+  },
+  {
+    "no": "12",
+    "level": "Medium",
+    "keywords": "Performance Metrics, Explain Plan, Cost Ladder",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "// explain() output snippet\n{\n  \"totalKeysExamined\": 0,\n  \"totalDocsExamined\": 100,\n  \"stage\": \"COLLSCAN\"\n}",
+    "question": [
+      {
+        "t": "你在優化查詢時看到了上述 `explain()` 輸出。這代表該查詢處於「成本階梯 (Cost Ladder)」的哪一個層級？",
+        "en": "You see the above `explain()` output while optimizing a query. Which level of the 'Cost Ladder' does this query represent?",
+        "wg": [
+          {
+            "t": "成本階梯",
+            "en": "Cost Ladder",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "最慢層級：Collection Scan (全表掃描)。",
+        "en": "The slowest level: Collection Scan.",
+        "wg": []
+      },
+      {
+        "t": "中間層級：Index Scan + Fetch (索引掃描後抓取文件)。",
+        "en": "The middle level: Index Scan + Fetch.",
+        "wg": []
+      },
+      {
+        "t": "最快層級：Covered Query (覆蓋查詢)。",
+        "en": "The fastest level: Covered Query.",
+        "wg": []
+      },
+      {
+        "t": "異常層級：這是不可能的輸出組合。",
+        "en": "Anomaly level: This is an impossible output combination.",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "`stage: \"COLLSCAN\"` 明確指出了這是全表掃描。此外，`totalKeysExamined: 0` 表示沒有使用任何索引鍵，而 `totalDocsExamined` 有數值，代表資料庫直接在硬碟上掃描了文件。這是效能最差的情況。",
+      "en": "`stage: \"COLLSCAN\"` explicitly indicates a full collection scan. Furthermore, `totalKeysExamined: 0` means no index keys were used, while `totalDocsExamined` has a value, implying the database scanned documents directly on disk. This is the worst-case performance scenario.",
+      "wg": [
+        {
+          "t": "全表掃描",
+          "en": "Collection Scan",
+          "ps": "noun"
+        }
+      ]
+    }
+  }
+]

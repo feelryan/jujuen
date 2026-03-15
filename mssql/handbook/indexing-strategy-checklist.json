@@ -1,0 +1,849 @@
+[
+  {
+    "no": "1",
+    "level": "Medium",
+    "keywords": "SARGable, Anti-pattern, Performance, Index Scan",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "CREATE INDEX IX_Orders_OrderDate ON dbo.Orders(OrderDate);\n\n-- Query A\nSELECT * FROM dbo.Orders WHERE YEAR(OrderDate) = 2023;\n\n-- Query B\nSELECT * FROM dbo.Orders WHERE OrderDate >= '2023-01-01' AND OrderDate < '2024-01-01';",
+    "question": [
+      {
+        "t": "針對上述 SQL 查詢與索引設計，下列關於效能的敘述何者正確？",
+        "en": "Regarding the SQL queries and index design above, which of the following statements about performance is correct?",
+        "wg": []
+      }
+    ],
+    "type": "Single",
+    "options": [
+      {
+        "t": "Query A 與 Query B 效能相同，都能有效利用索引進行搜尋 (Index Seek)。",
+        "en": "Query A and Query B have the same performance; both can effectively use the index for seeking (Index Seek).",
+        "wg": []
+      },
+      {
+        "t": "Query A 會導致索引掃描 (Index Scan)，因為對欄位進行函數運算破壞了 SARGable 特性。",
+        "en": "Query A will cause an Index Scan because applying a function to the column breaks the SARGable property.",
+        "wg": [
+          {
+            "t": "索引掃描",
+            "en": "Index Scan",
+            "ps": "noun"
+          },
+          {
+            "t": "函數運算",
+            "en": "Function operation",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "Query B 比較慢，因為範圍查詢 (Range Query) 無法使用 B-Tree 索引。",
+        "en": "Query B is slower because Range Queries cannot use B-Tree indexes.",
+        "wg": []
+      },
+      {
+        "t": "SQL Server 會自動優化 Query A，將其轉換為 Query B 的邏輯以使用索引。",
+        "en": "SQL Server will automatically optimize Query A by converting it to the logic of Query B to use the index.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "Query A 違反了 SARGable 原則。當你在 WHERE 子句中對欄位使用函數（如 `YEAR()`）時，資料庫必須對每一列資料進行運算後才能比較，這導致無法直接使用 B-Tree 導航，而必須進行全表或全索引掃描。Query B 直接對欄位進行範圍比較，是標準的 SARGable 寫法，能觸發 Index Seek。",
+      "en": "Query A violates the SARGable principle. When you apply a function (like `YEAR()`) to a column in the WHERE clause, the database must perform the calculation on every row before comparing, preventing direct B-Tree navigation and forcing a full table or index scan. Query B uses a direct range comparison on the column, which is standard SARGable syntax and triggers an Index Seek.",
+      "wg": [
+        {
+          "t": "違反",
+          "en": "Violates",
+          "ps": "verb"
+        },
+        {
+          "t": "全表掃描",
+          "en": "Full Table Scan",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "2",
+    "level": "Medium",
+    "keywords": "Covering Index, Key Lookup, INCLUDE, Optimization",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "-- Table: Products (Id PK, Name, Category, Price, StockQuantity)\n-- Current Index: \nCREATE NONCLUSTERED INDEX IX_Products_Category ON dbo.Products(Category);\n\n-- Query:\nSELECT Name, Price FROM dbo.Products WHERE Category = 'Electronics';",
+    "question": [
+      {
+        "t": "執行上述查詢時，發現執行計畫中出現了大量的 Key Lookup (Bookmark Lookup)。為了消除此成本並達成 Covering Index，最佳的索引修改策略是什麼？",
+        "en": "When executing the query above, significant Key Lookup (Bookmark Lookup) operations are observed in the execution plan. What is the best index modification strategy to eliminate this cost and achieve a Covering Index?",
+        "wg": [
+          {
+            "t": "消除",
+            "en": "Eliminate",
+            "ps": "verb"
+          },
+          {
+            "t": "修改策略",
+            "en": "Modification strategy",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single",
+    "options": [
+      {
+        "t": "將索引改為 `(Category, Name, Price)`，全部放入 Key Columns。",
+        "en": "Change the index to `(Category, Name, Price)`, putting all of them into Key Columns.",
+        "wg": []
+      },
+      {
+        "t": "保持 Key 為 `(Category)`，並使用 `INCLUDE (Name, Price)`。",
+        "en": "Keep the Key as `(Category)` and use `INCLUDE (Name, Price)`.",
+        "wg": []
+      },
+      {
+        "t": "另外建立兩個獨立索引：一個針對 `Name`，一個針對 `Price`。",
+        "en": "Create two separate indexes: one for `Name` and one for `Price`.",
+        "wg": []
+      },
+      {
+        "t": "將 `Category` 欄位改為 Clustered Index。",
+        "en": "Change the `Category` column to be the Clustered Index.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "最佳做法是使用 `INCLUDE`。`Category` 是過濾條件，應留在 Key 中以維持 B-Tree 的排序與搜尋效率；`Name` 與 `Price` 僅是查詢回傳的 Payload，不參與過濾或排序，放入 `INCLUDE` 可以避免增加 B-Tree 的深度與維護成本，同時達成 Covering 的效果，消除 Key Lookup。",
+      "en": "The best practice is to use `INCLUDE`. `Category` is the filtering condition and should remain in the Key to maintain B-Tree sorting and search efficiency. `Name` and `Price` are merely payload for the query result and are not involved in filtering or sorting; placing them in `INCLUDE` avoids increasing the B-Tree depth and maintenance cost while achieving the Covering effect and eliminating Key Lookups.",
+      "wg": [
+        {
+          "t": "過濾條件",
+          "en": "Filtering condition",
+          "ps": "noun"
+        },
+        {
+          "t": "維護成本",
+          "en": "Maintenance cost",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "3",
+    "level": "Hard",
+    "keywords": "Clustered Index, GUID, Fragmentation, Page Split",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "CREATE TABLE Orders (\n    OrderId UNIQUEIDENTIFIER DEFAULT NEWID() PRIMARY KEY,\n    OrderDate DATETIME,\n    Amount DECIMAL(10,2)\n);",
+    "question": [
+      {
+        "t": "開發者決定使用 `NEWID()` 產生的 GUID 作為 `Orders` 表的 Primary Key (預設為 Clustered Index)。隨著資料量增長，這種設計最主要會導致什麼嚴重的效能問題？",
+        "en": "A developer decides to use a GUID generated by `NEWID()` as the Primary Key (defaulting to Clustered Index) for the `Orders` table. As the data volume grows, what is the most significant performance issue this design will cause?",
+        "wg": [
+          {
+            "t": "預設",
+            "en": "Default",
+            "ps": "adjective"
+          },
+          {
+            "t": "增長",
+            "en": "Grow",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "type": "Single",
+    "options": [
+      {
+        "t": "GUID 佔用 16 bytes，會導致儲存空間不足。",
+        "en": "GUID takes up 16 bytes, which will lead to insufficient storage space.",
+        "wg": []
+      },
+      {
+        "t": "嚴重的頁面破碎 (Page Fragmentation) 與頻繁的頁面分割 (Page Splits)。",
+        "en": "Severe Page Fragmentation and frequent Page Splits.",
+        "wg": [
+          {
+            "t": "頁面破碎",
+            "en": "Page Fragmentation",
+            "ps": "noun"
+          },
+          {
+            "t": "頁面分割",
+            "en": "Page Splits",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "GUID 無法支援 `JOIN` 操作。",
+        "en": "GUID cannot support `JOIN` operations.",
+        "wg": []
+      },
+      {
+        "t": "SQL Server 不支援在 GUID 欄位上建立索引。",
+        "en": "SQL Server does not support creating indexes on GUID columns.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "Clustered Index 決定了資料在硬碟上的物理排序。`NEWID()` 產生的 GUID 是完全隨機的，這意味著新插入的資料不會依序排在最後，而是隨機插入現有的資料頁 (Data Page) 中間。這會強迫 SQL Server 頻繁執行「頁面分割 (Page Split)」來騰出空間，導致嚴重的索引破碎 (Fragmentation) 與 I/O 效能下降。",
+      "en": "The Clustered Index determines the physical order of data on the disk. GUIDs generated by `NEWID()` are completely random, meaning new data is not appended to the end but inserted randomly into existing Data Pages. This forces SQL Server to frequently perform 'Page Splits' to make room, resulting in severe index fragmentation and degraded I/O performance.",
+      "wg": [
+        {
+          "t": "物理排序",
+          "en": "Physical order",
+          "ps": "noun"
+        },
+        {
+          "t": "隨機插入",
+          "en": "Randomly insert",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "4",
+    "level": "Medium",
+    "keywords": "Composite Index, Leftmost Prefix, Index Usage",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "CREATE INDEX IX_Employee_Dept_HireDate \nON dbo.Employees (DepartmentId, HireDate);\n\n-- Query\nSELECT * FROM dbo.Employees WHERE HireDate > '2023-01-01';",
+    "question": [
+      {
+        "t": "根據「最左前綴原則 (Leftmost Prefix Rule)」，上述查詢能否有效利用 `IX_Employee_Dept_HireDate` 索引進行搜尋 (Seek)？",
+        "en": "According to the 'Leftmost Prefix Rule', can the query above effectively use the `IX_Employee_Dept_HireDate` index for seeking?",
+        "wg": [
+          {
+            "t": "最左前綴原則",
+            "en": "Leftmost Prefix Rule",
+            "ps": "noun"
+          },
+          {
+            "t": "有效利用",
+            "en": "Effectively use",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "type": "Single",
+    "options": [
+      {
+        "t": "可以，因為 `HireDate` 包含在索引中。",
+        "en": "Yes, because `HireDate` is included in the index.",
+        "wg": []
+      },
+      {
+        "t": "不可以，因為查詢略過了索引的第一個欄位 `DepartmentId`。",
+        "en": "No, because the query skips the first column of the index, `DepartmentId`.",
+        "wg": [
+          {
+            "t": "略過",
+            "en": "Skip",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "可以，但 SQL Server 會自動反轉索引順序來配合查詢。",
+        "en": "Yes, but SQL Server will automatically reverse the index order to match the query.",
+        "wg": []
+      },
+      {
+        "t": "只有當 `DepartmentId` 是 NULL 時才可以使用。",
+        "en": "It can only be used if `DepartmentId` is NULL.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "複合索引就像電話簿，是先按 `DepartmentId` 排序，再按 `HireDate` 排序。如果查詢條件沒有指定 `DepartmentId`，資料庫就無法直接跳到特定的 `HireDate` 區塊（因為不同部門的相同日期是分散的）。因此，此查詢無法執行 Index Seek，通常會退化為 Index Scan 或 Table Scan。",
+      "en": "A composite index is like a phone book; it is sorted first by `DepartmentId`, then by `HireDate`. If the query condition does not specify `DepartmentId`, the database cannot jump directly to a specific `HireDate` block (because the same dates for different departments are scattered). Therefore, this query cannot perform an Index Seek and will typically degrade to an Index Scan or Table Scan.",
+      "wg": [
+        {
+          "t": "複合索引",
+          "en": "Composite Index",
+          "ps": "noun"
+        },
+        {
+          "t": "退化",
+          "en": "Degrade",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "5",
+    "level": "Medium",
+    "keywords": "Maintenance, Unused Index, DMV, Write Performance",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "SELECT \n    OBJECT_NAME(s.object_id) AS TableName,\n    i.name AS IndexName,\n    s.user_seeks, s.user_scans, s.user_lookups,\n    s.user_updates\nFROM sys.dm_db_index_usage_stats s\nJOIN sys.indexes i ON s.object_id = i.object_id AND s.index_id = i.index_id\nWHERE OBJECT_NAME(s.object_id) = 'Orders';",
+    "question": [
+      {
+        "t": "你執行了上述查詢來檢查索引使用狀況，發現某個 Non-Clustered Index 的數據如下：`user_seeks = 0`, `user_scans = 0`, `user_lookups = 0`, `user_updates = 500,000`。這代表什麼意義，你應該採取什麼行動？",
+        "en": "You executed the query above to check index usage and found the following data for a Non-Clustered Index: `user_seeks = 0`, `user_scans = 0`, `user_lookups = 0`, `user_updates = 500,000`. What does this imply, and what action should you take?",
+        "wg": [
+          {
+            "t": "使用狀況",
+            "en": "Usage status",
+            "ps": "noun"
+          },
+          {
+            "t": "採取行動",
+            "en": "Take action",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "type": "Single",
+    "options": [
+      {
+        "t": "該索引非常熱門，因為更新次數很高，應保留並優化。",
+        "en": "The index is very popular because the update count is high; it should be kept and optimized.",
+        "wg": []
+      },
+      {
+        "t": "該索引從未被讀取過，但卻拖累了 50 萬次寫入效能，應考慮刪除。",
+        "en": "The index has never been read but has dragged down write performance 500,000 times; consider dropping it.",
+        "wg": [
+          {
+            "t": "拖累",
+            "en": "Drag down",
+            "ps": "verb"
+          },
+          {
+            "t": "寫入效能",
+            "en": "Write performance",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "該索引可能損壞，需要執行 REBUILD。",
+        "en": "The index might be corrupted and requires a REBUILD.",
+        "wg": []
+      },
+      {
+        "t": "這是正常的，索引的主要用途本來就是加速 UPDATE 操作。",
+        "en": "This is normal; the primary purpose of an index is to accelerate UPDATE operations.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "索引是為了「讀取」而存在的。`user_updates` 代表資料庫維護該索引的次數（成本），而 `seeks/scans/lookups` 代表索引被用來加速查詢的次數（效益）。如果效益為 0 但成本很高，代表這個索引是純粹的負擔（Dead Weight），會拖慢 `INSERT`/`UPDATE`/`DELETE`，應將其刪除。",
+      "en": "Indexes exist for 'read' operations. `user_updates` represents the number of times the database maintained the index (cost), while `seeks/scans/lookups` represent the number of times the index was used to accelerate queries (benefit). If the benefit is 0 but the cost is high, the index is pure dead weight, slowing down `INSERT`/`UPDATE`/`DELETE`, and should be dropped.",
+      "wg": [
+        {
+          "t": "效益",
+          "en": "Benefit",
+          "ps": "noun"
+        },
+        {
+          "t": "負擔",
+          "en": "Burden",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "6",
+    "level": "Hard",
+    "keywords": "Filtered Index, Selectivity, Queue Pattern",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "-- Table: Jobs (10 million rows)\n-- Status distribution: 'Processed' (99%), 'Pending' (1%)\n-- Frequent Query:\nSELECT * FROM Jobs WHERE Status = 'Pending';",
+    "question": [
+      {
+        "t": "在一個類似 Queue 的大表中，絕大多數資料都是「已處理」，只有極少數是「待處理」。為了優化查詢待處理資料的效能並節省空間，下列哪種索引策略最合適？",
+        "en": "In a large Queue-like table, the vast majority of data is 'Processed', with only a tiny fraction being 'Pending'. To optimize the performance of querying pending data and save space, which of the following index strategies is most appropriate?",
+        "wg": [
+          {
+            "t": "絕大多數",
+            "en": "Vast majority",
+            "ps": "noun"
+          },
+          {
+            "t": "節省空間",
+            "en": "Save space",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "type": "Single",
+    "options": [
+      {
+        "t": "建立標準的 Non-Clustered Index 在 `Status` 欄位上。",
+        "en": "Create a standard Non-Clustered Index on the `Status` column.",
+        "wg": []
+      },
+      {
+        "t": "建立 Filtered Index：`CREATE INDEX ... WHERE Status = 'Pending'`。",
+        "en": "Create a Filtered Index: `CREATE INDEX ... WHERE Status = 'Pending'`.",
+        "wg": [
+          {
+            "t": "篩選索引",
+            "en": "Filtered Index",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "不建立索引，依賴 Table Scan 比較快。",
+        "en": "Do not create an index; relying on Table Scan is faster.",
+        "wg": []
+      },
+      {
+        "t": "將 `Status` 欄位設為 Primary Key。",
+        "en": "Set the `Status` column as the Primary Key.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "這是 Filtered Index 的典型應用場景。標準索引會包含所有 1000 萬筆資料，即使 99% 的資料你都不會查詢。Filtered Index 只會索引 `Status = 'Pending'` 的那 1% 資料，這使得索引非常小、維護成本極低，且搜尋速度極快。這能有效解決稀疏狀態（Sparse State）的查詢需求。",
+      "en": "This is a classic use case for a Filtered Index. A standard index would include all 10 million rows, even though you never query 99% of them. A Filtered Index will only index the 1% of data where `Status = 'Pending'`, making the index extremely small, very low maintenance, and incredibly fast to search. This effectively addresses query needs for sparse states.",
+      "wg": [
+        {
+          "t": "典型應用場景",
+          "en": "Classic use case",
+          "ps": "noun"
+        },
+        {
+          "t": "稀疏狀態",
+          "en": "Sparse State",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "7",
+    "level": "Medium",
+    "keywords": "Implicit Conversion, Data Types, Performance, Anti-pattern",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "CREATE TABLE Users (\n    Username VARCHAR(50) NOT NULL,\n    ...\n);\nCREATE INDEX IX_Users_Username ON Users(Username);\n\n-- Application Code (.NET/Java default string type)\nDECLARE @InputName NVARCHAR(50) = N'Alice';\n\nSELECT * FROM Users WHERE Username = @InputName;",
+    "question": [
+      {
+        "t": "觀察上述 SQL 定義與查詢，雖然 `Username` 欄位上有索引，但執行計畫卻顯示為 Index Scan 而非 Index Seek。最可能的原因是什麼？",
+        "en": "Observing the SQL definition and query above, although there is an index on the `Username` column, the execution plan shows an Index Scan instead of an Index Seek. What is the most likely reason?",
+        "wg": [
+          {
+            "t": "隱式轉型",
+            "en": "Implicit Conversion",
+            "ps": "noun"
+          },
+          {
+            "t": "執行計畫",
+            "en": "Execution Plan",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single",
+    "options": [
+      {
+        "t": "因為查詢沒有使用 `LIKE` 語法，導致無法使用索引。",
+        "en": "Because the query does not use `LIKE` syntax, preventing index usage.",
+        "wg": []
+      },
+      {
+        "t": "因為 `NVARCHAR` 的優先權高於 `VARCHAR`，導致資料庫必須將資料表中的每個 `Username` 隱式轉型為 `NVARCHAR` 後才能比較。",
+        "en": "Because `NVARCHAR` has higher precedence than `VARCHAR`, causing the database to implicitly convert every `Username` in the table to `NVARCHAR` before comparison.",
+        "wg": [
+          {
+            "t": "優先權",
+            "en": "Precedence",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "因為 `Username` 欄位沒有包含在 `INCLUDE` 子句中，導致覆蓋索引失效。",
+        "en": "Because the `Username` column is not included in the `INCLUDE` clause, causing the covering index to fail.",
+        "wg": []
+      },
+      {
+        "t": "因為變數 `@InputName` 的長度定義為 50，與欄位長度相同，導致參數嗅探 (Parameter Sniffing) 問題。",
+        "en": "Because the variable `@InputName` is defined with a length of 50, matching the column length, causing a Parameter Sniffing issue.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "這是經典的「隱式轉型 (Implicit Conversion)」反模式。當查詢參數是 `NVARCHAR` (Unicode) 而欄位是 `VARCHAR` (Non-Unicode) 時，由於 `NVARCHAR` 優先權較高，SQL Server 無法將參數轉為 `VARCHAR` 來匹配索引，反而必須將整張表的欄位值逐一轉型為 `NVARCHAR` 進行比較，這會導致索引無法進行 Seek 操作。",
+      "en": "This is a classic 'Implicit Conversion' anti-pattern. When the query parameter is `NVARCHAR` (Unicode) and the column is `VARCHAR` (Non-Unicode), due to the higher precedence of `NVARCHAR`, SQL Server cannot convert the parameter to `VARCHAR` to match the index. Instead, it must convert every column value in the table to `NVARCHAR` for comparison, preventing an Index Seek operation.",
+      "wg": [
+        {
+          "t": "反模式",
+          "en": "Anti-pattern",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "8",
+    "level": "Medium",
+    "keywords": "Foreign Key, Locking, Best Practices, Deadlock",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "CREATE TABLE Customers (Id INT PRIMARY KEY, ...);\nCREATE TABLE Orders (\n    Id INT PRIMARY KEY, \n    CustomerId INT FOREIGN KEY REFERENCES Customers(Id)\n    -- Note: No index created on CustomerId\n);",
+    "question": [
+      {
+        "t": "在上述資料表結構中，當你嘗試刪除 `Customers` 表中的一筆資料時，發現該操作耗時極長，甚至導致 `Orders` 表被鎖定。這是因為缺少了什麼配置？",
+        "en": "In the table structure above, when you attempt to delete a record from the `Customers` table, the operation takes a very long time and even causes locks on the `Orders` table. What configuration is missing?",
+        "wg": [
+          {
+            "t": "外鍵",
+            "en": "Foreign Key",
+            "ps": "noun"
+          },
+          {
+            "t": "鎖定",
+            "en": "Locking",
+            "ps": "verb/noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single",
+    "options": [
+      {
+        "t": "缺少了 `ON DELETE CASCADE` 設定，導致資料庫無法自動刪除關聯資料。",
+        "en": "Missing `ON DELETE CASCADE` setting, preventing the database from automatically deleting related data.",
+        "wg": []
+      },
+      {
+        "t": "`Orders` 表缺少 Clustered Index，導致刪除操作變成 Heap Table Scan。",
+        "en": "The `Orders` table is missing a Clustered Index, causing the delete operation to become a Heap Table Scan.",
+        "wg": []
+      },
+      {
+        "t": "`Orders.CustomerId` 外鍵欄位缺少 Non-Clustered Index，導致資料庫必須全表掃描 `Orders` 來檢查參照完整性。",
+        "en": "The `Orders.CustomerId` foreign key column is missing a Non-Clustered Index, forcing the database to perform a full table scan on `Orders` to check referential integrity.",
+        "wg": [
+          {
+            "t": "參照完整性",
+            "en": "Referential Integrity",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "`Customers` 表的 Primary Key 應該改用 GUID 以避免頁面競爭。",
+        "en": "The Primary Key of the `Customers` table should be changed to a GUID to avoid page contention.",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "SQL Server 不會自動為 Foreign Key 建立索引。當刪除 Parent (Customers) 資料時，資料庫必須確保沒有 Child (Orders) 參照該 ID。若 `CustomerId` 沒有索引，資料庫被迫對 `Orders` 進行全表掃描 (Table Scan) 來確認，這不僅慢，還可能對整張表加鎖，影響並發性。",
+      "en": "SQL Server does not automatically index Foreign Keys. When deleting data from the Parent (Customers), the database must ensure no Child (Orders) references that ID. If `CustomerId` is not indexed, the database is forced to perform a full Table Scan on `Orders` to verify, which is not only slow but may also lock the entire table, impacting concurrency.",
+      "wg": [
+        {
+          "t": "全表掃描",
+          "en": "Table Scan",
+          "ps": "noun"
+        },
+        {
+          "t": "並發性",
+          "en": "Concurrency",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "9",
+    "level": "Easy",
+    "keywords": "Duplicate Index, Optimization, Maintenance, Redundancy",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "Existing Index: IX_Employee_Name (LastName, FirstName)\n\nProposed New Index: IX_Employee_LastName (LastName)",
+    "question": [
+      {
+        "t": "資料庫中已經存在一個複合索引 `(LastName, FirstName)`。現在有開發者建議為了加速 `WHERE LastName = 'Smith'` 的查詢，應該再新增一個針對 `(LastName)` 的單欄位索引。根據索引設計最佳實務，你應該如何回應？",
+        "en": "There is already a composite index `(LastName, FirstName)` in the database. A developer proposes adding a new single-column index on `(LastName)` to speed up queries like `WHERE LastName = 'Smith'`. According to indexing best practices, how should you respond?",
+        "wg": [
+          {
+            "t": "複合索引",
+            "en": "Composite Index",
+            "ps": "noun"
+          },
+          {
+            "t": "最佳實務",
+            "en": "Best Practices",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single",
+    "options": [
+      {
+        "t": "同意新增。單欄位索引通常比複合索引更小且更快。",
+        "en": "Approve. Single-column indexes are usually smaller and faster than composite indexes.",
+        "wg": []
+      },
+      {
+        "t": "拒絕新增。根據最左前綴原則，現有的複合索引已經能有效支援對 `LastName` 的查詢，新增索引只會造成冗餘與維護成本。",
+        "en": "Reject. According to the Leftmost Prefix Rule, the existing composite index already effectively supports queries on `LastName`. Adding it would only create redundancy and maintenance costs.",
+        "wg": [
+          {
+            "t": "冗餘",
+            "en": "Redundancy",
+            "ps": "noun"
+          },
+          {
+            "t": "最左前綴原則",
+            "en": "Leftmost Prefix Rule",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "同意新增，但建議將新索引設為 Clustered Index。",
+        "en": "Approve, but suggest making the new index a Clustered Index.",
+        "wg": []
+      },
+      {
+        "t": "拒絕新增。應該刪除原本的複合索引，只保留新的單欄位索引。",
+        "en": "Reject. The original composite index should be deleted, keeping only the new single-column index.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "這是「重複索引 (Duplicate Index)」的案例。複合索引 `(A, B)` 在邏輯上已經包含了 `(A)` 的排序資訊。任何能使用 `(A)` 索引的查詢，都能同樣高效地使用 `(A, B)`。新增 `(A)` 索引只會浪費硬碟空間並拖慢寫入效能，而不會帶來讀取優勢。",
+      "en": "This is a case of 'Duplicate Index'. A composite index `(A, B)` logically includes the sorting information for `(A)`. Any query that can use an index on `(A)` can use `(A, B)` just as efficiently. Adding an index on `(A)` only wastes disk space and slows down write performance without providing read benefits.",
+      "wg": [
+        {
+          "t": "重複索引",
+          "en": "Duplicate Index",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "10",
+    "level": "Hard",
+    "keywords": "Selectivity, Tipping Point, Query Optimizer, Table Scan",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "SELECT * FROM Orders WHERE OrderStatus = 'Shipped';\n-- 'Shipped' status accounts for 90% of the 1 million rows.\n-- An index exists on the 'OrderStatus' column.",
+    "question": [
+      {
+        "t": "針對上述查詢，雖然 `OrderStatus` 欄位上有索引，但 SQL Server 執行計畫卻選擇了 `Clustered Index Scan` (全表掃描) 而非使用該索引。這背後的主要考量是什麼？",
+        "en": "For the query above, although there is an index on the `OrderStatus` column, the SQL Server execution plan chooses a `Clustered Index Scan` (Full Table Scan) instead of using that index. What is the main reasoning behind this?",
+        "wg": [
+          {
+            "t": "選擇性",
+            "en": "Selectivity",
+            "ps": "noun"
+          },
+          {
+            "t": "全表掃描",
+            "en": "Table Scan",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single",
+    "options": [
+      {
+        "t": "索引已經損壞，需要執行 `REBUILD`。",
+        "en": "The index is corrupted and needs a `REBUILD`.",
+        "wg": []
+      },
+      {
+        "t": "因為查詢使用了 `SELECT *`，導致索引無法覆蓋所有欄位，且由於回傳行數過多 (90%)，透過索引進行 Key Lookup 的隨機 I/O 成本遠高於直接順序掃描整張表。",
+        "en": "Because the query uses `SELECT *`, the index cannot cover all columns. Since the returned row count is too high (90%), the cost of Random I/O via Key Lookup is much higher than simply scanning the table sequentially.",
+        "wg": [
+          {
+            "t": "隨機 I/O",
+            "en": "Random I/O",
+            "ps": "noun"
+          },
+          {
+            "t": "臨界點",
+            "en": "Tipping Point",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "SQL Server 的最佳化器發生錯誤，應該使用 `WITH (INDEX(...))` 強制使用索引。",
+        "en": "The SQL Server optimizer made a mistake; you should use `WITH (INDEX(...))` to force index usage.",
+        "wg": []
+      },
+      {
+        "t": "因為 `OrderStatus` 是字串欄位，字串比較的成本過高，導致掃描比搜尋快。",
+        "en": "Because `OrderStatus` is a string column, the cost of string comparison is too high, making scanning faster than seeking.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "這涉及「臨界點 (Tipping Point)」與「選擇性 (Selectivity)」的概念。當查詢條件回傳的資料量超過一定比例（通常約 30% 或更低，視資料列寬度而定），透過 Non-Clustered Index 查找再回表 (Key Lookup) 產生的隨機讀取成本，會超過直接順序讀取 (Sequential Read) 整張表的成本。因此最佳化器會選擇忽略索引。",
+      "en": "This involves the concepts of 'Tipping Point' and 'Selectivity'. When the query returns a percentage of rows exceeding a certain threshold (usually around 30% or lower, depending on row width), the cost of random reads generated by Key Lookups via a Non-Clustered Index exceeds the cost of sequentially reading the entire table. Therefore, the optimizer chooses to ignore the index.",
+      "wg": [
+        {
+          "t": "最佳化器",
+          "en": "Optimizer",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "11",
+    "level": "Medium",
+    "keywords": "Write Performance, Overhead, Index Architecture, Trade-off",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "",
+    "question": [
+      {
+        "t": "你正在設計一個高頻寫入的系統（例如 IoT 設備日誌收集），該表每秒有數千次 `INSERT`。為了支援各種報表需求，團隊成員建議在該表上建立 10 個不同的 Non-Clustered Indexes。這會帶來什麼主要風險？",
+        "en": "You are designing a write-heavy system (e.g., IoT device log collection) where the table receives thousands of `INSERT`s per second. To support various reporting needs, a team member suggests creating 10 different Non-Clustered Indexes on this table. What is the main risk of doing this?",
+        "wg": [
+          {
+            "t": "高頻寫入",
+            "en": "Write-heavy",
+            "ps": "adj"
+          },
+          {
+            "t": "開銷",
+            "en": "Overhead",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single",
+    "options": [
+      {
+        "t": "會導致 `SELECT` 查詢變慢，因為最佳化器需要評估太多索引路徑。",
+        "en": "It will slow down `SELECT` queries because the optimizer has to evaluate too many index paths.",
+        "wg": []
+      },
+      {
+        "t": "會顯著降低 `INSERT` 效能，因為每一筆寫入都必須同步更新這 10 個額外的 B-Tree 結構。",
+        "en": "It will significantly degrade `INSERT` performance because every write must synchronously update these 10 additional B-Tree structures.",
+        "wg": [
+          {
+            "t": "同步更新",
+            "en": "Synchronously update",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "會導致資料庫檔案大小超過作業系統限制。",
+        "en": "It will cause the database file size to exceed operating system limits.",
+        "wg": []
+      },
+      {
+        "t": "不會有風險，SQL Server 會非同步處理索引更新，不影響寫入速度。",
+        "en": "There is no risk; SQL Server handles index updates asynchronously without affecting write speed.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "索引是「為了讀取效能而犧牲寫入效能」的交換。每個 Non-Clustered Index 都是一份需要維護的資料副本。當發生 `INSERT`、`UPDATE` 或 `DELETE` 時，SQL Server 必須同步修改所有相關的索引結構。對於高頻寫入的表，過多的索引會造成嚴重的寫入延遲與鎖定競爭。",
+      "en": "Indexing is a trade-off of 'sacrificing write performance for read performance'. Each Non-Clustered Index is a copy of data that needs maintenance. When an `INSERT`, `UPDATE`, or `DELETE` occurs, SQL Server must synchronously modify all related index structures. For write-heavy tables, too many indexes cause severe write latency and locking contention.",
+      "wg": [
+        {
+          "t": "交換",
+          "en": "Trade-off",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "12",
+    "level": "Medium",
+    "keywords": "Filtered Index, Unique Constraint, Business Logic, Real-world",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "Table: Users (Id, Email, IsDeleted)\nRequirement: Email must be unique, BUT only for active users (IsDeleted = 0). Soft-deleted users can have duplicate emails.",
+    "question": [
+      {
+        "t": "你需要實作上述的業務邏輯：確保 `Email` 的唯一性，但僅限於未刪除 (`IsDeleted = 0`) 的使用者。下列哪種索引設計最能精確且高效地達成此需求？",
+        "en": "You need to implement the business logic described above: ensure `Email` uniqueness, but only for undeleted users (`IsDeleted = 0`). Which of the following index designs most accurately and efficiently meets this requirement?",
+        "wg": [
+          {
+            "t": "唯一性",
+            "en": "Uniqueness",
+            "ps": "noun"
+          },
+          {
+            "t": "篩選索引",
+            "en": "Filtered Index",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single",
+    "options": [
+      {
+        "t": "在應用程式層 (Application Layer) 先查詢檢查，再寫入資料。",
+        "en": "Check by querying in the Application Layer first, then write the data.",
+        "wg": []
+      },
+      {
+        "t": "建立一個包含 `Email` 與 `IsDeleted` 的複合唯一索引：`CREATE UNIQUE INDEX IX_Users_Email_Deleted ON Users(Email, IsDeleted)`。",
+        "en": "Create a composite unique index on `Email` and `IsDeleted`: `CREATE UNIQUE INDEX IX_Users_Email_Deleted ON Users(Email, IsDeleted)`.",
+        "wg": []
+      },
+      {
+        "t": "建立一個帶有 `WHERE` 子句的唯一篩選索引：`CREATE UNIQUE INDEX IX_Users_Email ON Users(Email) WHERE IsDeleted = 0`。",
+        "en": "Create a unique filtered index with a `WHERE` clause: `CREATE UNIQUE INDEX IX_Users_Email ON Users(Email) WHERE IsDeleted = 0`.",
+        "wg": [
+          {
+            "t": "篩選索引",
+            "en": "Filtered Index",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "使用 Trigger 在插入或更新時檢查重複。",
+        "en": "Use a Trigger to check for duplicates during insert or update.",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "這是 Filtered Index 的絕佳應用場景。透過 `WHERE IsDeleted = 0`，索引只會包含活躍用戶的資料，並在該子集上強制執行 `UNIQUE` 限制。這不僅滿足業務需求，還能節省索引空間並提高查詢活躍用戶的效能。選項 (1) 的複合索引無法滿足需求，因為它允許 `(email@test.com, 0)` 和 `(email@test.com, 1)` 共存，但也允許 `(email@test.com, 1)` 重複出現（若需求允許），但最關鍵的是它無法阻止 `(email@test.com, 1)` 與另一個 `(email@test.com, 1)` 衝突（若軟刪除允許多次），或者它無法單純只針對 `IsDeleted=0` 做唯一性檢查而不影響 `IsDeleted=1`。",
+      "en": "This is an excellent use case for a Filtered Index. By using `WHERE IsDeleted = 0`, the index only includes data for active users and enforces the `UNIQUE` constraint on that subset. This not only meets the business requirement but also saves index space and improves query performance for active users. Option (1)'s composite index fails because while it allows `(email@test.com, 0)` and `(email@test.com, 1)` to coexist, it enforces uniqueness on the combination, which might not be desired for deleted rows, or more importantly, it doesn't strictly isolate the uniqueness constraint to only the active records as elegantly as a filtered index.",
+      "wg": [
+        {
+          "t": "應用場景",
+          "en": "Use Case",
+          "ps": "noun"
+        }
+      ]
+    }
+  }
+]

@@ -1,0 +1,859 @@
+[
+  {
+    "no": "1",
+    "level": "Hard",
+    "keywords": "Write Concern, Rollback, Durability, Data Loss",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "某電商系統在進行大促銷活動時，Primary 節點突然斷電重啟。維運團隊發現有數筆訂單在應用程式端顯示「建立成功」，但在資料庫中卻憑空消失了，且在 `rollback` 目錄下發現了相關的 BSON 檔案。請問造成此現象最根本的配置原因為何？",
+        "en": "During a major sale event, the Primary node of an e-commerce system suddenly lost power and restarted. The operations team found that several orders showed as 'created successfully' in the application but were missing from the database. Related BSON files were subsequently found in the `rollback` directory. What is the root cause configuration for this phenomenon?",
+        "wg": [
+          {
+            "t": "寫入關注",
+            "en": "Write Concern",
+            "ps": "noun"
+          },
+          {
+            "t": "回滾",
+            "en": "Rollback",
+            "ps": "noun"
+          },
+          {
+            "t": "主節點",
+            "en": "Primary node",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "應用程式使用了 `w: 1`（預設值），導致資料僅寫入 Primary 記憶體或日誌後即回傳成功，尚未複製到 Secondary 就發生故障。",
+        "en": "The application used `w: 1` (default), causing the data to be acknowledged after writing only to the Primary's memory/journal, crashing before replication to a Secondary.",
+        "wg": [
+          {
+            "t": "複製",
+            "en": "Replication",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "Oplog 大小設定過小，導致 Secondary 無法及時同步資料。",
+        "en": "The Oplog size was set too small, preventing the Secondary from syncing data in time.",
+        "wg": []
+      },
+      {
+        "t": "沒有設定 `readPreference: primary`，導致應用程式讀取到了舊的 Secondary 資料。",
+        "en": "The `readPreference` was not set to `primary`, causing the application to read stale data from a Secondary.",
+        "wg": []
+      },
+      {
+        "t": "使用了 PSA 架構，Arbiter 節點導致了資料寫入的不一致。",
+        "en": "A PSA architecture was used, and the Arbiter node caused data write inconsistency.",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "當 Write Concern 設為 `w: 1` 時，Primary 只要寫入本地 Journal 就會回傳成功。若此時 Primary 在將 Oplog 傳送給 Secondary 之前崩潰，該筆資料就不存在於其他節點。當舊 Primary 恢復後，會發現自己的 Oplog 與新選出的 Primary 衝突，因此觸發 Rollback 機制刪除該筆資料。解決方案是使用 `w: 'majority'`。",
+      "en": "When Write Concern is set to `w: 1`, the Primary acknowledges success as soon as the write hits its local journal. If the Primary crashes before shipping the Oplog to a Secondary, that data exists nowhere else. Upon recovery, the old Primary detects a conflict with the new Primary's Oplog and triggers a Rollback, deleting the conflicting data. The solution is to use `w: 'majority'`.",
+      "wg": [
+        {
+          "t": "衝突",
+          "en": "Conflict",
+          "ps": "noun"
+        },
+        {
+          "t": "大多數",
+          "en": "Majority",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "2",
+    "level": "Medium",
+    "keywords": "Architecture, PSA, PSS, Arbiter, Availability",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在資源有限的情況下，團隊考慮使用 PSA (Primary-Secondary-Arbiter) 架構來節省成本，同時希望保持資料的高耐久性而設定了 `w: 'majority'`。請問這種組合在「單一資料節點故障」時會面臨什麼風險？",
+        "en": "To save costs with limited resources, a team considers using a PSA (Primary-Secondary-Arbiter) architecture while setting `w: 'majority'` to ensure high data durability. What risk does this combination face if a 'single data node fails'?",
+        "wg": [
+          {
+            "t": "仲裁者",
+            "en": "Arbiter",
+            "ps": "noun"
+          },
+          {
+            "t": "耐久性",
+            "en": "Durability",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "寫入操作會被阻塞（Block），導致服務不可用。",
+        "en": "Write operations will be blocked, causing service unavailability.",
+        "wg": [
+          {
+            "t": "阻塞",
+            "en": "Block",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "Arbiter 會自動轉變為資料節點來接收寫入，導致資料損壞。",
+        "en": "The Arbiter will automatically transform into a data node to accept writes, causing data corruption.",
+        "wg": []
+      },
+      {
+        "t": "系統會自動降級為 `w: 1` 模式繼續運作，犧牲一致性。",
+        "en": "The system will automatically degrade to `w: 1` mode to continue operation, sacrificing consistency.",
+        "wg": []
+      },
+      {
+        "t": "讀取操作會因為無法達成 Read Concern Majority 而全部失敗。",
+        "en": "Read operations will all fail because Read Concern Majority cannot be satisfied.",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "在 PSA 架構（3 個投票節點）中，Majority 需要 2 票。Arbiter 雖然有投票權但「不存儲資料」。若其中一個資料節點故障，僅剩 Primary 一個資料節點存活。雖然 Primary + Arbiter 滿足選舉多數（可維持 Primary 身份），但 `w: 'majority'` 要求資料必須寫入「大多數資料節點」（在此例中需 2 個資料節點確認，或視版本實作需投票節點確認但 Arbiter 無法寫入）。因此無法滿足寫入確認條件，導致寫入阻塞。這是 PSA 架構搭配 `w: 'majority'` 的主要陷阱。",
+      "en": "In a PSA architecture (3 voting nodes), a Majority requires 2 votes. While the Arbiter votes, it does 'not store data'. If one data node fails, only the Primary remains as a data node. Although Primary + Arbiter satisfy the election quorum (keeping the Primary up), `w: 'majority'` requires data to be written to a 'majority of nodes'. Since the Arbiter cannot acknowledge a data write, the condition cannot be met (1 data node < 2 required). This causes writes to block, which is a major pitfall of using `w: 'majority'` with PSA.",
+      "wg": [
+        {
+          "t": "陷阱",
+          "en": "Pitfall",
+          "ps": "noun"
+        },
+        {
+          "t": "確認",
+          "en": "Acknowledge",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "3",
+    "level": "Medium",
+    "keywords": "Oplog, Replication Lag, Maintenance, Initial Sync",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你負責維護一個寫入量極大的 MongoDB 叢集，Oplog Size 設定為 10GB（約可容納 1 小時的寫入量）。某個 Secondary 節點因硬體故障離線了 3 小時。當該節點修復並重新加入叢集後，最可能發生什麼狀況？",
+        "en": "You maintain a write-heavy MongoDB cluster with an Oplog Size of 10GB (holding about 1 hour of writes). A Secondary node goes offline for 3 hours due to hardware failure. What is most likely to happen when this node is repaired and rejoins the cluster?",
+        "wg": [
+          {
+            "t": "操作日誌",
+            "en": "Oplog",
+            "ps": "noun"
+          },
+          {
+            "t": "離線",
+            "en": "Offline",
+            "ps": "adjective"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "節點狀態變為 `RECOVERING`，且無法自動恢復，必須進行 Initial Sync。",
+        "en": "The node state becomes `RECOVERING` and cannot recover automatically; an Initial Sync is required.",
+        "wg": [
+          {
+            "t": "全量同步",
+            "en": "Initial Sync",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "節點會自動從 Primary 下載遺失的 3 小時資料，並在幾分鐘內追上。",
+        "en": "The node will automatically download the missing 3 hours of data from the Primary and catch up within minutes.",
+        "wg": []
+      },
+      {
+        "t": "節點會觸發 Rollback 機制，刪除本地所有資料後重新同步。",
+        "en": "The node will trigger the Rollback mechanism, deleting all local data and re-syncing.",
+        "wg": []
+      },
+      {
+        "t": "Primary 會自動暫停寫入，等待該 Secondary 追上進度。",
+        "en": "The Primary will automatically pause writes to wait for the Secondary to catch up.",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "Oplog 是一個固定大小的 Ring Buffer。若節點離線時間（3小時）超過了 Oplog 的保留視窗（1小時），Primary 上該節點所需的舊 Oplog 紀錄已被新紀錄覆蓋。Secondary 找不到同步點（Sync Source），會陷入 `RECOVERING` 狀態並報錯，此時唯一的解法是刪除資料進行耗時的 Initial Sync。",
+      "en": "The Oplog is a fixed-size Ring Buffer. If the node's downtime (3 hours) exceeds the Oplog retention window (1 hour), the old Oplog records required by the Secondary have been overwritten on the Primary. The Secondary cannot find its sync point, will enter `RECOVERING` state and error out. The only solution is to delete the data and perform a time-consuming Initial Sync.",
+      "wg": [
+        {
+          "t": "覆蓋",
+          "en": "Overwrite",
+          "ps": "verb"
+        },
+        {
+          "t": "同步點",
+          "en": "Sync Source",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "4",
+    "level": "Hard",
+    "keywords": "Performance, Analytics, Hidden Node, Cache Pressure",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "行銷團隊每週一會執行全表掃描（Full Collection Scan）的報表分析。為了避免影響線上服務，他們將連線字串設為 `readPreference=secondary`。然而，維運團隊發現每當報表執行時，Primary 節點的記憶體壓力（Cache Pressure）依然飆升，甚至影響寫入效能。請問造成此「隔山打牛」現象的技術原因為何？",
+        "en": "The marketing team runs a full collection scan for analytics every Monday. To avoid impacting live services, they set `readPreference=secondary`. However, the ops team noticed that whenever the report runs, the Primary node's Cache Pressure spikes, impacting write performance. What is the technical reason for this side effect?",
+        "wg": [
+          {
+            "t": "全表掃描",
+            "en": "Full Collection Scan",
+            "ps": "noun"
+          },
+          {
+            "t": "記憶體壓力",
+            "en": "Cache Pressure",
+            "ps": "noun"
+          },
+          {
+            "t": "隔山打牛",
+            "en": "Action at a distance (Side effect)",
+            "ps": "idiom"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "被查詢的 Secondary 因負載過重停止拉取 Oplog，導致 Primary 必須在記憶體中保留舊資料以供複製，無法釋放 Cache。",
+        "en": "The queried Secondary stopped pulling Oplog due to high load, forcing the Primary to hold old data in memory for replication, preventing Cache eviction.",
+        "wg": [
+          {
+            "t": "釋放",
+            "en": "Eviction",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "Secondary 的讀取請求會自動轉發回 Primary 進行驗證。",
+        "en": "Read requests on the Secondary are automatically forwarded back to the Primary for validation.",
+        "wg": []
+      },
+      {
+        "t": "MongoDB 的 `readPreference=secondary` 實際上仍然會消耗 Primary 的 CPU 來進行路由。",
+        "en": "MongoDB's `readPreference=secondary` actually still consumes Primary CPU for routing.",
+        "wg": []
+      },
+      {
+        "t": "全表掃描觸發了全域鎖（Global Lock），鎖住了整個 Replica Set。",
+        "en": "The full collection scan triggered a Global Lock, locking the entire Replica Set.",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "這是一個進階的效能陷阱。當 Secondary 因為執行繁重查詢而資源耗盡（IO/CPU 滿載），它會變慢甚至停止從 Primary 拉取 Oplog。MongoDB 的 WiredTiger 引擎為了確保資料能成功複製給落後的節點，會將這些「尚未被所有節點複製」的髒資料（Dirty Data）或歷史版本保留在 Primary 的 Cache 中，導致 Primary 可用的 Cache 空間變少，進而引發 Cache Pressure 並影響寫入效能。",
+      "en": "This is an advanced performance pitfall. When a Secondary is exhausted by heavy queries (IO/CPU saturation), it slows down or stops pulling Oplog from the Primary. To ensure data can be replicated to lagging nodes, MongoDB's WiredTiger engine pins 'dirty data' or history versions that haven't been replicated yet in the Primary's Cache. This reduces available Cache space on the Primary, causing Cache Pressure and degrading write performance.",
+      "wg": [
+        {
+          "t": "髒資料",
+          "en": "Dirty Data",
+          "ps": "noun"
+        },
+        {
+          "t": "飽和",
+          "en": "Saturation",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "5",
+    "level": "Medium",
+    "keywords": "Election, Quorum, Split-brain, Network Partition",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你有一個包含 5 個節點的 Replica Set，分佈在兩個資料中心：DC-A 有 3 個節點，DC-B 有 2 個節點。若兩個資料中心之間的網路完全中斷（Network Partition），請問會發生什麼事？",
+        "en": "You have a Replica Set with 5 nodes distributed across two data centers: DC-A has 3 nodes, and DC-B has 2 nodes. If the network between the two data centers is completely severed (Network Partition), what will happen?",
+        "wg": [
+          {
+            "t": "網路分割",
+            "en": "Network Partition",
+            "ps": "noun"
+          },
+          {
+            "t": "資料中心",
+            "en": "Data Center",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "DC-A 可以選出或維持 Primary，DC-B 的節點會變成唯讀（Secondary）。",
+        "en": "DC-A can elect or maintain a Primary, while nodes in DC-B become read-only (Secondary).",
+        "wg": [
+          {
+            "t": "唯讀",
+            "en": "Read-only",
+            "ps": "adjective"
+          }
+        ]
+      },
+      {
+        "t": "DC-A 和 DC-B 都會選出各自的 Primary，造成腦裂（Split-brain）。",
+        "en": "Both DC-A and DC-B will elect their own Primary, causing Split-brain.",
+        "wg": [
+          {
+            "t": "腦裂",
+            "en": "Split-brain",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "整個叢集都會變成唯讀，因為沒有一邊擁有超過 3 個節點。",
+        "en": "The entire cluster becomes read-only because neither side has more than 3 nodes.",
+        "wg": []
+      },
+      {
+        "t": "DC-B 會選出 Primary，因為它的節點負載較低。",
+        "en": "DC-B will elect a Primary because its nodes have lower load.",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "選舉成功的關鍵是獲得「大多數（Majority）」票數。5 個節點的 Majority 是 `5/2 + 1 = 3` 票。DC-A 擁有 3 個節點，滿足 Majority 條件，因此可以選出或維持 Primary。DC-B 只有 2 個節點，無法湊齊 3 票，因此無法選出 Primary，所有節點將降級或維持為 Secondary（唯讀）。",
+      "en": "The key to a successful election is obtaining a 'Majority' of votes. For 5 nodes, the Majority is `5/2 + 1 = 3` votes. DC-A has 3 nodes, meeting the Majority requirement, so it can elect or maintain a Primary. DC-B has only 2 nodes, which is insufficient to reach 3 votes, so it cannot elect a Primary, and all its nodes will step down or remain as Secondaries (read-only).",
+      "wg": [
+        {
+          "t": "票數",
+          "en": "Votes",
+          "ps": "noun"
+        },
+        {
+          "t": "湊齊",
+          "en": "Gather/Assemble",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "6",
+    "level": "Medium",
+    "keywords": "Maintenance, Upgrade, Workflow, StepDown",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在進行 MongoDB 版本升級或作業系統修補時，為了達成「零停機（Zero Downtime）」維護，應遵循下列哪種正確的操作順序？",
+        "en": "When performing a MongoDB version upgrade or OS patching, which of the following is the correct sequence of operations to achieve 'Zero Downtime' maintenance?",
+        "wg": [
+          {
+            "t": "零停機",
+            "en": "Zero Downtime",
+            "ps": "noun"
+          },
+          {
+            "t": "修補",
+            "en": "Patching",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "先逐一升級所有 Secondary -> 強制 Primary 降級（StepDown） -> 升級原 Primary（現為 Secondary）。",
+        "en": "Upgrade all Secondaries one by one -> Force Primary StepDown -> Upgrade the original Primary (now a Secondary).",
+        "wg": [
+          {
+            "t": "降級",
+            "en": "StepDown",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "先升級 Primary -> 確認 Primary 重啟成功 -> 再逐一升級 Secondary。",
+        "en": "Upgrade the Primary first -> Confirm Primary restart success -> Then upgrade Secondaries one by one.",
+        "wg": []
+      },
+      {
+        "t": "同時關閉所有節點 -> 進行升級 -> 同時啟動所有節點。",
+        "en": "Shutdown all nodes simultaneously -> Perform upgrade -> Start all nodes simultaneously.",
+        "wg": []
+      },
+      {
+        "t": "先升級 Arbiter -> 升級 Primary -> 最後升級 Secondary。",
+        "en": "Upgrade Arbiter first -> Upgrade Primary -> Finally upgrade Secondary.",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "標準的 Rolling Upgrade 流程是：先確保備份 -> 逐一維護 Secondary（確保維護期間叢集仍有足夠票數且服務不中斷）-> 最後處理 Primary。處理 Primary 時，應先使用 `rs.stepDown()` 讓它優雅地交棒給已升級完成的 Secondary，待其變為 Secondary 後再進行維護。若先升級 Primary，會導致強制斷線與非預期選舉，增加風險。",
+      "en": "The standard Rolling Upgrade workflow is: Ensure backups -> Maintain Secondaries one by one (ensuring the cluster retains quorum and service continuity) -> Handle the Primary last. When handling the Primary, use `rs.stepDown()` to gracefully hand over leadership to an upgraded Secondary. Once it becomes a Secondary, proceed with maintenance. Upgrading the Primary first causes forced disconnects and unexpected elections, increasing risk.",
+      "wg": [
+        {
+          "t": "優雅地",
+          "en": "Gracefully",
+          "ps": "adverb"
+        },
+        {
+          "t": "交棒",
+          "en": "Hand over",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "7",
+    "level": "Medium",
+    "keywords": "Read Preference, Consistency, Stale Data, User Experience",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "開發團隊為了分擔 Primary 的讀取流量，將「使用者個人資料頁面」的查詢設定為 `readPreference: secondary`。然而，上線後頻繁收到使用者投訴，表示剛修改完暱稱，重新整理頁面卻仍顯示舊暱稱。",
+        "en": "To offload read traffic from the Primary, the development team set the query for the 'User Profile Page' to `readPreference: secondary`. However, after deployment, users frequently complained that after updating their nickname, refreshing the page still showed the old one.",
+        "wg": [
+          {
+            "t": "分擔流量",
+            "en": "offload traffic",
+            "ps": "verb phrase"
+          },
+          {
+            "t": "重新整理",
+            "en": "refresh",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "請問這是什麼問題造成的，以及該如何修正？",
+        "en": "What is causing this issue, and how should it be fixed?",
+        "wg": []
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "這是因為 `Replication Lag` 導致的資料不一致。對於這種「寫後即讀（Read-your-writes）」的場景，應改回讀取 Primary。",
+        "en": "This is data inconsistency caused by `Replication Lag`. For this 'Read-your-writes' scenario, you should revert to reading from the Primary.",
+        "wg": [
+          {
+            "t": "寫後即讀",
+            "en": "Read-your-writes",
+            "ps": "phrase"
+          }
+        ]
+      },
+      {
+        "t": "這是因為 Oplog 容量不足。應增加 Oplog Size 以加快複製速度。",
+        "en": "This is due to insufficient Oplog capacity. You should increase the Oplog Size to speed up replication.",
+        "wg": []
+      },
+      {
+        "t": "這是因為沒有設定 `w: 'majority'`。只要寫入時設定 `w: 'majority'`，Secondary 讀取就保證是最新的。",
+        "en": "This is because `w: 'majority'` was not set. As long as `w: 'majority'` is used for writes, reads from Secondaries are guaranteed to be up-to-date.",
+        "wg": []
+      },
+      {
+        "t": "這是因為網路頻寬不足。應升級網路設備以消除複製延遲。",
+        "en": "This is due to insufficient network bandwidth. You should upgrade network equipment to eliminate replication lag.",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "MongoDB 的複製是非同步的（Asynchronous）。當資料寫入 Primary 後，需要一小段時間才會複製到 Secondary。若應用程式在寫入後立刻從 Secondary 讀取，極可能讀到舊資料。對於使用者修改自己資料這類需要即時一致性的場景，必須讀取 Primary。",
+      "en": "MongoDB replication is asynchronous. After data is written to the Primary, it takes a small amount of time to replicate to Secondaries. If the application reads from a Secondary immediately after writing, it is very likely to read stale data. For scenarios requiring immediate consistency, such as users updating their own data, you must read from the Primary.",
+      "wg": [
+        {
+          "t": "非同步",
+          "en": "Asynchronous",
+          "ps": "adjective"
+        },
+        {
+          "t": "即時一致性",
+          "en": "immediate consistency",
+          "ps": "noun phrase"
+        }
+      ]
+    }
+  },
+  {
+    "no": "8",
+    "level": "Medium",
+    "keywords": "Priority, DR, Latency, Configuration, Multi-datacenter",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "members: [\n  { _id: 0, host: \"prod-db-1\", priority: 2 },\n  { _id: 1, host: \"prod-db-2\", priority: 1 },\n  { _id: 2, host: \"dr-db-1\", priority: ? }\n]",
+    "question": [
+      {
+        "t": "你的 MongoDB 叢集包含位於「主機房」的兩台高效能伺服器，以及位於「異地備援（DR）機房」的一台較低規格伺服器。最近主機房網路短暫波動，導致 Primary 飄移到了 DR 機房的節點，造成整體應用程式延遲大幅增加。",
+        "en": "Your MongoDB cluster consists of two high-performance servers in the 'Main Data Center' and one lower-spec server in a 'Disaster Recovery (DR) Data Center'. Recently, a brief network fluctuation in the main DC caused the Primary to drift to the DR node, significantly increasing overall application latency.",
+        "wg": [
+          {
+            "t": "異地備援",
+            "en": "Disaster Recovery (DR)",
+            "ps": "noun phrase"
+          },
+          {
+            "t": "飄移",
+            "en": "drift / failover to",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "為了防止 DR 節點在非必要情況下成為 Primary，你應該如何設定該節點的 `priority`？",
+        "en": "To prevent the DR node from becoming Primary unnecessarily, how should you configure its `priority`?",
+        "wg": []
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "設定 `priority: 0`",
+        "en": "Set `priority: 0`",
+        "wg": []
+      },
+      {
+        "t": "設定 `priority: 1`",
+        "en": "Set `priority: 1`",
+        "wg": []
+      },
+      {
+        "t": "設定 `hidden: true`",
+        "en": "Set `hidden: true`",
+        "wg": []
+      },
+      {
+        "t": "設定 `votes: 0`",
+        "en": "Set `votes: 0`",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "將節點的 `priority` 設為 0，表示該節點「永遠不會主動尋求成為 Primary」（除非手動重新設定）。這適用於異地備援節點，確保只有在主機房完全失效且人工介入時，它才接手服務，避免因短暫網路波動導致跨機房的高延遲寫入。",
+      "en": "Setting a node's `priority` to 0 means it will 'never actively seek to become Primary' (unless manually reconfigured). This is suitable for DR nodes, ensuring they only take over when the main DC completely fails and manual intervention occurs, avoiding high-latency writes across data centers due to brief network fluctuations.",
+      "wg": [
+        {
+          "t": "主動尋求",
+          "en": "actively seek",
+          "ps": "verb phrase"
+        }
+      ]
+    }
+  },
+  {
+    "no": "9",
+    "level": "Medium",
+    "keywords": "Architecture, Availability, Quorum, Election, Even Number Trap",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "一家新創公司為了節省成本，部署了一個只包含 **2 個節點**（1 Primary + 1 Secondary）的 MongoDB Replica Set。",
+        "en": "To save costs, a startup deployed a MongoDB Replica Set containing only **2 nodes** (1 Primary + 1 Secondary).",
+        "wg": []
+      },
+      {
+        "t": "請問這種架構在 Primary 節點發生硬體故障宕機時，會發生什麼後果？",
+        "en": "What will be the consequence if the Primary node suffers a hardware failure and goes down?",
+        "wg": [
+          {
+            "t": "宕機",
+            "en": "goes down / crashes",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "Secondary 節點無法獲得「大多數（Majority）」票數，因此無法成為 Primary，整個叢集將無法進行寫入（服務中斷）。",
+        "en": "The Secondary node cannot obtain a 'Majority' of votes, so it cannot become Primary. The entire cluster will be unable to accept writes (service interruption).",
+        "wg": [
+          {
+            "t": "服務中斷",
+            "en": "service interruption",
+            "ps": "noun phrase"
+          }
+        ]
+      },
+      {
+        "t": "Secondary 節點會自動偵測到 Primary 失聯，並順利升級為新的 Primary。",
+        "en": "The Secondary node will automatically detect the Primary is lost and successfully promote itself to the new Primary.",
+        "wg": []
+      },
+      {
+        "t": "Secondary 節點會暫時進入唯讀模式，直到 Primary 恢復後自動同步資料。",
+        "en": "The Secondary node will temporarily enter read-only mode until the Primary recovers and automatically syncs data.",
+        "wg": []
+      },
+      {
+        "t": "MongoDB 會自動啟動一個虛擬 Arbiter 來協助投票，完成 Failover。",
+        "en": "MongoDB will automatically start a virtual Arbiter to assist in voting and complete the Failover.",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "這是典型的「偶數節點陷阱」。在 2 個節點的叢集中，大多數（Majority）需要 `2/2 + 1 = 2` 票。當 Primary 當機，剩下的 Secondary 只有 1 票，無法滿足 Majority 條件，因此無法完成選舉，導致叢集失去寫入能力。",
+      "en": "This is the classic 'Even Number Trap'. In a 2-node cluster, a Majority requires `2/2 + 1 = 2` votes. When the Primary crashes, the remaining Secondary has only 1 vote, which does not meet the Majority condition. Therefore, an election cannot be completed, and the cluster loses write capability.",
+      "wg": [
+        {
+          "t": "偶數節點陷阱",
+          "en": "Even Number Trap",
+          "ps": "noun phrase"
+        }
+      ]
+    }
+  },
+  {
+    "no": "10",
+    "level": "Medium",
+    "keywords": "Security, Authentication, keyFile, Deployment, Checklist",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你在私有網路中部署了 3 台 MongoDB 伺服器，並嘗試使用 `rs.initiate()` 初始化 Replica Set。雖然網路防火牆已開通，但節點之間卻無法成功加入叢集，Log 顯示認證失敗或連線被拒。",
+        "en": "You deployed 3 MongoDB servers in a private network and tried to initialize the Replica Set using `rs.initiate()`. Although the firewall is open, the nodes fail to join the cluster, and logs show authentication failures or connection refused.",
+        "wg": [
+          {
+            "t": "私有網路",
+            "en": "private network",
+            "ps": "noun phrase"
+          },
+          {
+            "t": "連線被拒",
+            "en": "connection refused",
+            "ps": "phrase"
+          }
+        ]
+      },
+      {
+        "t": "根據部署檢查清單（Checklist），你最可能遺漏了下列哪項設定？",
+        "en": "According to the deployment checklist, which configuration did you most likely miss?",
+        "wg": []
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "未設定 `keyFile` 或 x.509 憑證以啟用節點間的內部認證。",
+        "en": "Did not configure `keyFile` or x.509 certificates to enable internal authentication between nodes.",
+        "wg": [
+          {
+            "t": "內部認證",
+            "en": "internal authentication",
+            "ps": "noun phrase"
+          }
+        ]
+      },
+      {
+        "t": "未設定 `bindIp` 為 `0.0.0.0`。",
+        "en": "Did not set `bindIp` to `0.0.0.0`.",
+        "wg": []
+      },
+      {
+        "t": "未設定 Oplog Size。",
+        "en": "Did not set Oplog Size.",
+        "wg": []
+      },
+      {
+        "t": "未設定 `priority` 參數。",
+        "en": "Did not set the `priority` parameter.",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "MongoDB Replica Set 的成員之間必須透過安全的方式進行通訊。在啟用存取控制（Access Control）的環境下，必須配置 `keyFile`（共用金鑰）或 x.509 憑證，節點才能互相認證並加入叢集。這是部署檢查清單中的關鍵安全性項目。",
+      "en": "Members of a MongoDB Replica Set must communicate securely. In an environment with Access Control enabled, you must configure a `keyFile` (shared key) or x.509 certificates so that nodes can authenticate each other and join the cluster. This is a critical security item in the deployment checklist.",
+      "wg": [
+        {
+          "t": "存取控制",
+          "en": "Access Control",
+          "ps": "noun phrase"
+        }
+      ]
+    }
+  },
+  {
+    "no": "11",
+    "level": "Hard",
+    "keywords": "Write Concern, Journaling, Durability, Power Failure",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "對於涉及金流的關鍵交易，系統要求即使在「所有節點同時斷電」的極端災難下，已回傳成功的資料也絕對不能遺失。",
+        "en": "For critical financial transactions, the system requires that even in the extreme disaster scenario of 'simultaneous power failure of all nodes', data acknowledged as successful must absolutely not be lost.",
+        "wg": [
+          {
+            "t": "金流",
+            "en": "financial flow / transactions",
+            "ps": "noun"
+          },
+          {
+            "t": "同時斷電",
+            "en": "simultaneous power failure",
+            "ps": "phrase"
+          }
+        ]
+      },
+      {
+        "t": "下列哪種 Write Concern 設定能滿足此最高等級的耐久性需求？",
+        "en": "Which of the following Write Concern settings meets this highest level of durability requirement?",
+        "wg": []
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "`{ w: 'majority', j: true }`",
+        "en": "`{ w: 'majority', j: true }`",
+        "wg": []
+      },
+      {
+        "t": "`{ w: 'majority' }`",
+        "en": "`{ w: 'majority' }`",
+        "wg": []
+      },
+      {
+        "t": "`{ w: 3 }`",
+        "en": "`{ w: 3 }`",
+        "wg": []
+      },
+      {
+        "t": "`{ w: 1, j: true }`",
+        "en": "`{ w: 1, j: true }`",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "`w: 'majority'` 確保資料複製到大多數節點，防止 Failover 回滾；而 `j: true` 則強制要求資料必須寫入磁碟的 Journal 日誌後才回傳成功。若不開啟 `j: true`，資料可能僅存在於記憶體中，一旦斷電就會遺失。兩者結合才能提供針對斷電與節點故障的雙重保護。",
+      "en": "`w: 'majority'` ensures data is replicated to a majority of nodes, preventing rollback during failover; `j: true` mandates that data must be written to the disk Journal before acknowledging success. Without `j: true`, data might only exist in memory and would be lost upon power failure. Combining both provides dual protection against power loss and node failure.",
+      "wg": [
+        {
+          "t": "強制要求",
+          "en": "mandates / forces",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "12",
+    "level": "Medium",
+    "keywords": "Oplog, Capacity Planning, Operations, Maintenance",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你的 MongoDB 叢集平均每小時產生 2GB 的 Oplog 資料。為了確保在節點故障或停機維護時，有足夠的緩衝時間（至少 24 小時）讓節點重新上線後能追上進度（Catch up），你應該將 Oplog Size 設定為多少較為安全？",
+        "en": "Your MongoDB cluster generates an average of 2GB of Oplog data per hour. To ensure sufficient buffer time (at least 24 hours) for a node to catch up after a failure or maintenance downtime, what would be a safe Oplog Size setting?",
+        "wg": [
+          {
+            "t": "緩衝時間",
+            "en": "buffer time",
+            "ps": "noun phrase"
+          },
+          {
+            "t": "追上進度",
+            "en": "catch up",
+            "ps": "verb phrase"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "至少 48GB 以上",
+        "en": "At least 48GB",
+        "wg": []
+      },
+      {
+        "t": "設定為磁碟空間的 5%（預設值）即可",
+        "en": "Set to 5% of disk space (default) is sufficient",
+        "wg": []
+      },
+      {
+        "t": "約 24GB",
+        "en": "About 24GB",
+        "wg": []
+      },
+      {
+        "t": "Oplog 會自動擴展，不需要手動設定",
+        "en": "Oplog expands automatically, no manual setting needed",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "Oplog 是一個固定大小的集合（Capped Collection）。若每小時寫入 2GB，24 小時就需要 `2GB * 24 = 48GB` 的空間。若設定過小，舊的 Oplog 紀錄會被覆蓋，導致停機超過視窗時間的節點無法同步，必須進行耗時的 Initial Sync。",
+      "en": "The Oplog is a fixed-size collection (Capped Collection). If the write rate is 2GB per hour, 24 hours requires `2GB * 24 = 48GB` of space. If set too small, old Oplog records will be overwritten, causing nodes that are down longer than the window to fail synchronization, necessitating a time-consuming Initial Sync.",
+      "wg": [
+        {
+          "t": "固定大小",
+          "en": "fixed-size",
+          "ps": "adjective"
+        }
+      ]
+    }
+  }
+]

@@ -1,0 +1,723 @@
+[
+  {
+    "no": "1",
+    "level": "Intermediate",
+    "keywords": "Schema Design,Product Catalog,Polymorphism,Wildcard Index",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你正在為一個大型電商平台設計「商品目錄」系統，該平台販售的商品種類極為多樣（例如：筆記型電腦有 CPU/RAM 規格，衣服有尺寸/材質，食品有保存期限/成分）。若希望避免 SQL 中複雜的 EAV (Entity-Attribute-Value) 模式，並保持查詢彈性，下列哪種 MongoDB 設計策略最為合適？",
+        "en": "You are designing a 'Product Catalog' system for a large e-commerce platform that sells a wide variety of items (e.g., laptops with CPU/RAM specs, clothes with size/material, food with expiry/ingredients). To avoid the complex EAV (Entity-Attribute-Value) pattern in SQL while maintaining query flexibility, which MongoDB design strategy is most appropriate?",
+        "wg": [
+          {
+            "t": "商品目錄",
+            "en": "Product Catalog",
+            "ps": "noun"
+          },
+          {
+            "t": "實體-屬性-值模式",
+            "en": "EAV (Entity-Attribute-Value) pattern",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "為每一種商品類型（如 Laptop, Shirt）建立獨立的 Collection，以確保 Schema 的一致性。",
+        "en": "Create a separate Collection for each product type (e.g., Laptop, Shirt) to ensure Schema consistency.",
+        "wg": []
+      },
+      {
+        "t": "使用單一 Collection，將共通欄位（如 price, name）放在根目錄，將變動屬性放入 `attributes` 子文件，並搭配 Wildcard Index。",
+        "en": "Use a single Collection, placing common fields (e.g., price, name) at the root, variable attributes in an `attributes` sub-document, and utilizing a Wildcard Index.",
+        "wg": [
+          {
+            "t": "萬用字元索引",
+            "en": "Wildcard Index",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "將所有屬性序列化為一個 JSON 字串存入 `metadata` 欄位，並使用 Regular Expression 進行查詢。",
+        "en": "Serialize all attributes into a JSON string stored in a `metadata` field and use Regular Expressions for querying.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "這是「商品目錄模式 (Product Catalog Pattern)」的經典應用。MongoDB 的文件模型允許同一 Collection 內有不同的結構 (Polymorphism)。將變動屬性集中於 `attributes` 並建立 Wildcard Index，既能解決屬性多樣性問題，又能維持高效的查詢效能。選項 0 會導致 Collection 數量爆炸且難以進行跨類別搜尋；選項 2 則會導致無法有效利用索引。",
+      "en": "This is a classic application of the 'Product Catalog Pattern'. MongoDB's document model allows for polymorphism within the same collection. Centralizing variable attributes in `attributes` and creating a Wildcard Index solves the diversity issue while maintaining high query performance. Option 0 leads to an explosion of collections and difficulty in cross-category searches; Option 2 prevents effective indexing.",
+      "wg": [
+        {
+          "t": "多型",
+          "en": "Polymorphism",
+          "ps": "noun"
+        },
+        {
+          "t": "商品目錄模式",
+          "en": "Product Catalog Pattern",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "2",
+    "level": "Intermediate",
+    "keywords": "Anti-pattern,Document Size Limit,Bucket Pattern,Performance",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "{\n  \"_id\": \"user_123\",\n  \"username\": \"alice\",\n  \"activity_logs\": [ \n    // New logs are pushed here continuously\n    { \"action\": \"login\", \"ts\": ... },\n    { \"action\": \"click\", \"ts\": ... },\n    ...\n  ]\n}",
+    "question": [
+      {
+        "t": "某工程師設計了如上圖的 User Schema，將使用者的所有活動紀錄直接 `$push` 到 `activity_logs` 陣列中。隨著時間推移，這種設計最主要會面臨什麼技術風險？",
+        "en": "An engineer designed the User Schema as shown above, directly `$push`-ing all user activity logs into the `activity_logs` array. Over time, what is the primary technical risk associated with this design?",
+        "wg": [
+          {
+            "t": "陣列",
+            "en": "array",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "陣列過長會導致 MongoDB 無法建立索引。",
+        "en": "The array becoming too long will prevent MongoDB from creating indexes.",
+        "wg": []
+      },
+      {
+        "t": "會觸發 MongoDB 單一文件 16MB 的硬性上限，導致寫入失敗。",
+        "en": "It will trigger MongoDB's hard limit of 16MB per document, causing write failures.",
+        "wg": [
+          {
+            "t": "硬性上限",
+            "en": "hard limit",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "資料分散在不同 Shard 會導致讀取不一致。",
+        "en": "Data being scattered across different shards will cause read inconsistencies.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "這是典型的「無限增長陣列 (Unbounded Array)」陷阱。MongoDB 單一 Document 最大限制為 16MB。對於日誌這類持續增長的資料，應使用「桶模式 (Bucket Pattern)」或將日誌存於獨立的 Collection（如 Time Series Collection），而非無限嵌入主文件。",
+      "en": "This is the typical 'Unbounded Array' trap. MongoDB has a maximum limit of 16MB per document. For continuously growing data like logs, one should use the 'Bucket Pattern' or store logs in a separate collection (like a Time Series Collection) instead of embedding them indefinitely in the main document.",
+      "wg": [
+        {
+          "t": "無限增長陣列",
+          "en": "Unbounded Array",
+          "ps": "noun"
+        },
+        {
+          "t": "桶模式",
+          "en": "Bucket Pattern",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "3",
+    "level": "Advanced",
+    "keywords": "Architecture,CQRS,Polyglot Persistence,Integration",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你的系統需要處理高併發的訂單交易（需強 ACID），同時需要提供前端極為靈活的歷史訂單查詢（如：「找出所有包含紅色商品的訂單」）。下列哪種架構決策最符合「混合持久化 (Polyglot Persistence)」的最佳實務？",
+        "en": "Your system needs to handle high-concurrency order transactions (requiring strong ACID) while providing extremely flexible historical order queries for the frontend (e.g., 'Find all orders containing red items'). Which of the following architectural decisions best aligns with the best practices of 'Polyglot Persistence'?",
+        "wg": [
+          {
+            "t": "混合持久化",
+            "en": "Polyglot Persistence",
+            "ps": "noun"
+          },
+          {
+            "t": "強 ACID",
+            "en": "strong ACID",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "全部使用 MongoDB，並在所有寫入操作開啟 Multi-document Transactions。",
+        "en": "Use MongoDB for everything and enable Multi-document Transactions for all write operations.",
+        "wg": []
+      },
+      {
+        "t": "全部使用 PostgreSQL，並使用 JSONB 欄位來儲存訂單細節以支援靈活查詢。",
+        "en": "Use PostgreSQL for everything and use JSONB fields to store order details to support flexible queries.",
+        "wg": []
+      },
+      {
+        "t": "採用 CQRS 模式：使用 RDBMS 處理核心交易寫入，透過 CDC 同步至 MongoDB 供查詢端使用。",
+        "en": "Adopt the CQRS pattern: Use an RDBMS for core transaction writes and sync to MongoDB via CDC for the query side.",
+        "wg": [
+          {
+            "t": "命令查詢職責分離",
+            "en": "CQRS (Command Query Responsibility Segregation)",
+            "ps": "noun"
+          },
+          {
+            "t": "變更資料擷取",
+            "en": "CDC (Change Data Capture)",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "這是一個典型的 CQRS (Command Query Responsibility Segregation) 場景。RDBMS (SQL) 擅長處理複雜且需嚴格一致性的交易狀態流轉；MongoDB 則擅長處理已完成訂單的靈活查詢與聚合分析。透過 CDC 將資料從 SQL 同步到 MongoDB，可以發揮兩種技術各自的優勢。",
+      "en": "This is a typical CQRS (Command Query Responsibility Segregation) scenario. RDBMS (SQL) excels at handling complex transaction state transitions requiring strict consistency; MongoDB excels at flexible querying and aggregation of completed orders. Syncing data from SQL to MongoDB via CDC leverages the strengths of both technologies.",
+      "wg": []
+    }
+  },
+  {
+    "no": "4",
+    "level": "Intermediate",
+    "keywords": "Mental Model,Data Locality,Schema Design",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在 MongoDB 的心智模型中，原則 \"Data that is accessed together, stays together\" 對於 Schema 設計的主要啟示為何？",
+        "en": "In the MongoDB mental model, what is the primary implication of the principle 'Data that is accessed together, stays together' for Schema design?",
+        "wg": [
+          {
+            "t": "資料局部性",
+            "en": "Data Locality",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "應盡量將資料正規化 (Normalize)，以減少硬碟空間佔用。",
+        "en": "Data should be normalized as much as possible to reduce disk space usage.",
+        "wg": []
+      },
+      {
+        "t": "應根據應用程式的讀取模式 (Read Patterns)，將頻繁一起讀取的資料內嵌 (Embed) 在同一個文件中。",
+        "en": "Data that is frequently read together should be embedded in the same document, based on the application's Read Patterns.",
+        "wg": [
+          {
+            "t": "內嵌",
+            "en": "Embed",
+            "ps": "verb"
+          },
+          {
+            "t": "讀取模式",
+            "en": "Read Patterns",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "所有資料都應該放在同一個 Collection 中，不論其業務邏輯為何。",
+        "en": "All data should be placed in the same Collection, regardless of business logic.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "MongoDB 的設計哲學是「為讀取效能而設計」。與 SQL 傾向正規化不同，MongoDB 鼓勵利用 Document 的結構特性，將應用程式在單一畫面或操作中需要的資料放在一起（Data Locality），以減少 I/O 次數並提升效能。",
+      "en": "MongoDB's design philosophy is 'Design for Read Performance'. Unlike SQL which tends towards normalization, MongoDB encourages leveraging the Document structure to keep data needed for a single screen or operation together (Data Locality), thereby reducing I/O operations and improving performance.",
+      "wg": []
+    }
+  },
+  {
+    "no": "5",
+    "level": "Intermediate",
+    "keywords": "Anti-pattern,Migration,Joins,Performance",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "一個團隊將傳統 SQL 資料庫遷移至 MongoDB，他們採取了「一對一」的遷移策略：每個 SQL Table 對應一個 MongoDB Collection，並在應用層大量使用 `$lookup` 來模擬 Join。這種做法通常被視為 Anti-pattern，主要原因為何？",
+        "en": "A team migrated a traditional SQL database to MongoDB using a 'one-to-one' strategy: each SQL Table corresponds to a MongoDB Collection, and they heavily use `$lookup` in the application layer to simulate Joins. Why is this approach generally considered an Anti-pattern?",
+        "wg": [
+          {
+            "t": "反模式",
+            "en": "Anti-pattern",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "MongoDB 不支援任何形式的關聯查詢。",
+        "en": "MongoDB does not support any form of relational queries.",
+        "wg": []
+      },
+      {
+        "t": "這樣做失去了 Document Model 的讀取優勢，且在分散式架構 (Sharding) 下 `$lookup` 效能極差。",
+        "en": "This forfeits the read advantages of the Document Model, and `$lookup` performance is very poor in distributed architectures (Sharding).",
+        "wg": [
+          {
+            "t": "分散式架構",
+            "en": "distributed architectures",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "這會導致資料佔用空間暴增。",
+        "en": "This will cause a massive increase in data storage usage.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "如果只是將 SQL 表一對一搬移，而不重新設計 Schema (例如利用 Embedding)，則無法享受 MongoDB 的讀取效能優勢。此外，`$lookup` 雖然功能強大，但本質上是昂貴的操作，特別是在 Sharded Cluster 中，跨分片的 Join 會導致嚴重的效能瓶頸。",
+      "en": "If you simply migrate SQL tables one-to-one without redesigning the Schema (e.g., using Embedding), you cannot leverage MongoDB's read performance benefits. Furthermore, while `$lookup` is powerful, it is inherently an expensive operation. Especially in a Sharded Cluster, cross-shard Joins can lead to severe performance bottlenecks.",
+      "wg": [
+        {
+          "t": "分片叢集",
+          "en": "Sharded Cluster",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "6",
+    "level": "Intermediate",
+    "keywords": "Graph Data,Anti-pattern,Use Case",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你需要實作一個功能來查詢「朋友的朋友的朋友」（3rd degree connections）。雖然 MongoDB 可以儲存關聯資料，但為何此場景通常不建議以 MongoDB 作為主要查詢引擎？",
+        "en": "You need to implement a feature to query 'friends of friends of friends' (3rd degree connections). Although MongoDB can store relational data, why is it generally not recommended as the primary query engine for this scenario?",
+        "wg": [
+          {
+            "t": "圖形關係",
+            "en": "Graph relationships",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "MongoDB 無法儲存陣列資料。",
+        "en": "MongoDB cannot store array data.",
+        "wg": []
+      },
+      {
+        "t": "這類高度連結的圖形遍歷 (Graph Traversal) 需要多次查詢或極複雜的 Aggregation，效能遠不如專用的 Graph Database。",
+        "en": "Such highly connected Graph Traversal requires multiple queries or extremely complex Aggregation, performing far worse than a dedicated Graph Database.",
+        "wg": [
+          {
+            "t": "圖形遍歷",
+            "en": "Graph Traversal",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "MongoDB 的儲存容量不足以應付社交網絡資料。",
+        "en": "MongoDB's storage capacity is insufficient for social network data.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "這是「圖形關係錯用 (Using MongoDB for Graph Problems)」的反模式。雖然 `$graphLookup` 存在，但 MongoDB 本質上不是為深度圖形遍歷設計的。對於社交網絡這類高度連結的資料，使用 Neo4j 等 Graph Database 會更有效率。",
+      "en": "This is the 'Using MongoDB for Graph Problems' anti-pattern. While `$graphLookup` exists, MongoDB is not inherently designed for deep graph traversal. For highly connected data like social networks, using a Graph Database like Neo4j is much more efficient.",
+      "wg": [
+        {
+          "t": "高度連結",
+          "en": "highly connected",
+          "ps": "adjective"
+        }
+      ]
+    }
+  },
+  {
+    "no": "7",
+    "level": "Intermediate",
+    "keywords": "Transactions, Anti-pattern, Performance, ACID",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你的團隊剛從 SQL 背景轉向 MongoDB，為了確保資料絕對安全，開發者決定在應用程式的所有寫入操作中，預設都開啟多文件交易 (Multi-document Transactions)，即使是更新單一使用者的設定檔也不例外。",
+        "en": "Your team has just migrated from a SQL background to MongoDB. To ensure absolute data safety, developers decided to enable Multi-document Transactions by default for all write operations in the application, even for updating a single user's profile.",
+        "wg": [
+          {
+            "t": "多文件交易",
+            "en": "Multi-document Transactions",
+            "ps": "noun phrase"
+          }
+        ]
+      },
+      {
+        "t": "根據 MongoDB 的最佳實務，這種做法最可能導致什麼負面後果？",
+        "en": "According to MongoDB best practices, what is the most likely negative consequence of this approach?",
+        "wg": []
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "資料庫會因為過多的交易日誌 (Oplog) 而導致硬碟空間迅速耗盡。",
+        "en": "The database will run out of disk space rapidly due to excessive transaction logs (Oplog).",
+        "wg": []
+      },
+      {
+        "t": "系統吞吐量 (Throughput) 會顯著下降，且死鎖 (Deadlock) 風險增加，因為交易會鎖定資源。",
+        "en": "System throughput will drop significantly, and the risk of deadlocks will increase because transactions lock resources.",
+        "wg": [
+          {
+            "t": "吞吐量",
+            "en": "Throughput",
+            "ps": "noun"
+          },
+          {
+            "t": "死鎖",
+            "en": "Deadlock",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "MongoDB 不支援在分片 (Sharded) 叢集上使用交易，導致系統無法擴展。",
+        "en": "MongoDB does not support transactions on sharded clusters, causing the system to fail to scale.",
+        "wg": []
+      },
+      {
+        "t": "資料一致性會降低，因為 MongoDB 的交易僅支援最終一致性。",
+        "en": "Data consistency will decrease because MongoDB transactions only support eventual consistency.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "MongoDB 的原子性 (Atomicity) 是基於單一 Document 的。過度使用多文件交易會引入額外的鎖定開銷與協調成本，大幅降低寫入效能。正確做法是重新設計 Schema，讓一次商業操作盡量落在單一 Document 的更新上。",
+      "en": "MongoDB's atomicity is based on a single document. Overusing multi-document transactions introduces additional locking overhead and coordination costs, significantly reducing write performance. The correct approach is to redesign the schema so that a business operation ideally falls within a single document update.",
+      "wg": []
+    }
+  },
+  {
+    "no": "8",
+    "level": "Advanced",
+    "keywords": "Integration, Elasticsearch, Change Streams, Architecture",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你的電商系統使用 MongoDB 儲存商品目錄，但行銷團隊要求實作「模糊搜尋 (Fuzzy Search)」、「同義詞匹配」以及「搜尋結果權重評分 (Scoring)」。",
+        "en": "Your e-commerce system uses MongoDB to store the product catalog, but the marketing team requests 'Fuzzy Search', 'Synonym Matching', and 'Search Result Scoring'.",
+        "wg": [
+          {
+            "t": "模糊搜尋",
+            "en": "Fuzzy Search",
+            "ps": "noun phrase"
+          }
+        ]
+      },
+      {
+        "t": "你決定引入 Elasticsearch (ES) 來處理這些進階搜尋需求。為了保持 MongoDB (Source of Truth) 與 ES 的資料同步，下列哪種架構模式最為推薦？",
+        "en": "You decide to introduce Elasticsearch (ES) to handle these advanced search requirements. To keep data synchronized between MongoDB (Source of Truth) and ES, which architectural pattern is most recommended?",
+        "wg": [
+          {
+            "t": "單一真相來源",
+            "en": "Source of Truth",
+            "ps": "noun phrase"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "雙寫模式 (Dual Writes)：應用程式在寫入 MongoDB 成功後，立即寫入 Elasticsearch。",
+        "en": "Dual Writes: The application writes to Elasticsearch immediately after successfully writing to MongoDB.",
+        "wg": []
+      },
+      {
+        "t": "事件驅動同步：利用 MongoDB Change Streams 監聽資料變更事件，並透過 Connector 或 Worker 即時同步至 ES。",
+        "en": "Event-Driven Sync: Use MongoDB Change Streams to listen for data change events and sync to ES in real-time via a connector or worker.",
+        "wg": [
+          {
+            "t": "變更串流",
+            "en": "Change Streams",
+            "ps": "noun phrase"
+          }
+        ]
+      },
+      {
+        "t": "排程批次處理：每小時執行一次 ETL script，將 MongoDB 的資料全量倒出並匯入 ES。",
+        "en": "Scheduled Batch Processing: Run an ETL script every hour to dump data from MongoDB and import it into ES.",
+        "wg": []
+      },
+      {
+        "t": "資料庫觸發器：在 MongoDB 內部撰寫 JavaScript Trigger，當資料變更時呼叫 ES API。",
+        "en": "Database Triggers: Write JavaScript Triggers inside MongoDB to call the ES API when data changes.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "使用 Change Streams 是最穩健的模式，它解耦了應用程式與搜尋引擎，並能確保資料變更的順序性與可靠性（即使應用程式崩潰，變更事件仍保留在 Oplog 中）。雙寫模式容易因網路問題導致資料不一致。",
+      "en": "Using Change Streams is the most robust pattern; it decouples the application from the search engine and ensures the ordering and reliability of data changes (even if the application crashes, change events remain in the Oplog). Dual writes are prone to data inconsistencies due to network issues.",
+      "wg": []
+    }
+  },
+  {
+    "no": "9",
+    "level": "Intermediate",
+    "keywords": "Schema Design, Subset Pattern, Performance, 16MB Limit",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你正在設計一個熱門部落格平台，每篇文章 (Post) 下方可能有數萬則留言 (Comments)。為了優化「文章詳情頁」的讀取效能，同時避免觸發 16MB 文件大小限制，你應採取哪種 Schema 設計策略？",
+        "en": "You are designing a popular blog platform where each Post can have tens of thousands of Comments. To optimize the read performance of the 'Post Detail Page' while avoiding the 16MB document size limit, which Schema design strategy should you adopt?",
+        "wg": [
+          {
+            "t": "文章詳情頁",
+            "en": "Post Detail Page",
+            "ps": "noun phrase"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "將所有留言直接嵌入 (Embed) 在 Post Document 的 `comments` 陣列中，因為這樣讀取最快。",
+        "en": "Embed all comments directly in the `comments` array of the Post Document because this is the fastest for reading.",
+        "wg": []
+      },
+      {
+        "t": "完全正規化 (Normalize)：將所有留言存放在獨立的 Comments Collection，讀取文章時總是執行 `$lookup` (Join)。",
+        "en": "Fully Normalize: Store all comments in a separate Comments Collection and always perform a `$lookup` (Join) when reading the post.",
+        "wg": []
+      },
+      {
+        "t": "使用 Subset Pattern：在 Post Document 中僅嵌入最新的 10-20 則留言，其餘留言存放在獨立的 Collection 中。",
+        "en": "Use the Subset Pattern: Embed only the latest 10-20 comments in the Post Document, and store the rest in a separate Collection.",
+        "wg": [
+          {
+            "t": "子集模式",
+            "en": "Subset Pattern",
+            "ps": "noun phrase"
+          }
+        ]
+      },
+      {
+        "t": "使用 GridFS 來儲存過大的 JSON 文件。",
+        "en": "Use GridFS to store the oversized JSON documents.",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "Subset Pattern 完美平衡了「存取局部性」與「文件大小限制」。使用者載入頁面時通常只看前幾則留言，這部分隨文章一次讀出（高效）；若需看更多，再分頁查詢獨立 Collection。",
+      "en": "The Subset Pattern perfectly balances 'Data Locality' and 'Document Size Limits'. When users load a page, they usually only read the first few comments, which are retrieved with the post in one go (efficient); if they need to see more, the separate collection is queried via pagination.",
+      "wg": []
+    }
+  },
+  {
+    "no": "10",
+    "level": "Intermediate",
+    "keywords": "IoT, Time Series, Indexing, Storage Optimization",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在物聯網 (IoT) 應用中，若採用「每個感測器讀數存成一個 Document」(One document per reading) 的樸素設計，面對每秒數萬筆寫入時，最主要的效能瓶頸通常是什麼？",
+        "en": "In an IoT application, if you adopt a naive design of 'One document per reading', what is typically the primary performance bottleneck when facing tens of thousands of writes per second?",
+        "wg": [
+          {
+            "t": "樸素設計",
+            "en": "Naive design",
+            "ps": "noun phrase"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "MongoDB 無法處理每秒數萬筆的 Insert 操作。",
+        "en": "MongoDB cannot handle tens of thousands of Insert operations per second.",
+        "wg": []
+      },
+      {
+        "t": "索引過大導致 RAM 裝不下 (Index size bloat)，因為每個微小的讀數都需要索引項目，導致頻繁的 Disk I/O。",
+        "en": "Index size bloat causes it to not fit in RAM, as every tiny reading requires an index entry, leading to frequent Disk I/O.",
+        "wg": [
+          {
+            "t": "索引膨脹",
+            "en": "Index size bloat",
+            "ps": "noun phrase"
+          }
+        ]
+      },
+      {
+        "t": "JSON 格式解析太慢，CPU 會成為瓶頸。",
+        "en": "JSON parsing is too slow, causing the CPU to become the bottleneck.",
+        "wg": []
+      },
+      {
+        "t": "單一 Collection 的文件數量有上限。",
+        "en": "There is a limit on the number of documents in a single Collection.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "每個 Document 都需要索引空間。若資料極小（如僅一個溫度值），索引佔比會過高。使用 Time Series Collections 或 Bucket Pattern 可以將一段時間的數據壓縮在一個 Document 中，大幅減少索引數量並提升壓縮率。",
+      "en": "Every document requires index space. If the data is tiny (e.g., just a temperature value), the index overhead becomes excessive. Using Time Series Collections or the Bucket Pattern compresses data over a period into a single document, drastically reducing the number of index entries and improving compression rates.",
+      "wg": []
+    }
+  },
+  {
+    "no": "11",
+    "level": "Intermediate",
+    "keywords": "Decision Matrix, SQL vs NoSQL, Consistency, Financial",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你正在評估一個核心會計系統 (Core Accounting System) 的資料庫選型。該系統的特點是：資料結構非常穩定（借貸法則），且對跨多個帳戶的交易一致性有絕對嚴格的要求（ACID 是最高優先級）。",
+        "en": "You are evaluating the database choice for a Core Accounting System. The system is characterized by a very stable data structure (debit/credit rules) and absolutely strict requirements for transactional consistency across multiple accounts (ACID is the highest priority).",
+        "wg": [
+          {
+            "t": "核心會計系統",
+            "en": "Core Accounting System",
+            "ps": "noun phrase"
+          }
+        ]
+      },
+      {
+        "t": "根據決策矩陣 (Decision Matrix)，下列哪個選擇最合理？",
+        "en": "According to the Decision Matrix, which choice is the most reasonable?",
+        "wg": []
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "選擇 MongoDB，因為它現在也支援多文件交易，且擴展性更好。",
+        "en": "Choose MongoDB because it now also supports multi-document transactions and has better scalability.",
+        "wg": []
+      },
+      {
+        "t": "選擇 SQL (RDBMS)，因為資料具高度關聯性且結構穩定，且強一致性是其原生強項。",
+        "en": "Choose SQL (RDBMS) because the data is highly relational and structured, and strong consistency is its native strength.",
+        "wg": []
+      },
+      {
+        "t": "選擇 Redis，因為會計系統需要極致的計算速度。",
+        "en": "Choose Redis because accounting systems require extreme calculation speed.",
+        "wg": []
+      },
+      {
+        "t": "混合使用：用 MongoDB 存帳目，用 SQL 存使用者資料。",
+        "en": "Hybrid approach: Use MongoDB for accounts and SQL for user data.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "雖然 MongoDB 支援交易，但在這種「結構穩定」且「高度依賴複雜關聯與強一致性」的場景下，SQL 仍然是更自然且風險較低的選擇。MongoDB 的優勢在於 Schema 靈活與水平擴展，這在傳統會計核心中並非首要痛點。",
+      "en": "Although MongoDB supports transactions, in a scenario with 'stable structure' and 'high reliance on complex relations and strong consistency', SQL remains the more natural and lower-risk choice. MongoDB's strengths lie in flexible schema and horizontal scaling, which are not the primary pain points in a traditional accounting core.",
+      "wg": []
+    }
+  },
+  {
+    "no": "12",
+    "level": "Intermediate",
+    "keywords": "Architecture, Write Buffer, Data Warehouse, Ingestion",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在現代數據架構中，MongoDB 常被放置在 Data Warehouse (如 Snowflake/BigQuery) 之前，充當「操作型資料儲存」(Operational Datastore) 或寫入緩衝區。",
+        "en": "In modern data architectures, MongoDB is often placed before a Data Warehouse (like Snowflake/BigQuery), acting as an 'Operational Datastore' or write buffer.",
+        "wg": [
+          {
+            "t": "操作型資料儲存",
+            "en": "Operational Datastore",
+            "ps": "noun phrase"
+          }
+        ]
+      },
+      {
+        "t": "為何不直接將高頻產生的事件資料 (Event Data) 寫入 Data Warehouse？",
+        "en": "Why not write high-frequency Event Data directly into the Data Warehouse?",
+        "wg": []
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "Data Warehouse 的儲存成本通常比 MongoDB 高出許多。",
+        "en": "Storage costs for Data Warehouses are typically much higher than MongoDB.",
+        "wg": []
+      },
+      {
+        "t": "Data Warehouse 通常針對「批量分析讀取」優化，對於高併發的單筆即時寫入 (Real-time Inserts) 支援較差或成本較高。",
+        "en": "Data Warehouses are usually optimized for 'batch analytical reads' and have poor support or high costs for high-concurrency real-time inserts.",
+        "wg": [
+          {
+            "t": "批量分析讀取",
+            "en": "Batch analytical reads",
+            "ps": "noun phrase"
+          }
+        ]
+      },
+      {
+        "t": "MongoDB 的 Aggregation Pipeline 比 SQL 更強大，可以完全取代 Data Warehouse。",
+        "en": "MongoDB's Aggregation Pipeline is more powerful than SQL and can completely replace the Data Warehouse.",
+        "wg": []
+      },
+      {
+        "t": "因為 Data Warehouse 不支援 JSON 格式的資料。",
+        "en": "Because Data Warehouses do not support data in JSON format.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "這是典型的「混合持久化」架構決策。MongoDB 擅長處理高併發寫入 (Ingestion) 與操作型查詢；而 Data Warehouse 擅長處理大規模的離線分析 (OLAP)。直接對 DW 進行高頻小量寫入通常效率低落且昂貴。",
+      "en": "This is a typical 'Polyglot Persistence' architectural decision. MongoDB excels at high-concurrency ingestion and operational queries, while Data Warehouses excel at large-scale offline analytics (OLAP). Writing high-frequency, small-batch data directly to a DW is usually inefficient and expensive.",
+      "wg": []
+    }
+  }
+]

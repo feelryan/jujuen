@@ -1,0 +1,915 @@
+[
+  {
+    "no": "1",
+    "level": "Intermediate",
+    "keywords": "Schema Design, Anti-pattern, Arrays, Performance",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "{\n  \"_id\": \"user_101\",\n  \"name\": \"Alice\",\n  \"activity_log\": [\n    { \"action\": \"login\", \"ts\": ... },\n    // ... continuously pushing new logs ...\n  ]\n}",
+    "question": [
+      {
+        "t": "在 User 文件中設計一個 `activity_log` 陣列，並隨著使用者操作不斷使用 `$push` 加入新紀錄。這種「無限制陣列增長」模式會導致什麼樣的負面後果？",
+        "en": "Designing an `activity_log` array within a User document and continuously adding new records using `$push` as the user operates. What are the negative consequences of this 'Unbounded Array' pattern?",
+        "wg": [
+          {
+            "t": "無限制陣列增長",
+            "en": "Unbounded Array Growth",
+            "ps": "noun phrase"
+          },
+          {
+            "t": "負面後果",
+            "en": "negative consequences",
+            "ps": "noun phrase"
+          }
+        ]
+      }
+    ],
+    "type": "MultiChoice",
+    "options": [
+      {
+        "t": "這是一種最佳實務，因為它保證了資料的完整性與讀取便利性。",
+        "en": "This is a best practice because it ensures data integrity and ease of reading.",
+        "wg": []
+      },
+      {
+        "t": "雖然會導致文件變大，但 MongoDB 會自動壓縮陣列，因此不會有效能問題。",
+        "en": "Although the document grows, MongoDB automatically compresses arrays, so there are no performance issues.",
+        "wg": []
+      },
+      {
+        "t": "可能導致文件超過 16MB 限制，且頻繁擴大文件會造成磁碟上的移動與填充開銷 (Padding Overhead)。",
+        "en": "It may cause the document to exceed the 16MB limit, and frequent enlargement causes movement on disk and padding overhead.",
+        "wg": [
+          {
+            "t": "填充開銷",
+            "en": "Padding Overhead",
+            "ps": "noun phrase"
+          },
+          {
+            "t": "磁碟上的移動",
+            "en": "movement on disk",
+            "ps": "noun phrase"
+          }
+        ]
+      },
+      {
+        "t": "會導致索引失效，但不會影響寫入效能。",
+        "en": "It will cause indexes to fail but will not affect write performance.",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "這是經典的反模式。MongoDB 單一文件有 16MB 的硬性限制。此外，當文件大小增加且超過原本分配的空間時，MongoDB 必須將整份文件移動到硬碟上的新位置，這會導致 IOPS 飆升並嚴重影響寫入效能。",
+      "en": "This is a classic anti-pattern. MongoDB has a hard limit of 16MB per document. Furthermore, when a document grows beyond its allocated space, MongoDB must move the entire document to a new location on the disk, causing a spike in IOPS and severely impacting write performance.",
+      "wg": [
+        {
+          "t": "硬性限制",
+          "en": "hard limit",
+          "ps": "noun phrase"
+        },
+        {
+          "t": "IOPS 飆升",
+          "en": "spike in IOPS",
+          "ps": "verb phrase"
+        }
+      ]
+    }
+  },
+  {
+    "no": "2",
+    "level": "Intermediate",
+    "keywords": "Pagination, Performance, Skip, Query Optimization",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "db.products.find().sort({createdAt: -1}).skip(50000).limit(20)",
+    "question": [
+      {
+        "t": "你的應用程式需要顯示大量資料的分頁。使用上述 `skip(50000).limit(20)` 的方式進行深層分頁（Deep Pagination）會有什麼潛在問題？",
+        "en": "Your application needs to display pagination for a large dataset. What is the potential issue with using `skip(50000).limit(20)` for deep pagination as shown above?",
+        "wg": [
+          {
+            "t": "深層分頁",
+            "en": "Deep Pagination",
+            "ps": "noun phrase"
+          },
+          {
+            "t": "潛在問題",
+            "en": "potential issue",
+            "ps": "noun phrase"
+          }
+        ]
+      }
+    ],
+    "type": "MultiChoice",
+    "options": [
+      {
+        "t": "沒有問題，這是 MongoDB 官方推薦的標準分頁方式。",
+        "en": "No issue, this is the standard pagination method recommended by MongoDB.",
+        "wg": []
+      },
+      {
+        "t": "會導致資料庫掃描並丟棄前 50,000 筆資料，隨著頁數增加，回應時間會線性增長。",
+        "en": "It causes the database to scan and discard the first 50,000 records; response time increases linearly as the page number grows.",
+        "wg": [
+          {
+            "t": "掃描並丟棄",
+            "en": "scan and discard",
+            "ps": "verb phrase"
+          },
+          {
+            "t": "線性增長",
+            "en": "increases linearly",
+            "ps": "verb phrase"
+          }
+        ]
+      },
+      {
+        "t": "會導致記憶體溢出 (OOM)，因為 MongoDB 必須將所有結果一次載入記憶體。",
+        "en": "It will cause Out of Memory (OOM) because MongoDB must load all results into memory at once.",
+        "wg": []
+      },
+      {
+        "t": "skip 操作只支援到 10,000 筆，超過會直接報錯。",
+        "en": "The skip operation only supports up to 10,000 records; exceeding this will throw an error immediately.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "`skip()` 是一個昂貴的操作，因為資料庫必須遍歷過前面的文件才能到達目標位置。對於深層分頁，應改用基於游標（Keyset / Cursor-based）的分頁策略，例如 `.find({ _id: { $lt: last_seen_id } }).limit(20)`。",
+      "en": "`skip()` is an expensive operation because the database must traverse the preceding documents to reach the target. For deep pagination, you should use Keyset / Cursor-based pagination strategies, such as `.find({ _id: { $lt: last_seen_id } }).limit(20)`.",
+      "wg": [
+        {
+          "t": "昂貴的操作",
+          "en": "expensive operation",
+          "ps": "noun phrase"
+        },
+        {
+          "t": "基於游標",
+          "en": "Cursor-based",
+          "ps": "adjective"
+        }
+      ]
+    }
+  },
+  {
+    "no": "3",
+    "level": "Advanced",
+    "keywords": "Sharding, Scalability, Write Performance, Anti-pattern",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在一個大規模寫入的分片叢集（Sharded Cluster）中，選擇 `timestamp` 或預設的 `ObjectId` 作為分片鍵（Shard Key）通常被視為反模式。為什麼？",
+        "en": "In a write-heavy Sharded Cluster, choosing `timestamp` or the default `ObjectId` as the Shard Key is generally considered an anti-pattern. Why?",
+        "wg": [
+          {
+            "t": "分片叢集",
+            "en": "Sharded Cluster",
+            "ps": "noun phrase"
+          },
+          {
+            "t": "分片鍵",
+            "en": "Shard Key",
+            "ps": "noun phrase"
+          },
+          {
+            "t": "反模式",
+            "en": "anti-pattern",
+            "ps": "noun phrase"
+          }
+        ]
+      }
+    ],
+    "type": "MultiChoice",
+    "options": [
+      {
+        "t": "因為這些鍵值太長，會佔用過多索引空間。",
+        "en": "Because these keys are too long and consume too much index space.",
+        "wg": []
+      },
+      {
+        "t": "因為它們是單調遞增的，會導致所有新寫入都集中在同一個分片（Hotspotting），無法有效利用叢集的水平擴展能力。",
+        "en": "Because they are monotonically increasing, causing all new writes to target the same shard (Hotspotting), failing to utilize the cluster's horizontal scaling capabilities.",
+        "wg": [
+          {
+            "t": "單調遞增",
+            "en": "monotonically increasing",
+            "ps": "adjective"
+          },
+          {
+            "t": "熱點問題",
+            "en": "Hotspotting",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "因為 MongoDB 不支援使用時間戳記作為分片鍵。",
+        "en": "Because MongoDB does not support using timestamps as shard keys.",
+        "wg": []
+      },
+      {
+        "t": "因為這會導致讀取效能下降，所有查詢都必須廣播到所有分片。",
+        "en": "Because this degrades read performance, requiring all queries to be broadcast to all shards.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "單調遞增的鍵（如時間戳或 ObjectId）意味著新資料的 Key 永遠大於舊資料，這會導致所有寫入流量都導向負責「最大範圍」的那一個 Chunk（即單一 Shard），造成寫入熱點，失去了分片分散寫入負載的意義。應改用 Hashed Shard Key。",
+      "en": "Monotonically increasing keys (like timestamps or ObjectIds) mean new data keys are always larger than old ones. This directs all write traffic to the Chunk responsible for the 'highest range' (i.e., a single Shard), creating a write hotspot and defeating the purpose of sharding for distributing write load. A Hashed Shard Key should be used instead.",
+      "wg": [
+        {
+          "t": "寫入熱點",
+          "en": "write hotspot",
+          "ps": "noun phrase"
+        },
+        {
+          "t": "分散寫入負載",
+          "en": "distributing write load",
+          "ps": "verb phrase"
+        }
+      ]
+    }
+  },
+  {
+    "no": "4",
+    "level": "Intermediate",
+    "keywords": "Schema Design, Subset Pattern, E-commerce",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你正在設計一個電商產品頁面，每個產品可能有數萬則評論。為了優化讀取效能並避免 16MB 限制，下列哪種 Schema 設計策略最合適？",
+        "en": "You are designing an e-commerce product page where each product may have tens of thousands of reviews. To optimize read performance and avoid the 16MB limit, which Schema design strategy is most appropriate?",
+        "wg": [
+          {
+            "t": "優化讀取效能",
+            "en": "optimize read performance",
+            "ps": "verb phrase"
+          },
+          {
+            "t": "Schema 設計策略",
+            "en": "Schema design strategy",
+            "ps": "noun phrase"
+          }
+        ]
+      }
+    ],
+    "type": "MultiChoice",
+    "options": [
+      {
+        "t": "將所有評論都嵌入（Embed）在產品文件中，以確保一次查詢就能拿到所有資料。",
+        "en": "Embed all reviews within the product document to ensure all data is retrieved in a single query.",
+        "wg": []
+      },
+      {
+        "t": "完全正規化：將評論存在獨立的 Collection，產品文件中不保留任何評論資訊，每次讀取產品時都使用 $lookup。",
+        "en": "Fully normalize: Store reviews in a separate Collection, keep no review info in the product document, and use $lookup every time the product is read.",
+        "wg": []
+      },
+      {
+        "t": "使用子集模式 (Subset Pattern)：在產品文件中嵌入「最新 5 筆」評論與統計數據，其餘評論存入獨立的 Collection。",
+        "en": "Use the Subset Pattern: Embed the 'latest 5' reviews and statistics in the product document, and store the rest in a separate Collection.",
+        "wg": [
+          {
+            "t": "子集模式",
+            "en": "Subset Pattern",
+            "ps": "noun phrase"
+          }
+        ]
+      },
+      {
+        "t": "使用 GridFS 來儲存評論資料。",
+        "en": "Use GridFS to store the review data.",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "這是 Subset Pattern 的典型應用場景。嵌入所有評論會撞上 16MB 限制且拖慢讀取；完全正規化則會增加查詢延遲。保留「子集」（如最新評論）能滿足 90% 的瀏覽需求，同時保持高效能。",
+      "en": "This is a typical use case for the Subset Pattern. Embedding all reviews hits the 16MB limit and slows down reads; full normalization increases query latency. Keeping a 'subset' (e.g., latest reviews) satisfies 90% of browsing needs while maintaining high performance.",
+      "wg": [
+        {
+          "t": "典型應用場景",
+          "en": "typical use case",
+          "ps": "noun phrase"
+        },
+        {
+          "t": "查詢延遲",
+          "en": "query latency",
+          "ps": "noun phrase"
+        }
+      ]
+    }
+  },
+  {
+    "no": "5",
+    "level": "Intermediate",
+    "keywords": "Computed Pattern, Aggregation, Optimization",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你的應用程式首頁需要頻繁顯示「總銷售額」與「訂單總數」。為了避免每次讀取時都執行昂貴的 Aggregation 運算，你應該採用哪種模式？",
+        "en": "Your application homepage needs to frequently display 'Total Sales' and 'Total Orders'. To avoid running expensive Aggregation operations on every read, which pattern should you adopt?",
+        "wg": [
+          {
+            "t": "昂貴的運算",
+            "en": "expensive operations",
+            "ps": "noun phrase"
+          },
+          {
+            "t": "採用",
+            "en": "adopt",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "type": "MultiChoice",
+    "options": [
+      {
+        "t": "Bucket Pattern (桶模式)",
+        "en": "Bucket Pattern",
+        "wg": []
+      },
+      {
+        "t": "Computed Pattern (計算屬性模式)",
+        "en": "Computed Pattern",
+        "wg": [
+          {
+            "t": "計算屬性模式",
+            "en": "Computed Pattern",
+            "ps": "noun phrase"
+          }
+        ]
+      },
+      {
+        "t": "Attribute Pattern (屬性模式)",
+        "en": "Attribute Pattern",
+        "wg": []
+      },
+      {
+        "t": "Tree Pattern (樹狀模式)",
+        "en": "Tree Pattern",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "Computed Pattern 提倡在「寫入時」計算並更新統計欄位（例如使用 `$inc` 更新 `total_sales`），而不是在「讀取時」才去加總。這是一種「以寫入成本換取讀取效能」的策略，非常適合讀多寫少的儀表板場景。",
+      "en": "The Computed Pattern advocates calculating and updating statistical fields at 'write time' (e.g., using `$inc` to update `total_sales`) rather than summing them up at 'read time'. This is a 'trade write cost for read performance' strategy, ideal for read-heavy dashboard scenarios.",
+      "wg": [
+        {
+          "t": "寫入時",
+          "en": "write time",
+          "ps": "noun phrase"
+        },
+        {
+          "t": "讀取時",
+          "en": "read time",
+          "ps": "noun phrase"
+        }
+      ]
+    }
+  },
+  {
+    "no": "6",
+    "level": "Intermediate",
+    "keywords": "Indexing, Regex, Performance, Full Collection Scan",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "db.users.find({ name: /alice/i })",
+    "question": [
+      {
+        "t": "在沒有特殊索引配置的情況下，執行上述的大小寫不敏感（Case-Insensitive）Regex 查詢，通常會導致什麼效能問題？",
+        "en": "Without special index configuration, what performance issue does executing the above Case-Insensitive Regex query typically cause?",
+        "wg": [
+          {
+            "t": "大小寫不敏感",
+            "en": "Case-Insensitive",
+            "ps": "adjective"
+          },
+          {
+            "t": "特殊索引配置",
+            "en": "special index configuration",
+            "ps": "noun phrase"
+          }
+        ]
+      }
+    ],
+    "type": "MultiChoice",
+    "options": [
+      {
+        "t": "會觸發全集合掃描 (Full Collection Scan / COLLSCAN)，因為標準索引無法有效支援開頭不固定的不區分大小寫搜尋。",
+        "en": "It triggers a Full Collection Scan (COLLSCAN) because standard indexes cannot effectively support case-insensitive searches with unanchored prefixes.",
+        "wg": [
+          {
+            "t": "全集合掃描",
+            "en": "Full Collection Scan",
+            "ps": "noun phrase"
+          }
+        ]
+      },
+      {
+        "t": "效能很好，因為 MongoDB 預設會對所有字串欄位建立 Text Index。",
+        "en": "Performance is great because MongoDB creates a Text Index on all string fields by default.",
+        "wg": []
+      },
+      {
+        "t": "只會掃描索引，不會讀取文件 (Covered Query)。",
+        "en": "It will only scan the index and not read the documents (Covered Query).",
+        "wg": []
+      },
+      {
+        "t": "會導致寫入鎖定，直到查詢完成。",
+        "en": "It causes a write lock until the query completes.",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "標準 B-Tree 索引對 `/pattern/i` 這種不區分大小寫且非前綴（prefix）的 Regex 支援極差。MongoDB 必須逐一讀取每個文件並進行 CPU 密集的字串比對。應使用 Collation 索引或 Text Search 來解決。",
+      "en": "Standard B-Tree indexes have very poor support for case-insensitive and non-prefix Regex like `/pattern/i`. MongoDB must read every document one by one and perform CPU-intensive string matching. Collation indexes or Text Search should be used to resolve this.",
+      "wg": [
+        {
+          "t": "CPU 密集",
+          "en": "CPU-intensive",
+          "ps": "adjective"
+        },
+        {
+          "t": "字串比對",
+          "en": "string matching",
+          "ps": "noun phrase"
+        }
+      ]
+    }
+  },
+  {
+    "no": "7",
+    "level": "Intermediate",
+    "keywords": "Data Modeling, Normalization, Lookup, Anti-pattern",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "一位從 SQL 背景轉來的工程師將 User, Order, OrderItems, Product 全部拆分成獨立的 Collection，並在 API 層依賴大量的 `$lookup` 來組裝資料。這種做法被稱為什麼反模式？",
+        "en": "An engineer with a SQL background separates User, Order, OrderItems, and Product into independent Collections and relies heavily on `$lookup` in the API layer to assemble data. What anti-pattern is this practice called?",
+        "wg": [
+          {
+            "t": "拆分",
+            "en": "separates",
+            "ps": "verb"
+          },
+          {
+            "t": "組裝資料",
+            "en": "assemble data",
+            "ps": "verb phrase"
+          }
+        ]
+      }
+    ],
+    "type": "MultiChoice",
+    "options": [
+      {
+        "t": "Over-Normalization (過度正規化)",
+        "en": "Over-Normalization",
+        "wg": [
+          {
+            "t": "過度正規化",
+            "en": "Over-Normalization",
+            "ps": "noun phrase"
+          }
+        ]
+      },
+      {
+        "t": "Embedding (嵌入)",
+        "en": "Embedding",
+        "wg": []
+      },
+      {
+        "t": "Sharding (分片)",
+        "en": "Sharding",
+        "wg": []
+      },
+      {
+        "t": "Indexing (索引)",
+        "en": "Indexing",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "這是將關聯式資料庫的思維直接套用在 MongoDB 的典型錯誤。雖然 `$lookup` 提供了類似 SQL JOIN 的功能，但其效能成本較高。在 MongoDB 中，應優先考慮「一起存取的資料存放在一起」（Data Locality），適度進行反正規化（Denormalization）。",
+      "en": "This is a typical mistake of applying RDBMS thinking directly to MongoDB. While `$lookup` provides functionality similar to SQL JOIN, it comes with a higher performance cost. In MongoDB, you should prioritize 'storing data that is accessed together, together' (Data Locality) and use Denormalization appropriately.",
+      "wg": [
+        {
+          "t": "資料區域性",
+          "en": "Data Locality",
+          "ps": "noun phrase"
+        },
+        {
+          "t": "反正規化",
+          "en": "Denormalization",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "8",
+    "level": "Intermediate",
+    "keywords": "Schema Design, IoT, Time-series, Bucket Pattern, Optimization",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你正在開發一個物聯網（IoT）應用，每秒鐘會有數千個感測器回傳溫度數據。如果為每一筆數據都建立一個獨立的 Document，會導致索引過大與儲存效率低落。",
+        "en": "You are developing an IoT application where thousands of sensors send temperature data every second. Creating a separate Document for each data point results in excessive index size and poor storage efficiency.",
+        "wg": []
+      },
+      {
+        "t": "根據 Handbook，下列哪種模式最適合用來解決此問題，並能提升查詢特定時間範圍數據的效率？",
+        "en": "According to the Handbook, which of the following patterns is best suited to solve this problem and improve the efficiency of querying data within a specific time range?",
+        "wg": []
+      }
+    ],
+    "type": "MultiChoice",
+    "options": [
+      {
+        "t": "Subset Pattern（子集模式）：只保留最新的數據，舊數據刪除。",
+        "en": "Subset Pattern: Keep only the latest data and delete old data.",
+        "wg": [
+          {
+            "t": "子集模式",
+            "en": "Subset Pattern",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "Bucket Pattern（桶模式）：將特定時間範圍（如一小時）內的數據「打包」進同一個 Document 的陣列中。",
+        "en": "Bucket Pattern: 'Bucket' data from a specific time range (e.g., one hour) into an array within a single Document.",
+        "wg": [
+          {
+            "t": "桶模式",
+            "en": "Bucket Pattern",
+            "ps": "noun"
+          },
+          {
+            "t": "打包",
+            "en": "bucket/group",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "Computed Pattern（計算屬性模式）：在寫入時預先計算平均溫度。",
+        "en": "Computed Pattern: Pre-calculate the average temperature at write time.",
+        "wg": [
+          {
+            "t": "計算屬性模式",
+            "en": "Computed Pattern",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "Extended Reference Pattern（擴展參考模式）：在感測器資訊中嵌入溫度數據。",
+        "en": "Extended Reference Pattern: Embed temperature data within the sensor information.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "Bucket Pattern 專門用於處理時間序列數據。透過將一段時間內的數據聚合到單一文件，可以大幅減少總文件數量與索引大小，並提升範圍查詢的讀取效率。",
+      "en": "The Bucket Pattern is specifically designed for time-series data. By aggregating data over a period into a single document, it significantly reduces the total number of documents and index size, while improving read efficiency for range queries.",
+      "wg": [
+        {
+          "t": "時間序列數據",
+          "en": "time-series data",
+          "ps": "noun"
+        },
+        {
+          "t": "範圍查詢",
+          "en": "range queries",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "9",
+    "level": "Advanced",
+    "keywords": "Indexing, Performance, Write Performance, Multikey Index, Anti-pattern",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在 MongoDB 中，對一個包含數千個元素的陣列欄位建立索引（Multikey Index）通常被視為一種反模式（Anti-pattern）。",
+        "en": "In MongoDB, creating an index (Multikey Index) on an array field containing thousands of elements is generally considered an anti-pattern.",
+        "wg": [
+          {
+            "t": "反模式",
+            "en": "anti-pattern",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "這主要是因為下列哪項後果？",
+        "en": "This is primarily due to which of the following consequences?",
+        "wg": []
+      }
+    ],
+    "type": "MultiChoice",
+    "options": [
+      {
+        "t": "會導致查詢時無法使用索引，退化為全表掃描（COLLSCAN）。",
+        "en": "It causes queries to bypass the index, degrading to a full collection scan (COLLSCAN).",
+        "wg": [
+          {
+            "t": "全表掃描",
+            "en": "full collection scan",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "索引大小會爆炸性成長，且每次陣列更新都會導致極高的索引維護成本，嚴重拖慢寫入速度。",
+        "en": "The index size grows explosively, and every array update incurs extremely high index maintenance costs, severely slowing down write speeds.",
+        "wg": [
+          {
+            "t": "爆炸性成長",
+            "en": "grow explosively",
+            "ps": "verb phrase"
+          },
+          {
+            "t": "維護成本",
+            "en": "maintenance costs",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "會觸發 MongoDB 的 16MB 文件大小限制。",
+        "en": "It triggers MongoDB's 16MB document size limit.",
+        "wg": []
+      },
+      {
+        "t": "Multikey Index 不支援複合查詢，因此實用性很低。",
+        "en": "Multikey Indexes do not support compound queries, so their utility is low.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "對巨大陣列建立索引會產生大量的索引項目（每個陣列元素一個入口），導致索引體積龐大。此外，任何對該陣列的修改都需要更新索引，這會造成顯著的寫入效能懲罰。",
+      "en": "Indexing a massive array creates a large number of index entries (one for each array element), resulting in a bloated index. Furthermore, any modification to the array requires updating the index, causing a significant write performance penalty.",
+      "wg": [
+        {
+          "t": "索引項目",
+          "en": "index entries",
+          "ps": "noun"
+        },
+        {
+          "t": "寫入效能懲罰",
+          "en": "write performance penalty",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "10",
+    "level": "Advanced",
+    "keywords": "System Design, Social Media, Fan-out on Write, Read vs Write, Scalability",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你正在設計一個社群媒體的「動態牆（Feed）」功能。若採用「讀取時聚合（Pull Model）」策略，每次讀取都需要查詢關注列表並聚合所有貼文，隨著關注人數增加，查詢會變得極慢。",
+        "en": "You are designing a 'Feed' feature for a social media platform. If you adopt a 'Pull Model' (aggregation on read), every read requires querying the following list and aggregating all posts, which becomes extremely slow as the number of followings increases.",
+        "wg": [
+          {
+            "t": "動態牆",
+            "en": "Feed/Timeline",
+            "ps": "noun"
+          },
+          {
+            "t": "讀取時聚合",
+            "en": "aggregation on read / Pull Model",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "為了優化讀取效能，Handbook 建議採用哪種「寫入擴散（Fan-out on Write）」策略？",
+        "en": "To optimize read performance, which 'Fan-out on Write' strategy does the Handbook recommend?",
+        "wg": [
+          {
+            "t": "寫入擴散",
+            "en": "Fan-out on Write",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "MultiChoice",
+    "options": [
+      {
+        "t": "使用 MapReduce 定期計算每個使用者的動態牆。",
+        "en": "Use MapReduce to periodically calculate each user's feed.",
+        "wg": []
+      },
+      {
+        "t": "當使用者發布貼文時，系統背景作業將貼文 ID 推送到所有粉絲的 Timeline 列表中（或專屬 Collection）。",
+        "en": "When a user posts, a background job pushes the post ID to the Timeline list (or a dedicated Collection) of all their followers.",
+        "wg": [
+          {
+            "t": "背景作業",
+            "en": "background job",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "強制限制每位使用者的關注人數上限為 50 人。",
+        "en": "Strictly limit the maximum number of followings per user to 50.",
+        "wg": []
+      },
+      {
+        "t": "使用 `$graphLookup` 來遞迴搜尋所有關聯貼文。",
+        "en": "Use `$graphLookup` to recursively search for all related posts.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "這是一種「以寫入換取讀取效能」的策略。雖然發文時的寫入負擔增加，但使用者讀取動態牆時只需查詢自己的 Timeline 表，能保證 O(1) 或 O(k) 的高效能讀取。",
+      "en": "This is a strategy of 'trading write performance for read performance'. Although the write burden increases when posting, users only need to query their own Timeline table when reading their feed, ensuring O(1) or O(k) high-performance reads.",
+      "wg": [
+        {
+          "t": "以寫入換取讀取效能",
+          "en": "trading write performance for read performance",
+          "ps": "phrase"
+        }
+      ]
+    }
+  },
+  {
+    "no": "11",
+    "level": "Intermediate",
+    "keywords": "Operations, Performance, Update Operations, Network Overhead, Best Practices",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在進行大量更新操作時，為了減少網路傳輸量並提升並發安全性，下列哪種做法是 Handbook 推薦的最佳實務？",
+        "en": "When performing high-volume update operations, which of the following practices is recommended by the Handbook to reduce network traffic and improve concurrency safety?",
+        "wg": [
+          {
+            "t": "網路傳輸量",
+            "en": "network traffic/transmission volume",
+            "ps": "noun"
+          },
+          {
+            "t": "並發安全性",
+            "en": "concurrency safety",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "MultiChoice",
+    "options": [
+      {
+        "t": "在應用程式端讀取完整文件，修改後使用 `$set` 替換整個物件。",
+        "en": "Read the complete document in the application, modify it, and use `$set` to replace the entire object.",
+        "wg": []
+      },
+      {
+        "t": "先刪除舊文件，再插入新文件。",
+        "en": "Delete the old document first, then insert the new document.",
+        "wg": []
+      },
+      {
+        "t": "使用 `$inc`, `$push` 或針對特定欄位的 `$set` 進行原地更新（In-place Update）。",
+        "en": "Use `$inc`, `$push`, or field-specific `$set` for in-place updates.",
+        "wg": [
+          {
+            "t": "原地更新",
+            "en": "in-place update",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "使用交易（Transactions）包裹所有的讀取與寫入操作。",
+        "en": "Wrap all read and write operations in transactions.",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "替換整個物件不僅浪費頻寬，還容易發生 Race Condition（競態條件）。使用 `$inc` 或針對性 `$set` 可以只傳輸變更的資料，並由資料庫保證原子性。",
+      "en": "Replacing the entire object wastes bandwidth and is prone to Race Conditions. Using `$inc` or targeted `$set` transmits only the changed data, with atomicity guaranteed by the database.",
+      "wg": [
+        {
+          "t": "競態條件",
+          "en": "Race Condition",
+          "ps": "noun"
+        },
+        {
+          "t": "原子性",
+          "en": "atomicity",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "12",
+    "level": "Basic",
+    "keywords": "Data Modeling, Mental Model, Methodology, RDBMS vs MongoDB",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在從關聯式資料庫（RDBMS）轉向 MongoDB 開發時，最重要的心智模型轉變是什麼？",
+        "en": "What is the most important mental model shift when moving from Relational Database (RDBMS) to MongoDB development?",
+        "wg": [
+          {
+            "t": "心智模型",
+            "en": "mental model",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "根據 Handbook，設計 Schema 時應優先考慮什麼？",
+        "en": "According to the Handbook, what should be prioritized when designing the schema?",
+        "wg": []
+      }
+    ],
+    "type": "MultiChoice",
+    "options": [
+      {
+        "t": "資料結構優先：先設計完美的正規化表格，再考慮查詢。",
+        "en": "Data Structure First: Design perfectly normalized tables first, then consider queries.",
+        "wg": [
+          {
+            "t": "正規化",
+            "en": "normalized",
+            "ps": "adjective"
+          }
+        ]
+      },
+      {
+        "t": "資料存取優先（Access Patterns）：先問「應用程式如何讀取資料？」，再決定資料結構。",
+        "en": "Access Patterns First: Ask 'How does the application read the data?' first, then decide on the data structure.",
+        "wg": [
+          {
+            "t": "資料存取",
+            "en": "access patterns",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "儲存空間優先：盡可能壓縮資料以節省硬碟空間。",
+        "en": "Storage Space First: Compress data as much as possible to save disk space.",
+        "wg": []
+      },
+      {
+        "t": "一致性優先：確保所有資料都符合 ACID 原則，不惜犧牲效能。",
+        "en": "Consistency First: Ensure all data adheres to ACID principles, regardless of performance cost.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "MongoDB 的設計哲學是「一起被讀取的資料應該存放在一起」。與 SQL 先設計結構不同，MongoDB 要求開發者根據應用程式的具體讀取模式（Access Patterns）來形塑資料模型。",
+      "en": "MongoDB's design philosophy is 'Data that is accessed together should be stored together.' Unlike SQL where structure comes first, MongoDB requires developers to shape the data model based on the application's specific Access Patterns.",
+      "wg": [
+        {
+          "t": "設計哲學",
+          "en": "design philosophy",
+          "ps": "noun"
+        }
+      ]
+    }
+  }
+]

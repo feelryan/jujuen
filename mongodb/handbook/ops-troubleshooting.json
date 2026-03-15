@@ -1,0 +1,827 @@
+[
+  {
+    "no": "1",
+    "level": "Intermediate",
+    "keywords": "Working Set, RAM, Disk I/O, Thrashing",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在監控 MongoDB 生產環境時，你發現 Disk I/O 使用率持續滿載，且系統延遲（Latency）顯著上升。同時觀察到記憶體使用率雖高但穩定。這種現象最可能對應到以下哪一個概念或狀態？",
+        "en": "While monitoring a production MongoDB environment, you notice that Disk I/O utilization is consistently maxed out, and system latency has increased significantly. Meanwhile, memory usage is high but stable. Which concept or state does this phenomenon most likely correspond to?",
+        "wg": [
+          {
+            "t": "工作集",
+            "en": "Working Set",
+            "ps": "noun"
+          },
+          {
+            "t": "記憶體抖動",
+            "en": "Thrashing",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "Ticket Exhaustion（票券耗盡）：WiredTiger 的併發票券已用完。",
+        "en": "Ticket Exhaustion: WiredTiger concurrency tickets are depleted.",
+        "wg": []
+      },
+      {
+        "t": "Thrashing（記憶體抖動）：Working Set 超出了可用 RAM 的大小，導致頻繁的 Page Fault。",
+        "en": "Thrashing: The Working Set exceeds available RAM, causing frequent Page Faults.",
+        "wg": []
+      },
+      {
+        "t": "Replication Lag（複製延遲）：Secondary 節點無法跟上 Primary 的寫入速度。",
+        "en": "Replication Lag: Secondary nodes cannot keep up with the Primary's write speed.",
+        "wg": []
+      },
+      {
+        "t": "Connection Storm（連線風暴）：應用程式建立了過多的連線。",
+        "en": "Connection Storm: The application has established too many connections.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "當 MongoDB 的熱數據（Working Set）無法完全裝入 RAM 時，WiredTiger 必須頻繁地從 Disk 讀取數據並將舊頁面換出，這種現象稱為 Thrashing。其典型特徵就是高 Disk I/O 與高延遲。Ticket Exhaustion 通常會導致佇列堆積而非直接導致 Disk I/O 滿載（除非是因慢查詢引起）。",
+      "en": "When MongoDB's hot data (Working Set) cannot fit entirely into RAM, WiredTiger must frequently read data from the Disk and swap out old pages. This phenomenon is called Thrashing. Its typical characteristics are high Disk I/O and high latency. Ticket Exhaustion usually leads to queue buildup rather than directly causing maxed-out Disk I/O (unless caused by slow queries).",
+      "wg": [
+        {
+          "t": "熱數據",
+          "en": "hot data",
+          "ps": "noun"
+        },
+        {
+          "t": "換出",
+          "en": "swap out",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "2",
+    "level": "Hard",
+    "keywords": "WiredTiger, Tickets, Concurrency, Avalanche",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "db.serverStatus().wiredTiger.concurrentTransactions.read.available",
+    "question": [
+      {
+        "t": "你的應用程式伺服器回報大量連線逾時（Connection Timed Out），且 DB 連線數飆升。檢查 MongoDB 狀態後發現 `wiredTiger.concurrentTransactions.read.available` 的值為 `0`。這代表什麼意義？",
+        "en": "Your application server reports massive connection timeouts, and the number of DB connections is spiking. Upon checking MongoDB status, you find that `wiredTiger.concurrentTransactions.read.available` is `0`. What does this signify?",
+        "wg": [
+          {
+            "t": "併發交易",
+            "en": "concurrent transactions",
+            "ps": "noun"
+          },
+          {
+            "t": "雪崩效應",
+            "en": "Avalanche effect",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "資料庫已無可用記憶體，無法處理新的讀取請求。",
+        "en": "The database has no available memory and cannot process new read requests.",
+        "wg": []
+      },
+      {
+        "t": "WiredTiger 引擎已崩潰，需要重啟服務。",
+        "en": "The WiredTiger engine has crashed and the service needs to be restarted.",
+        "wg": []
+      },
+      {
+        "t": "所有讀取票券（Tickets）皆被佔用，後續請求進入佇列等待，導致連線堆積。",
+        "en": "All read tickets are occupied; subsequent requests are queued, causing connection pile-up.",
+        "wg": []
+      },
+      {
+        "t": "這是正常現象，代表資料庫正在全速運轉，無需介入。",
+        "en": "This is a normal phenomenon indicating the database is running at full speed; no intervention is needed.",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "WiredTiger 使用 Ticket 機制控制併發（預設 128）。當 `available` 為 0，代表所有票券都被正在執行的操作（可能是慢查詢）佔用。新請求拿不到票會進入 Queue，導致 App 端連線無法釋放並不斷重試，形成「雪崩效應」。這不是記憶體不足，而是併發控制的飽和。",
+      "en": "WiredTiger uses a Ticket mechanism to control concurrency (default 128). When `available` is 0, it means all tickets are occupied by running operations (likely slow queries). New requests cannot get a ticket and enter a Queue, causing App-side connections to hang and retry, forming an 'Avalanche effect'. This is not memory insufficiency, but concurrency control saturation.",
+      "wg": [
+        {
+          "t": "飽和",
+          "en": "saturation",
+          "ps": "noun"
+        },
+        {
+          "t": "佔用",
+          "en": "occupy",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "3",
+    "level": "Intermediate",
+    "keywords": "Anti-pattern, OS Settings, THP, Linux",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在 Linux 環境部署 MongoDB 時，為什麼強烈建議關閉「透明大頁面」（Transparent Huge Pages, THP）？",
+        "en": "When deploying MongoDB in a Linux environment, why is it strongly recommended to disable 'Transparent Huge Pages' (THP)?",
+        "wg": [
+          {
+            "t": "透明大頁面",
+            "en": "Transparent Huge Pages",
+            "ps": "noun"
+          },
+          {
+            "t": "相性",
+            "en": "compatibility/affinity",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "THP 會導致 MongoDB 無法啟動，因為它與 WiredTiger 的二進位檔案不相容。",
+        "en": "THP prevents MongoDB from starting because it is incompatible with WiredTiger binaries.",
+        "wg": []
+      },
+      {
+        "t": "THP 會造成記憶體使用效率低落與 CPU 飆高，因為它與 WiredTiger 的記憶體管理機制相性極差。",
+        "en": "THP causes poor memory efficiency and high CPU usage because it interacts poorly with WiredTiger's memory management.",
+        "wg": []
+      },
+      {
+        "t": "THP 會限制 MongoDB 單個 Document 的最大容量為 16MB。",
+        "en": "THP limits the maximum size of a single MongoDB Document to 16MB.",
+        "wg": []
+      },
+      {
+        "t": "THP 會導致 Oplog 無法正確寫入，增加資料遺失風險。",
+        "en": "THP prevents the Oplog from being written correctly, increasing the risk of data loss.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "WiredTiger 引擎偏好使用標準的記憶體分頁（4KB）。THP 試圖自動管理大頁面，這會干擾資料庫的記憶體分配模式，導致不必要的延遲、記憶體碎片化及 CPU 資源浪費。這是官方文件明列的 Anti-pattern。",
+      "en": "The WiredTiger engine prefers using standard memory pages (4KB). THP attempts to automatically manage large pages, which interferes with the database's memory allocation patterns, causing unnecessary latency, memory fragmentation, and wasted CPU resources. This is a documented Anti-pattern.",
+      "wg": [
+        {
+          "t": "記憶體碎片化",
+          "en": "memory fragmentation",
+          "ps": "noun"
+        },
+        {
+          "t": "干擾",
+          "en": "interfere",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "4",
+    "level": "Intermediate",
+    "keywords": "Backup, Hidden Node, Architecture, Best Practice",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "為了在生產環境進行備份（Backup）且完全不影響線上服務的效能，以下哪一種架構模式是最佳實務？",
+        "en": "To perform backups in a production environment without impacting online service performance at all, which of the following architectural patterns is the best practice?",
+        "wg": [
+          {
+            "t": "最佳實務",
+            "en": "best practice",
+            "ps": "noun"
+          },
+          {
+            "t": "隱藏節點",
+            "en": "Hidden Node",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "直接在 Primary 節點執行 `mongodump`，因為這樣數據最新。",
+        "en": "Run `mongodump` directly on the Primary node because the data is the freshest.",
+        "wg": []
+      },
+      {
+        "t": "在任意 Secondary 節點執行備份，並接受短暫的讀取延遲。",
+        "en": "Run the backup on any Secondary node and accept a brief read latency.",
+        "wg": []
+      },
+      {
+        "t": "建立一個專用的 Hidden Node（priority: 0, hidden: true），在此節點進行備份。",
+        "en": "Create a dedicated Hidden Node (priority: 0, hidden: true) and perform backups on this node.",
+        "wg": []
+      },
+      {
+        "t": "使用 Arbiter 節點來儲存備份檔案。",
+        "en": "Use the Arbiter node to store backup files.",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "Hidden Node 對應用程式是不可見的（不會收到讀取請求），且 `priority: 0` 確保它永遠不會變成 Primary。因此，在此節點進行高 I/O 的備份操作（如 Snapshot 或 Dump）完全不會影響線上流量。Arbiter 不儲存數據；在 Primary 備份會影響寫入效能。",
+      "en": "A Hidden Node is invisible to the application (receives no read requests), and `priority: 0` ensures it never becomes Primary. Therefore, performing high I/O backup operations (like Snapshot or Dump) on this node has absolutely no impact on live traffic. Arbiters do not store data; backing up on Primary affects write performance.",
+      "wg": [
+        {
+          "t": "不可見的",
+          "en": "invisible",
+          "ps": "adjective"
+        },
+        {
+          "t": "線上流量",
+          "en": "live traffic",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "5",
+    "level": "Intermediate",
+    "keywords": "Troubleshooting, Kill Op, Anti-pattern, Data Integrity",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "kill -9 <mongod_pid>",
+    "question": [
+      {
+        "t": "當 MongoDB 實例無回應時，為何應極力避免使用 `kill -9` 強制終止程序？",
+        "en": "When a MongoDB instance is unresponsive, why should you strongly avoid using `kill -9` to forcibly terminate the process?",
+        "wg": [
+          {
+            "t": "強制終止",
+            "en": "forcibly terminate",
+            "ps": "verb"
+          },
+          {
+            "t": "資料損毀",
+            "en": "data corruption",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "這會導致 MongoDB 的 License 失效。",
+        "en": "This will cause the MongoDB License to become invalid.",
+        "wg": []
+      },
+      {
+        "t": "這會導致所有 User 帳號密碼被重置。",
+        "en": "This will cause all User account passwords to be reset.",
+        "wg": []
+      },
+      {
+        "t": "這可能導致 WiredTiger 資料損毀，且重啟後的復原（Replay Oplog/Journal）時間會非常長。",
+        "en": "This may cause WiredTiger data corruption, and the recovery time (Replay Oplog/Journal) after restart will be very long.",
+        "wg": []
+      },
+      {
+        "t": "這會立即觸發所有 Secondary 節點同時宕機。",
+        "en": "This will immediately trigger all Secondary nodes to crash simultaneously.",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "`kill -9` 不會給資料庫任何機會將記憶體中的髒數據（Dirty Data）寫回硬碟（Flush），這大大增加了資料損毀的風險。即使有 Journaling 保護，下次啟動時也需要花費大量時間重播日誌來修復狀態。應優先使用 `kill -2` (SIGINT) 或 `kill -15` (SIGTERM) 讓其優雅關閉。",
+      "en": "`kill -9` does not give the database any chance to flush dirty data from memory to disk, significantly increasing the risk of data corruption. Even with Journaling protection, the next startup will take a long time to replay logs to repair the state. You should prioritize using `kill -2` (SIGINT) or `kill -15` (SIGTERM) for a graceful shutdown.",
+      "wg": [
+        {
+          "t": "優雅關閉",
+          "en": "graceful shutdown",
+          "ps": "noun"
+        },
+        {
+          "t": "重播",
+          "en": "replay",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "6",
+    "level": "Hard",
+    "keywords": "Maintenance, Rolling Upgrade, Index Build, Stepdown",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你需要在大規模的 Replica Set 上建立一個耗時的索引，且不能影響 Primary 的寫入效能。根據「滾動式維護（Rolling Maintenance）」模式，正確的執行順序應為何？",
+        "en": "You need to build a time-consuming index on a large-scale Replica Set without affecting the Primary's write performance. According to the 'Rolling Maintenance' pattern, what is the correct execution order?",
+        "wg": [
+          {
+            "t": "滾動式維護",
+            "en": "Rolling Maintenance",
+            "ps": "noun"
+          },
+          {
+            "t": "降級",
+            "en": "Stepdown",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "直接在 Primary 建立索引 -> 等待複製到 Secondary。",
+        "en": "Build the index directly on the Primary -> Wait for it to replicate to Secondaries.",
+        "wg": []
+      },
+      {
+        "t": "在 Secondary 建立索引 -> 將該 Secondary 升級為 Primary (Stepdown 原 Primary) -> 在原 Primary（現為 Secondary）建立索引。",
+        "en": "Build index on a Secondary -> Promote that Secondary to Primary (Stepdown old Primary) -> Build index on the old Primary (now Secondary).",
+        "wg": []
+      },
+      {
+        "t": "停止所有 Secondary -> 在 Primary 建立索引 -> 重啟 Secondary 進行同步。",
+        "en": "Stop all Secondaries -> Build index on Primary -> Restart Secondaries to sync.",
+        "wg": []
+      },
+      {
+        "t": "將 Primary 關機 -> 在 Secondary 建立索引 -> 重啟 Primary。",
+        "en": "Shut down the Primary -> Build index on Secondary -> Restart Primary.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "為了確保 Primary 永遠處於高效能狀態，最佳實務是先在「非 Primary」節點操作。先在 Secondary 建好索引，然後透過 Stepdown 讓它變成新的 Primary，最後再回頭處理舊的 Primary。這樣可以避免在承載寫入流量的節點上進行高負載的 Index Build。",
+      "en": "To ensure the Primary is always in a high-performance state, the best practice is to operate on 'non-Primary' nodes first. Build the index on a Secondary, then use Stepdown to make it the new Primary, and finally handle the old Primary. This avoids performing high-load Index Builds on the node handling write traffic.",
+      "wg": [
+        {
+          "t": "承載",
+          "en": "handle/bear",
+          "ps": "verb"
+        },
+        {
+          "t": "高負載",
+          "en": "high-load",
+          "ps": "adjective"
+        }
+      ]
+    }
+  },
+  {
+    "no": "7",
+    "level": "Hard",
+    "keywords": "Oplog, Replication, RECOVERING, Batch Operation",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你的團隊每週日凌晨會在 Primary 節點執行大規模的資料清理（Batch Delete）。某次執行後，發現其中一台 Secondary 節點變成了 `RECOVERING` 狀態且無法自動恢復同步。經檢查，該節點並無硬體故障。根據 MongoDB 的複寫機制，最可能的根本原因是什麼？",
+        "en": "Your team performs a large-scale data cleanup (Batch Delete) on the Primary node every Sunday morning. After one such execution, a Secondary node entered the `RECOVERING` state and could not automatically resume syncing. Hardware checks showed no issues. Based on MongoDB's replication mechanism, what is the most likely root cause?",
+        "wg": [
+          {
+            "t": "資料清理",
+            "en": "Data Cleanup / Batch Delete",
+            "ps": "noun"
+          },
+          {
+            "t": "複寫機制",
+            "en": "Replication Mechanism",
+            "ps": "noun"
+          },
+          {
+            "t": "根本原因",
+            "en": "Root Cause",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "該 Secondary 節點的 `ulimit` 設定過低，導致無法開啟足夠的檔案來寫入數據。",
+        "en": "The Secondary node's `ulimit` setting was too low, preventing it from opening enough files to write data.",
+        "wg": []
+      },
+      {
+        "t": "大量刪除操作產生的 Oplog 寫入量超過了 Oplog Window 的容量，導致 Secondary 尚未同步的數據在 Primary 上已被覆蓋。",
+        "en": "The volume of Oplog entries generated by the mass deletion exceeded the Oplog Window capacity, causing data needed by the Secondary to be overwritten on the Primary.",
+        "wg": [
+          {
+            "t": "覆蓋",
+            "en": "Overwritten",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "WiredTiger 引擎的 Dirty Cache 比例過高，觸發了自動斷線保護機制。",
+        "en": "The WiredTiger engine's Dirty Cache ratio was too high, triggering an automatic disconnection protection mechanism.",
+        "wg": []
+      },
+      {
+        "t": "Primary 節點的 Read Tickets 被耗盡，導致無法回應 Secondary 的同步請求。",
+        "en": "The Primary node's Read Tickets were exhausted, causing it to fail to respond to the Secondary's sync requests.",
+        "wg": []
+      }
+    ],
+    "answer": "大量刪除操作產生的 Oplog 寫入量超過了 Oplog Window 的容量，導致 Secondary 尚未同步的數據在 Primary 上已被覆蓋。",
+    "why": {
+      "t": "當 Primary 寫入 Oplog 的速度遠快於 Secondary 複製的速度，且 Oplog 大小（Window）不足以緩衝這段時間差時，Secondary 需要的舊 Oplog 紀錄就會被新的紀錄覆蓋，導致同步中斷（Oplog Gap），此時節點會進入 RECOVERING 狀態並通常需要重新 Initial Sync。",
+      "en": "When the Primary writes to the Oplog much faster than the Secondary can replicate, and the Oplog size (Window) is insufficient to buffer this lag, the old Oplog entries needed by the Secondary are overwritten by new ones. This causes a sync break (Oplog Gap), forcing the node into RECOVERING state, often requiring a fresh Initial Sync.",
+      "wg": [
+        {
+          "t": "緩衝",
+          "en": "Buffer",
+          "ps": "verb"
+        },
+        {
+          "t": "時間差",
+          "en": "Time lag / Gap",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "8",
+    "level": "Intermediate",
+    "keywords": "Sort, Index, Memory Limit, Performance",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "Executor error during find command :: caused by :: Sort operation used more than 33554432 bytes of RAM",
+    "question": [
+      {
+        "t": "在生產環境的 Log 中，你發現了上述錯誤訊息，且該查詢導致資料庫 CPU 飆高。這代表發生了什麼問題？",
+        "en": "In the production logs, you found the above error message, and the query caused a spike in database CPU usage. What does this indicate?",
+        "wg": [
+          {
+            "t": "錯誤訊息",
+            "en": "Error Message",
+            "ps": "noun"
+          },
+          {
+            "t": "飆高",
+            "en": "Spike / Surge",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "伺服器的實體記憶體（RAM）不足，需要立即升級硬體規格。",
+        "en": "The server's physical memory (RAM) is insufficient and hardware needs an immediate upgrade.",
+        "wg": []
+      },
+      {
+        "t": "查詢試圖對一個沒有索引的欄位進行排序，導致 MongoDB 必須將所有結果載入記憶體進行排序，並超過了內部限制。",
+        "en": "The query attempted to sort on a field without an index, forcing MongoDB to load all results into memory for sorting, exceeding the internal limit.",
+        "wg": [
+          {
+            "t": "內部限制",
+            "en": "Internal limit",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "WiredTiger 引擎的 Cache Size 設定太小，無法容納該查詢的 Working Set。",
+        "en": "The WiredTiger engine's Cache Size setting is too small to hold the Working Set for that query.",
+        "wg": []
+      },
+      {
+        "t": "該查詢回傳的 Document 單個大小超過了 16MB 的 BSON 限制。",
+        "en": "The size of a single document returned by the query exceeded the 16MB BSON limit.",
+        "wg": []
+      }
+    ],
+    "answer": "查詢試圖對一個沒有索引的欄位進行排序，導致 MongoDB 必須將所有結果載入記憶體進行排序，並超過了內部限制。",
+    "why": {
+      "t": "MongoDB 在沒有索引支援的情況下進行排序（Blocking Sort），必須將符合條件的數據全部載入記憶體。為了保護系統，MongoDB 設有記憶體使用上限（舊版 32MB，新版 100MB）。解決方案是為排序欄位建立索引。",
+      "en": "When MongoDB performs a sort without an index (Blocking Sort), it must load all matching data into memory. To protect the system, MongoDB enforces a memory usage limit (32MB in older versions, 100MB in newer ones). The solution is to create an index on the sort field.",
+      "wg": [
+        {
+          "t": "阻塞式排序",
+          "en": "Blocking Sort",
+          "ps": "noun"
+        },
+        {
+          "t": "上限",
+          "en": "Cap / Limit",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "9",
+    "level": "Intermediate",
+    "keywords": "Troubleshooting, currentOp, Slow Query, Operations",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "當資料庫回應變慢，你想找出當前正在執行且耗時超過 3 秒的所有操作（Operations），以便進行診斷或終止。應使用下列哪一個指令？",
+        "en": "When the database response slows down, you want to identify all currently running operations that have taken longer than 3 seconds to diagnose or terminate them. Which command should you use?",
+        "wg": [
+          {
+            "t": "診斷",
+            "en": "Diagnose",
+            "ps": "verb"
+          },
+          {
+            "t": "終止",
+            "en": "Terminate",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "db.serverStatus({ \"metrics.cursor\": 1 })",
+        "en": "db.serverStatus({ \"metrics.cursor\": 1 })",
+        "wg": []
+      },
+      {
+        "t": "db.currentOp({ \"secs_running\": { \"$gt\": 3 } })",
+        "en": "db.currentOp({ \"secs_running\": { \"$gt\": 3 } })",
+        "wg": []
+      },
+      {
+        "t": "db.getProfilingLevel()",
+        "en": "db.getProfilingLevel()",
+        "wg": []
+      },
+      {
+        "t": "rs.printReplicationInfo()",
+        "en": "rs.printReplicationInfo()",
+        "wg": []
+      }
+    ],
+    "answer": "db.currentOp({ \"secs_running\": { \"$gt\": 3 } })",
+    "why": {
+      "t": "`db.currentOp()` 是用來檢視資料庫當前正在進行之操作的主要指令。透過篩選 `secs_running` 欄位，可以精確定位出執行時間過長的慢查詢。",
+      "en": "`db.currentOp()` is the primary command for viewing operations currently running on the database. By filtering on the `secs_running` field, you can pinpoint slow queries that have been running for too long.",
+      "wg": [
+        {
+          "t": "精確定位",
+          "en": "Pinpoint",
+          "ps": "verb"
+        },
+        {
+          "t": "篩選",
+          "en": "Filter",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "10",
+    "level": "Intermediate",
+    "keywords": "Write Concern, Durability, Rollback, Data Loss",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你的應用程式在寫入 MongoDB 時使用預設的 `w: 1` 設定。某天 Primary 節點在確認寫入成功後突然宕機（Crash），隨後發生 Failover。當舊的 Primary 恢復並重新加入叢集後，你發現部分數據遺失了。這是因為發生了什麼現象？",
+        "en": "Your application uses the default `w: 1` setting when writing to MongoDB. One day, the Primary node crashed immediately after acknowledging a write, followed by a Failover. When the old Primary recovered and rejoined the cluster, you found that some data was missing. What phenomenon caused this?",
+        "wg": [
+          {
+            "t": "宕機",
+            "en": "Crash",
+            "ps": "verb"
+          },
+          {
+            "t": "確認寫入",
+            "en": "Acknowledge write",
+            "ps": "verb"
+          },
+          {
+            "t": "數據遺失",
+            "en": "Data Loss",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "Split Brain（腦裂）",
+        "en": "Split Brain",
+        "wg": []
+      },
+      {
+        "t": "Rollback（回滾）",
+        "en": "Rollback",
+        "wg": []
+      },
+      {
+        "t": "Index Corruption（索引損毀）",
+        "en": "Index Corruption",
+        "wg": []
+      },
+      {
+        "t": "Oplog Overflow（Oplog 溢位）",
+        "en": "Oplog Overflow",
+        "wg": []
+      }
+    ],
+    "answer": "Rollback（回滾）",
+    "why": {
+      "t": "使用 `w: 1` 時，Primary 只要寫入自己的記憶體/日誌即回傳成功，不等待 Secondary 確認。若 Primary 在數據複製到 Secondary 之前宕機，新選出的 Primary（原本的 Secondary）並沒有這筆數據。當舊 Primary 恢復時，為了與新 Primary 保持一致，它必須「回滾」並捨棄那些未被複製的寫入。",
+      "en": "With `w: 1`, the Primary acknowledges success as soon as it writes to its own memory/journal, without waiting for Secondaries. If the Primary crashes before replicating data to a Secondary, the newly elected Primary (formerly a Secondary) won't have that data. When the old Primary recovers, it must 'rollback' and discard those unreplicated writes to match the new Primary.",
+      "wg": [
+        {
+          "t": "回滾",
+          "en": "Rollback",
+          "ps": "verb"
+        },
+        {
+          "t": "捨棄",
+          "en": "Discard",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "11",
+    "level": "Intermediate",
+    "keywords": "Anti-pattern, Schema Design, Arrays, Write Amplification",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在設計 Schema 時，將使用者的所有活動記錄（Logs）不斷 `push` 到同一個 Document 的陣列（Array）中，直到該 Document 達到 16MB 上限。這被視為一種 Anti-pattern，主要原因除了文件大小限制外，還包括什麼？",
+        "en": "When designing a schema, continuously `push`ing user activity logs into an array within the same Document until it hits the 16MB limit is considered an Anti-pattern. Besides the document size limit, what is the main reason for this?",
+        "wg": [
+          {
+            "t": "活動記錄",
+            "en": "Activity Logs",
+            "ps": "noun"
+          },
+          {
+            "t": "上限",
+            "en": "Limit / Cap",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "會導致嚴重的寫入放大（Write Amplification），因為 Document 體積變大且可能需要頻繁移動硬碟位置。",
+        "en": "It causes severe Write Amplification because the Document size grows and may require frequent relocation on the disk.",
+        "wg": [
+          {
+            "t": "寫入放大",
+            "en": "Write Amplification",
+            "ps": "noun"
+          },
+          {
+            "t": "移動",
+            "en": "Relocation / Moving",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "會導致索引失效，因為 MongoDB 不支援對陣列欄位建立索引。",
+        "en": "It causes index invalidation because MongoDB does not support indexing on array fields.",
+        "wg": []
+      },
+      {
+        "t": "會導致 Primary 節點無法進行複寫（Replication）。",
+        "en": "It prevents the Primary node from performing Replication.",
+        "wg": []
+      },
+      {
+        "t": "會導致 Aggregation Pipeline 無法使用 `$unwind` 操作。",
+        "en": "It prevents the Aggregation Pipeline from using the `$unwind` operator.",
+        "wg": []
+      }
+    ],
+    "answer": "會導致嚴重的寫入放大（Write Amplification），因為 Document 體積變大且可能需要頻繁移動硬碟位置。",
+    "why": {
+      "t": "不斷增大的 Document 會導致 MongoDB 必須在磁碟上尋找新的連續空間來儲存它（特別是在舊版或特定儲存引擎行為下），這涉及大量的數據搬移與 I/O 消耗，稱為寫入放大。此外，讀取巨大的 Document 也會浪費 Cache 空間。",
+      "en": "A continuously growing Document forces MongoDB to find new contiguous space on the disk to store it (especially in older versions or specific storage engine behaviors), involving significant data movement and I/O consumption, known as Write Amplification. Additionally, reading huge Documents wastes Cache space.",
+      "wg": [
+        {
+          "t": "連續空間",
+          "en": "Contiguous space",
+          "ps": "noun"
+        },
+        {
+          "t": "消耗",
+          "en": "Consumption",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "12",
+    "level": "Intermediate",
+    "keywords": "OS Settings, ulimit, Checklist, Configuration",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在 MongoDB 的「上線前檢查清單（Go-Live Checklist）」中，針對 Linux 作業系統的 `ulimit` 設定（Open files 與 Processes），建議的 Soft/Hard Limit 數值至少應為多少？",
+        "en": "In the MongoDB 'Go-Live Checklist', what is the recommended minimum value for the `ulimit` settings (Open files and Processes) on Linux operating systems?",
+        "wg": [
+          {
+            "t": "上線前檢查清單",
+            "en": "Go-Live Checklist",
+            "ps": "noun"
+          },
+          {
+            "t": "建議",
+            "en": "Recommended",
+            "ps": "adjective"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "1024",
+        "en": "1024",
+        "wg": []
+      },
+      {
+        "t": "64000",
+        "en": "64000",
+        "wg": []
+      },
+      {
+        "t": "Unlimited",
+        "en": "Unlimited",
+        "wg": []
+      },
+      {
+        "t": "8192",
+        "en": "8192",
+        "wg": []
+      }
+    ],
+    "answer": "64000",
+    "why": {
+      "t": "MongoDB 是高併發的資料庫系統，每個連線和開啟的資料檔都需要 File Descriptor。預設的 1024 通常遠遠不足，容易導致 \"Too many open files\" 錯誤。官方建議至少設定為 64000。",
+      "en": "MongoDB is a high-concurrency database system where every connection and open data file requires a File Descriptor. The default of 1024 is usually far from sufficient, leading to 'Too many open files' errors. The official recommendation is to set it to at least 64000.",
+      "wg": [
+        {
+          "t": "高併發",
+          "en": "High-concurrency",
+          "ps": "adjective"
+        },
+        {
+          "t": "檔案描述符",
+          "en": "File Descriptor",
+          "ps": "noun"
+        }
+      ]
+    }
+  }
+]

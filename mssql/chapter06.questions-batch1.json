@@ -1,0 +1,491 @@
+[
+  {
+    "no": "1",
+    "level": "intermediate",
+    "keywords": "Data Archiving, SWITCH PARTITION, Performance, Transaction Log",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "DELETE FROM AuditLogs WHERE LogDate < '2023-01-01';",
+    "question": [
+      {
+        "t": "您負責維護一個 20TB 的稽核日誌表 (AuditLogs)，該表已依據 `LogDate` 進行月度分區。",
+        "en": "You are maintaining a 20TB AuditLogs table, which is partitioned monthly based on `LogDate`.",
+        "wg": [
+          {
+            "t": "稽核日誌",
+            "en": "audit log",
+            "ps": "N"
+          },
+          {
+            "t": "月度分區",
+            "en": "monthly partitioned",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "每個月初，您需要刪除超過 7 年的舊資料。直接執行 `DELETE` 語句會導致交易紀錄 (Transaction Log) 暴增並鎖定資料表。",
+        "en": "At the beginning of each month, you need to delete data older than 7 years. Executing a `DELETE` statement directly causes the Transaction Log to bloat and locks the table.",
+        "wg": [
+          {
+            "t": "暴增",
+            "en": "bloat/explode",
+            "ps": "V"
+          },
+          {
+            "t": "鎖定",
+            "en": "lock",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "請問最有效率且對系統影響最小的作法是什麼？",
+        "en": "What is the most efficient approach with minimal system impact?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 使用 `TRUNCATE TABLE` 搭配 `WHERE` 條件來刪除特定分區的資料。",
+        "en": "(A) Use `TRUNCATE TABLE` with a `WHERE` clause to delete data from specific partitions.",
+        "wg": []
+      },
+      {
+        "t": "(B) 建立一個結構相同的空 Staging Table，使用 `SWITCH PARTITION` 將舊分區移至該表，然後 `DROP` Staging Table。",
+        "en": "(B) Create an empty Staging Table with identical structure, use `SWITCH PARTITION` to move the old partition to it, and then `DROP` the Staging Table.",
+        "wg": [
+          {
+            "t": "中繼表/暫存表",
+            "en": "Staging Table",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) 將資料庫復原模式 (Recovery Model) 切換為 Simple，執行 `DELETE` 後再切回 Full。",
+        "en": "(C) Switch the database Recovery Model to Simple, execute `DELETE`, and then switch back to Full.",
+        "wg": []
+      },
+      {
+        "t": "(D) 使用 `ROWLOCK` 提示 (Hint) 分批次執行 `DELETE`，每次刪除 1000 筆。",
+        "en": "(D) Use the `ROWLOCK` hint and execute `DELETE` in batches of 1000 rows at a time.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "`SWITCH PARTITION` 是一種 Metadata 操作，能在 O(1) 時間內完成，不會產生大量 Log 或長時間鎖定。選項 (A) `TRUNCATE` 不支援 `WHERE` 條件；選項 (C) 與 (D) 雖然能減緩影響，但效能遠不及 Partition Switching。",
+      "en": "`SWITCH PARTITION` is a metadata operation that completes in O(1) time without generating massive logs or long-term locks. Option (A) `TRUNCATE` does not support `WHERE` clauses; Options (C) and (D) might mitigate impact but are far less performant than Partition Switching.",
+      "wg": [
+        {
+          "t": "詮釋資料",
+          "en": "metadata",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "2",
+    "level": "advanced",
+    "keywords": "Index Alignment, Global Index, Partitioning, Troubleshooting",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "CREATE UNIQUE INDEX IX_OrderID ON Orders(OrderID); -- Table is partitioned by OrderDate",
+    "question": [
+      {
+        "t": "您嘗試對 `Orders` 表執行 `SWITCH PARTITION` 以封存舊資料，但收到錯誤訊息指出索引未對齊 (Non-Aligned Index)。",
+        "en": "You attempt to perform `SWITCH PARTITION` on the `Orders` table to archive old data, but receive an error indicating a Non-Aligned Index.",
+        "wg": [
+          {
+            "t": "未對齊",
+            "en": "non-aligned",
+            "ps": "Adj"
+          },
+          {
+            "t": "封存",
+            "en": "archive",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "該表依據 `OrderDate` 進行分區，但存在一個針對 `OrderID` 的唯一索引 (Unique Index)，且該索引定義中未包含 `OrderDate`。",
+        "en": "The table is partitioned by `OrderDate`, but there is a Unique Index on `OrderID` that does not include `OrderDate` in its definition.",
+        "wg": []
+      },
+      {
+        "t": "為什麼這會導致 `SWITCH` 失敗？",
+        "en": "Why does this cause the `SWITCH` to fail?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 因為未包含分區鍵的唯一索引會成為全域索引 (Global Index)，Switch 操作需要維護全域索引的一致性，因此不被允許或成本過高。",
+        "en": "(A) Because a unique index without the partition key becomes a Global Index; Switch operations require maintaining global index consistency, which is disallowed or too expensive.",
+        "wg": [
+          {
+            "t": "全域索引",
+            "en": "Global Index",
+            "ps": "N"
+          },
+          {
+            "t": "一致性",
+            "en": "consistency",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(B) 因為 `SWITCH` 操作只能在 Heap Table 上進行，不能有任何 Non-Clustered Index。",
+        "en": "(B) Because `SWITCH` operations can only be performed on Heap Tables and cannot have any Non-Clustered Indexes.",
+        "wg": []
+      },
+      {
+        "t": "(C) 因為 Staging Table 的 Filegroup 設定錯誤，必須與來源分區不同。",
+        "en": "(C) Because the Staging Table's Filegroup is configured incorrectly; it must be different from the source partition.",
+        "wg": []
+      },
+      {
+        "t": "(D) 因為 `OrderID` 的資料類型與 `OrderDate` 不相容。",
+        "en": "(D) Because the data type of `OrderID` is incompatible with `OrderDate`.",
+        "wg": []
+      }
+    ],
+    "answer": "(A)",
+    "why": {
+      "t": "若 Unique Index 不包含 Partition Key，SQL Server 無法在單一分區內驗證唯一性，必須建立跨所有分區的 Global Index。Switching 涉及實體資料移動，若存在 Global Index，則必須重建或重組整個索引，這破壞了 Switch 的 O(1) 特性。",
+      "en": "If a Unique Index does not include the Partition Key, SQL Server cannot verify uniqueness within a single partition and must create a Global Index across all partitions. Switching involves physical data movement; if a Global Index exists, the entire index must be rebuilt or reorganized, defeating the O(1) nature of the Switch.",
+      "wg": [
+        {
+          "t": "驗證",
+          "en": "verify",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "3",
+    "level": "intermediate",
+    "keywords": "Filegroups, Storage Optimization, Cold Data, Cost Management",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您的金融交易系統需保留 7 年的歷史資料，資料總量達 50TB。",
+        "en": "Your financial transaction system needs to retain 7 years of historical data, totaling 50TB.",
+        "wg": []
+      },
+      {
+        "t": "業務分析顯示，95% 的查詢只會存取最近 3 個月的資料 (Hot Data)，其餘為冷資料 (Cold Data)。",
+        "en": "Business analysis shows that 95% of queries only access data from the last 3 months (Hot Data), while the rest is Cold Data.",
+        "wg": [
+          {
+            "t": "冷資料",
+            "en": "Cold Data",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "為了優化成本與效能，您應該如何規劃實體儲存架構？",
+        "en": "To optimize cost and performance, how should you plan the physical storage architecture?",
+        "wg": [
+          {
+            "t": "實體儲存",
+            "en": "physical storage",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 將所有資料放在同一個 Filegroup，但啟用 Page Compression。",
+        "en": "(A) Place all data in the same Filegroup but enable Page Compression.",
+        "wg": []
+      },
+      {
+        "t": "(B) 使用 Partitioning，將最近月份的分區映射到位於 SSD 的 Filegroup，將舊月份的分區映射到位於大容量 HDD 的 Filegroup。",
+        "en": "(B) Use Partitioning to map recent months' partitions to a Filegroup on SSDs, and older months' partitions to a Filegroup on high-capacity HDDs.",
+        "wg": [
+          {
+            "t": "映射",
+            "en": "map",
+            "ps": "V"
+          },
+          {
+            "t": "大容量",
+            "en": "high-capacity",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "(C) 建立兩個不同的 Table，一個存熱資料，一個存冷資料，並在應用程式層級決定查詢哪個 Table。",
+        "en": "(C) Create two different Tables, one for hot data and one for cold data, and decide which Table to query at the application level.",
+        "wg": []
+      },
+      {
+        "t": "(D) 使用 Sharding 將資料分散到多台伺服器，每台伺服器儲存一年的資料。",
+        "en": "(D) Use Sharding to distribute data across multiple servers, with each server storing one year of data.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "這是 Filegroups 結合 Partitioning 的經典應用場景（Tiered Storage）。它能讓熱資料享有 SSD 的高 IOPS，同時大幅降低冷資料的儲存成本，且對應用程式透明（無需修改查詢邏輯）。",
+      "en": "This is a classic use case for Filegroups combined with Partitioning (Tiered Storage). It allows hot data to benefit from SSD's high IOPS while significantly reducing storage costs for cold data, all while being transparent to the application (no query logic changes needed).",
+      "wg": [
+        {
+          "t": "分層儲存",
+          "en": "Tiered Storage",
+          "ps": "N"
+        },
+        {
+          "t": "透明",
+          "en": "transparent",
+          "ps": "Adj"
+        }
+      ]
+    }
+  },
+  {
+    "no": "4",
+    "level": "intermediate",
+    "keywords": "Partition Key, Query Performance, Partition Elimination, Scatter-Gather",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "SELECT * FROM Orders WHERE CustomerID = 98765;",
+    "question": [
+      {
+        "t": "您將 `Orders` 表依據 `OrderDate` 進行了分區。",
+        "en": "You have partitioned the `Orders` table based on `OrderDate`.",
+        "wg": []
+      },
+      {
+        "t": "然而，應用程式中最頻繁執行的查詢是依據 `CustomerID` 來搜尋訂單（如上方程式碼所示）。",
+        "en": "However, the most frequently executed query in the application searches for orders by `CustomerID` (as shown in the code above).",
+        "wg": []
+      },
+      {
+        "t": "這種設計會對查詢效能產生什麼影響？",
+        "en": "What impact will this design have on query performance?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 效能會提升，因為 SQL Server 會自動並行掃描所有分區。",
+        "en": "(A) Performance will improve because SQL Server will automatically scan all partitions in parallel.",
+        "wg": []
+      },
+      {
+        "t": "(B) 效能可能下降，因為無法觸發 Partition Elimination，查詢優化器必須掃描所有分區（Scatter-Gather）。",
+        "en": "(B) Performance may degrade because Partition Elimination cannot be triggered, forcing the query optimizer to scan all partitions (Scatter-Gather).",
+        "wg": [
+          {
+            "t": "分區消除",
+            "en": "Partition Elimination",
+            "ps": "N"
+          },
+          {
+            "t": "分散-聚集",
+            "en": "Scatter-Gather",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) 效能不變，因為 SQL Server 會自動為 `CustomerID` 建立全域索引。",
+        "en": "(C) Performance remains unchanged because SQL Server will automatically create a Global Index for `CustomerID`.",
+        "wg": []
+      },
+      {
+        "t": "(D) 查詢會失敗，因為 `WHERE` 子句中必須包含 Partition Key。",
+        "en": "(D) The query will fail because the `WHERE` clause must include the Partition Key.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "當查詢條件不包含 Partition Key 時，SQL Server 不知道資料位於哪個分區，因此必須檢查每一個分區。這種全分區掃描會帶來額外的 CPU 與管理開銷，通常比未分區的索引搜尋更慢。",
+      "en": "When the query condition does not include the Partition Key, SQL Server doesn't know which partition the data resides in and must check every partition. This full partition scan incurs additional CPU and management overhead, often making it slower than an index seek on a non-partitioned table.",
+      "wg": [
+        {
+          "t": "開銷",
+          "en": "overhead",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "5",
+    "level": "intermediate",
+    "keywords": "Partitioning vs Sharding, Scale-up vs Scale-out, Architecture",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您的電子商務平台正面臨極限挑戰，單一資料庫實例 (Instance) 的 CPU 與記憶體已達硬體上限，無法再透過升級硬體 (Scale-up) 解決。",
+        "en": "Your e-commerce platform is facing a critical challenge; the CPU and memory of the single database instance have reached hardware limits and cannot be solved by upgrading hardware (Scale-up).",
+        "wg": [
+          {
+            "t": "實例",
+            "en": "instance",
+            "ps": "N"
+          },
+          {
+            "t": "垂直擴充",
+            "en": "Scale-up",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "您需要支撐 10 倍以上的寫入吞吐量。下列哪種策略最適合此場景？",
+        "en": "You need to support more than 10x the write throughput. Which strategy is most suitable for this scenario?",
+        "wg": [
+          {
+            "t": "吞吐量",
+            "en": "throughput",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 實作 Table Partitioning，將資料分散到不同的 Filegroups。",
+        "en": "(A) Implement Table Partitioning to distribute data across different Filegroups.",
+        "wg": []
+      },
+      {
+        "t": "(B) 採用 Sharding（分片）架構，將資料水平分割至多個獨立的資料庫實例。",
+        "en": "(B) Adopt a Sharding architecture to horizontally partition data across multiple independent database instances.",
+        "wg": [
+          {
+            "t": "分片",
+            "en": "Sharding",
+            "ps": "N"
+          },
+          {
+            "t": "水平分割",
+            "en": "horizontally partition",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(C) 建立更多的 Non-Clustered Indexes 以加速寫入。",
+        "en": "(C) Create more Non-Clustered Indexes to accelerate writes.",
+        "wg": []
+      },
+      {
+        "t": "(D) 使用 Columnstore Index 來壓縮資料。",
+        "en": "(D) Use Columnstore Index to compress data.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "Table Partitioning 仍然是在「單一實例」內運作，共享相同的 CPU 與 Memory 資源，無法突破單機運算瓶頸。唯有 Sharding (Scale-out) 能透過增加伺服器數量來線性擴展寫入能力。",
+      "en": "Table Partitioning still operates within a \"single instance\", sharing the same CPU and Memory resources, and cannot break through the single-machine compute bottleneck. Only Sharding (Scale-out) can linearly scale write capacity by adding more servers.",
+      "wg": [
+        {
+          "t": "瓶頸",
+          "en": "bottleneck",
+          "ps": "N"
+        },
+        {
+          "t": "線性擴展",
+          "en": "linearly scale",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "6",
+    "level": "advanced",
+    "keywords": "Primary Key, Constraints, Schema Design, Partition Key",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "ALTER TABLE Transactions ADD CONSTRAINT PK_Transactions PRIMARY KEY CLUSTERED (TransactionID, TransactionDate) ON ps_DateScheme(TransactionDate);",
+    "question": [
+      {
+        "t": "您正在將一個現有的 `Transactions` 表轉換為分區表，原本的主鍵 (PK) 是 `TransactionID`。",
+        "en": "You are converting an existing `Transactions` table into a partitioned table. The original Primary Key (PK) was `TransactionID`.",
+        "wg": []
+      },
+      {
+        "t": "為了成功建立分區 Clustered Index，您必須將 PK 修改為包含 Partition Key (`TransactionDate`)，如上方程式碼所示。",
+        "en": "To successfully create a partitioned Clustered Index, you must modify the PK to include the Partition Key (`TransactionDate`), as shown in the code above.",
+        "wg": []
+      },
+      {
+        "t": "為什麼 MS-SQL 強制要求 Partition Key 必須包含在主鍵或唯一限制條件中？",
+        "en": "Why does MS-SQL enforce that the Partition Key must be included in the Primary Key or Unique Constraints?",
+        "wg": [
+          {
+            "t": "強制要求",
+            "en": "enforce",
+            "ps": "V"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 為了確保資料在物理儲存上的連續性，方便進行範圍掃描。",
+        "en": "(A) To ensure data continuity in physical storage, facilitating range scans.",
+        "wg": []
+      },
+      {
+        "t": "(B) 為了避免建立昂貴的全域索引 (Global Index) 來維護唯一性；包含 Partition Key 讓 DB 能在各分區內獨立驗證唯一性。",
+        "en": "(B) To avoid creating an expensive Global Index to maintain uniqueness; including the Partition Key allows the DB to verify uniqueness within each partition independently.",
+        "wg": [
+          {
+            "t": "獨立",
+            "en": "independently",
+            "ps": "Adv"
+          }
+        ]
+      },
+      {
+        "t": "(C) 這是 SQL 標準 (ANSI SQL) 的規定，所有關聯式資料庫都必須遵守。",
+        "en": "(C) This is a regulation of the SQL Standard (ANSI SQL) that all relational databases must comply with.",
+        "wg": []
+      },
+      {
+        "t": "(D) 為了讓 `SWITCH PARTITION` 操作能夠自動更新主鍵值。",
+        "en": "(D) To allow `SWITCH PARTITION` operations to automatically update primary key values.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "若 PK 不含 Partition Key，資料庫必須檢查「所有分區」才能確認某個 ID 是否重複，這需要全域索引。將 Partition Key 納入 PK 後，唯一性檢查就被限制在單一分區內（Local Index），這對維護分區表的可擴展性至關重要。",
+      "en": "If the PK does not include the Partition Key, the database must check \"all partitions\" to confirm if an ID is a duplicate, which requires a Global Index. Including the Partition Key in the PK restricts the uniqueness check to a single partition (Local Index), which is crucial for maintaining the scalability of partitioned tables.",
+      "wg": [
+        {
+          "t": "可擴展性",
+          "en": "scalability",
+          "ps": "N"
+        }
+      ]
+    }
+  }
+]

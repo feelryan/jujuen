@@ -1,0 +1,856 @@
+[
+  {
+    "no": "1",
+    "level": "Intermediate",
+    "keywords": "JSON, Indexing, Performance, Computed Column",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "SELECT Name, Price \nFROM Products \nWHERE JSON_VALUE(Attributes, '$.Color') = 'Red';",
+    "question": [
+      {
+        "t": "在一個擁有數百萬筆資料的 `Products` 資料表中，`Attributes` 是一個儲存 JSON 字串的 `NVARCHAR(MAX)` 欄位。當執行上述查詢時，發現效能極差。根據手冊中的最佳實務，下列哪一種優化方式最為適當？",
+        "en": "In a `Products` table with millions of rows, `Attributes` is an `NVARCHAR(MAX)` column storing JSON strings. The query above performs poorly. According to the handbook's best practices, which optimization method is most appropriate?",
+        "wg": [
+          {
+            "t": "最佳實務",
+            "en": "best practices",
+            "ps": "noun"
+          },
+          {
+            "t": "優化方式",
+            "en": "optimization method",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "直接對 `Attributes` 欄位建立全文檢索索引 (Full-Text Index)。",
+        "en": "Create a Full-Text Index directly on the `Attributes` column.",
+        "wg": []
+      },
+      {
+        "t": "新增一個 Computed Column 提取 `$.Color` 的值，並對該欄位建立索引。",
+        "en": "Add a Computed Column to extract the value of `$.Color` and create an index on that column.",
+        "wg": [
+          {
+            "t": "計算欄位",
+            "en": "Computed Column",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "將 `Attributes` 欄位轉換為 XML 格式並使用 XML 索引。",
+        "en": "Convert the `Attributes` column to XML format and use an XML index.",
+        "wg": []
+      },
+      {
+        "t": "在查詢中使用 `ISJSON(Attributes)` 來過濾無效的 JSON 資料以提升速度。",
+        "en": "Use `ISJSON(Attributes)` in the query to filter out invalid JSON data to improve speed.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "SQL Server 無法直接對 JSON 文字內容建立 B-Tree 索引。最佳實務是使用「虛擬欄位索引 (Virtual Column Indexing)」，即建立一個 Computed Column 來提取 JSON 內部的屬性值，再對該實體欄位建立索引，這樣才能避免全表掃描 (Full Table Scan)。",
+      "en": "SQL Server cannot directly create a B-Tree index on raw JSON text content. The best practice is 'Virtual Column Indexing': create a Computed Column to extract the property value from the JSON, and then build an index on that physical column to avoid a Full Table Scan.",
+      "wg": [
+        {
+          "t": "全表掃描",
+          "en": "Full Table Scan",
+          "ps": "noun"
+        },
+        {
+          "t": "虛擬欄位索引",
+          "en": "Virtual Column Indexing",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "2",
+    "level": "Intermediate",
+    "keywords": "Columnstore, OLAP, Performance, Anti-pattern",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你的團隊正在評估是否將某個資料表轉換為 Clustered Columnstore Index (CCI)。下列哪一種情境最 **不適合** 使用 Columnstore Index？",
+        "en": "Your team is evaluating whether to convert a table to use a Clustered Columnstore Index (CCI). Which of the following scenarios is **LEAST** suitable for a Columnstore Index?",
+        "wg": [
+          {
+            "t": "評估",
+            "en": "evaluating",
+            "ps": "verb"
+          },
+          {
+            "t": "情境",
+            "en": "scenario",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "資料表包含 50 億筆歷史銷售紀錄，主要用於產生月度匯總報表。",
+        "en": "The table contains 5 billion historical sales records, mainly used for generating monthly summary reports.",
+        "wg": []
+      },
+      {
+        "t": "資料表約有 50 萬筆資料，應用程式頻繁進行單筆查詢與小範圍更新。",
+        "en": "The table has about 500,000 rows, and the application frequently performs single-row lookups and small-scale updates.",
+        "wg": [
+          {
+            "t": "單筆查詢",
+            "en": "single-row lookups",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "資料表用於 IoT 設備日誌，每天新增數百萬筆資料，且極少修改。",
+        "en": "The table is used for IoT device logs, adding millions of rows daily with very few modifications.",
+        "wg": []
+      },
+      {
+        "t": "需要對特定欄位進行大量的 `SUM` 與 `AVG` 聚合運算。",
+        "en": "Requires extensive `SUM` and `AVG` aggregation operations on specific columns.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "Columnstore 有其啟動成本與 Segment 管理開銷。對於少於 100 萬筆資料的小表，或者需要頻繁進行單筆查找 (Point Lookup) 與更新的 OLTP 場景，傳統的 Row Store (B-Tree) 效能通常更好。Columnstore 適合大數據量的掃描與聚合分析。",
+      "en": "Columnstore has startup costs and segment management overhead. For small tables with fewer than 1 million rows, or OLTP scenarios requiring frequent point lookups and updates, traditional Row Store (B-Tree) usually performs better. Columnstore is designed for scanning and aggregating large datasets.",
+      "wg": [
+        {
+          "t": "啟動成本",
+          "en": "startup costs",
+          "ps": "noun"
+        },
+        {
+          "t": "單筆查找",
+          "en": "Point Lookup",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "3",
+    "level": "Advanced",
+    "keywords": "Temporal Tables, Audit, Time Travel, Syntax",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "SELECT * \nFROM ExchangeRates \nFOR SYSTEM_TIME AS OF '2023-10-31 23:59:59'\nWHERE CurrencyCode = 'USD';",
+    "question": [
+      {
+        "t": "關於上述 Temporal Table 的查詢語法與行為，下列敘述何者正確？",
+        "en": "Regarding the query syntax and behavior of the Temporal Table above, which of the following statements is correct?",
+        "wg": [
+          {
+            "t": "敘述",
+            "en": "statements",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "此查詢只會從 `ExchangeRates` 主表 (Current Table) 讀取資料，並過濾時間欄位。",
+        "en": "This query will only read data from the main `ExchangeRates` table (Current Table) and filter by time columns.",
+        "wg": []
+      },
+      {
+        "t": "此查詢會自動聯合 (Union) 主表與歷史表 (History Table) 的資料，回傳該時間點當下的資料狀態。",
+        "en": "This query automatically unions data from the main table and the History Table to return the state of the data at that specific point in time.",
+        "wg": [
+          {
+            "t": "聯合",
+            "en": "Union",
+            "ps": "verb"
+          },
+          {
+            "t": "時間點",
+            "en": "point in time",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "必須手動 Join 歷史表 `ExchangeRatesHistory` 才能查到過去的資料，`FOR SYSTEM_TIME` 只是過濾條件。",
+        "en": "You must manually Join the history table `ExchangeRatesHistory` to find past data; `FOR SYSTEM_TIME` is just a filter condition.",
+        "wg": []
+      },
+      {
+        "t": "此語法僅適用於查看已被刪除的資料，無法查看被更新前的舊值。",
+        "en": "This syntax only applies to viewing deleted data and cannot view old values before they were updated.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "Temporal Table 的核心價值在於「內建時光機」。使用 `FOR SYSTEM_TIME AS OF` 時，SQL Server 引擎會自動處理主表與歷史表的查詢邏輯（通常是 Union All），重現該時間點的資料快照，開發者無需手動 Join 歷史表。",
+      "en": "The core value of Temporal Tables is the 'Built-in Time Travel'. When using `FOR SYSTEM_TIME AS OF`, the SQL Server engine automatically handles the query logic between the main table and the history table (usually a Union All) to reconstruct the data snapshot at that time point, without the developer needing to manually Join the history table.",
+      "wg": [
+        {
+          "t": "內建時光機",
+          "en": "Built-in Time Travel",
+          "ps": "noun"
+        },
+        {
+          "t": "資料快照",
+          "en": "data snapshot",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "4",
+    "level": "Intermediate",
+    "keywords": "JSON, Schema Design, Anti-pattern",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在設計資料庫架構時，開發者提議將所有業務資料都塞入一個名為 `Payload` 的 JSON 欄位，以達成「無架構 (Schemaless)」的靈活性。根據手冊中的 Anti-patterns，這種做法的主要風險是什麼？",
+        "en": "When designing the database schema, a developer proposes stuffing all business data into a single JSON column named `Payload` to achieve 'Schemaless' flexibility. According to the Anti-patterns in the handbook, what is the main risk of this approach?",
+        "wg": [
+          {
+            "t": "無架構",
+            "en": "Schemaless",
+            "ps": "noun"
+          },
+          {
+            "t": "靈活性",
+            "en": "flexibility",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Multiple Choice",
+    "options": [
+      {
+        "t": "喪失資料型別強驗證與 Foreign Key 約束，且可能導致重複儲存 Key 造成空間浪費。",
+        "en": "Loss of strong data type validation and Foreign Key constraints, and potential space wastage due to repetitive storage of Keys.",
+        "wg": [
+          {
+            "t": "強驗證",
+            "en": "strong validation",
+            "ps": "noun"
+          },
+          {
+            "t": "空間浪費",
+            "en": "space wastage",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "JSON 欄位無法被備份，會導致資料遺失風險。",
+        "en": "JSON columns cannot be backed up, leading to a risk of data loss.",
+        "wg": []
+      },
+      {
+        "t": "SQL Server 不支援大於 4KB 的 JSON 字串，會導致資料截斷。",
+        "en": "SQL Server does not support JSON strings larger than 4KB, which will cause data truncation.",
+        "wg": []
+      },
+      {
+        "t": "應用程式端無法解析 SQL Server 輸出的 JSON 格式。",
+        "en": "The application side cannot parse the JSON format output by SQL Server.",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "這是典型的「無架構陷阱 (The Schemaless Trap)」。雖然獲得了靈活性，但犧牲了關聯式資料庫的核心優勢（如 FK 約束、型別安全）。此外，JSON 儲存會重複記錄每個屬性的 Key 名稱，導致儲存空間膨脹。JSON 應作為關聯式架構的「擴充」，而非完全取代。",
+      "en": "This is the typical 'Schemaless Trap'. While gaining flexibility, you sacrifice the core advantages of a relational database (like FK constraints, type safety). Additionally, JSON storage repetitively records the Key name for every attribute, leading to storage bloat. JSON should be used as an 'extension' to the relational schema, not a complete replacement.",
+      "wg": [
+        {
+          "t": "無架構陷阱",
+          "en": "The Schemaless Trap",
+          "ps": "noun"
+        },
+        {
+          "t": "型別安全",
+          "en": "type safety",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "5",
+    "level": "Advanced",
+    "keywords": "Columnstore, Real-time Analytics, Architecture",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你負責維護一個高頻交易 (OLTP) 的訂單系統，業務部門希望能在不影響交易寫入效能的前提下，對同一份資料進行即時的營運分析 (Real-time Operational Analytics)。下列哪種架構最符合此需求？",
+        "en": "You are maintaining a high-frequency trading (OLTP) order system. The business unit wants to perform Real-time Operational Analytics on the same data without impacting transaction write performance. Which architecture best fits this requirement?",
+        "wg": [
+          {
+            "t": "高頻交易",
+            "en": "high-frequency trading",
+            "ps": "noun"
+          },
+          {
+            "t": "即時營運分析",
+            "en": "Real-time Operational Analytics",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "將資料表轉換為 Clustered Columnstore Index (CCI)。",
+        "en": "Convert the table to a Clustered Columnstore Index (CCI).",
+        "wg": []
+      },
+      {
+        "t": "保留原有的 Row Store (B-Tree) 結構，並額外建立一個 Non-Clustered Columnstore Index (NCCI)。",
+        "en": "Keep the original Row Store (B-Tree) structure and additionally create a Non-Clustered Columnstore Index (NCCI).",
+        "wg": [
+          {
+            "t": "額外建立",
+            "en": "additionally create",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "使用 ETL 工具每 5 分鐘將資料複製到另一個 Data Warehouse。",
+        "en": "Use ETL tools to copy data to another Data Warehouse every 5 minutes.",
+        "wg": []
+      },
+      {
+        "t": "在所有欄位上建立傳統的 Non-Clustered Index 以加速查詢。",
+        "en": "Create traditional Non-Clustered Indexes on all columns to speed up queries.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "這是 HTAP (Hybrid Transactional/Analytical Processing) 的標準解法。Clustered Columnstore (CCI) 對頻繁更新的 OLTP 表會有碎片化問題；而 Non-Clustered Columnstore Index (NCCI) 允許透過 Delta Store 機制緩衝寫入，讓交易繼續走 Row Store，同時分析查詢走 Columnstore，達成即時分析且最小化對交易的影響。",
+      "en": "This is the standard solution for HTAP (Hybrid Transactional/Analytical Processing). Clustered Columnstore (CCI) suffers from fragmentation on frequently updated OLTP tables. A Non-Clustered Columnstore Index (NCCI) allows writes to be buffered via the Delta Store mechanism, letting transactions continue on the Row Store while analytical queries use the Columnstore, achieving real-time analytics with minimal impact on transactions.",
+      "wg": [
+        {
+          "t": "碎片化",
+          "en": "fragmentation",
+          "ps": "noun"
+        },
+        {
+          "t": "緩衝寫入",
+          "en": "buffer writes",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "6",
+    "level": "Intermediate",
+    "keywords": "Temporal Tables, Maintenance, Storage",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "啟用 Temporal Tables 後，經過半年運作，DBA 警告硬碟空間即將耗盡。檢查發現 History Table 佔用了極大空間。根據手冊，最直接的解決方案是什麼？",
+        "en": "After enabling Temporal Tables and running for six months, the DBA warns that disk space is running out. Inspection reveals the History Table is consuming massive space. According to the handbook, what is the most direct solution?",
+        "wg": [
+          {
+            "t": "耗盡",
+            "en": "running out",
+            "ps": "verb"
+          },
+          {
+            "t": "佔用",
+            "en": "consuming",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "設定 `HISTORY_RETENTION_PERIOD` 保留策略，讓系統自動清理過舊的歷史資料。",
+        "en": "Set a `HISTORY_RETENTION_PERIOD` retention policy to let the system automatically clean up overly old historical data.",
+        "wg": [
+          {
+            "t": "保留策略",
+            "en": "retention policy",
+            "ps": "noun"
+          },
+          {
+            "t": "清理",
+            "en": "clean up",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "手動執行 `DELETE FROM HistoryTable` 刪除舊資料。",
+        "en": "Manually execute `DELETE FROM HistoryTable` to remove old data.",
+        "wg": []
+      },
+      {
+        "t": "關閉 `SYSTEM_VERSIONING`，清空歷史表後再重新開啟。",
+        "en": "Turn off `SYSTEM_VERSIONING`, truncate the history table, and then turn it back on.",
+        "wg": []
+      },
+      {
+        "t": "對 History Table 啟用 Row Compression。",
+        "en": "Enable Row Compression on the History Table.",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "這是 Temporal Table 常見的隱憂 (Uncontrolled History Growth)。SQL Server 提供了內建的保留策略設定 (Retention Policy)，例如 `HISTORY_RETENTION_PERIOD = 6 MONTHS`，這是管理歷史資料增長最標準且自動化的方式。雖然手動刪除或壓縮也是選項，但不如設定自動保留策略來得治本且易於維護。",
+      "en": "This is a common concern with Temporal Tables (Uncontrolled History Growth). SQL Server provides a built-in retention policy setting (e.g., `HISTORY_RETENTION_PERIOD = 6 MONTHS`), which is the most standard and automated way to manage history data growth. While manual deletion or compression are options, setting an automatic retention policy is the most fundamental and maintainable solution.",
+      "wg": [
+        {
+          "t": "治本",
+          "en": "fundamental solution",
+          "ps": "adj"
+        },
+        {
+          "t": "易於維護",
+          "en": "maintainable",
+          "ps": "adj"
+        }
+      ]
+    }
+  },
+  {
+    "no": "7",
+    "level": "Intermediate",
+    "keywords": "JSON, API, Performance, FOR JSON",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你的應用程式伺服器 (App Server) 目前負載過重，分析後發現 CPU 主要消耗在將大量 SQL 查詢結果序列化 (Serialize) 為 JSON 格式以傳送給前端。",
+        "en": "Your App Server is currently under heavy load. Analysis shows that CPU is mainly consumed by serializing large SQL query results into JSON format for the frontend.",
+        "wg": [
+          {
+            "t": "序列化",
+            "en": "serialize",
+            "ps": "verb"
+          },
+          {
+            "t": "負載過重",
+            "en": "under heavy load",
+            "ps": "phrase"
+          }
+        ]
+      },
+      {
+        "t": "根據手冊中的「API Payload 橋接」模式，下列哪種做法最能有效減輕應用程式伺服器的負擔？",
+        "en": "According to the 'API Payload Bridge' pattern in the handbook, which of the following approaches best reduces the burden on the App Server?",
+        "wg": [
+          {
+            "t": "API Payload 橋接",
+            "en": "API Payload Bridge",
+            "ps": "phrase"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "在應用層使用更高效的 JSON 函式庫 (如 Newtonsoft.Json) 進行處理。",
+        "en": "Use a more efficient JSON library (e.g., Newtonsoft.Json) in the application layer.",
+        "wg": []
+      },
+      {
+        "t": "在 SQL 查詢句尾添加 `FOR JSON PATH`，直接由資料庫引擎產生 JSON 字串。",
+        "en": "Append `FOR JSON PATH` to the SQL query to generate the JSON string directly within the database engine.",
+        "wg": [
+          {
+            "t": "資料庫引擎",
+            "en": "database engine",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "將資料儲存為 XML 格式，因為 SQL Server 對 XML 的支援比 JSON 更成熟。",
+        "en": "Store data in XML format, as SQL Server's support for XML is more mature than for JSON.",
+        "wg": []
+      },
+      {
+        "t": "使用 `OPENJSON` 函式將查詢結果轉換為表格輸出。",
+        "en": "Use the `OPENJSON` function to convert query results into tabular output.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "使用 `FOR JSON PATH` 可以將 JSON 格式化的工作轉移給 SQL Server 引擎處理，這是資料庫層級的最佳化操作，能顯著減少應用程式伺服器在物件轉換與序列化上的 CPU 開銷。`OPENJSON` 是反向操作（JSON 轉 Table），而更換函式庫雖有幫助但無法像資料庫原生輸出那樣徹底卸載工作。",
+      "en": "Using `FOR JSON PATH` offloads the JSON formatting task to the SQL Server engine. This is a database-level optimization that significantly reduces the CPU overhead of object conversion and serialization on the App Server. `OPENJSON` is the reverse operation (JSON to Table), and while changing libraries helps, it doesn't offload the work as completely as native database output.",
+      "wg": [
+        {
+          "t": "卸載",
+          "en": "offload",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "8",
+    "level": "Intermediate",
+    "keywords": "Columnstore, Performance, Anti-pattern, SELECT *",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你將一個大型 Fact Table 轉換為 Clustered Columnstore Index (CCI) 以節省空間並加速聚合查詢。",
+        "en": "You converted a large Fact Table to a Clustered Columnstore Index (CCI) to save space and accelerate aggregation queries.",
+        "wg": [
+          {
+            "t": "聚合查詢",
+            "en": "aggregation queries",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "然而，開發團隊回報執行 `SELECT * FROM TableName WHERE ID = @id` 這類查詢時，效能反而比以前的 Row Store (B-Tree) 還要差。根據手冊，主要原因為何？",
+        "en": "However, the development team reports that queries like `SELECT * FROM TableName WHERE ID = @id` are performing worse than the previous Row Store (B-Tree). According to the handbook, what is the primary reason?",
+        "wg": []
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "Columnstore Index 不支援 `WHERE` 子句過濾。",
+        "en": "Columnstore Index does not support `WHERE` clause filtering.",
+        "wg": []
+      },
+      {
+        "t": "Columnstore 的資料是按欄位分開儲存的，`SELECT *` 強迫引擎進行昂貴的資料重組 (Materialization)。",
+        "en": "Columnstore data is stored by column. `SELECT *` forces the engine to perform expensive data reconstruction (Materialization).",
+        "wg": [
+          {
+            "t": "資料重組",
+            "en": "data reconstruction / materialization",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "Columnstore 只能用於唯讀資料庫，不支援即時查詢。",
+        "en": "Columnstore can only be used for read-only databases and does not support real-time queries.",
+        "wg": []
+      },
+      {
+        "t": "因為資料量太小，導致 Segment 管理開銷過大。",
+        "en": "Because the data volume is too small, resulting in excessive Segment management overhead.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "Columnstore 的設計原理是「垂直掃描」，資料是按欄位分開壓縮儲存的。當執行 `SELECT *` 時，引擎必須去讀取每一個欄位的 Segment 並將它們重新組裝（Materialization）成橫向的 Row，這對於 Columnstore 來說是極高成本的操作，因此這是一個常見的反模式 (Anti-pattern)。",
+      "en": "Columnstore is designed for 'Vertical Scanning', where data is compressed and stored separately by column. When `SELECT *` is executed, the engine must read segments for every column and reconstruct (Materialize) them back into horizontal rows. This is a very high-cost operation for Columnstore and is a common anti-pattern.",
+      "wg": [
+        {
+          "t": "垂直掃描",
+          "en": "Vertical Scanning",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "9",
+    "level": "Advanced",
+    "keywords": "Temporal Tables, Maintenance, Schema Change, Workflow",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你的資料庫中有一個已啟用 System Versioning 的 Temporal Table。現在業務需求變更，你需要修改主表 (Main Table) 的欄位結構。",
+        "en": "You have a Temporal Table with System Versioning enabled in your database. Due to changing business requirements, you need to modify the schema of the Main Table.",
+        "wg": [
+          {
+            "t": "主表",
+            "en": "Main Table",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "根據手冊中的「踩雷點 (Pitfalls)」，正確的修改流程應為何？",
+        "en": "According to the 'Pitfalls' section in the handbook, what is the correct workflow for this modification?",
+        "wg": []
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "直接使用 `ALTER TABLE` 修改主表，SQL Server 會自動同步修改 History Table。",
+        "en": "Directly use `ALTER TABLE` on the main table; SQL Server will automatically synchronize the changes to the History Table.",
+        "wg": []
+      },
+      {
+        "t": "先刪除 History Table，修改主表後，再重新建立一個空的 History Table。",
+        "en": "Delete the History Table first, modify the main table, and then create a new empty History Table.",
+        "wg": []
+      },
+      {
+        "t": "必須先設定 `SYSTEM_VERSIONING = OFF`，修改主表（與歷史表）結構後，再重新開啟 Versioning。",
+        "en": "You must set `SYSTEM_VERSIONING = OFF` first, modify the schema of the main table (and history table), and then re-enable Versioning.",
+        "wg": [
+          {
+            "t": "重新開啟",
+            "en": "re-enable",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "使用 `TRUNCATE TABLE` 清空主表資料後才能修改結構。",
+        "en": "You must use `TRUNCATE TABLE` to clear the main table data before modifying the schema.",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "雖然新版 SQL Server 支援部分直接 Schema 變更，但手冊明確指出「Schema Changes (架構變更困難)」是一個隱憂，且標準的安全做法是先關閉 Versioning，解耦主表與歷史表，完成結構變更後再重新連結。直接修改可能會受限或導致意外錯誤。",
+      "en": "Although newer versions of SQL Server support some direct schema changes, the handbook explicitly identifies 'Schema Changes' as a concern. The standard safe practice is to turn off Versioning first, decoupling the main and history tables, completing the schema changes, and then relinking them. Direct modification may be restricted or lead to unexpected errors.",
+      "wg": [
+        {
+          "t": "解耦",
+          "en": "decouple",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "10",
+    "level": "Intermediate",
+    "keywords": "JSON, OPENJSON, Bulk Insert, Performance",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "前端應用程式傳送了一個包含 5,000 筆訂單資料的 JSON 陣列 (Array) 給資料庫。",
+        "en": "The frontend application sends a JSON array containing 5,000 order records to the database.",
+        "wg": [
+          {
+            "t": "陣列",
+            "en": "array",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "為了達到最佳寫入效能，應使用下列哪種方式將這些資料寫入 `Orders` 資料表？",
+        "en": "To achieve optimal write performance, which of the following methods should be used to insert this data into the `Orders` table?",
+        "wg": []
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "在應用層跑迴圈，對每一筆訂單執行一次 `INSERT` 語法。",
+        "en": "Loop through the orders in the application layer and execute an `INSERT` statement for each record.",
+        "wg": []
+      },
+      {
+        "t": "使用 `OPENJSON` 函式將 JSON 陣列轉為 Table，配合 `INSERT INTO ... SELECT` 一次性寫入。",
+        "en": "Use the `OPENJSON` function to convert the JSON array into a Table, and use `INSERT INTO ... SELECT` to write it in one go.",
+        "wg": [
+          {
+            "t": "一次性",
+            "en": "in one go / batch",
+            "ps": "adverb"
+          }
+        ]
+      },
+      {
+        "t": "使用 T-SQL 的 `WHILE` 迴圈與 `JSON_VALUE` 逐筆解析並寫入。",
+        "en": "Use a T-SQL `WHILE` loop with `JSON_VALUE` to parse and insert record by record.",
+        "wg": []
+      },
+      {
+        "t": "將 JSON 字串直接存入一個 `NVARCHAR(MAX)` 欄位，不進行拆解。",
+        "en": "Store the JSON string directly into an `NVARCHAR(MAX)` column without parsing.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "根據手冊的「API Payload 橋接」模式，使用 `OPENJSON` 可以將 JSON 文件視為一個暫存表，這允許開發者執行 Set-based 的大量寫入 (Bulk Insert)，遠比逐筆 Insert (Row-by-row processing) 高效。",
+      "en": "According to the 'API Payload Bridge' pattern in the handbook, using `OPENJSON` allows treating the JSON document as a temporary table. This enables developers to perform Set-based bulk inserts, which is far more efficient than row-by-row processing.",
+      "wg": [
+        {
+          "t": "逐筆",
+          "en": "row-by-row / record-by-record",
+          "ps": "adverb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "11",
+    "level": "Advanced",
+    "keywords": "Columnstore, Internals, Delta Store, Performance",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你負責維護一個 Clustered Columnstore Index (CCI) 的資料表，並設定了排程每分鐘匯入 5,000 筆新資料。",
+        "en": "You maintain a table with a Clustered Columnstore Index (CCI) and have scheduled a job to import 5,000 new records every minute.",
+        "wg": []
+      },
+      {
+        "t": "一段時間後，你發現查詢效能不如預期，且壓縮率不佳。根據手冊的「檢查清單 (Checklist)」，最可能的原因是什麼？",
+        "en": "After some time, you notice that query performance is below expectations and the compression ratio is poor. According to the 'Checklist' in the handbook, what is the most likely reason?",
+        "wg": [
+          {
+            "t": "壓縮率",
+            "en": "compression ratio",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "因為每批次寫入筆數小於 102,400，資料被寫入了 Delta Store (B-Tree) 而非直接進入壓縮的 Columnstore Segment。",
+        "en": "Because the batch size is less than 102,400, data is written to the Delta Store (B-Tree) instead of going directly into compressed Columnstore Segments.",
+        "wg": [
+          {
+            "t": "批次",
+            "en": "batch",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "Columnstore Index 不支援頻繁的 Insert 操作，只能用於靜態資料。",
+        "en": "Columnstore Index does not support frequent Insert operations and can only be used for static data.",
+        "wg": []
+      },
+      {
+        "t": "因為沒有建立 Non-Clustered Index 來輔助查詢。",
+        "en": "Because no Non-Clustered Index was created to assist the query.",
+        "wg": []
+      },
+      {
+        "t": "每分鐘 5,000 筆資料量太大，導致系統來不及建立索引。",
+        "en": "The volume of 5,000 records per minute is too large, causing the system to lag in index creation.",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "Columnstore 有一個寫入閾值（通常為 102,400 筆）。當單次 Insert 筆數低於此值時，資料會先進入 Delta Store（一個傳統的 Row-store 緩衝區），這會導致資料未被壓縮且查詢需同時讀取 Row Store 與 Column Store，影響效能。這在手冊的 Checklist 中有特別提及。",
+      "en": "Columnstore has a write threshold (typically 102,400 rows). When a single Insert batch is below this value, data goes into the Delta Store (a traditional Row-store buffer) first. This results in uncompressed data and queries having to read from both Row Store and Column Store, impacting performance. This is specifically mentioned in the handbook's Checklist.",
+      "wg": [
+        {
+          "t": "閾值",
+          "en": "threshold",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "12",
+    "level": "Intermediate",
+    "keywords": "Architecture, Decision Tree, Row Store, JSON",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你需要為一個「使用者設定檔 (User Profile)」系統設計資料庫架構。需求如下：",
+        "en": "You need to design a database architecture for a 'User Profile' system. The requirements are as follows:",
+        "wg": []
+      },
+      {
+        "t": "1. 大部分查詢是透過 UserID 讀取單一使用者的完整設定。\n2. 設定內容包含大量變動且不固定的屬性（如佈景主題、通知偏好等）。\n3. 會有頻繁的單筆交易更新 (Transactional Update)。",
+        "en": "1. Most queries retrieve a single user's full profile by UserID.\n2. The profile contains highly variable and unstructured attributes (e.g., themes, notification preferences).\n3. There will be frequent single-record transactional updates.",
+        "wg": [
+          {
+            "t": "不固定的",
+            "en": "variable / unstructured",
+            "ps": "adjective"
+          }
+        ]
+      },
+      {
+        "t": "根據手冊的決策樹 (Decision Tree)，最適合的架構為何？",
+        "en": "According to the Decision Tree in the handbook, what is the most suitable architecture?",
+        "wg": []
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "使用 Clustered Columnstore Index，因為它可以壓縮大量文字資料。",
+        "en": "Use Clustered Columnstore Index because it can compress large amounts of text data.",
+        "wg": []
+      },
+      {
+        "t": "使用 Temporal Table，因為使用者設定經常變更。",
+        "en": "Use Temporal Table because user settings change frequently.",
+        "wg": []
+      },
+      {
+        "t": "使用傳統 Row Store (B-Tree)，並將變動屬性存入 JSON 欄位。",
+        "en": "Use traditional Row Store (B-Tree) and store variable attributes in a JSON column.",
+        "wg": []
+      },
+      {
+        "t": "完全不使用 SQL Server，改用 MongoDB，因為關聯式資料庫無法處理變動結構。",
+        "en": "Do not use SQL Server at all; switch to MongoDB because relational databases cannot handle variable structures.",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "根據決策樹：資料結構高度變動 -> 使用 JSON；查詢模式是 Lookup by ID 且有交易更新 -> 使用 Row Store。Columnstore 適合大量掃描與聚合分析，不適合單筆查找與頻繁更新；Temporal Table 是用於稽核歷史，並非主要儲存架構的選擇依據（雖然可以疊加使用）。",
+      "en": "According to the Decision Tree: Highly variable data structure -> Use JSON; Query pattern is Lookup by ID with transactional updates -> Use Row Store. Columnstore is for scanning and aggregation, not for single-row lookups or frequent updates. Temporal Table is for auditing history, not the primary basis for storage architecture selection (though it can be added on top).",
+      "wg": [
+        {
+          "t": "疊加使用",
+          "en": "use in conjunction / layer on top",
+          "ps": "verb"
+        }
+      ]
+    }
+  }
+]

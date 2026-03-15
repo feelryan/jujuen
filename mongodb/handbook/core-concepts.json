@@ -1,0 +1,834 @@
+[
+  {
+    "no": "1",
+    "level": "Hard",
+    "keywords": "WiredTiger,Cache,Eviction,Performance,Working Set",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你的 MongoDB 叢集在流量高峰期出現了嚴重的效能下降。監控顯示 CPU 使用率飆高，且 Disk I/O Wait 異常巨大。檢查 `db.serverStatus().wiredTiger.cache` 後發現 `pages read into cache` 與 `pages written from cache` 的數值持續維持在高檔。請問這最可能代表什麼問題？",
+        "en": "Your MongoDB cluster is experiencing severe performance degradation during peak traffic. Monitoring shows high CPU usage and abnormally high Disk I/O Wait. After checking `db.serverStatus().wiredTiger.cache`, you notice that `pages read into cache` and `pages written from cache` are consistently high. What does this most likely indicate?",
+        "wg": [
+          {
+            "t": "工作集",
+            "en": "Working Set",
+            "ps": "noun"
+          },
+          {
+            "t": "頁面驅逐",
+            "en": "Page Eviction",
+            "ps": "noun"
+          },
+          {
+            "t": "快取",
+            "en": "Cache",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single",
+    "options": [
+      {
+        "t": "WiredTiger 的 Checkpoint 機制失效，導致無法將資料寫入磁碟。",
+        "en": "The WiredTiger Checkpoint mechanism has failed, causing inability to write data to disk.",
+        "wg": []
+      },
+      {
+        "t": "工作集 (Working Set) 大小超過了 WiredTiger 配置的記憶體快取，導致頻繁的 Page Eviction。",
+        "en": "The Working Set size exceeds the configured WiredTiger memory cache, causing frequent Page Eviction.",
+        "wg": []
+      },
+      {
+        "t": "日誌 (Journaling) 寫入過於頻繁，導致磁碟頻寬被佔滿。",
+        "en": "Journaling writes are too frequent, saturating disk bandwidth.",
+        "wg": []
+      },
+      {
+        "t": "BSON 文件大小超過 16MB 限制，導致讀寫阻塞。",
+        "en": "BSON document size exceeds the 16MB limit, causing read/write blocking.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "當熱資料（索引 + 常用文件）的總量超過 WiredTiger Cache（預設為 RAM 的 50%）時，引擎必須頻繁地將舊頁面驅逐（Evict）回磁碟以騰出空間讀取新頁面。這種「記憶體抖動」會導致大量的 Disk I/O 和 CPU 消耗，是效能斷崖式下跌的主因。",
+      "en": "When the total size of hot data (indexes + frequently accessed documents) exceeds the WiredTiger Cache (defaulting to 50% of RAM), the engine must frequently evict old pages to disk to make room for new ones. This 'memory thrashing' causes massive Disk I/O and CPU consumption, which is the primary cause of performance cliffs.",
+      "wg": [
+        {
+          "t": "記憶體抖動",
+          "en": "Memory Thrashing",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "2",
+    "level": "Medium",
+    "keywords": "Anti-pattern,Schema Design,Arrays,BSON Limit",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "{\n  \"_id\": \"user_123\",\n  \"name\": \"Alice\",\n  \"activity_logs\": [\n    { \"action\": \"login\", \"ts\": ... },\n    { \"action\": \"click\", \"ts\": ... },\n    // ... growing indefinitely\n  ]\n}",
+    "question": [
+      {
+        "t": "在設計使用者活動紀錄系統時，開發團隊提議將所有使用者的操作紀錄直接 `push` 到該使用者 Document 中的 `activity_logs` 陣列（如程式碼所示）。身為資深工程師，你應該指出這種「無底洞文件 (Kitchen Sink)」模式的主要風險是什麼？",
+        "en": "When designing a user activity logging system, the development team proposes pushing all user action logs directly into an `activity_logs` array within the user Document (as shown in the code). As a senior engineer, what major risks should you point out regarding this 'Kitchen Sink' pattern?",
+        "wg": [
+          {
+            "t": "無底洞文件",
+            "en": "Kitchen Sink Document",
+            "ps": "noun"
+          },
+          {
+            "t": "寫入放大",
+            "en": "Write Amplification",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Multiple",
+    "options": [
+      {
+        "t": "陣列無限增長最終會觸發 BSON 16MB 的硬性上限，導致無法再寫入新紀錄。",
+        "en": "The array growing indefinitely will eventually hit the 16MB BSON hard limit, preventing any new writes.",
+        "wg": []
+      },
+      {
+        "t": "頻繁增大 Document 大小可能導致原磁碟空間不足，迫使 MongoDB 移動整份文件，造成寫入放大。",
+        "en": "Frequently increasing the document size may cause it to outgrow its allocated disk space, forcing MongoDB to move the entire document, causing write amplification.",
+        "wg": []
+      },
+      {
+        "t": "WiredTiger 不支援陣列欄位的索引，因此查詢效能會極差。",
+        "en": "WiredTiger does not support indexing on array fields, so query performance will be extremely poor.",
+        "wg": []
+      },
+      {
+        "t": "這種設計違反了 Data Locality 原則，讀取使用者基本資料時會變慢。",
+        "en": "This design violates the Data Locality principle, making reading basic user data slower.",
+        "wg": []
+      }
+    ],
+    "answer": "0,1,3",
+    "why": {
+      "t": "選項 0 與 1 是最直接的致命傷：MongoDB 文件有 16MB 上限，且不斷長大的文件會導致儲存引擎頻繁搬移資料（Relocation）。選項 3 也是正確的，因為每次只想讀取 `name` 時，卻必須把包含幾 MB Log 的整份文件載入記憶體與傳輸，浪費 I/O。選項 2 錯誤，MongoDB 絕對支援陣列索引（Multikey Index）。",
+      "en": "Options 0 and 1 are the most direct fatal flaws: MongoDB documents have a 16MB limit, and constantly growing documents cause the storage engine to frequently relocate data. Option 3 is also correct because reading just the `name` requires loading and transferring the entire document (potentially MBs of logs), wasting I/O. Option 2 is incorrect; MongoDB definitely supports array indexing (Multikey Index).",
+      "wg": [
+        {
+          "t": "多鍵索引",
+          "en": "Multikey Index",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "3",
+    "level": "Medium",
+    "keywords": "IoT,Bucket Pattern,Schema Design,Indexing",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "針對高頻寫入的 IoT 感測器數據（每秒數千筆），手冊推薦使用「桶裝模式 (Bucket Pattern)」，將一段時間內的數據聚合到單一 Document 中。相較於「每一筆數據存成一個 Document」，Bucket Pattern 帶來的最大優勢是什麼？",
+        "en": "For high-frequency IoT sensor data (thousands of writes per second), the handbook recommends using the 'Bucket Pattern' to aggregate data over a period into a single document. Compared to 'storing each data point as one document', what is the biggest advantage of the Bucket Pattern?",
+        "wg": [
+          {
+            "t": "桶裝模式",
+            "en": "Bucket Pattern",
+            "ps": "noun"
+          },
+          {
+            "t": "聚合",
+            "en": "Aggregate",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "type": "Single",
+    "options": [
+      {
+        "t": "大幅減少索引 (Index) 的數量與大小，因為多筆數據共用索引項目。",
+        "en": "Significantly reduces the number and size of indexes, as multiple data points share index entries.",
+        "wg": []
+      },
+      {
+        "t": "完全避免了 WiredTiger 的 Checkpoint 機制，提升寫入速度。",
+        "en": "Completely avoids the WiredTiger Checkpoint mechanism, increasing write speed.",
+        "wg": []
+      },
+      {
+        "t": "可以使用 SQL 語法進行查詢。",
+        "en": "Allows querying using SQL syntax.",
+        "wg": []
+      },
+      {
+        "t": "保證數據永遠不會遺失，即使沒有開啟 Journaling。",
+        "en": "Guarantees data is never lost, even without Journaling enabled.",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "若每筆感測數據都存成一個 Document，每秒會產生數千個索引項目（Index Entries），這會迅速撐爆 RAM。Bucket Pattern 將例如 60 筆數據存成一個 Document，索引只需紀錄這一個 Document 的時間範圍，大幅降低索引佔用的記憶體，並提升壓縮效率（相似數據存放在一起）。",
+      "en": "If each sensor reading is stored as a document, thousands of index entries are generated per second, quickly exhausting RAM. The Bucket Pattern stores, for example, 60 readings in one document, so the index only needs to record the time range for that one document. This drastically reduces index memory usage and improves compression efficiency (similar data stored together).",
+      "wg": [
+        {
+          "t": "索引項目",
+          "en": "Index Entries",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "4",
+    "level": "Hard",
+    "keywords": "WiredTiger,Durability,Journaling,Checkpoint,Internals",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "關於 WiredTiger 儲存引擎的持久化機制，以下關於 Journal (WAL) 與 Checkpoint 的描述，何者正確？",
+        "en": "Regarding the persistence mechanism of the WiredTiger storage engine, which of the following descriptions about Journal (WAL) and Checkpoint is correct?",
+        "wg": [
+          {
+            "t": "持久化",
+            "en": "Persistence/Durability",
+            "ps": "noun"
+          },
+          {
+            "t": "預寫式日誌",
+            "en": "Write-Ahead Log (WAL)",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single",
+    "options": [
+      {
+        "t": "Checkpoint 預設每 100ms 發生一次，負責防止斷電資料遺失。",
+        "en": "Checkpoints occur every 100ms by default and are responsible for preventing data loss during power failures.",
+        "wg": []
+      },
+      {
+        "t": "Journal 是為了確保資料結構整齊寫入 Data Files，而 Checkpoint 才是負責災難恢復。",
+        "en": "Journal is for ensuring data structures are neatly written to Data Files, while Checkpoint is responsible for disaster recovery.",
+        "wg": []
+      },
+      {
+        "t": "Journal (WAL) 預設每 100ms 刷盤一次，用於在 Checkpoint 之間發生崩潰時重放 (Replay) 資料；Checkpoint 則約 60s 發生一次，將記憶體髒頁寫入資料檔。",
+        "en": "Journal (WAL) flushes to disk every 100ms by default, used to replay data if a crash occurs between Checkpoints; Checkpoints occur approx. every 60s to write dirty memory pages to data files.",
+        "wg": []
+      },
+      {
+        "t": "WiredTiger 不使用 WAL，而是依賴 Replica Set 複製來保證持久性。",
+        "en": "WiredTiger does not use WAL but relies on Replica Set replication to guarantee durability.",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "這是 WiredTiger 的核心機制：Checkpoint 負責將記憶體中的資料快照（Snapshot）結構化地寫入磁碟（Data Files），頻率較低（60s）；而 Journal (WAL) 負責紀錄兩次 Checkpoint 之間的所有變更，頻率高（100ms），用於崩潰後的資料恢復。",
+      "en": "This is the core mechanism of WiredTiger: Checkpoints are responsible for structurally writing in-memory data snapshots to disk (Data Files) at a lower frequency (60s); Journal (WAL) records all changes between two Checkpoints at a high frequency (100ms) and is used for data recovery after a crash.",
+      "wg": [
+        {
+          "t": "快照",
+          "en": "Snapshot",
+          "ps": "noun"
+        },
+        {
+          "t": "崩潰恢復",
+          "en": "Crash Recovery",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "5",
+    "level": "Easy",
+    "keywords": "Data Types,Decimal128,Best Practices",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在設計金融交易系統的 Schema 時，你需要儲存「帳戶餘額」與「交易金額」。為了避免浮點數運算誤差（例如 0.1 + 0.2 != 0.3），你應該選擇哪種 BSON 資料型別？",
+        "en": "When designing the schema for a financial transaction system, you need to store 'account balance' and 'transaction amount'. To avoid floating-point arithmetic errors (e.g., 0.1 + 0.2 != 0.3), which BSON data type should you choose?",
+        "wg": [
+          {
+            "t": "浮點數運算誤差",
+            "en": "Floating-point arithmetic errors",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single",
+    "options": [
+      {
+        "t": "Double",
+        "en": "Double",
+        "wg": []
+      },
+      {
+        "t": "String",
+        "en": "String",
+        "wg": []
+      },
+      {
+        "t": "Decimal128",
+        "en": "Decimal128",
+        "wg": []
+      },
+      {
+        "t": "Int64 (Long)",
+        "en": "Int64 (Long)",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "`Double` 是 IEEE 754 浮點數，會有精度丟失問題。`String` 無法直接進行數值計算。`Int64` 需要手動處理小數位數（例如存成 '分'），容易出錯。`Decimal128` 是 MongoDB 專為高精度科學與金融計算設計的型別，能精確儲存小數。",
+      "en": "`Double` is an IEEE 754 floating-point number and suffers from precision loss. `String` cannot be used for direct numerical calculations. `Int64` requires manual handling of decimal places (e.g., storing in cents), which is error-prone. `Decimal128` is a type designed by MongoDB specifically for high-precision scientific and financial calculations, capable of storing decimals accurately.",
+      "wg": [
+        {
+          "t": "精度丟失",
+          "en": "Precision Loss",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "6",
+    "level": "Medium",
+    "keywords": "Compression,WiredTiger,Optimization,Zstd,Snappy",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你有一個 Collection 專門用來封存 3 年前的歷史日誌（Archival Data）。這些資料寫入後幾乎不會再修改，且讀取頻率極低，但資料量非常龐大，你希望盡可能節省磁碟空間。你應該為此 Collection 選擇哪種 WiredTiger 壓縮演算法？",
+        "en": "You have a Collection dedicated to archiving historical logs from 3 years ago. This data is almost never modified after writing and is read very infrequently, but the volume is huge, and you want to save as much disk space as possible. Which WiredTiger compression algorithm should you choose for this Collection?",
+        "wg": [
+          {
+            "t": "封存資料",
+            "en": "Archival Data",
+            "ps": "noun"
+          },
+          {
+            "t": "壓縮演算法",
+            "en": "Compression Algorithm",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single",
+    "options": [
+      {
+        "t": "Snappy (Default)",
+        "en": "Snappy (Default)",
+        "wg": []
+      },
+      {
+        "t": "Zstd",
+        "en": "Zstd",
+        "wg": []
+      },
+      {
+        "t": "None (No Compression)",
+        "en": "None (No Compression)",
+        "wg": []
+      },
+      {
+        "t": "Zlib",
+        "en": "Zlib",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "Snappy 是預設值，強調速度與壓縮率的平衡。Zstd 雖然 CPU 消耗較高，但能提供極佳的壓縮比，非常適合「寫少讀少、儲存成本敏感」的歸檔場景。",
+      "en": "Snappy is the default, emphasizing a balance between speed and compression ratio. Zstd, while consuming more CPU, offers excellent compression ratios, making it ideal for 'write-rarely, read-rarely, storage-cost-sensitive' archival scenarios.",
+      "wg": [
+        {
+          "t": "壓縮比",
+          "en": "Compression Ratio",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "7",
+    "level": "Hard",
+    "keywords": "Write Concern,Durability,Safety,Performance",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在處理一筆極為關鍵的金融轉帳時，業務需求是：「一旦資料庫回傳成功，即使 Primary 節點下一毫秒立刻斷電或毀損，資料也絕對不能遺失」。請問你應該設定什麼樣的 Write Concern？",
+        "en": "When processing a critical financial transfer, the business requirement is: 'Once the database returns success, the data must absolutely not be lost, even if the Primary node loses power or crashes the very next millisecond.' What Write Concern should you configure?",
+        "wg": [
+          {
+            "t": "寫入關注",
+            "en": "Write Concern",
+            "ps": "noun"
+          },
+          {
+            "t": "節點",
+            "en": "Node",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single",
+    "options": [
+      {
+        "t": "{ w: 1, j: false }",
+        "en": "{ w: 1, j: false }",
+        "wg": []
+      },
+      {
+        "t": "{ w: \"majority\", j: false }",
+        "en": "{ w: \"majority\", j: false }",
+        "wg": []
+      },
+      {
+        "t": "{ w: \"majority\", j: true }",
+        "en": "{ w: \"majority\", j: true }",
+        "wg": []
+      },
+      {
+        "t": "{ w: 0 }",
+        "en": "{ w: 0 }",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "`w: 1` 僅保證 Primary 記憶體收到；`w: 'majority'` 保證同步到多數節點記憶體，但若所有節點同時斷電（如機房斷電）仍可能遺失記憶體中的資料。唯有加上 `j: true`，強制要求寫入 Journal 並刷盤後才回傳成功，才能確保斷電不掉資料。",
+      "en": "`w: 1` only guarantees receipt in Primary's memory; `w: 'majority'` guarantees synchronization to the memory of a majority of nodes, but data in memory could still be lost if all nodes lose power simultaneously (e.g., data center power outage). Only by adding `j: true`, which forces writing to the Journal and flushing to disk before returning success, can data durability against power loss be ensured.",
+      "wg": [
+        {
+          "t": "刷盤",
+          "en": "Flush to disk",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "8",
+    "level": "Medium",
+    "keywords": "Data Locality, Modeling, Performance, RDBMS vs MongoDB",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在「電商商品目錄」的實戰案例中，手冊比較了 SQL 風格（拆分為 Products, Attributes, Variants 等多張表）與 MongoDB Document 風格（將屬性與變體嵌入同一份文件）的差異。",
+        "en": "In the 'E-commerce Product Catalog' real-world example, the handbook compares the SQL style (normalized into Products, Attributes, Variants tables) with the MongoDB Document style (embedding attributes and variants in a single document).",
+        "wg": [
+          {
+            "t": "電商商品目錄",
+            "en": "E-commerce Product Catalog",
+            "ps": "noun phrase"
+          },
+          {
+            "t": "嵌入",
+            "en": "embedding",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "根據「核心思維 (Mental Model)」，採用 Document 風格的主要效能優勢是什麼？",
+        "en": "According to the 'Mental Model', what is the primary performance advantage of adopting the Document style?",
+        "wg": [
+          {
+            "t": "核心思維",
+            "en": "Mental Model",
+            "ps": "noun phrase"
+          },
+          {
+            "t": "效能優勢",
+            "en": "performance advantage",
+            "ps": "noun phrase"
+          }
+        ]
+      }
+    ],
+    "type": "Single",
+    "options": [
+      {
+        "t": "能夠大幅節省硬碟儲存空間，因為不需要重複儲存欄位名稱。",
+        "en": "It significantly saves disk storage space because field names do not need to be stored repeatedly.",
+        "wg": []
+      },
+      {
+        "t": "利用資料局部性 (Data Locality)，一次 I/O 即可讀取完整的商品詳情，避免了昂貴的 JOIN 操作。",
+        "en": "It leverages Data Locality, allowing the complete product details to be retrieved in a single I/O, avoiding expensive JOIN operations.",
+        "wg": [
+          {
+            "t": "資料局部性",
+            "en": "Data Locality",
+            "ps": "noun phrase"
+          }
+        ]
+      },
+      {
+        "t": "可以繞過 WiredTiger 的快取機制，直接從磁碟讀取資料以減少記憶體消耗。",
+        "en": "It can bypass the WiredTiger cache mechanism, reading data directly from disk to reduce memory consumption.",
+        "wg": []
+      },
+      {
+        "t": "確保所有商品資料都符合第三正規化 (3NF)，減少資料冗餘。",
+        "en": "It ensures all product data conforms to the Third Normal Form (3NF), reducing data redundancy.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "MongoDB 的核心哲學是「一起被讀取的資料應存放在一起」。透過嵌入 (Embedding)，應用程式只需一次讀取操作（Single I/O）就能獲取頁面所需的所有資訊，這比 SQL 中需要多次 I/O 或 JOIN 的效率高得多。",
+      "en": "MongoDB's core philosophy is 'Data that is accessed together should be stored together'. Through Embedding, the application can retrieve all necessary information for a page in a single read operation (Single I/O), which is much more efficient than multiple I/Os or JOINs in SQL.",
+      "wg": [
+        {
+          "t": "一起被讀取的資料應存放在一起",
+          "en": "Data that is accessed together should be stored together",
+          "ps": "phrase"
+        }
+      ]
+    }
+  },
+  {
+    "no": "9",
+    "level": "Hard",
+    "keywords": "WiredTiger, MVCC, Concurrency, Locking",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你的系統正在執行一個耗時 1 分鐘的複雜報表查詢，同時有大量的使用者正在對同一批資料進行寫入更新。",
+        "en": "Your system is executing a complex report query that takes 1 minute, while a large number of users are simultaneously writing updates to the same data.",
+        "wg": [
+          {
+            "t": "報表查詢",
+            "en": "report query",
+            "ps": "noun phrase"
+          }
+        ]
+      },
+      {
+        "t": "基於 WiredTiger 引擎的 MVCC (多版本並發控制) 機制，下列敘述何者正確？",
+        "en": "Based on the WiredTiger engine's MVCC (Multi-Version Concurrency Control) mechanism, which of the following statements is true?",
+        "wg": [
+          {
+            "t": "多版本並發控制",
+            "en": "Multi-Version Concurrency Control",
+            "ps": "noun phrase"
+          }
+        ]
+      }
+    ],
+    "type": "Single",
+    "options": [
+      {
+        "t": "寫入操作會被讀取查詢阻塞 (Block)，直到報表查詢完成後才能寫入。",
+        "en": "Write operations will be blocked by the read query and can only proceed after the report query is finished.",
+        "wg": [
+          {
+            "t": "阻塞",
+            "en": "Block",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "讀取查詢會被寫入操作中斷，必須重新執行以確保資料最新。",
+        "en": "The read query will be interrupted by write operations and must be re-executed to ensure data freshness.",
+        "wg": []
+      },
+      {
+        "t": "讀寫互不阻塞。報表查詢會看到查詢「開始瞬間」的資料快照 (Snapshot)，期間發生的更新不會反映在該次查詢結果中。",
+        "en": "Reads and writes do not block each other. The report query will see a data snapshot from the 'start moment' of the query; updates occurring during this period will not be reflected in that query result.",
+        "wg": [
+          {
+            "t": "資料快照",
+            "en": "data snapshot",
+            "ps": "noun phrase"
+          }
+        ]
+      },
+      {
+        "t": "WiredTiger 會自動將查詢降級為「髒讀 (Dirty Read)」，允許讀取到尚未 Commit 的寫入資料。",
+        "en": "WiredTiger will automatically downgrade the query to 'Dirty Read', allowing it to read uncommitted write data.",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "WiredTiger 使用 MVCC 機制，寫入時會在記憶體中創造新版本的 Document，而讀取操作則基於時間點 (Point-in-time) 的快照。因此讀寫互不阻塞，且查詢結果具有一致性（不會讀到寫了一半的資料）。",
+      "en": "WiredTiger uses the MVCC mechanism, where writes create a new version of the document in memory, while read operations are based on a point-in-time snapshot. Therefore, reads and writes do not block each other, and query results are consistent (avoiding partially written data).",
+      "wg": [
+        {
+          "t": "互不阻塞",
+          "en": "do not block each other",
+          "ps": "phrase"
+        }
+      ]
+    }
+  },
+  {
+    "no": "10",
+    "level": "Medium",
+    "keywords": "Schema Validation, Data Integrity, Best Practices",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "手冊提到 MongoDB 是「Flexible Schema」而非「No Schema」。",
+        "en": "The handbook mentions that MongoDB is 'Flexible Schema', not 'No Schema'.",
+        "wg": []
+      },
+      {
+        "t": "為了防止應用程式 Bug 寫入錯誤的資料型別（例如將 `price` 寫成字串），你應該在生產環境採取什麼最佳實務？",
+        "en": "To prevent application bugs from writing incorrect data types (e.g., writing `price` as a string), what best practice should you adopt in a production environment?",
+        "wg": [
+          {
+            "t": "最佳實務",
+            "en": "best practice",
+            "ps": "noun phrase"
+          }
+        ]
+      }
+    ],
+    "type": "Single",
+    "options": [
+      {
+        "t": "依賴後端程式碼 (Application Layer) 進行所有驗證，資料庫層保持完全開放。",
+        "en": "Rely on the Application Layer for all validation and keep the database layer completely open.",
+        "wg": []
+      },
+      {
+        "t": "在 Collection 層級設定 JSON Schema Validation Rules，強制鎖定核心欄位的型別與存在性。",
+        "en": "Set JSON Schema Validation Rules at the Collection level to enforce types and existence of core fields.",
+        "wg": [
+          {
+            "t": "強制鎖定",
+            "en": "enforce / lock down",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "定期執行清理腳本 (Cleanup Script)，掃描並修正錯誤型別的資料。",
+        "en": "Periodically run a Cleanup Script to scan and fix data with incorrect types.",
+        "wg": []
+      },
+      {
+        "t": "將所有欄位都轉換為 String 儲存，讀取時再轉型，以避免型別錯誤。",
+        "en": "Convert all fields to String for storage and cast them upon reading to avoid type errors.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "雖然 MongoDB 允許靈活的 Schema，但在生產環境中，為了資料治理與防止髒資料，應使用 Schema Validation 功能來確保核心欄位（如金額、Email）符合預期規則。",
+      "en": "Although MongoDB allows for a flexible schema, in a production environment, Schema Validation should be used to ensure core fields (like amount, Email) conform to expected rules for data governance and to prevent dirty data.",
+      "wg": [
+        {
+          "t": "資料治理",
+          "en": "data governance",
+          "ps": "noun phrase"
+        },
+        {
+          "t": "髒資料",
+          "en": "dirty data",
+          "ps": "noun phrase"
+        }
+      ]
+    }
+  },
+  {
+    "no": "11",
+    "level": "Medium",
+    "keywords": "Document Size, Performance, RAM, WiredTiger",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "開發團隊為了方便，將使用者的「高解析度大頭貼 (2MB)」直接以 Base64 字串儲存在 User Document 中。",
+        "en": "For convenience, the development team stores the user's 'high-resolution avatar (2MB)' directly as a Base64 string within the User Document.",
+        "wg": [
+          {
+            "t": "高解析度大頭貼",
+            "en": "high-resolution avatar",
+            "ps": "noun phrase"
+          }
+        ]
+      },
+      {
+        "t": "即使應用程式大多時候只需要讀取使用者的 `nickname`（僅數 Bytes），這種設計仍會造成嚴重的效能問題。",
+        "en": "Even though the application mostly only needs to read the user's `nickname` (just a few Bytes), this design still causes severe performance issues.",
+        "wg": []
+      },
+      {
+        "t": "根據手冊關於「文件大小管理」的說明，主要原因為何？",
+        "en": "According to the handbook's explanation on 'Document Size Management', what is the primary reason for this?",
+        "wg": [
+          {
+            "t": "文件大小管理",
+            "en": "Document Size Management",
+            "ps": "noun phrase"
+          }
+        ]
+      }
+    ],
+    "type": "Single",
+    "options": [
+      {
+        "t": "因為 MongoDB 的讀寫基本單位是 Document。即使只投影 (Project) 讀取一個小欄位，WiredTiger 仍需將整個 2MB 的文件載入記憶體 (Cache)，造成 RAM 與 I/O 的浪費。",
+        "en": "Because MongoDB's basic unit of read/write is the Document. Even if projecting only a small field, WiredTiger still needs to load the entire 2MB document into memory (Cache), wasting RAM and I/O.",
+        "wg": [
+          {
+            "t": "讀寫基本單位",
+            "en": "basic unit of read/write",
+            "ps": "noun phrase"
+          },
+          {
+            "t": "投影",
+            "en": "Project",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "因為 Base64 字串無法被 WiredTiger 壓縮，導致磁碟空間不足。",
+        "en": "Because Base64 strings cannot be compressed by WiredTiger, leading to insufficient disk space.",
+        "wg": []
+      },
+      {
+        "t": "因為單一 Document 超過 1MB 會強制觸發全表掃描 (Collection Scan)。",
+        "en": "Because a single Document exceeding 1MB will force a full Collection Scan.",
+        "wg": []
+      },
+      {
+        "t": "因為大文件會導致 MongoDB 無法使用索引。",
+        "en": "Because large documents prevent MongoDB from using indexes.",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "WiredTiger 以 Page 為單位管理磁碟，以 Document 為單位載入 Cache。讀取 Document 中的任何一部分，都需要將整個 Document 載入記憶體。如果 Document 過大且包含大量冷資料（如大圖片），會迅速擠壓 Working Set 的空間，導致熱資料被踢出快取。",
+      "en": "WiredTiger manages disk by Pages and loads Cache by Documents. Reading any part of a Document requires loading the entire Document into memory. If a Document is too large and contains a lot of cold data (like large images), it will quickly crowd out the Working Set, causing hot data to be evicted from the cache.",
+      "wg": [
+        {
+          "t": "冷資料",
+          "en": "cold data",
+          "ps": "noun phrase"
+        },
+        {
+          "t": "擠壓",
+          "en": "crowd out / squeeze",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "12",
+    "level": "Medium",
+    "keywords": "Atomicity, Schema Design, Transactions, Checklist",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在設計一個遊戲配對系統時，你需要同時更新「房間狀態」為 `playing` 並寫入「玩家 ID」。",
+        "en": "When designing a game matchmaking system, you need to simultaneously update the 'room status' to `playing` and write the 'player ID'.",
+        "wg": [
+          {
+            "t": "配對系統",
+            "en": "matchmaking system",
+            "ps": "noun phrase"
+          }
+        ]
+      },
+      {
+        "t": "根據 Schema Design Checklist 中的「原子性 (Atomicity)」檢查點，為了避免使用昂貴的多文件交易 (Multi-document Transaction)，你應該如何設計？",
+        "en": "According to the 'Atomicity' checkpoint in the Schema Design Checklist, how should you design this to avoid using expensive Multi-document Transactions?",
+        "wg": [
+          {
+            "t": "原子性",
+            "en": "Atomicity",
+            "ps": "noun"
+          },
+          {
+            "t": "多文件交易",
+            "en": "Multi-document Transaction",
+            "ps": "noun phrase"
+          }
+        ]
+      }
+    ],
+    "type": "Single",
+    "options": [
+      {
+        "t": "將房間狀態與玩家列表拆分到不同 Collection，並在應用層使用 Promise.all 並行寫入。",
+        "en": "Split room status and player list into different Collections, and use Promise.all in the application layer for concurrent writes.",
+        "wg": []
+      },
+      {
+        "t": "確保這兩個欄位位於同一個 Document 內。MongoDB 保證對單一 Document 的更新操作具有原子性。",
+        "en": "Ensure both fields are within the same Document. MongoDB guarantees atomicity for update operations on a single Document.",
+        "wg": [
+          {
+            "t": "單一 Document",
+            "en": "single Document",
+            "ps": "noun phrase"
+          }
+        ]
+      },
+      {
+        "t": "使用 Two-Phase Commit (2PC) 模式手動實作交易邏輯。",
+        "en": "Manually implement transaction logic using the Two-Phase Commit (2PC) pattern.",
+        "wg": []
+      },
+      {
+        "t": "忽略原子性需求，因為遊戲配對允許偶爾的資料不一致。",
+        "en": "Ignore the atomicity requirement, as game matchmaking allows for occasional data inconsistency.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "MongoDB 在單一 Document 層級提供 ACID 保證。若業務邏輯要求兩個欄位必須同時更新成功或失敗，最簡單且高效的做法是將它們設計在同一個 Document 中，利用原生的單文件原子性，而非依賴開銷較大的多文件交易。",
+      "en": "MongoDB provides ACID guarantees at the single Document level. If business logic requires two fields to be updated successfully or fail together, the simplest and most efficient approach is to design them within the same Document, leveraging native single-document atomicity instead of relying on costly multi-document transactions.",
+      "wg": [
+        {
+          "t": "開銷",
+          "en": "overhead / cost",
+          "ps": "noun"
+        }
+      ]
+    }
+  }
+]

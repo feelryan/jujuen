@@ -1,0 +1,921 @@
+[
+  {
+    "no": "1",
+    "level": "Intermediate",
+    "keywords": "RCSI, MVCC, Blocking, Locking",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你的團隊正在開發一個高並發的 OLTP 系統，目前遭遇嚴重的讀寫阻塞（Blocking）問題。開發者建議在所有查詢加上 `WITH (NOLOCK)` 來解決效能問題。根據 Handbook，身為資深工程師你應給予什麼建議？",
+        "en": "Your team is developing a high-concurrency OLTP system and is currently facing severe read-write blocking issues. A developer suggests adding `WITH (NOLOCK)` to all queries to solve the performance problem. According to the Handbook, what advice should you give as a senior engineer?",
+        "wg": [
+          {
+            "t": "高並發",
+            "en": "high-concurrency",
+            "ps": "adj"
+          },
+          {
+            "t": "讀寫阻塞",
+            "en": "read-write blocking",
+            "ps": "noun"
+          },
+          {
+            "t": "髒讀",
+            "en": "dirty read",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "同意。`NOLOCK` 是解決阻塞的標準做法，且不會有副作用。",
+        "en": "Agree. `NOLOCK` is the standard practice for solving blocking and has no side effects.",
+        "wg": []
+      },
+      {
+        "t": "反對。應優先啟用 RCSI (Read Committed Snapshot Isolation)。`NOLOCK` 會導致髒讀與資料不一致，而 RCSI 能在不阻塞寫入的情況下提供一致的快照讀取。",
+        "en": "Disagree. Prioritize enabling RCSI (Read Committed Snapshot Isolation). `NOLOCK` causes dirty reads and data inconsistency, whereas RCSI provides consistent snapshot reads without blocking writes.",
+        "wg": [
+          {
+            "t": "快照讀取",
+            "en": "snapshot read",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "反對。應該將隔離層級提升至 `SERIALIZABLE` 以確保資料正確性。",
+        "en": "Disagree. The isolation level should be increased to `SERIALIZABLE` to ensure data correctness.",
+        "wg": []
+      },
+      {
+        "t": "同意，但僅限於報表查詢使用，交易型查詢則維持原樣。",
+        "en": "Agree, but only for reporting queries; transactional queries should remain as is.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "根據 Handbook，濫用 `NOLOCK` 是常見的反模式（Anti-pattern），它不僅會造成髒讀（Dirty Read），還可能因 Page Split 導致讀取重複或遺漏資料。現代 MS-SQL 的最佳實務是啟用 RCSI，讓讀取者讀取版本快照（Snapshot）而非申請 Shared Lock，從而實現 Readers don't block Writers 的效果，且保證資料一致性。",
+      "en": "According to the Handbook, abusing `NOLOCK` is a common anti-pattern. It not only causes Dirty Reads but can also lead to duplicate or missing data due to Page Splits. The modern MS-SQL best practice is to enable RCSI, allowing readers to read version snapshots instead of requesting Shared Locks, achieving 'Readers don't block Writers' while ensuring data consistency.",
+      "wg": [
+        {
+          "t": "反模式",
+          "en": "anti-pattern",
+          "ps": "noun"
+        },
+        {
+          "t": "頁面分裂",
+          "en": "Page Split",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "2",
+    "level": "Advanced",
+    "keywords": "Nested Transactions, Rollback, T-SQL",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "BEGIN TRAN -- Outer\n  UPDATE A ...\n  BEGIN TRAN -- Inner\n    UPDATE B ...\n    ROLLBACK TRAN -- Inner Rollback\n  COMMIT TRAN -- Inner Commit (Hypothetical)\nCOMMIT TRAN -- Outer",
+    "question": [
+      {
+        "t": "關於 MS-SQL 的「巢狀交易（Nested Transactions）」，下列敘述何者正確？",
+        "en": "Regarding 'Nested Transactions' in MS-SQL, which of the following statements is correct?",
+        "wg": [
+          {
+            "t": "巢狀交易",
+            "en": "Nested Transactions",
+            "ps": "noun"
+          },
+          {
+            "t": "敘述",
+            "en": "statement",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "內層的 `COMMIT TRANSACTION` 會立即將資料持久化寫入 Log，即使外層後來發生 Rollback 也不受影響。",
+        "en": "The inner `COMMIT TRANSACTION` immediately persists data to the Log, unaffected even if the outer layer subsequently rolls back.",
+        "wg": []
+      },
+      {
+        "t": "內層的 `ROLLBACK TRANSACTION` 只會回滾內層交易做的修改，外層交易仍可繼續執行並提交。",
+        "en": "The inner `ROLLBACK TRANSACTION` only rolls back changes made by the inner transaction; the outer transaction can still proceed and commit.",
+        "wg": []
+      },
+      {
+        "t": "MS-SQL 的巢狀交易是「假的」。內層 `COMMIT` 僅減少 `@@TRANCOUNT` 計數；但內層 `ROLLBACK` 會直接回滾整個交易（包含最外層）。",
+        "en": "Nested transactions in MS-SQL are an 'illusion'. An inner `COMMIT` only decrements the `@@TRANCOUNT`; however, an inner `ROLLBACK` rolls back the entire transaction (including the outermost layer).",
+        "wg": [
+          {
+            "t": "計數",
+            "en": "count",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "使用 `SAVE TRANSACTION` 可以完全取代 `BEGIN TRANSACTION` 來解決所有巢狀交易問題。",
+        "en": "Using `SAVE TRANSACTION` can completely replace `BEGIN TRANSACTION` to solve all nested transaction issues.",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "Handbook 指出 MS-SQL 的巢狀交易是「假的（Illusion）」。內層的 `COMMIT` 僅是將 `@@TRANCOUNT` 減 1，不會真正寫入 Log。然而，一旦執行 `ROLLBACK`，它會忽略層級，直接將所有層級（包含最外層）全部回滾。這是開發者常誤解的陷阱。",
+      "en": "The Handbook states that nested transactions in MS-SQL are an 'illusion'. An inner `COMMIT` merely decrements `@@TRANCOUNT` by 1 and does not persist to the Log. However, executing `ROLLBACK` ignores nesting levels and rolls back everything (including the outermost layer). This is a common pitfall for developers.",
+      "wg": [
+        {
+          "t": "持久化",
+          "en": "persist",
+          "ps": "verb"
+        },
+        {
+          "t": "陷阱",
+          "en": "pitfall",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "3",
+    "level": "Intermediate",
+    "keywords": "XACT_ABORT, Error Handling, Orphaned Transactions",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "SET XACT_ABORT ON;\nBEGIN TRY\n    BEGIN TRAN;\n    -- Business Logic\n    COMMIT TRAN;\nEND TRY\nBEGIN CATCH\n    IF @@TRANCOUNT > 0 ROLLBACK TRAN;\n    THROW;\nEND CATCH;",
+    "question": [
+      {
+        "t": "在標準交易處理樣板中，為什麼強烈建議在 Stored Procedure 開頭加上 `SET XACT_ABORT ON`？",
+        "en": "In the standard transaction template, why is it strongly recommended to add `SET XACT_ABORT ON` at the beginning of a Stored Procedure?",
+        "wg": [
+          {
+            "t": "標準交易處理樣板",
+            "en": "standard transaction template",
+            "ps": "noun"
+          },
+          {
+            "t": "強烈建議",
+            "en": "strongly recommended",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "為了提升查詢效能，讓 SQL Server 自動優化執行計畫。",
+        "en": "To improve query performance by letting SQL Server automatically optimize the execution plan.",
+        "wg": []
+      },
+      {
+        "t": "為了防止死結（Deadlock）發生，它會自動重試交易。",
+        "en": "To prevent deadlocks by automatically retrying the transaction.",
+        "wg": []
+      },
+      {
+        "t": "為了確保當發生 Timeout 或嚴重錯誤時，交易能確實 Rollback，避免產生「孤兒交易」鎖死系統。",
+        "en": "To ensure the transaction strictly rolls back when a Timeout or severe error occurs, preventing 'orphaned transactions' from locking up the system.",
+        "wg": [
+          {
+            "t": "孤兒交易",
+            "en": "orphaned transactions",
+            "ps": "noun"
+          },
+          {
+            "t": "鎖死",
+            "en": "lock up",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "為了允許髒讀（Dirty Read），類似 `NOLOCK` 的效果。",
+        "en": "To allow dirty reads, similar to the effect of `NOLOCK`.",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "根據 Handbook，`SET XACT_ABORT ON` 是最安全的保險。當發生如 Timeout 等嚴重錯誤時，若沒有此設定，SQL Server 可能只會中斷當前語句而讓交易保持開啟（Open Transaction），導致資源被長期鎖定（孤兒交易）。此設定確保錯誤發生時自動 Rollback。",
+      "en": "According to the Handbook, `SET XACT_ABORT ON` is the safest insurance. When severe errors like Timeouts occur, without this setting, SQL Server might only abort the current statement while leaving the transaction open, leading to long-term resource locking (orphaned transactions). This setting ensures an automatic rollback upon error.",
+      "wg": [
+        {
+          "t": "保險",
+          "en": "insurance",
+          "ps": "noun"
+        },
+        {
+          "t": "中斷",
+          "en": "abort",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "4",
+    "level": "Advanced",
+    "keywords": "Deadlock, Indexing, Key Lookup, Troubleshooting",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "Transaction A: UPDATE Users SET LastLogin = GetDate() WHERE Id = 10 (Holds Clustered Index Lock)\nTransaction B: SELECT * FROM Users WHERE Email = 'a@b.com' (Holds Non-Clustered Index Lock)",
+    "question": [
+      {
+        "t": "你分析了一個死結圖形（Deadlock Graph），發現是「Key Lookup Deadlock」。Transaction A 持有 Clustered Index 鎖並試圖更新 Non-Clustered Index；Transaction B 持有 Non-Clustered Index 鎖並試圖回查（Key Lookup）Clustered Index。根據 Handbook，最有效的解法是什麼？",
+        "en": "You analyzed a deadlock graph and identified a 'Key Lookup Deadlock'. Transaction A holds a Clustered Index lock and tries to update a Non-Clustered Index; Transaction B holds a Non-Clustered Index lock and tries to perform a Key Lookup on the Clustered Index. According to the Handbook, what is the most effective solution?",
+        "wg": [
+          {
+            "t": "死結圖形",
+            "en": "Deadlock Graph",
+            "ps": "noun"
+          },
+          {
+            "t": "回查",
+            "en": "Key Lookup",
+            "ps": "noun"
+          },
+          {
+            "t": "最有效的",
+            "en": "most effective",
+            "ps": "adj"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "強制 Transaction B 使用 `WITH (NOLOCK)`。",
+        "en": "Force Transaction B to use `WITH (NOLOCK)`.",
+        "wg": []
+      },
+      {
+        "t": "將 Transaction B 需要的欄位加入 Non-Clustered Index (使用 `INCLUDE` columns)，消除 Key Lookup。",
+        "en": "Add the columns required by Transaction B to the Non-Clustered Index (using `INCLUDE` columns) to eliminate the Key Lookup.",
+        "wg": [
+          {
+            "t": "消除",
+            "en": "eliminate",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "在 Transaction A 中加入 `TABLOCKX` 提示，直接鎖定整張表。",
+        "en": "Add a `TABLOCKX` hint to Transaction A to lock the entire table directly.",
+        "wg": []
+      },
+      {
+        "t": "增加硬體資源（CPU 與 RAM）來加快查詢速度。",
+        "en": "Increase hardware resources (CPU and RAM) to speed up the queries.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "此死結的根源在於 Transaction B 雖然使用了索引（Email），但因為索引未包含查詢所需的所有欄位，導致必須回查 Clustered Index（Key Lookup），進而與持有 Clustered Index 的 A 發生衝突。使用 Covering Index（`INCLUDE` columns）可以讓 B 直接在 Non-Clustered Index 完成查詢，無需觸碰 Clustered Index，從而打破死結循環。",
+      "en": "The root cause of this deadlock is that although Transaction B uses an index (Email), the index does not contain all the required columns, forcing a Key Lookup to the Clustered Index, which conflicts with Transaction A. Using a Covering Index (`INCLUDE` columns) allows B to complete the query solely within the Non-Clustered Index without touching the Clustered Index, thus breaking the deadlock cycle.",
+      "wg": [
+        {
+          "t": "覆蓋索引",
+          "en": "Covering Index",
+          "ps": "noun"
+        },
+        {
+          "t": "衝突",
+          "en": "conflict",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "5",
+    "level": "Intermediate",
+    "keywords": "Anti-pattern, Transaction Scope, External API",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "BEGIN TRAN\n  UPDATE Orders SET Status = 'Processing' WHERE Id = @Id;\n  -- Call external Payment Gateway API (HTTP Request)\n  EXEC sp_CallPaymentAPI @Id;\n  UPDATE Orders SET Status = 'Paid' WHERE Id = @Id;\nCOMMIT TRAN",
+    "question": [
+      {
+        "t": "在 Code Review 時，你看到上述程式碼。這違反了 Handbook 中的哪一項「交易範圍最小化」原則？會有什麼風險？",
+        "en": "During a Code Review, you see the code above. Which 'Keep Transactions Short' principle from the Handbook does this violate? What is the risk?",
+        "wg": [
+          {
+            "t": "交易範圍最小化",
+            "en": "Keep Transactions Short",
+            "ps": "phrase"
+          },
+          {
+            "t": "違反",
+            "en": "violate",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "違反了命名原則。Stored Procedure 名稱不應包含 `sp_`。",
+        "en": "Violates naming conventions. Stored Procedure names should not contain `sp_`.",
+        "wg": []
+      },
+      {
+        "t": "沒有違反原則，這是處理付款的標準流程。",
+        "en": "Does not violate any principle; this is the standard process for handling payments.",
+        "wg": []
+      },
+      {
+        "t": "違反了「嚴禁在交易內呼叫外部 API」的原則。外部呼叫的不確定性（如網路延遲）會導致資料庫鎖定時間無限延長，阻塞其他使用者。",
+        "en": "Violates the principle 'Strictly forbid calling external APIs inside a transaction'. The uncertainty of external calls (e.g., network latency) can indefinitely extend database lock duration, blocking other users.",
+        "wg": [
+          {
+            "t": "不確定性",
+            "en": "uncertainty",
+            "ps": "noun"
+          },
+          {
+            "t": "延遲",
+            "en": "latency",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "違反了索引設計原則。`UPDATE` 語句沒有使用索引。",
+        "en": "Violates indexing design principles. The `UPDATE` statement does not use an index.",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "Handbook 的黃金法則指出：交易內只做資料庫操作。在 `BEGIN TRAN` 和 `COMMIT` 之間呼叫外部 API 是嚴重反模式，因為 API 回應時間不可控，這會導致資料庫鎖（Locks）被長時間持有，進而拖垮整個系統的並發能力。",
+      "en": "The Handbook's golden rule states: Do only database operations inside a transaction. Calling an external API between `BEGIN TRAN` and `COMMIT` is a severe anti-pattern because the API response time is uncontrollable. This causes database locks to be held for a long time, dragging down the concurrency capability of the entire system.",
+      "wg": [
+        {
+          "t": "黃金法則",
+          "en": "golden rule",
+          "ps": "noun"
+        },
+        {
+          "t": "拖垮",
+          "en": "drag down",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "6",
+    "level": "Intermediate",
+    "keywords": "Race Condition, Atomic Update, Inventory",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "-- Bad Practice:\nSELECT Qty FROM Product WHERE Id = 1;\n-- App checks if Qty > 0\nUPDATE Product SET Qty = Qty - 1 WHERE Id = 1;",
+    "question": [
+      {
+        "t": "在電商搶購場景中，上述「先讀後寫」的邏輯容易導致 Race Condition（超賣）。根據 Handbook，下列哪種寫法是修正此問題的最佳實務？",
+        "en": "In an e-commerce flash sale scenario, the 'read-then-write' logic above is prone to Race Conditions (overselling). According to the Handbook, which of the following is the best practice to fix this issue?",
+        "wg": [
+          {
+            "t": "搶購",
+            "en": "flash sale",
+            "ps": "noun"
+          },
+          {
+            "t": "超賣",
+            "en": "overselling",
+            "ps": "noun"
+          },
+          {
+            "t": "最佳實務",
+            "en": "best practice",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "在 `SELECT` 語句加上 `WITH (NOLOCK)`。",
+        "en": "Add `WITH (NOLOCK)` to the `SELECT` statement.",
+        "wg": []
+      },
+      {
+        "t": "使用原子性更新（Atomic Update）：`UPDATE Product SET Qty = Qty - 1 WHERE Id = @Id AND Qty > 0;` 並檢查 `@@ROWCOUNT`。",
+        "en": "Use Atomic Update: `UPDATE Product SET Qty = Qty - 1 WHERE Id = @Id AND Qty > 0;` and check `@@ROWCOUNT`.",
+        "wg": [
+          {
+            "t": "原子性更新",
+            "en": "Atomic Update",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "在應用程式層使用 `Thread.Sleep()` 來錯開請求。",
+        "en": "Use `Thread.Sleep()` in the application layer to stagger requests.",
+        "wg": []
+      },
+      {
+        "t": "將資料庫隔離層級設為 `READ UNCOMMITTED`。",
+        "en": "Set the database isolation level to `READ UNCOMMITTED`.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "單純的 `SELECT` 僅持有 Shared Lock（或在 RCSI 下無鎖），無法阻止其他交易同時讀取並寫入。最佳解法是利用 SQL 的原子性，將檢查條件（`Qty > 0`）直接寫在 `UPDATE` 語句中。這樣在鎖定該行的瞬間同時完成檢查與扣減，確保不會超賣。",
+      "en": "A simple `SELECT` only holds a Shared Lock (or no lock under RCSI) and cannot prevent other transactions from reading and writing simultaneously. The best solution is to leverage SQL's atomicity by including the check condition (`Qty > 0`) directly in the `UPDATE` statement. This ensures checking and deduction happen simultaneously while the row is locked, preventing overselling.",
+      "wg": [
+        {
+          "t": "原子性",
+          "en": "atomicity",
+          "ps": "noun"
+        },
+        {
+          "t": "扣減",
+          "en": "deduction",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "id": "7",
+    "difficulty": "Intermediate",
+    "type": "Single Choice",
+    "topicTags": [
+      "Blocking",
+      "Deadlock",
+      "Troubleshooting",
+      "Concepts"
+    ],
+    "focus": "Blocking vs Deadlock Distinction",
+    "questionSummaryZh": "系統監控顯示資料庫有大量的「鎖定等待時間（Lock Wait Time）」，且使用者抱怨操作一直轉圈圈直到逾時，但應用程式日誌中並未發現 Error 1205。請問這是什麼現象？",
+    "questionSummaryEn": "System monitoring shows high 'Lock Wait Time' and users report operations spinning until timeout, but no Error 1205 is found in logs. What is this phenomenon?",
+    "question": [
+      {
+        "t": "你的監控儀表板顯示資料庫出現大量的「鎖定等待時間（Lock Wait Time）」。",
+        "en": "Your monitoring dashboard shows high 'Lock Wait Time' in the database.",
+        "wg": [
+          {
+            "t": "鎖定等待時間",
+            "en": "Lock Wait Time",
+            "ps": "noun phrase"
+          }
+        ]
+      },
+      {
+        "t": "使用者回報系統回應極慢，網頁一直轉圈圈直到發生 HTTP Timeout，但在應用程式的錯誤日誌中，並沒有發現 SQL Error 1205 (Deadlock Victim)。",
+        "en": "Users report the system is extremely slow, spinning until HTTP Timeout, but no SQL Error 1205 (Deadlock Victim) is found in the application error logs.",
+        "wg": [
+          {
+            "t": "轉圈圈",
+            "en": "spinning / loading",
+            "ps": "verb phrase"
+          },
+          {
+            "t": "死結受害者",
+            "en": "Deadlock Victim",
+            "ps": "noun phrase"
+          }
+        ]
+      },
+      {
+        "t": "根據 Handbook 的心智模型，這最可能是下列哪種狀況？",
+        "en": "According to the Handbook's mental model, which of the following is the most likely scenario?",
+        "wg": []
+      }
+    ],
+    "options": [
+      {
+        "t": "這是死結（Deadlock），但 SQL Server 尚未偵測到。",
+        "en": "This is a Deadlock, but SQL Server has not detected it yet.",
+        "wg": []
+      },
+      {
+        "t": "這是阻塞（Blocking），交易正在排隊等待鎖定釋放，而非互相卡死。",
+        "en": "This is Blocking; transactions are queuing and waiting for locks to be released, not deadlocked.",
+        "wg": [
+          {
+            "t": "阻塞",
+            "en": "Blocking",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "這是因為未啟用 RCSI 導致的髒讀（Dirty Read）。",
+        "en": "This is Dirty Read caused by not enabling RCSI.",
+        "wg": []
+      },
+      {
+        "t": "這是巢狀交易（Nested Transactions）導致的孤兒交易。",
+        "en": "This is an orphaned transaction caused by Nested Transactions.",
+        "wg": []
+      }
+    ],
+    "answer": "這是阻塞（Blocking），交易正在排隊等待鎖定釋放，而非互相卡死。",
+    "why": {
+      "t": "阻塞（Blocking）是「塞車」，A 拿了鎖，B 需等待，這會導致變慢或逾時，但不會立即報錯；死結（Deadlock）是「對撞」，SQL Server 會主動介入並殺掉其中一個交易（Error 1205）。",
+      "en": "Blocking is like a 'traffic jam' where B waits for A, causing slowness or timeouts but no immediate error; Deadlock is a 'collision' where SQL Server intervenes and kills one transaction (Error 1205).",
+      "wg": [
+        {
+          "t": "介入",
+          "en": "intervene",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "id": "8",
+    "difficulty": "Advanced",
+    "type": "Single Choice",
+    "topicTags": [
+      "Indexing",
+      "Locking Strategy",
+      "Table Scan",
+      "Performance"
+    ],
+    "focus": "Impact of Missing Index on Locking",
+    "questionSummaryZh": "你在 Production 環境執行了一個簡單的 `DELETE` 語句，結果導致整個 Table 被鎖死，所有其他使用者的讀寫請求都被阻塞。最可能的原因是什麼？",
+    "questionSummaryEn": "You executed a simple `DELETE` statement in Production, which caused the entire table to be locked, blocking all other users. What is the most likely cause?",
+    "question": [
+      {
+        "t": "你在 Production 環境執行了以下 SQL 語句來刪除舊資料：`DELETE FROM AuditLogs WHERE LogDate < '2023-01-01'`。",
+        "en": "You executed the following SQL statement in Production to delete old data: `DELETE FROM AuditLogs WHERE LogDate < '2023-01-01'`.",
+        "wg": []
+      },
+      {
+        "t": "執行後，你發現整個 `AuditLogs` 資料表被鎖死，所有其他使用者的讀寫請求都被嚴重阻塞（Blocking）。",
+        "en": "After execution, you noticed the entire `AuditLogs` table was locked, severely blocking all other users' read/write requests.",
+        "wg": [
+          {
+            "t": "鎖死",
+            "en": "locked up",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "假設 `LogDate` 欄位**沒有索引**，請問導致此現象的根本機制是什麼？",
+        "en": "Assuming the `LogDate` column has **no index**, what is the fundamental mechanism causing this phenomenon?",
+        "wg": []
+      }
+    ],
+    "options": [
+      {
+        "t": "因為刪除大量資料觸發了 Page Split，導致鎖定升級。",
+        "en": "Because deleting a large amount of data triggered Page Splits, causing lock escalation.",
+        "wg": []
+      },
+      {
+        "t": "因為沒有索引，SQL Server 必須執行 Table Scan 來尋找符合的資料，這通常會導致 Table Lock (X)。",
+        "en": "Because there is no index, SQL Server must perform a Table Scan to find matching rows, which usually leads to a Table Lock (X).",
+        "wg": [
+          {
+            "t": "資料表掃描",
+            "en": "Table Scan",
+            "ps": "noun phrase"
+          }
+        ]
+      },
+      {
+        "t": "因為 `DELETE` 語句預設使用 `SERIALIZABLE` 隔離層級。",
+        "en": "Because `DELETE` statements use the `SERIALIZABLE` isolation level by default.",
+        "wg": []
+      },
+      {
+        "t": "因為發生了死結（Deadlock），系統正在嘗試回滾。",
+        "en": "Because a deadlock occurred and the system is attempting to rollback.",
+        "wg": []
+      }
+    ],
+    "answer": "因為沒有索引，SQL Server 必須執行 Table Scan 來尋找符合的資料，這通常會導致 Table Lock (X)。",
+    "why": {
+      "t": "當 `UPDATE` 或 `DELETE` 的 `WHERE` 條件無法使用索引時，資料庫必須掃描整張表（Table Scan）來確認哪些行需要修改，這往往會申請整張表的 Exclusive Lock，造成嚴重的阻塞。",
+      "en": "When the `WHERE` clause of an `UPDATE` or `DELETE` cannot use an index, the database must scan the entire table (Table Scan) to identify rows to modify, often requesting an Exclusive Lock on the whole table, causing severe blocking.",
+      "wg": [
+        {
+          "t": "高選擇性",
+          "en": "high selectivity",
+          "ps": "noun phrase"
+        }
+      ]
+    }
+  },
+  {
+    "id": "9",
+    "difficulty": "Intermediate",
+    "type": "Single Choice",
+    "topicTags": [
+      "Deadlock Prevention",
+      "Best Practices",
+      "Access Order"
+    ],
+    "focus": "Consistent Access Order to Prevent Deadlocks",
+    "questionSummaryZh": "你的系統頻繁發生死結（Deadlock）。分析後發現，Stored Procedure A 先更新 Table X 再更新 Table Y，而 Stored Procedure B 先更新 Table Y 再更新 Table X。最佳解決方案是什麼？",
+    "questionSummaryEn": "Your system suffers from frequent deadlocks. Analysis shows Stored Procedure A updates Table X then Y, while Stored Procedure B updates Table Y then X. What is the best solution?",
+    "question": [
+      {
+        "t": "你的系統頻繁發生死結（Deadlock）。",
+        "en": "Your system is suffering from frequent deadlocks.",
+        "wg": []
+      },
+      {
+        "t": "分析死結圖形後發現：Stored Procedure A 的邏輯是「先更新 Table X，再更新 Table Y」；而 Stored Procedure B 的邏輯是「先更新 Table Y，再更新 Table X」。",
+        "en": "Analysis of the deadlock graph reveals: Stored Procedure A updates Table X then Table Y; while Stored Procedure B updates Table Y then Table X.",
+        "wg": [
+          {
+            "t": "邏輯",
+            "en": "logic / flow",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "根據 Handbook 的檢查清單，下列何者是解決此類死結的**最佳實務**？",
+        "en": "According to the Handbook's checklist, which of the following is the **best practice** to resolve this type of deadlock?",
+        "wg": []
+      }
+    ],
+    "options": [
+      {
+        "t": "在兩個 Stored Procedure 中都加上 `SET DEADLOCK_PRIORITY HIGH`。",
+        "en": "Add `SET DEADLOCK_PRIORITY HIGH` to both Stored Procedures.",
+        "wg": []
+      },
+      {
+        "t": "為 Table X 和 Table Y 建立更多的 Non-Clustered Index。",
+        "en": "Create more Non-Clustered Indexes for Table X and Table Y.",
+        "wg": []
+      },
+      {
+        "t": "修改程式邏輯，確保所有 Stored Procedure 都依照「相同的順序」（例如都先 X 再 Y）存取資料表。",
+        "en": "Refactor the code to ensure all Stored Procedures access tables in the 'same order' (e.g., always X then Y).",
+        "wg": [
+          {
+            "t": "相同的順序",
+            "en": "same order / consistent order",
+            "ps": "noun phrase"
+          }
+        ]
+      },
+      {
+        "t": "將隔離層級調整為 `READ UNCOMMITTED`。",
+        "en": "Change the isolation level to `READ UNCOMMITTED`.",
+        "wg": []
+      }
+    ],
+    "answer": "修改程式邏輯，確保所有 Stored Procedure 都依照「相同的順序」（例如都先 X 再 Y）存取資料表。",
+    "why": {
+      "t": "這是一個典型的「循環死結（Cycle Deadlock）」。確保所有交易依照一致的順序存取資源（Resource Ordering），可以從根本上打破循環，消除此類死結。",
+      "en": "This is a classic 'Cycle Deadlock'. Ensuring all transactions access resources in a consistent order (Resource Ordering) fundamentally breaks the cycle and eliminates this type of deadlock.",
+      "wg": [
+        {
+          "t": "循環死結",
+          "en": "Cycle Deadlock",
+          "ps": "noun phrase"
+        }
+      ]
+    }
+  },
+  {
+    "id": "10",
+    "difficulty": "Intermediate",
+    "type": "Single Choice",
+    "topicTags": [
+      "Error Handling",
+      "Retry Logic",
+      "Application Design"
+    ],
+    "focus": "Handling Deadlock Exceptions in Application",
+    "questionSummaryZh": "當應用程式收到 SQL Error 1205 (Deadlock Victim) 時，根據 Handbook 的建議，應用程式層（Application Layer）應該如何處理？",
+    "questionSummaryEn": "When the application receives SQL Error 1205 (Deadlock Victim), according to the Handbook, how should the Application Layer handle it?",
+    "question": [
+      {
+        "t": "在高並發環境下，死結有時是無法完全避免的自然現象。",
+        "en": "In high-concurrency environments, deadlocks are sometimes an unavoidable natural phenomenon.",
+        "wg": []
+      },
+      {
+        "t": "當你的 C# 或 Java 應用程式收到 SQL Error 1205 (Transaction ... was deadlocked on lock resources ... and has been chosen as the deadlock victim) 時，",
+        "en": "When your C# or Java application receives SQL Error 1205 (Transaction ... was deadlocked on lock resources ... and has been chosen as the deadlock victim),",
+        "wg": []
+      },
+      {
+        "t": "根據 Handbook 的「反模式與踩雷點」章節，下列哪種處理方式是正確的？",
+        "en": "According to the 'Anti-patterns & pitfalls' section of the Handbook, which handling approach is correct?",
+        "wg": []
+      }
+    ],
+    "options": [
+      {
+        "t": "將錯誤記錄到 Log，並回傳「系統忙碌中」給使用者，請使用者稍後手動重試。",
+        "en": "Log the error and return 'System Busy' to the user, asking them to manually retry later.",
+        "wg": []
+      },
+      {
+        "t": "在應用程式層實作自動重試機制（Retry Policy），捕捉到 Error 1205 時自動重新執行該交易。",
+        "en": "Implement an automatic Retry Policy in the application layer to re-execute the transaction when Error 1205 is caught.",
+        "wg": [
+          {
+            "t": "自動重試機制",
+            "en": "automatic Retry Policy",
+            "ps": "noun phrase"
+          }
+        ]
+      },
+      {
+        "t": "立即發送 Email 通知 DBA 介入處理。",
+        "en": "Immediately send an email notifying the DBA to intervene.",
+        "wg": []
+      },
+      {
+        "t": "在 `CATCH` 區塊中執行 `DBCC FREEPROCCACHE` 來清除快取。",
+        "en": "Execute `DBCC FREEPROCCACHE` in the `CATCH` block to clear the cache.",
+        "wg": []
+      }
+    ],
+    "answer": "在應用程式層實作自動重試機制（Retry Policy），捕捉到 Error 1205 時自動重新執行該交易。",
+    "why": {
+      "t": "死結是暫時性的狀態。Handbook 指出，把 Deadlock 當成一般錯誤報錯是「反模式」。正確做法是在應用程式層（如使用 Polly 套件）偵測 Error 1205 並自動重試，通常第二次就會成功。",
+      "en": "Deadlocks are transient states. The Handbook states that treating Deadlocks as regular errors is an 'anti-pattern'. The correct approach is to detect Error 1205 in the application layer (e.g., using Polly) and automatically retry; it usually succeeds on the second attempt.",
+      "wg": [
+        {
+          "t": "暫時性的",
+          "en": "transient / temporary",
+          "ps": "adjective"
+        }
+      ]
+    }
+  },
+  {
+    "id": "11",
+    "difficulty": "Intermediate",
+    "type": "Single Choice",
+    "topicTags": [
+      "Locking Mechanics",
+      "Mental Model",
+      "Concurrency"
+    ],
+    "focus": "Why Readers Block Writers (S vs X Locks)",
+    "questionSummaryZh": "在預設的 `READ COMMITTED` 隔離層級下，為什麼一個執行時間很長的報表查詢（SELECT）會導致前台的訂單寫入（INSERT/UPDATE）卡住？",
+    "questionSummaryEn": "Under the default `READ COMMITTED` isolation level, why does a long-running report query (SELECT) cause frontend order writes (INSERT/UPDATE) to freeze?",
+    "question": [
+      {
+        "t": "你的資料庫使用預設的 `READ COMMITTED` 隔離層級。",
+        "en": "Your database uses the default `READ COMMITTED` isolation level.",
+        "wg": []
+      },
+      {
+        "t": "行銷部門正在執行一個需要 5 分鐘的大型報表查詢（SELECT），結果導致前台的訂單寫入（INSERT/UPDATE）全部卡住（Blocking）。",
+        "en": "The marketing department is running a large report query (SELECT) that takes 5 minutes, causing all frontend order writes (INSERT/UPDATE) to freeze (Blocking).",
+        "wg": []
+      },
+      {
+        "t": "根據「鎖定管理器是交通警察」的心智模型，這是因為 `SELECT` 語句申請了什麼鎖，而該鎖與寫入所需的鎖互斥？",
+        "en": "According to the 'Lock Manager as Traffic Cop' mental model, this is because the `SELECT` statement requested which lock, which is incompatible with the lock needed for writing?",
+        "wg": [
+          {
+            "t": "互斥",
+            "en": "incompatible / mutually exclusive",
+            "ps": "adjective"
+          }
+        ]
+      }
+    ],
+    "options": [
+      {
+        "t": "SELECT 申請了 Shared Lock (S)，它與寫入所需的 Exclusive Lock (X) 互斥。",
+        "en": "SELECT requested a Shared Lock (S), which is incompatible with the Exclusive Lock (X) needed for writing.",
+        "wg": [
+          {
+            "t": "共享鎖",
+            "en": "Shared Lock (S)",
+            "ps": "noun phrase"
+          },
+          {
+            "t": "獨佔鎖",
+            "en": "Exclusive Lock (X)",
+            "ps": "noun phrase"
+          }
+        ]
+      },
+      {
+        "t": "SELECT 申請了 Update Lock (U)，它與寫入所需的 Exclusive Lock (X) 互斥。",
+        "en": "SELECT requested an Update Lock (U), which is incompatible with the Exclusive Lock (X) needed for writing.",
+        "wg": []
+      },
+      {
+        "t": "SELECT 申請了 Schema Lock (Sch-S)，導致無法寫入資料。",
+        "en": "SELECT requested a Schema Lock (Sch-S), preventing data writes.",
+        "wg": []
+      },
+      {
+        "t": "SELECT 觸發了 Page Latch，導致 I/O 資源耗盡。",
+        "en": "SELECT triggered a Page Latch, causing I/O resource exhaustion.",
+        "wg": []
+      }
+    ],
+    "answer": "SELECT 申請了 Shared Lock (S)，它與寫入所需的 Exclusive Lock (X) 互斥。",
+    "why": {
+      "t": "在預設悲觀鎖定模式下，讀取者（Readers）持有 S Lock，寫入者（Writers）需要 X Lock。S 與 X 是互斥的，因此「讀取會阻塞寫入」。這也是為什麼推薦使用 RCSI 來改變此行為。",
+      "en": "In the default pessimistic locking mode, Readers hold S Locks, and Writers need X Locks. S and X are incompatible, so 'Readers block Writers'. This is why RCSI is recommended to change this behavior.",
+      "wg": []
+    }
+  },
+  {
+    "id": "12",
+    "difficulty": "Advanced",
+    "type": "Single Choice",
+    "topicTags": [
+      "Anti-pattern",
+      "NOLOCK",
+      "Data Integrity"
+    ],
+    "focus": "Specific Data Integrity Risks of NOLOCK",
+    "questionSummaryZh": "除了讀取到尚未提交的「髒資料（Dirty Read）」外，Handbook 還提到濫用 `WITH (NOLOCK)` 可能會因為「Page Split」導致什麼嚴重的資料錯誤？",
+    "questionSummaryEn": "Besides reading uncommitted 'Dirty Data', what severe data error does the Handbook mention can be caused by abusing `WITH (NOLOCK)` due to 'Page Splits'?",
+    "question": [
+      {
+        "t": "許多開發者喜歡使用 `WITH (NOLOCK)` 來解決阻塞問題。",
+        "en": "Many developers like to use `WITH (NOLOCK)` to solve blocking issues.",
+        "wg": []
+      },
+      {
+        "t": "除了眾所周知的「髒讀（Dirty Read）」風險外，Handbook 特別警告在發生 **Page Split**（頁面分裂）時，`NOLOCK` 還可能導致什麼嚴重的資料正確性問題？",
+        "en": "Besides the well-known 'Dirty Read' risk, what severe data integrity issue does the Handbook specifically warn about regarding `NOLOCK` when a **Page Split** occurs?",
+        "wg": [
+          {
+            "t": "頁面分裂",
+            "en": "Page Split",
+            "ps": "noun phrase"
+          },
+          {
+            "t": "資料正確性",
+            "en": "data integrity",
+            "ps": "noun phrase"
+          }
+        ]
+      }
+    ],
+    "options": [
+      {
+        "t": "導致資料庫交易日誌（Transaction Log）損毀。",
+        "en": "Causing corruption of the database Transaction Log.",
+        "wg": []
+      },
+      {
+        "t": "讀取到重複的資料（Double Counting）或遺漏部分資料（Missing Rows）。",
+        "en": "Reading duplicate data (Double Counting) or missing some rows entirely (Missing Rows).",
+        "wg": [
+          {
+            "t": "遺漏",
+            "en": "missing / skipping",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "導致該查詢無限迴圈（Infinite Loop）無法停止。",
+        "en": "Causing the query to enter an Infinite Loop and never stop.",
+        "wg": []
+      },
+      {
+        "t": "會強制將隔離層級升級為 SERIALIZABLE，反而造成更嚴重的鎖定。",
+        "en": "Forcing the isolation level to upgrade to SERIALIZABLE, causing even worse locking.",
+        "wg": []
+      }
+    ],
+    "answer": "讀取到重複的資料（Double Counting）或遺漏部分資料（Missing Rows）。",
+    "why": {
+      "t": "當使用 `NOLOCK` 進行 Allocation Order Scan 時，若掃描過程中發生 Page Split（資料移動到新頁面），掃描指標可能會錯過該資料（遺漏）或再次掃描到該資料（重複），導致報表數據完全錯誤。",
+      "en": "When using `NOLOCK` with an Allocation Order Scan, if a Page Split moves data to a new page during the scan, the scan pointer might miss the data (missing rows) or scan it again (duplicate rows), leading to completely incorrect report data.",
+      "wg": [
+        {
+          "t": "配置順序掃描",
+          "en": "Allocation Order Scan",
+          "ps": "noun phrase"
+        }
+      ]
+    }
+  }
+]

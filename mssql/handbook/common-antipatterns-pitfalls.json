@@ -1,0 +1,792 @@
+[
+  {
+    "no": "1",
+    "level": "Intermediate",
+    "keywords": "SARGable,Index Seek,Performance,Date Functions",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "Query A:\nSELECT OrderID FROM Orders WHERE YEAR(OrderDate) = 2023;\n\nQuery B:\nSELECT OrderID FROM Orders WHERE OrderDate >= '2023-01-01' AND OrderDate < '2024-01-01';",
+    "question": [
+      {
+        "t": "假設 `Orders` 資料表的 `OrderDate` 欄位已經建立了索引。請問上述兩個查詢在 SQL Server 執行計畫中的行為有何主要差異？",
+        "en": "Assuming an index exists on the `OrderDate` column of the `Orders` table. What is the primary difference in behavior between the two queries in the SQL Server execution plan?",
+        "wg": [
+          {
+            "t": "執行計畫",
+            "en": "execution plan",
+            "ps": "noun"
+          },
+          {
+            "t": "索引",
+            "en": "index",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "兩者都會使用 Index Seek，效能相同。",
+        "en": "Both will use Index Seek, and performance is identical.",
+        "wg": []
+      },
+      {
+        "t": "Query A 會使用 Index Seek，Query B 會使用 Index Scan。",
+        "en": "Query A will use Index Seek, while Query B will use Index Scan.",
+        "wg": []
+      },
+      {
+        "t": "Query A 會導致 Index Scan (或 Table Scan)，因為它不是 SARGable 的；Query B 則能使用 Index Seek。",
+        "en": "Query A results in an Index Scan (or Table Scan) because it is not SARGable; Query B can use Index Seek.",
+        "wg": [
+          {
+            "t": "導致",
+            "en": "results in",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "Query A 的寫法較簡潔，因此 SQL Server 最佳化器會自動將其轉換為範圍查詢以使用索引。",
+        "en": "Query A is more concise, so the SQL Server optimizer will automatically convert it to a range query to use the index.",
+        "wg": [
+          {
+            "t": "最佳化器",
+            "en": "optimizer",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "Query A 對索引欄位使用了 `YEAR()` 函式，這違反了 SARGable 原則，導致資料庫必須計算每一行的值才能比對，因此無法直接使用索引樹進行查找 (Seek)。Query B 將運算移至右側常數，保留欄位乾淨，允許引擎進行範圍查找 (Index Seek)。",
+      "en": "Query A applies the `YEAR()` function to the indexed column, violating the SARGable principle. This forces the database to calculate the value for every row before comparing, preventing a direct lookup (Seek) on the index tree. Query B moves the calculation to the constants on the right, keeping the column clean and allowing the engine to perform a range lookup (Index Seek).",
+      "wg": [
+        {
+          "t": "違反",
+          "en": "violate",
+          "ps": "verb"
+        },
+        {
+          "t": "範圍查找",
+          "en": "range lookup",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "2",
+    "level": "Hard",
+    "keywords": "Implicit Conversion,Data Types,Performance,Dapper",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "-- Schema Definition\nCREATE TABLE Employees ( NationalIDNumber VARCHAR(15) NOT NULL, ... );\nCREATE INDEX IX_NationalID ON Employees(NationalIDNumber);\n\n// C# Code (Dapper)\nstring myId = \"12345\";\nconnection.Query(\"SELECT * FROM Employees WHERE NationalIDNumber = @Id\", new { Id = myId });",
+    "question": [
+      {
+        "t": "根據上述 Schema 與程式碼，這段查詢在執行時最可能發生什麼效能問題？",
+        "en": "Based on the schema and code above, what performance issue is most likely to occur when executing this query?",
+        "wg": [
+          {
+            "t": "隱式轉型",
+            "en": "implicit conversion",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "沒有問題，Dapper 會自動對應最佳型別。",
+        "en": "No issue; Dapper automatically maps to the optimal type.",
+        "wg": []
+      },
+      {
+        "t": "會發生隱式轉型 (Implicit Conversion)，導致 Index Scan。",
+        "en": "Implicit Conversion will occur, leading to an Index Scan.",
+        "wg": [
+          {
+            "t": "導致",
+            "en": "leading to",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "會發生 Key Lookup，因為使用了 SELECT *。",
+        "en": "Key Lookup will occur because SELECT * is used.",
+        "wg": []
+      },
+      {
+        "t": "會發生 Parameter Sniffing，因為參數值太短。",
+        "en": "Parameter Sniffing will occur because the parameter value is too short.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "在 .NET 中，`string` 預設對應到 SQL 的 `NVARCHAR`。由於 `NVARCHAR` 的優先級高於 `VARCHAR`，SQL Server 會將資料表中的 `NationalIDNumber` (VARCHAR) 每一行都轉型為 `NVARCHAR` 來與參數比對。這會導致 `CONVERT_IMPLICIT`，使索引無法進行 Seek，進而退化為 Scan。",
+      "en": "In .NET, `string` defaults to SQL's `NVARCHAR`. Since `NVARCHAR` has higher precedence than `VARCHAR`, SQL Server will convert every row of `NationalIDNumber` (VARCHAR) in the table to `NVARCHAR` to compare with the parameter. This causes `CONVERT_IMPLICIT`, preventing the index from being Seeked and degrading it to a Scan.",
+      "wg": [
+        {
+          "t": "優先級",
+          "en": "precedence",
+          "ps": "noun"
+        },
+        {
+          "t": "退化",
+          "en": "degrade",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "3",
+    "level": "Intermediate",
+    "keywords": "Anti-Pattern,Like,Wildcard,Index Usage",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "SELECT * FROM Products WHERE Name LIKE '%Phone';",
+    "question": [
+      {
+        "t": "為什麼使用前置萬用字元 (Leading Wildcard) 如 `LIKE '%Term'` 被視為一種反模式 (Anti-Pattern)？",
+        "en": "Why is using a Leading Wildcard like `LIKE '%Term'` considered an Anti-Pattern?",
+        "wg": [
+          {
+            "t": "前置萬用字元",
+            "en": "leading wildcard",
+            "ps": "noun"
+          },
+          {
+            "t": "反模式",
+            "en": "anti-pattern",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "因為它會導致 SQL Server 拋出語法錯誤。",
+        "en": "Because it causes SQL Server to throw a syntax error.",
+        "wg": []
+      },
+      {
+        "t": "因為它會鎖定整個資料表，阻止其他寫入操作。",
+        "en": "Because it locks the entire table, preventing other write operations.",
+        "wg": []
+      },
+      {
+        "t": "因為 B-Tree 索引是按順序排列的，不知道開頭字元就無法利用索引樹的結構進行搜尋，必須掃描所有節點。",
+        "en": "Because B-Tree indexes are sorted sequentially; without knowing the leading characters, the engine cannot use the index tree structure for searching and must scan all nodes.",
+        "wg": [
+          {
+            "t": "按順序排列",
+            "en": "sorted sequentially",
+            "ps": "phrase"
+          }
+        ]
+      },
+      {
+        "t": "因為它會強制將字串轉型為二進位格式進行比對。",
+        "en": "Because it forces the string to be converted to binary format for comparison.",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "B-Tree 索引的運作原理類似電話簿，是依據字母順序排列的。如果你只知道名字結尾是 'Phone' 而不知道開頭，你無法直接跳到特定頁面，只能從第一頁翻到最後一頁 (Index Scan)。",
+      "en": "B-Tree indexes work like a phone book, sorted alphabetically. If you only know the name ends with 'Phone' but not the beginning, you cannot jump to a specific page and must browse from the first page to the last (Index Scan).",
+      "wg": [
+        {
+          "t": "類似",
+          "en": "similar to",
+          "ps": "adjective"
+        },
+        {
+          "t": "字母順序",
+          "en": "alphabetical order",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "4",
+    "level": "Hard",
+    "keywords": "Catch-all Queries,Parameter Sniffing,Recompile",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "SELECT * FROM Users \nWHERE (@Name IS NULL OR Name = @Name) \n  AND (@Age IS NULL OR Age = @Age);",
+    "question": [
+      {
+        "t": "這種「萬能查詢 (Catch-all Query)」寫法最大的潛在效能風險是什麼？",
+        "en": "What is the biggest potential performance risk of this \"Catch-all Query\" pattern?",
+        "wg": [
+          {
+            "t": "萬能查詢",
+            "en": "catch-all query",
+            "ps": "noun"
+          },
+          {
+            "t": "潛在風險",
+            "en": "potential risk",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "會導致 Deadlock (死結)。",
+        "en": "It will cause Deadlocks.",
+        "wg": []
+      },
+      {
+        "t": "容易引發 Parameter Sniffing 問題，導致執行計畫對某些參數組合極度不佳。",
+        "en": "It is prone to Parameter Sniffing issues, leading to extremely poor execution plans for certain parameter combinations.",
+        "wg": [
+          {
+            "t": "引發",
+            "en": "prone to / trigger",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "會導致 SQL Injection 攻擊。",
+        "en": "It will lead to SQL Injection attacks.",
+        "wg": []
+      },
+      {
+        "t": "會強制資料庫使用純量函式 (Scalar Function) 處理邏輯。",
+        "en": "It forces the database to use Scalar Functions to handle the logic.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "這種寫法容易受到 Parameter Sniffing 影響。例如，第一次執行時若傳入 NULL，SQL Server 可能會產生一個全表掃描 (Scan) 的計畫並快取起來；當下次傳入具體 Name 時，引擎仍沿用掃描計畫而非使用索引查找 (Seek)，導致效能低落。解決方案通常涉及 `OPTION (RECOMPILE)` 或動態 SQL。",
+      "en": "This pattern is susceptible to Parameter Sniffing. For example, if executed with NULLs first, SQL Server might generate and cache a Table Scan plan. When a specific Name is passed later, the engine reuses the scan plan instead of an Index Seek, causing poor performance. Solutions often involve `OPTION (RECOMPILE)` or Dynamic SQL.",
+      "wg": [
+        {
+          "t": "快取",
+          "en": "cache",
+          "ps": "verb"
+        },
+        {
+          "t": "沿用",
+          "en": "reuse / stick with",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "5",
+    "level": "Intermediate",
+    "keywords": "Scalar UDF,Performance,Set-based",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "SELECT OrderID, dbo.CalculateTax(Total) \nFROM Orders;",
+    "question": [
+      {
+        "t": "在 SQL Server (特別是 2017 以前的版本) 中，為什麼在 SELECT 清單或 WHERE 子句中使用純量使用者定義函式 (Scalar UDF) 通常被視為效能殺手？",
+        "en": "In SQL Server (especially versions before 2017), why is using a Scalar User-Defined Function (UDF) in the SELECT list or WHERE clause generally considered a performance killer?",
+        "wg": [
+          {
+            "t": "純量使用者定義函式",
+            "en": "scalar user-defined function",
+            "ps": "noun"
+          },
+          {
+            "t": "效能殺手",
+            "en": "performance killer",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "因為它會導致大量的記憶體洩漏 (Memory Leak)。",
+        "en": "Because it causes significant memory leaks.",
+        "wg": []
+      },
+      {
+        "t": "因為它會強制執行計畫變為序列化 (Serial/Single-threaded) 執行，且通常是逐行處理 (Row-by-row)。",
+        "en": "Because it forces the execution plan to be serial (single-threaded) and typically processes row-by-row.",
+        "wg": [
+          {
+            "t": "序列化",
+            "en": "serial",
+            "ps": "adjective"
+          },
+          {
+            "t": "逐行處理",
+            "en": "row-by-row processing",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "因為它無法回傳正確的資料型別。",
+        "en": "Because it cannot return the correct data type.",
+        "wg": []
+      },
+      {
+        "t": "因為它會自動觸發全表鎖定 (Table Lock)。",
+        "en": "Because it automatically triggers a full table lock.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "傳統 Scalar UDF 就像一個黑盒子，SQL Server 最佳化器難以估算其成本，通常會放棄平行處理 (Parallelism) 並強制使用單執行緒。此外，它會對每一行資料呼叫一次函式 (Row-by-row)，違反了資料庫擅長的集合運算 (Set-based) 原則。",
+      "en": "Traditional Scalar UDFs act like black boxes; the SQL Server optimizer struggles to estimate their cost, often disabling parallelism and forcing single-threaded execution. Additionally, the function is called once for every row (row-by-row), violating the set-based operation principle that databases excel at.",
+      "wg": [
+        {
+          "t": "黑盒子",
+          "en": "black box",
+          "ps": "noun"
+        },
+        {
+          "t": "集合運算",
+          "en": "set-based operation",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "6",
+    "level": "Intermediate",
+    "keywords": "SELECT *,Covering Index,Key Lookup,IO",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "CREATE INDEX IX_Orders_Date ON Orders(OrderDate) INCLUDE (Total);\n-- Query:\nSELECT * FROM Orders WHERE OrderDate = '2023-01-01';",
+    "question": [
+      {
+        "t": "假設 `Orders` 表有很多欄位 (如 `ShippingAddress`, `Comments` 等)。為什麼在這個情境下使用 `SELECT *` 會比 `SELECT OrderID, Total` 慢？",
+        "en": "Assuming the `Orders` table has many columns (e.g., `ShippingAddress`, `Comments`). Why would `SELECT *` be slower than `SELECT OrderID, Total` in this scenario?",
+        "wg": [
+          {
+            "t": "情境",
+            "en": "scenario",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "因為 `SELECT *` 會導致索引失效，直接進行 Table Scan。",
+        "en": "Because `SELECT *` invalidates the index, causing a direct Table Scan.",
+        "wg": []
+      },
+      {
+        "t": "因為 `SELECT *` 會導致覆蓋索引 (Covering Index) 失效，迫使引擎進行 Key Lookup (回表) 以取得未包含在索引中的欄位。",
+        "en": "Because `SELECT *` prevents the use of a Covering Index, forcing the engine to perform Key Lookups to retrieve columns not included in the index.",
+        "wg": [
+          {
+            "t": "覆蓋索引",
+            "en": "covering index",
+            "ps": "noun"
+          },
+          {
+            "t": "回表",
+            "en": "key lookup",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "因為 `SELECT *` 總是需要更多的 CPU 來解析欄位名稱。",
+        "en": "Because `SELECT *` always requires more CPU to parse column names.",
+        "wg": []
+      },
+      {
+        "t": "兩者效能其實沒有差異。",
+        "en": "There is actually no difference in performance.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "索引 `IX_Orders_Date` 包含了 `OrderDate` 和 `Total` (以及隱含的 Clustered Key)。若只查詢這些欄位，引擎只需讀取該索引 (Index Seek) 即可完成 (Covering Index)。但若使用 `SELECT *`，引擎必須針對每一行符合條件的資料，額外跳回 Clustered Index (Key Lookup) 去抓取 `ShippingAddress` 等其他欄位，大幅增加隨機 I/O。",
+      "en": "The index `IX_Orders_Date` includes `OrderDate` and `Total` (plus the implicit Clustered Key). If querying only these columns, the engine can satisfy the query just by reading this index (Covering Index). However, with `SELECT *`, the engine must perform an extra hop back to the Clustered Index (Key Lookup) for every matching row to fetch other columns like `ShippingAddress`, significantly increasing random I/O.",
+      "wg": [
+        {
+          "t": "隱含的",
+          "en": "implicit",
+          "ps": "adjective"
+        },
+        {
+          "t": "隨機 I/O",
+          "en": "random I/O",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "7",
+    "level": "Intermediate",
+    "keywords": "N+1 Problem, ORM, Network Latency, Loop",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "var users = db.GetUsers(); // Returns 100 users\nforeach (var user in users) {\n    // Execute SQL: SELECT * FROM Orders WHERE UserId = @id\n    var orders = db.GetOrders(user.Id);\n}",
+    "question": [
+      {
+        "t": "請檢視上述應用程式碼（類似 C# 或 Java 的虛擬碼）。這段程式碼展現了典型的「N+1 查詢問題」。請問這種寫法對效能造成的最大負面影響主要來自於下列哪一項？",
+        "en": "Review the application code snippet above (pseudo-code similar to C# or Java). This code demonstrates the typical 'N+1 Query Problem'. What is the primary source of the negative performance impact in this pattern?",
+        "wg": [
+          {
+            "t": "N+1 查詢問題",
+            "en": "N+1 Query Problem",
+            "ps": "noun phrase"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "資料庫必須為每一次的小查詢重新編譯執行計畫，導致 CPU 過載。",
+        "en": "The database must recompile the execution plan for every small query, causing CPU overload.",
+        "wg": []
+      },
+      {
+        "t": "應用程式與資料庫之間的網路往返 (Round-trips) 次數過多，導致累積的網路延遲極高。",
+        "en": "Excessive network round-trips between the application and the database cause high accumulated network latency.",
+        "wg": [
+          {
+            "t": "網路往返",
+            "en": "Round-trips",
+            "ps": "noun"
+          },
+          {
+            "t": "網路延遲",
+            "en": "Network latency",
+            "ps": "noun phrase"
+          }
+        ]
+      },
+      {
+        "t": "這會導致資料庫發生 Deadlock（死結），因為多個查詢同時鎖定相同的資料表。",
+        "en": "It causes database Deadlocks because multiple queries are locking the same table simultaneously.",
+        "wg": []
+      },
+      {
+        "t": "這會導致 SQL Server 的記憶體緩衝區 (Buffer Pool) 被大量小數據填滿而溢出。",
+        "en": "It causes the SQL Server Buffer Pool to overflow by being filled with large amounts of small data.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "N+1 問題的核心代價在於「網路往返 (Round-trips)」。若有 100 位使用者，程式就會執行 1 次查詢取得使用者，再執行 100 次查詢取得訂單，總共 101 次網路請求。即使每次查詢都很快（例如 1ms），加上網路延遲（例如每次 5ms），總耗時會線性暴增。相比之下，使用 JOIN 一次撈取資料只需 1 次往返。",
+      "en": "The core cost of the N+1 problem is 'Network Round-trips'. If there are 100 users, the code executes 1 query to get users and then 100 queries to get orders, totaling 101 network requests. Even if each query is fast (e.g., 1ms), adding network latency (e.g., 5ms each) causes the total time to increase linearly. In contrast, using a JOIN to fetch data in a single batch requires only 1 round-trip.",
+      "wg": []
+    }
+  },
+  {
+    "no": "8",
+    "level": "Intermediate",
+    "keywords": "SARGable, ISNULL, Index Scan, Predicate",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "SELECT * FROM Customers \nWHERE ISNULL(PhoneNumber, '') = '0912345678';",
+    "question": [
+      {
+        "t": "假設 `Customers` 資料表的 `PhoneNumber` 欄位上有建立非叢集索引 (Non-clustered Index)。為什麼上述查詢通常無法有效利用該索引（即無法執行 Index Seek）？",
+        "en": "Assuming there is a Non-clustered Index on the `PhoneNumber` column of the `Customers` table. Why does the query above typically fail to effectively use the index (i.e., cannot perform an Index Seek)?",
+        "wg": [
+          {
+            "t": "非叢集索引",
+            "en": "Non-clustered Index",
+            "ps": "noun phrase"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "因為 `ISNULL` 函式會導致傳回的結果包含 NULL 值，這違反了索引的唯一性限制。",
+        "en": "Because the `ISNULL` function causes the returned results to include NULL values, which violates the index's uniqueness constraint.",
+        "wg": []
+      },
+      {
+        "t": "因為對索引欄位套用函式運算後，資料庫引擎無法直接遍歷 B-Tree 結構來尋找特定值，必須掃描所有資料列並計算。",
+        "en": "Because applying a function to an indexed column prevents the database engine from traversing the B-Tree structure to find specific values, forcing it to scan and calculate every row.",
+        "wg": [
+          {
+            "t": "遍歷",
+            "en": "Traverse",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "因為 `PhoneNumber` 是字串型別，字串比對本來就無法使用索引 Seek。",
+        "en": "Because `PhoneNumber` is a string type, and string comparisons inherently cannot use Index Seek.",
+        "wg": []
+      },
+      {
+        "t": "因為 `ISNULL` 是非標準 SQL 語法，SQL Server 會將其強制轉換為全表掃描。",
+        "en": "Because `ISNULL` is non-standard SQL syntax, SQL Server forces it to a full table scan.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "這是典型的 Non-SARGable 寫法。當欄位被函式（如 `ISNULL`, `LEFT`, `UPPER` 等）包覆時，引擎必須取出每一行的值，執行函式運算後才能與條件比對，因此無法利用索引樹的排序特性進行快速查找 (Seek)，只能退化為掃描 (Scan)。",
+      "en": "This is a typical Non-SARGable pattern. When a column is wrapped in a function (like `ISNULL`, `LEFT`, `UPPER`, etc.), the engine must retrieve every row's value and execute the function before comparing it with the condition. Therefore, it cannot utilize the sorted nature of the index tree for a quick lookup (Seek) and must degrade to a scan.",
+      "wg": [
+        {
+          "t": "退化",
+          "en": "Degrade",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "9",
+    "level": "Hard",
+    "keywords": "Implicit Conversion, Data Type Precedence, Performance, NVARCHAR",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "CREATE TABLE Products ( ProductCode VARCHAR(20) PRIMARY KEY, ... );\n\n-- 應用程式傳入參數 @Code 為 NVARCHAR(20)\nSELECT * FROM Products WHERE ProductCode = @Code;",
+    "question": [
+      {
+        "t": "在上述情境中，`ProductCode` 欄位是 `VARCHAR`，但查詢參數 `@Code` 是 `NVARCHAR`。這會導致隱式轉型 (Implicit Conversion) 並造成 Index Scan。請問根據 SQL Server 的「資料型別優先順序 (Data Type Precedence)」，為什麼是欄位被轉型而不是參數被轉型？",
+        "en": "In the scenario above, the `ProductCode` column is `VARCHAR`, but the query parameter `@Code` is `NVARCHAR`. This causes Implicit Conversion and results in an Index Scan. According to SQL Server's 'Data Type Precedence', why is the column converted instead of the parameter?",
+        "wg": [
+          {
+            "t": "資料型別優先順序",
+            "en": "Data Type Precedence",
+            "ps": "noun phrase"
+          },
+          {
+            "t": "隱式轉型",
+            "en": "Implicit Conversion",
+            "ps": "noun phrase"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "因為 `NVARCHAR` 的優先順序高於 `VARCHAR`，所以低優先級的 `VARCHAR` 欄位必須被提升 (Upcast) 為 `NVARCHAR` 才能進行比較。",
+        "en": "Because `NVARCHAR` has higher precedence than `VARCHAR`, the lower-priority `VARCHAR` column must be upcasted to `NVARCHAR` for comparison.",
+        "wg": [
+          {
+            "t": "提升",
+            "en": "Upcast",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "因為 SQL Server 總是優先轉換右側的值（參數）以配合左側的值（欄位）。",
+        "en": "Because SQL Server always prioritizes converting the value on the right (parameter) to match the value on the left (column).",
+        "wg": []
+      },
+      {
+        "t": "因為 `VARCHAR` 是過時的型別，SQL Server 預設會嘗試將其轉換為現代的 `NVARCHAR`。",
+        "en": "Because `VARCHAR` is a deprecated type, SQL Server defaults to trying to convert it to the modern `NVARCHAR`.",
+        "wg": []
+      },
+      {
+        "t": "這與優先順序無關，純粹是因為參數 `@Code` 的值可能包含 Unicode 字元，為了避免資料遺失，必須轉換欄位。",
+        "en": "It has nothing to do with precedence; it is purely because the parameter `@Code` might contain Unicode characters, so the column must be converted to avoid data loss.",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "SQL Server 有嚴格的資料型別優先順序規則。`NVARCHAR` (Unicode) 的優先級高於 `VARCHAR` (Non-Unicode)。當兩者進行比較時，系統必須將低優先級的資料轉換為高優先級的型別。這迫使引擎對 `ProductCode` 索引中的每一筆資料進行 `CONVERT_IMPLICIT`，導致無法使用索引查找 (Seek)。",
+      "en": "SQL Server has strict Data Type Precedence rules. `NVARCHAR` (Unicode) has higher precedence than `VARCHAR` (Non-Unicode). When comparing the two, the system must convert the lower-priority data to the higher-priority type. This forces the engine to perform `CONVERT_IMPLICIT` on every entry in the `ProductCode` index, preventing an Index Seek.",
+      "wg": []
+    }
+  },
+  {
+    "no": "10",
+    "level": "Intermediate",
+    "keywords": "Statistics IO, Logical Reads, Performance Tuning, Troubleshooting",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "Table 'Orders'. Scan count 1, logical reads 50000, ...\n(10 rows affected)",
+    "question": [
+      {
+        "t": "你在優化一個慢查詢時，開啟了 `SET STATISTICS IO ON` 並得到上述輸出結果。該查詢僅回傳 10 筆資料，但 `logical reads` 高達 50,000。這最可能代表什麼狀況？",
+        "en": "While optimizing a slow query, you enabled `SET STATISTICS IO ON` and got the output above. The query returns only 10 rows, but `logical reads` is as high as 50,000. What does this most likely indicate?",
+        "wg": [
+          {
+            "t": "邏輯讀取",
+            "en": "Logical reads",
+            "ps": "noun phrase"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "查詢使用了非常高效的 Index Seek，50,000 代表索引頁面的總數。",
+        "en": "The query used a very efficient Index Seek, and 50,000 represents the total number of index pages.",
+        "wg": []
+      },
+      {
+        "t": "查詢正在進行全表掃描 (Table Scan) 或索引掃描 (Index Scan)，讀取了大量不需要的資料頁才過濾出這 10 筆。",
+        "en": "The query is performing a Table Scan or Index Scan, reading a large number of unnecessary data pages to filter out these 10 rows.",
+        "wg": [
+          {
+            "t": "全表掃描",
+            "en": "Table Scan",
+            "ps": "noun phrase"
+          }
+        ]
+      },
+      {
+        "t": "這是正常的，因為 SQL Server 會預讀 (Read-Ahead) 資料以放入緩衝區。",
+        "en": "This is normal because SQL Server performs Read-Ahead to load data into the buffer.",
+        "wg": []
+      },
+      {
+        "t": "這代表資料庫硬碟 I/O 效能低落，導致讀取次數增加。",
+        "en": "This indicates poor database disk I/O performance, causing an increase in read counts.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "`Logical Reads` 代表從記憶體緩衝區讀取的 8KB 頁面數量。回傳列數少 (10 rows) 但讀取數極高 (50,000 pages ≈ 400MB data)，強烈暗示查詢沒有使用合適的索引直接定位資料，而是掃描了大量資料頁後才找到符合條件的列。這是效能低落的典型徵兆。",
+      "en": "`Logical Reads` represents the number of 8KB pages read from the memory buffer. A small number of returned rows (10) with a very high read count (50,000 pages ≈ 400MB data) strongly suggests that the query did not use an appropriate index to locate data directly but instead scanned a large number of pages to find the matching rows. This is a classic sign of poor performance.",
+      "wg": []
+    }
+  },
+  {
+    "no": "11",
+    "level": "Hard",
+    "keywords": "Catch-all Queries, Parameter Sniffing, OPTION RECOMPILE, Performance",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "SELECT * FROM Orders \nWHERE (@CustomerID IS NULL OR CustomerID = @CustomerID) \n  AND (@Date IS NULL OR OrderDate = @Date)\nOPTION (RECOMPILE);",
+    "question": [
+      {
+        "t": "針對「萬能查詢 (Catch-all Query)」導致的 Parameter Sniffing 問題，為什麼加上 `OPTION (RECOMPILE)` 是一個有效的解決方案？",
+        "en": "Regarding the Parameter Sniffing problem caused by 'Catch-all Queries', why is adding `OPTION (RECOMPILE)` an effective solution?",
+        "wg": [
+          {
+            "t": "萬能查詢",
+            "en": "Catch-all Query",
+            "ps": "noun phrase"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "它會強制 SQL Server 在每次執行時，根據當下傳入的具體參數值重新生成最佳執行計畫，從而優化掉不需要的 `IS NULL` 邏輯。",
+        "en": "It forces SQL Server to regenerate the optimal execution plan for the specific parameter values passed in at each execution, thereby optimizing away the unnecessary `IS NULL` logic.",
+        "wg": [
+          {
+            "t": "優化掉",
+            "en": "Optimize away",
+            "ps": "verb phrase"
+          }
+        ]
+      },
+      {
+        "t": "它會將查詢轉換為動態 SQL (Dynamic SQL) 在背景執行，避免參數被快取。",
+        "en": "It converts the query into Dynamic SQL to run in the background, avoiding parameter caching.",
+        "wg": []
+      },
+      {
+        "t": "它會強制查詢使用全表掃描 (Table Scan)，這對於萬能查詢來說通常是最穩定的計畫。",
+        "en": "It forces the query to use a Table Scan, which is usually the most stable plan for catch-all queries.",
+        "wg": []
+      },
+      {
+        "t": "它會忽略傳入的參數值，直接使用統計資訊中的平均值來估算成本。",
+        "en": "It ignores the passed parameter values and uses the average values from statistics to estimate costs.",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "萬能查詢的問題在於「一個計畫無法滿足所有參數組合」。`OPTION (RECOMPILE)` 指示引擎不要快取計畫，而是每次執行都根據「當下的參數值」編譯新計畫。例如當 `@CustomerID` 有值時，引擎會生成針對 `CustomerID` 索引 Seek 的計畫，並將 `@CustomerID IS NULL` 的判斷直接簡化移除。雖然增加了 CPU 編譯成本，但能確保獲得正確的執行計畫。",
+      "en": "The problem with catch-all queries is that 'one plan cannot fit all parameter combinations'. `OPTION (RECOMPILE)` instructs the engine not to cache the plan but to compile a new one based on the 'current parameter values' for each execution. For example, if `@CustomerID` has a value, the engine generates a plan seeking the `CustomerID` index and simplifies/removes the `@CustomerID IS NULL` check. Although this increases CPU compilation cost, it ensures the correct execution plan is obtained.",
+      "wg": []
+    }
+  },
+  {
+    "no": "12",
+    "level": "Hard",
+    "keywords": "Residual Predicate, Execution Plan, Index Seek, Performance",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在分析執行計畫時，你發現某個運算子是 **Index Seek**，這通常是好事。但你進一步檢查其屬性，發現存在一個 **Residual Predicate (殘留述詞)**。這代表什麼意義？",
+        "en": "While analyzing an execution plan, you notice an operator is an **Index Seek**, which is usually good. However, upon inspecting its properties, you find a **Residual Predicate**. What does this signify?",
+        "wg": [
+          {
+            "t": "殘留述詞",
+            "en": "Residual Predicate",
+            "ps": "noun phrase"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "代表索引 Seek 成功定位了資料範圍，但索引並未包含查詢所需的所有欄位，因此需要進行 Key Lookup。",
+        "en": "It means the Index Seek successfully located the data range, but the index did not contain all columns required by the query, necessitating a Key Lookup.",
+        "wg": []
+      },
+      {
+        "t": "代表雖然使用了索引 Seek 來縮小範圍，但仍有部分 `WHERE` 條件無法由索引結構直接滿足，必須在讀取資料頁後逐行進行額外過濾。",
+        "en": "It means that although Index Seek was used to narrow the range, some `WHERE` conditions could not be satisfied directly by the index structure and had to be filtered row-by-row after reading the data pages.",
+        "wg": [
+          {
+            "t": "逐行",
+            "en": "Row-by-row",
+            "ps": "adverb"
+          }
+        ]
+      },
+      {
+        "t": "代表發生了隱式轉型 (Implicit Conversion)，導致 Seek 實際上變成了 Scan。",
+        "en": "It means Implicit Conversion occurred, causing the Seek to effectively become a Scan.",
+        "wg": []
+      },
+      {
+        "t": "代表該查詢使用了過濾索引 (Filtered Index)，Residual Predicate 是該索引定義中的過濾條件。",
+        "en": "It means the query used a Filtered Index, and the Residual Predicate is the filter condition from the index definition.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "**Seek Predicate** 是用來在 B-Tree 上導航定位的條件；而 **Residual Predicate** 是在定位並取出資料後，針對每一行額外檢查的條件。這通常發生在複合索引只匹配了前導欄位，或是查詢條件中包含了 Non-SARGable 的部分。如果 Residual Predicate 過濾掉了大量資料，代表這個 Index Seek 的效率其實並不高（讀了多，留得少）。",
+      "en": "**Seek Predicate** is the condition used to navigate the B-Tree; **Residual Predicate** is the condition checked against each row *after* it has been located and retrieved. This often happens when a composite index only matches the leading columns, or the query contains Non-SARGable parts. If the Residual Predicate filters out a large amount of data, it implies the Index Seek was not very efficient (read many, kept few).",
+      "wg": []
+    }
+  }
+]

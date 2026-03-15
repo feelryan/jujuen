@@ -1,0 +1,823 @@
+[
+  {
+    "no": "1",
+    "level": "intermediate",
+    "keywords": "optimization,index,performance,$match",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "db.orders.aggregate([\n  { $project: { status: 1, total: 1, orderDate: 1 } },\n  { $match: { status: \"completed\" } },\n  { $group: { _id: \"$orderDate\", dailyTotal: { $sum: \"$total\" } } }\n])",
+    "question": [
+      {
+        "t": "請檢視上方的 Aggregation Pipeline 程式碼片段。雖然邏輯上正確，但它違反了哪一個效能最佳化原則？",
+        "en": "Review the Aggregation Pipeline code snippet above. While logically correct, which performance optimization principle does it violate?",
+        "wg": [
+          {
+            "t": "效能最佳化",
+            "en": "performance optimization",
+            "ps": "noun"
+          },
+          {
+            "t": "違反",
+            "en": "violate",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "type": "单选",
+    "options": [
+      {
+        "t": "應避免使用 $group 進行加總。",
+        "en": "Avoid using $group for summation.",
+        "wg": []
+      },
+      {
+        "t": "$match 階段應該放在 Pipeline 的最前面，以便利用索引並儘早過濾資料。",
+        "en": "The $match stage should be placed at the very beginning of the pipeline to utilize indexes and filter data early.",
+        "wg": [
+          {
+            "t": "利用索引",
+            "en": "utilize indexes",
+            "ps": "verb phrase"
+          },
+          {
+            "t": "儘早",
+            "en": "early / as soon as possible",
+            "ps": "adverb"
+          }
+        ]
+      },
+      {
+        "t": "$project 階段應該被移除，因為它沒有作用。",
+        "en": "The $project stage should be removed as it has no effect.",
+        "wg": []
+      },
+      {
+        "t": "日期欄位不能作為 $group 的 _id。",
+        "en": "Date fields cannot be used as the _id in $group.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "根據「過濾優先 (Filter First)」原則，$match 只有在 Pipeline 的起始位置才能有效利用 Index。將其放在 $project 之後會導致資料庫先對所有文件進行投影操作，無法利用索引掃描，造成不必要的全表掃描與記憶體浪費。",
+      "en": "According to the 'Filter First' strategy, $match can only effectively utilize an Index if it is at the start of the Pipeline. Placing it after $project causes the database to perform projection on all documents first, preventing index scans and resulting in unnecessary full collection scans and memory waste.",
+      "wg": [
+        {
+          "t": "全表掃描",
+          "en": "full collection scan",
+          "ps": "noun"
+        },
+        {
+          "t": "投影",
+          "en": "projection",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "2",
+    "level": "intermediate",
+    "keywords": "memory limit,error handling,allowDiskUse,$group",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "Error: Exceeded memory limit for $group, but didn't allow external sort. Pass allowDiskUse:true to opt in.",
+    "question": [
+      {
+        "t": "當你在執行一個涉及大量數據的聚合查詢時，收到了上方的錯誤訊息。這代表該操作超過了 MongoDB 對單一聚合階段的記憶體限制。請問這個預設限制是多少？以及最直接的解決方案為何？",
+        "en": "You received the error message above while running an aggregation query involving a large dataset. This indicates the operation exceeded MongoDB's memory limit for a single aggregation stage. What is this default limit, and what is the most direct solution?",
+        "wg": [
+          {
+            "t": "預設限制",
+            "en": "default limit",
+            "ps": "noun"
+          },
+          {
+            "t": "解決方案",
+            "en": "solution",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "单选",
+    "options": [
+      {
+        "t": "16MB；應將結果寫入暫存集合 ($out)。",
+        "en": "16MB; should write results to a temporary collection ($out).",
+        "wg": []
+      },
+      {
+        "t": "100MB；應在聚合選項中啟用 { allowDiskUse: true }。",
+        "en": "100MB; should enable { allowDiskUse: true } in the aggregation options.",
+        "wg": [
+          {
+            "t": "啟用",
+            "en": "enable",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "512MB；應增加伺服器的 RAM。",
+        "en": "512MB; should increase the server's RAM.",
+        "wg": []
+      },
+      {
+        "t": "100MB；應將 $group 拆分為多次查詢。",
+        "en": "100MB; should split the $group into multiple queries.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "MongoDB 的 $group 與 $sort 階段預設有 100MB 的 RAM 限制。若超過此限制，必須設定 `allowDiskUse: true`，允許 MongoDB 將溢出的資料寫入暫存磁碟檔案進行處理（雖然速度會較慢，但能避免查詢失敗）。16MB 是單一 BSON 文件的限制，而非聚合階段的記憶體限制。",
+      "en": "MongoDB has a default RAM limit of 100MB for $group and $sort stages. If this limit is exceeded, you must set `allowDiskUse: true` to allow MongoDB to write spillover data to temporary disk files (which is slower but prevents query failure). 16MB is the limit for a single BSON document, not the aggregation stage memory limit.",
+      "wg": [
+        {
+          "t": "溢出",
+          "en": "spillover",
+          "ps": "verb/noun"
+        },
+        {
+          "t": "暫存磁碟檔案",
+          "en": "temporary disk files",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "3",
+    "level": "advanced",
+    "keywords": "dashboard,pattern,$facet,analytics",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你正在開發一個電商儀表板 (Dashboard)，需要在「單次查詢」中同時取得以下三種數據：1. 總銷售額、2. 依產品類別分組的銷售額、3. 銷售額最高的前 5 名產品。請問最適合使用哪一個 Aggregation Stage 來實現此需求？",
+        "en": "You are developing an e-commerce dashboard and need to retrieve the following three types of data in a 'single query': 1. Total sales, 2. Sales grouped by product category, 3. Top 5 products by sales. Which Aggregation Stage is most suitable for implementing this requirement?",
+        "wg": [
+          {
+            "t": "儀表板",
+            "en": "dashboard",
+            "ps": "noun"
+          },
+          {
+            "t": "單次查詢",
+            "en": "single query",
+            "ps": "noun"
+          },
+          {
+            "t": "實現",
+            "en": "implement",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "type": "单选",
+    "options": [
+      {
+        "t": "$lookup",
+        "en": "$lookup",
+        "wg": []
+      },
+      {
+        "t": "$facet",
+        "en": "$facet",
+        "wg": []
+      },
+      {
+        "t": "$bucket",
+        "en": "$bucket",
+        "wg": []
+      },
+      {
+        "t": "$merge",
+        "en": "$merge",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "$facet 階段允許你在同一個 Pipeline 中定義多個平行的子 Pipeline (sub-pipelines)，分別處理並輸出結果。這正是「單次查詢多維度分析」的標準模式，非常適合儀表板應用。",
+      "en": "The $facet stage allows you to define multiple parallel sub-pipelines within the same pipeline, each processing and outputting results independently. This is the standard pattern for 'multi-dimensional analysis in a single query', making it perfect for dashboard applications.",
+      "wg": [
+        {
+          "t": "平行的",
+          "en": "parallel",
+          "ps": "adjective"
+        },
+        {
+          "t": "多維度分析",
+          "en": "multi-dimensional analysis",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "4",
+    "level": "intermediate",
+    "keywords": "anti-pattern,data gravity,architecture",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "const orders = await db.collection('orders').find().toArray();\nconst totalRevenue = orders\n  .filter(o => o.status === 'completed')\n  .reduce((sum, o) => sum + o.amount, 0);",
+    "question": [
+      {
+        "t": "請分析上方的應用程式碼。這是一個常見的反模式 (Anti-pattern)，主要原因是什麼？",
+        "en": "Analyze the application code above. This is a common anti-pattern. What is the primary reason?",
+        "wg": [
+          {
+            "t": "反模式",
+            "en": "anti-pattern",
+            "ps": "noun"
+          },
+          {
+            "t": "主要原因",
+            "en": "primary reason",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "单选",
+    "options": [
+      {
+        "t": "JavaScript 的 reduce 函式計算精度不如 MongoDB 引擎。",
+        "en": "JavaScript's reduce function has lower calculation precision than the MongoDB engine.",
+        "wg": []
+      },
+      {
+        "t": "違反了「資料引力 (Data Gravity)」原則，將大量未過濾的原始數據拉回應用層處理，導致網路頻寬與記憶體耗盡。",
+        "en": "It violates the 'Data Gravity' principle by pulling large amounts of unfiltered raw data back to the application layer, causing network bandwidth and memory exhaustion.",
+        "wg": [
+          {
+            "t": "資料引力",
+            "en": "Data Gravity",
+            "ps": "noun"
+          },
+          {
+            "t": "耗盡",
+            "en": "exhaustion",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "find().toArray() 無法正確處理非同步操作。",
+        "en": "find().toArray() cannot correctly handle asynchronous operations.",
+        "wg": []
+      },
+      {
+        "t": "應該使用 map 而不是 reduce 來計算總和。",
+        "en": "Should use map instead of reduce to calculate the sum.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "這種做法稱為「客戶端處理 (Client-side Processing)」。它將所有資料（可能包含數百萬筆）傳輸到 Application Server，只為了計算一個簡單的總和。這會造成巨大的網路 I/O 負擔並可能導致 OOM (Out of Memory)。正確做法是利用 Aggregation Framework 在資料庫端完成過濾與計算，僅回傳最終結果。",
+      "en": "This approach is called 'Client-side Processing'. It transfers all data (potentially millions of records) to the Application Server just to calculate a simple sum. This causes massive network I/O overhead and can lead to OOM (Out of Memory). The correct approach is to use the Aggregation Framework to perform filtering and calculation on the database side, returning only the final result.",
+      "wg": [
+        {
+          "t": "客戶端處理",
+          "en": "Client-side Processing",
+          "ps": "noun"
+        },
+        {
+          "t": "負擔",
+          "en": "overhead / burden",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "5",
+    "level": "advanced",
+    "keywords": "pagination,$facet,performance",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在實作複雜查詢的分頁 (Pagination) 功能時，通常需要回傳「當前頁資料」與「符合條件的總筆數」。為了避免執行兩次昂貴的查詢，最佳實務建議使用什麼模式？",
+        "en": "When implementing pagination for complex queries, you usually need to return 'current page data' and 'total count of matching documents'. To avoid executing two expensive queries, what pattern does best practice recommend?",
+        "wg": [
+          {
+            "t": "分頁",
+            "en": "pagination",
+            "ps": "noun"
+          },
+          {
+            "t": "昂貴的",
+            "en": "expensive (computationally)",
+            "ps": "adjective"
+          }
+        ]
+      }
+    ],
+    "type": "单选",
+    "options": [
+      {
+        "t": "使用 $facet，其中一個分支執行 $skip/$limit，另一個分支執行 $count。",
+        "en": "Use $facet, with one branch executing $skip/$limit and the other executing $count.",
+        "wg": [
+          {
+            "t": "分支",
+            "en": "branch",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "先執行 find() 獲取資料，再執行 countDocuments()。",
+        "en": "Execute find() to get data first, then execute countDocuments().",
+        "wg": []
+      },
+      {
+        "t": "使用 $group 將所有資料放入一個陣列，然後計算陣列長度。",
+        "en": "Use $group to push all data into an array, then calculate the array length.",
+        "wg": []
+      },
+      {
+        "t": "使用 $limit 限制資料量，並假設總數為固定值。",
+        "en": "Use $limit to restrict data volume and assume the total count is a fixed value.",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "使用 `$facet` 可以讓你在一次資料庫往返 (Round-trip) 中同時獲取資料列表與總筆數。若分開執行兩次查詢，不僅增加網路延遲，資料庫也可能需要重複執行相同的過濾邏輯兩次。",
+      "en": "Using `$facet` allows you to retrieve both the data list and the total count in a single database round-trip. Executing two separate queries increases network latency and may force the database to execute the same filtering logic twice.",
+      "wg": [
+        {
+          "t": "資料庫往返",
+          "en": "database round-trip",
+          "ps": "noun"
+        },
+        {
+          "t": "延遲",
+          "en": "latency",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "6",
+    "level": "intermediate",
+    "keywords": "limit,BSON,$push,anti-pattern",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "db.users.aggregate([\n  { $group: { _id: null, allTransactionIds: { $push: \"$transactionId\" } } }\n])",
+    "question": [
+      {
+        "t": "你的團隊試圖使用上述 Aggregation 來收集系統中「所有」使用者的交易 ID。這個做法存在什麼潛在風險？",
+        "en": "Your team attempts to use the Aggregation above to collect transaction IDs for 'all' users in the system. What is the potential risk of this approach?",
+        "wg": [
+          {
+            "t": "潛在風險",
+            "en": "potential risk",
+            "ps": "noun"
+          },
+          {
+            "t": "收集",
+            "en": "collect",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "type": "单选",
+    "options": [
+      {
+        "t": "$push 操作符不支援字串型別。",
+        "en": "The $push operator does not support string types.",
+        "wg": []
+      },
+      {
+        "t": "最終產生的 Document 可能會超過 BSON 16MB 的大小限制，導致查詢失敗。",
+        "en": "The resulting Document may exceed the BSON 16MB size limit, causing the query to fail.",
+        "wg": [
+          {
+            "t": "大小限制",
+            "en": "size limit",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "$group 必須要有非 null 的 _id。",
+        "en": "$group must have a non-null _id.",
+        "wg": []
+      },
+      {
+        "t": "這會導致資料庫索引失效。",
+        "en": "This will cause database indexes to become invalid.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "MongoDB 中單個 Document（包含 Aggregation 的輸出結果）的最大限制為 16MB。若系統中有大量交易紀錄，使用 `$push` 將所有 ID 塞入同一個陣列極易突破此限制。這是不當使用 `$group` 的常見陷阱。",
+      "en": "The maximum size for a single Document in MongoDB (including Aggregation output) is 16MB. If the system has a large number of transaction records, using `$push` to stuff all IDs into a single array will easily breach this limit. This is a common pitfall of misusing `$group`.",
+      "wg": [
+        {
+          "t": "突破",
+          "en": "breach / exceed",
+          "ps": "verb"
+        },
+        {
+          "t": "陷阱",
+          "en": "pitfall",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "7",
+    "level": "intermediate",
+    "keywords": "performance,index,$lookup,foreignField",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "db.users.aggregate([\n  {\n    $lookup: {\n      from: \"audit_logs\",\n      localField: \"accountId\",\n      foreignField: \"account_id\",\n      as: \"logs\"\n    }\n  }\n])",
+    "question": [
+      {
+        "t": "你的團隊發現上述的聚合查詢在 `audit_logs` 集合資料量增長後變得極其緩慢。",
+        "en": "Your team noticed that the aggregation query above became extremely slow as the `audit_logs` collection grew in size.",
+        "wg": []
+      },
+      {
+        "t": "已知 `users.accountId` 已經建立了索引。根據效能最佳化檢查清單，最可能導致效能瓶頸的原因是什麼？",
+        "en": "Given that `users.accountId` is already indexed. According to the performance optimization checklist, what is the most likely cause of the bottleneck?",
+        "wg": [
+          {
+            "t": "效能瓶頸",
+            "en": "performance bottleneck",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "单选",
+    "options": [
+      {
+        "t": "因為 `$lookup` 階段位於 Pipeline 的第一步，無法利用索引。",
+        "en": "Because the `$lookup` stage is the first step in the pipeline and cannot utilize indexes.",
+        "wg": []
+      },
+      {
+        "t": "因為 `audit_logs` 集合中的 `foreignField` (`account_id`) 缺少索引，導致全表掃描。",
+        "en": "Because the `foreignField` (`account_id`) in the `audit_logs` collection is missing an index, causing a collection scan.",
+        "wg": [
+          {
+            "t": "全表掃描",
+            "en": "collection scan",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "因為沒有使用 `$unwind` 將 `logs` 陣列展開。",
+        "en": "Because `$unwind` was not used to deconstruct the `logs` array.",
+        "wg": []
+      },
+      {
+        "t": "因為 `$lookup` 只能用於小型的集合，不適合用於日誌資料。",
+        "en": "Because `$lookup` can only be used on small collections and is not suitable for log data.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "在使用 `$lookup` 時，若 `foreignField`（此例為 `audit_logs` 的 `account_id`）沒有索引，MongoDB 必須對目標集合執行全表掃描來尋找匹配項目，這會導致嚴重的效能問題（笛卡兒積效應）。`$lookup` 可以放在第一步，也可以處理大數據，前提是索引配置正確。",
+      "en": "When using `$lookup`, if the `foreignField` (in this case `account_id` of `audit_logs`) is not indexed, MongoDB must perform a collection scan on the target collection to find matches, leading to severe performance issues (Cartesian Product effect). `$lookup` can be the first stage and handle large data, provided indexes are correctly configured.",
+      "wg": [
+        {
+          "t": "笛卡兒積",
+          "en": "Cartesian Product",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "8",
+    "level": "advanced",
+    "keywords": "$lookup,pipeline,optimization,1:N relationship",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "db.posts.aggregate([\n  { $match: { _id: postId } },\n  { $lookup: {\n      from: \"comments\",\n      localField: \"_id\",\n      foreignField: \"postId\",\n      as: \"comments\"\n  }}\n])",
+    "question": [
+      {
+        "t": "你正在開發一個社交平台功能，需要顯示貼文及其「最新 5 則」留言。",
+        "en": "You are developing a social platform feature that needs to display a post and its 'latest 5' comments.",
+        "wg": []
+      },
+      {
+        "t": "某些熱門貼文可能擁有數萬則留言。若使用上述標準的 `$lookup` 寫法，會將所有留言一次載入記憶體，造成效能災難。",
+        "en": "Some popular posts may have tens of thousands of comments. Using the standard `$lookup` syntax above will load all comments into memory at once, causing a performance disaster.",
+        "wg": []
+      },
+      {
+        "t": "請問應採用哪種模式來解決此問題？",
+        "en": "Which pattern should be adopted to solve this problem?",
+        "wg": []
+      }
+    ],
+    "type": "单选",
+    "options": [
+      {
+        "t": "在 `$lookup` 之後緊接一個 `$slice` 運算子來裁切陣列。",
+        "en": "Immediately follow the `$lookup` with a `$slice` operator to trim the array.",
+        "wg": []
+      },
+      {
+        "t": "改用 `$graphLookup` 來遞迴搜尋留言。",
+        "en": "Switch to `$graphLookup` to recursively search for comments.",
+        "wg": []
+      },
+      {
+        "t": "使用帶有 `pipeline` 參數的 `$lookup`，在關聯查詢內部直接執行 `$sort` 與 `$limit`。",
+        "en": "Use `$lookup` with the `pipeline` parameter to execute `$sort` and `$limit` directly within the join query.",
+        "wg": [
+          {
+            "t": "關聯查詢",
+            "en": "join query",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "這無法在 Aggregation 中完成，必須在應用層發送兩次查詢。",
+        "en": "This cannot be done in Aggregation; two queries must be sent from the application layer.",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "標準 `$lookup` 會先抓取所有匹配文件，然後才進行後續處理，這對記憶體極不友善。使用 `pipeline` 形式的 `$lookup` 可以在 Join 發生時就先在資料庫端進行 `$sort` 和 `$limit`，僅回傳需要的 5 筆資料，大幅減少傳輸與記憶體開銷。",
+      "en": "Standard `$lookup` fetches all matching documents before any subsequent processing, which is memory-inefficient. Using the `pipeline` variant of `$lookup` allows you to `$sort` and `$limit` on the database side during the join, returning only the required 5 items and significantly reducing transfer and memory overhead.",
+      "wg": []
+    }
+  },
+  {
+    "no": "9",
+    "level": "intermediate",
+    "keywords": "$project,optimization,memory usage,data reduction",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "db.products.aggregate([\n  { $match: { category: \"electronics\" } },\n  // Document contains a 5MB 'manual_pdf_base64' field\n  { $group: { _id: \"$brand\", count: { $sum: 1 } } },\n  { $sort: { count: -1 } }\n])",
+    "question": [
+      {
+        "t": "你的 `products` 集合中包含一個非常大的欄位 `manual_pdf_base64`（產品說明書）。",
+        "en": "Your `products` collection contains a very large field `manual_pdf_base64` (product manual).",
+        "wg": []
+      },
+      {
+        "t": "雖然上述 Pipeline 邏輯正確，但在執行時經常觸發記憶體警告或速度緩慢。",
+        "en": "Although the pipeline logic above is correct, it often triggers memory warnings or runs slowly during execution.",
+        "wg": []
+      },
+      {
+        "t": "根據「資料縮減 (Data Reduction)」原則，你應該如何優化？",
+        "en": "According to the 'Data Reduction' principle, how should you optimize it?",
+        "wg": [
+          {
+            "t": "資料縮減",
+            "en": "Data Reduction",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "单选",
+    "options": [
+      {
+        "t": "在 `$match` 之後立即加入 `{ $project: { manual_pdf_base64: 0 } }`。",
+        "en": "Add `{ $project: { manual_pdf_base64: 0 } }` immediately after `$match`.",
+        "wg": []
+      },
+      {
+        "t": "將 `$group` 改為 `$bucket` 以減少記憶體使用。",
+        "en": "Change `$group` to `$bucket` to reduce memory usage.",
+        "wg": []
+      },
+      {
+        "t": "在 `$sort` 階段使用 `allowDiskUse: true`。",
+        "en": "Use `allowDiskUse: true` in the `$sort` stage.",
+        "wg": []
+      },
+      {
+        "t": "將 `$match` 移到 `$group` 之後執行。",
+        "en": "Move `$match` to execute after `$group`.",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "在進入 `$group` 或 `$sort` 等記憶體密集操作前，應儘早移除不需要的大型欄位。這能顯著減少 Pipeline 中流動的文件大小 (Document Size)，降低 RAM 消耗並提升處理速度。",
+      "en": "You should remove unnecessary large fields as early as possible before entering memory-intensive operations like `$group` or `$sort`. This significantly reduces the size of documents flowing through the pipeline, lowering RAM consumption and improving processing speed.",
+      "wg": [
+        {
+          "t": "記憶體密集",
+          "en": "memory-intensive",
+          "ps": "adj"
+        }
+      ]
+    }
+  },
+  {
+    "no": "10",
+    "level": "advanced",
+    "keywords": "$merge,materialized view,architecture,reporting",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你需要為 CEO 製作一個「年度營收趨勢」報表，該查詢涉及數百萬筆訂單的複雜計算，每次執行需耗時 20 秒。",
+        "en": "You need to create an 'Annual Revenue Trend' report for the CEO. The query involves complex calculations on millions of orders and takes 20 seconds to execute each time.",
+        "wg": []
+      },
+      {
+        "t": "為了讓前端儀表板能「秒開」顯示數據，且不需要完全即時（接受 1 小時的延遲），最佳的架構模式是什麼？",
+        "en": "To allow the frontend dashboard to display data 'instantly', and assuming full real-time is not required (1-hour delay is acceptable), what is the best architectural pattern?",
+        "wg": [
+          {
+            "t": "秒開",
+            "en": "load instantly",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "type": "单选",
+    "options": [
+      {
+        "t": "使用 Redis 快取查詢結果，並在應用層設定 TTL。",
+        "en": "Cache the query results using Redis and set a TTL in the application layer.",
+        "wg": []
+      },
+      {
+        "t": "建立一個排程任務 (Cron Job)，定期執行 Aggregation 並使用 `$merge` 將結果寫入一個專用的報表 Collection。",
+        "en": "Create a cron job to periodically run the aggregation and use `$merge` to write the results into a dedicated report collection.",
+        "wg": [
+          {
+            "t": "排程任務",
+            "en": "Cron Job",
+            "ps": "noun"
+          },
+          {
+            "t": "專用的",
+            "en": "dedicated",
+            "ps": "adj"
+          }
+        ]
+      },
+      {
+        "t": "為所有相關欄位建立複合索引 (Compound Index) 以將查詢時間壓到 1 秒內。",
+        "en": "Create compound indexes for all related fields to bring the query time under 1 second.",
+        "wg": []
+      },
+      {
+        "t": "使用 `$facet` 平行處理所有月份的數據。",
+        "en": "Use `$facet` to process data for all months in parallel.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "這是「實體化視圖 (Materialized Views)」模式的典型應用。對於高耗時且讀取頻繁的報表，最佳解法是將計算結果預先存入資料庫 (`$merge`)。雖然 Redis 也是可行方案，但在資料庫層級使用 `$merge` 能更好地處理資料更新 (Upsert) 並保持資料庫作為單一真實來源 (Single Source of Truth)。",
+      "en": "This is a typical application of the 'Materialized Views' pattern. For time-consuming and frequently read reports, the best solution is to pre-calculate and store results in the database (`$merge`). While Redis is a viable option, using `$merge` at the database level better handles data updates (Upsert) and keeps the database as the Single Source of Truth.",
+      "wg": [
+        {
+          "t": "實體化視圖",
+          "en": "Materialized Views",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "11",
+    "level": "intermediate",
+    "keywords": "debugging,type consistency,$group,pitfall",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "[\n  { _id: 101, total: 500 },\n  { _id: \"101\", total: 300 }\n]",
+    "question": [
+      {
+        "t": "你在執行一個依據 `productId` 分組 (`$group`) 的銷售統計查詢後，發現結果中出現了如上所示的重複項目。",
+        "en": "After executing a sales statistics query grouped by `productId` (`$group`), you found duplicate entries in the results as shown above.",
+        "wg": []
+      },
+      {
+        "t": "這違反了檢查清單中的哪一項原則？",
+        "en": "Which principle in the checklist does this violate?",
+        "wg": []
+      }
+    ],
+    "type": "单选",
+    "options": [
+      {
+        "t": "Type Consistency (型別一致性)",
+        "en": "Type Consistency",
+        "wg": [
+          {
+            "t": "型別一致性",
+            "en": "Type Consistency",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "Index Usage (索引使用)",
+        "en": "Index Usage",
+        "wg": []
+      },
+      {
+        "t": "Memory Safety (記憶體安全)",
+        "en": "Memory Safety",
+        "wg": []
+      },
+      {
+        "t": "Filter Order (過濾順序)",
+        "en": "Filter Order",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "MongoDB 的 Aggregation Framework 是嚴格區分型別的 (Type-sensitive)。數字 `101` 與字串 `\"101\"` 被視為兩個完全不同的 Key。這通常發生在資料寫入時缺乏驗證，導致同一欄位混用了不同型別的資料。",
+      "en": "MongoDB's Aggregation Framework is type-sensitive. The number `101` and the string `\"101\"` are treated as two completely different keys. This usually happens when there is a lack of validation during data ingestion, leading to mixed types in the same field.",
+      "wg": []
+    }
+  },
+  {
+    "no": "12",
+    "level": "intermediate",
+    "keywords": "anti-pattern,maintainability,pipeline design",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你的同事提交了一個 Pull Request，其中包含一個長達 30 個 Stage 的 Aggregation Pipeline。",
+        "en": "Your colleague submitted a Pull Request containing an Aggregation Pipeline with 30 stages.",
+        "wg": []
+      },
+      {
+        "t": "這個 Pipeline 試圖一次完成資料清理、多表關聯、複雜數學運算以及前端顯示格式的轉換。",
+        "en": "This pipeline attempts to handle data cleaning, multi-table joins, complex math operations, and frontend formatting all at once.",
+        "wg": []
+      },
+      {
+        "t": "這屬於哪種反模式 (Anti-pattern)？",
+        "en": "Which anti-pattern does this belong to?",
+        "wg": []
+      }
+    ],
+    "type": "单选",
+    "options": [
+      {
+        "t": "The God Pipeline (上帝管道)",
+        "en": "The God Pipeline",
+        "wg": [
+          {
+            "t": "上帝管道",
+            "en": "The God Pipeline",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "Lookup Explosion (關聯爆炸)",
+        "en": "Lookup Explosion",
+        "wg": []
+      },
+      {
+        "t": "Client-side Processing (客戶端處理)",
+        "en": "Client-side Processing",
+        "wg": []
+      },
+      {
+        "t": "Ignoring Memory Limits (忽視記憶體限制)",
+        "en": "Ignoring Memory Limits",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "試圖在單一 Pipeline 中完成所有商業邏輯被稱為「上帝管道 (God Pipeline)」。這種程式碼極難閱讀、除錯與維護。最佳實務是將邏輯拆分，或將部分格式化工作移至應用層處理。",
+      "en": "Attempting to complete all business logic in a single pipeline is known as the 'God Pipeline'. Such code is extremely difficult to read, debug, and maintain. The best practice is to split the logic or move some formatting work to the application layer.",
+      "wg": []
+    }
+  }
+]

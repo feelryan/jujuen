@@ -1,0 +1,842 @@
+[
+  {
+    "no": "1",
+    "level": "Intermediate",
+    "keywords": "Wait Stats, CPU Time, Duration, Performance Tuning",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "當你分析一個執行緩慢的查詢時，發現其總執行時間（Duration）為 10 秒，但 CPU 時間（CPU Time）僅有 100 毫秒。根據「時間去哪了」的心智模型，下列哪一個推論最為合理？",
+        "en": "When analyzing a slow query, you notice the total Duration is 10 seconds, but the CPU Time is only 100 milliseconds. Based on the 'Where is the time going' mental model, which of the following inferences is most reasonable?",
+        "wg": [
+          {
+            "t": "總執行時間",
+            "en": "Duration",
+            "ps": "noun"
+          },
+          {
+            "t": "CPU 時間",
+            "en": "CPU Time",
+            "ps": "noun"
+          },
+          {
+            "t": "心智模型",
+            "en": "mental model",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "該查詢正在進行大量的記憶體內計算（如雜湊或排序），導致 CPU 滿載。",
+        "en": "The query is performing heavy in-memory calculations (like hashing or sorting), causing high CPU load.",
+        "wg": []
+      },
+      {
+        "t": "該查詢主要受限於等待事件（Wait Events），例如正在等待磁碟 I/O 或被其他 Session 鎖定（Blocking）。",
+        "en": "The query is primarily bottlenecked by Wait Events, such as waiting for Disk I/O or being blocked by another session.",
+        "wg": [
+          {
+            "t": "等待事件",
+            "en": "Wait Events",
+            "ps": "noun"
+          },
+          {
+            "t": "鎖定",
+            "en": "Blocking",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "該查詢的執行計畫選擇了錯誤的索引，導致全表掃描（Table Scan）。",
+        "en": "The query execution plan chose the wrong index, resulting in a Table Scan.",
+        "wg": []
+      },
+      {
+        "t": "這是正常的，因為 SQL Server 的 CPU 時間通常不包含讀取資料的時間。",
+        "en": "This is normal because SQL Server's CPU Time usually does not include the time spent reading data.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "Duration = CPU Time + Wait Time。若 Duration 遠大於 CPU Time，代表查詢大部分時間處於「等待（Waiting）」狀態（如等待 I/O、鎖定或記憶體授權），而非正在運算（Running）。選項 0 與 2 通常會導致較高的 CPU 使用率；選項 3 觀念錯誤，讀取資料若在 Buffer Pool 中會消耗 CPU，若需從磁碟讀取則會產生 Wait Time。",
+      "en": "Duration = CPU Time + Wait Time. If Duration is significantly higher than CPU Time, it means the query spent most of its time in a 'Waiting' state (e.g., waiting for I/O, locks, or memory grants) rather than 'Running'. Options 0 and 2 typically result in higher CPU usage. Option 3 is incorrect; reading data consumes CPU if in the Buffer Pool, or generates Wait Time if reading from disk.",
+      "wg": [
+        {
+          "t": "緩衝池",
+          "en": "Buffer Pool",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "2",
+    "level": "Intermediate",
+    "keywords": "Parameter Sniffing, Anti-pattern, Troubleshooting",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "CREATE PROCEDURE GetOrders (@StatusID INT) AS\nSELECT * FROM Orders WHERE Status = @StatusID;\n-- Scenario:\n-- App calls: EXEC GetOrders @StatusID = 1 (Slow)\n-- SSMS manual run: DECLARE @ID INT = 1; SELECT * FROM Orders WHERE Status = @ID; (Fast)",
+    "question": [
+      {
+        "t": "開發者回報某個 Stored Procedure 在應用程式中執行非常慢，但當你將相同的 SQL 語法複製到 SSMS 並宣告變數執行時，速度卻非常快。這最可能是遇到了什麼問題？",
+        "en": "A developer reports that a Stored Procedure is very slow when executed from the application, but when you copy the same SQL syntax to SSMS and execute it with declared variables, it runs very fast. What is the most likely issue?",
+        "wg": [
+          {
+            "t": "參數嗅探",
+            "en": "Parameter Sniffing",
+            "ps": "noun"
+          },
+          {
+            "t": "預存程序",
+            "en": "Stored Procedure",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "網路延遲（Network Latency）：應用程式伺服器與資料庫之間的連線不穩定。",
+        "en": "Network Latency: The connection between the application server and the database is unstable.",
+        "wg": []
+      },
+      {
+        "t": "參數嗅探（Parameter Sniffing）：應用程式使用的快取執行計畫是基於過去某個特定參數生成的，不適用於當前參數。",
+        "en": "Parameter Sniffing: The application is using a cached execution plan generated for a specific past parameter that is inefficient for the current one.",
+        "wg": []
+      },
+      {
+        "t": "死結（Deadlock）：應用程式執行時剛好遇到了死結並被犧牲。",
+        "en": "Deadlock: The application encountered a deadlock and was chosen as the victim during execution.",
+        "wg": []
+      },
+      {
+        "t": "索引碎片（Index Fragmentation）：資料表索引過於破碎，導致掃描變慢。",
+        "en": "Index Fragmentation: The table indexes are too fragmented, causing slow scans.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "這是典型的「參數嗅探（Parameter Sniffing）」症狀。SSMS 中使用 `DECLARE` 變數時，Optimizer 通常無法嗅探具體值（或行為不同），而 App 呼叫 SP 時會使用 Cache 中的 Plan。若 Cache 的 Plan 是針對「資料量少」的參數編譯的（例如 Seek），但現在傳入「資料量大」的參數（應走 Scan），效能就會崩潰。網路延遲或索引碎片通常會讓兩邊都慢，不會有如此巨大的行為差異。",
+      "en": "This is a classic symptom of 'Parameter Sniffing'. When using `DECLARE` variables in SSMS, the optimizer often cannot sniff the specific value (or behaves differently), whereas the App call uses the cached Plan. If the cached plan was compiled for a 'low selectivity' parameter (e.g., using Seek) but the current parameter retrieves 'high volume' data (should use Scan), performance degrades severely. Network latency or fragmentation would typically make both scenarios slow.",
+      "wg": [
+        {
+          "t": "選擇性",
+          "en": "selectivity",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "3",
+    "level": "Advanced",
+    "keywords": "Implicit Conversion, Index Scan, Data Types",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "-- Column 'PhoneNumber' is defined as VARCHAR(20)\n-- Application sends parameter @Phone as NVARCHAR(20)\nSELECT * FROM Customers WHERE PhoneNumber = @Phone;",
+    "question": [
+      {
+        "t": "觀察上方的 SQL 查詢與資料型別定義。為什麼這個查詢即使在 `PhoneNumber` 欄位上有索引，仍可能導致全表掃描（Index Scan）與 CPU 飆高？",
+        "en": "Observe the SQL query and data type definitions above. Why might this query cause a full Index Scan and high CPU usage even if there is an index on the `PhoneNumber` column?",
+        "wg": [
+          {
+            "t": "隱式轉型",
+            "en": "Implicit Conversion",
+            "ps": "noun"
+          },
+          {
+            "t": "全表掃描",
+            "en": "Index Scan",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "因為 `VARCHAR` 的優先權高於 `NVARCHAR`，SQL Server 會忽略參數型別。",
+        "en": "Because `VARCHAR` has higher precedence than `NVARCHAR`, SQL Server will ignore the parameter type.",
+        "wg": []
+      },
+      {
+        "t": "因為發生了隱式轉型（Implicit Conversion），SQL Server 必須將資料表中每一列的 `PhoneNumber` 轉為 `NVARCHAR` 才能進行比對，導致無法使用索引搜尋（Seek）。",
+        "en": "Because Implicit Conversion occurs, SQL Server must convert the `PhoneNumber` in every row of the table to `NVARCHAR` for comparison, preventing the use of Index Seek.",
+        "wg": [
+          {
+            "t": "索引搜尋",
+            "en": "Index Seek",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "因為 `PhoneNumber` 欄位太短，Optimizer 認為掃描比搜尋更快。",
+        "en": "Because the `PhoneNumber` column is too short, the Optimizer thinks scanning is faster than seeking.",
+        "wg": []
+      },
+      {
+        "t": "因為 `NVARCHAR` 佔用的空間是 `VARCHAR` 的兩倍，導致記憶體不足。",
+        "en": "Because `NVARCHAR` takes up twice the space of `VARCHAR`, causing memory pressure.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "根據資料型別優先權，`NVARCHAR` 高於 `VARCHAR`。因此 SQL Server 必須將欄位內容（低優先權）轉換為參數型別（高優先權）來比對。這種在欄位上的運算（`CONVERT_IMPLICIT(PhoneNumber)`）會破壞 SARGability，迫使資料庫讀取每一行資料進行轉換與比對，造成 Index Scan 與高 CPU 消耗。",
+      "en": "According to data type precedence, `NVARCHAR` is higher than `VARCHAR`. Therefore, SQL Server must convert the column content (lower precedence) to the parameter type (higher precedence) for comparison. This operation on the column (`CONVERT_IMPLICIT(PhoneNumber)`) breaks SARGability, forcing the database to read every row for conversion and comparison, resulting in an Index Scan and high CPU consumption.",
+      "wg": [
+        {
+          "t": "資料型別優先權",
+          "en": "Data Type Precedence",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "4",
+    "level": "Intermediate",
+    "keywords": "Execution Plan, Cardinality Estimation, Logical Reads",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在分析執行計畫時，發現某個運算子（Operator）的「預估行數（Estimated Number of Rows）」為 1，但「實際行數（Actual Number of Rows）」為 1,000,000。這種巨大的差異通常意味著什麼，且最可能導致什麼後果？",
+        "en": "When analyzing an execution plan, you notice an operator has an 'Estimated Number of Rows' of 1, but an 'Actual Number of Rows' of 1,000,000. What does this huge discrepancy usually imply, and what is the most likely consequence?",
+        "wg": [
+          {
+            "t": "基數預估",
+            "en": "Cardinality Estimation",
+            "ps": "noun"
+          },
+          {
+            "t": "巢狀迴圈",
+            "en": "Nested Loop",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "意味著統計資訊準確；後果是 SQL Server 會自動切換為平行處理模式。",
+        "en": "Implies statistics are accurate; the consequence is SQL Server will automatically switch to parallelism mode.",
+        "wg": []
+      },
+      {
+        "t": "意味著統計資訊過期或取樣不足；後果是 Optimizer 可能錯誤地選擇了適合少量資料的演算法（如 Nested Loop Join），導致效能極差。",
+        "en": "Implies statistics are outdated or sampling is insufficient; the consequence is the Optimizer might wrongly choose an algorithm suitable for small data (like Nested Loop Join), leading to poor performance.",
+        "wg": []
+      },
+      {
+        "t": "意味著資料庫發生了死結；後果是查詢會被終止。",
+        "en": "Implies a deadlock occurred in the database; the consequence is the query will be terminated.",
+        "wg": []
+      },
+      {
+        "t": "意味著使用了 Covering Index；後果是查詢速度會非常快。",
+        "en": "Implies a Covering Index was used; the consequence is the query will be very fast.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "預估與實際行數的巨大差異（Cardinality Estimation Error）是效能問題的常見根源。如果 Optimizer 認為只有 1 行，它會傾向使用 Nested Loop Join（對少量資料最快）；但當實際有 100 萬行湧入時，Nested Loop 會執行 100 萬次迴圈，造成災難性的效能。這通常需要更新統計資訊（Update Statistics）來解決。",
+      "en": "A huge discrepancy between estimated and actual rows (Cardinality Estimation Error) is a common root cause of performance issues. If the Optimizer thinks there's only 1 row, it prefers Nested Loop Join (fastest for small data); but when 1 million rows actually arrive, the Nested Loop executes 1 million times, causing catastrophic performance. This usually requires updating statistics to resolve.",
+      "wg": [
+        {
+          "t": "統計資訊",
+          "en": "Statistics",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "5",
+    "level": "Intermediate",
+    "keywords": "Key Lookup, Covering Index, Indexing Strategy",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "SELECT UserID, UserName, Email FROM Users WHERE UserID = 123;\n-- Index: IX_Users_UserID (UserID)\n-- Execution Plan: Index Seek (IX_Users_UserID) -> Key Lookup (Clustered)",
+    "question": [
+      {
+        "t": "針對上述查詢，執行計畫顯示了 `Key Lookup`。若此查詢執行頻率極高且成為系統瓶頸，下列哪一種優化方式最為推薦？",
+        "en": "For the query above, the execution plan shows a `Key Lookup`. If this query is executed very frequently and becomes a system bottleneck, which optimization method is most recommended?",
+        "wg": [
+          {
+            "t": "鍵值查找",
+            "en": "Key Lookup",
+            "ps": "noun"
+          },
+          {
+            "t": "覆蓋索引",
+            "en": "Covering Index",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "將 `UserName` 與 `Email` 加入到索引的鍵值欄位（Key Columns）中，順序為 `(UserID, UserName, Email)`。",
+        "en": "Add `UserName` and `Email` to the index key columns, in the order `(UserID, UserName, Email)`.",
+        "wg": []
+      },
+      {
+        "t": "修改現有索引或建立新索引，保持 `UserID` 為鍵值，並使用 `INCLUDE` 將 `UserName` 與 `Email` 加入索引。",
+        "en": "Modify the existing index or create a new one, keeping `UserID` as the key, and use `INCLUDE` to add `UserName` and `Email`.",
+        "wg": [
+          {
+            "t": "包含欄位",
+            "en": "INCLUDE columns",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "刪除 `IX_Users_UserID` 索引，強制 SQL Server 進行全表掃描（Clustered Index Scan）。",
+        "en": "Drop the `IX_Users_UserID` index to force SQL Server to perform a full table scan (Clustered Index Scan).",
+        "wg": []
+      },
+      {
+        "t": "不需做任何變更，Key Lookup 是最高效的存取方式。",
+        "en": "No changes needed; Key Lookup is the most efficient access method.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "使用 `INCLUDE` 建立覆蓋索引（Covering Index）是消除 Key Lookup 的最佳實務。這樣做可以讓查詢直接在非叢集索引的葉子節點取得所有資料，無需回表（Lookup），大幅減少邏輯讀取（Logical Reads）。雖然選項 0 也能消除 Lookup，但將非搜尋條件的欄位放入 Key Columns 會增加索引樹的大小與維護成本，`INCLUDE` 則是專為此場景設計的。",
+      "en": "Using `INCLUDE` to create a Covering Index is the best practice to eliminate Key Lookups. This allows the query to retrieve all data directly from the leaf nodes of the non-clustered index without going back to the table (Lookup), significantly reducing Logical Reads. While Option 0 also eliminates Lookup, adding non-search columns to Key Columns increases the index tree size and maintenance cost; `INCLUDE` is designed specifically for this scenario.",
+      "wg": []
+    }
+  },
+  {
+    "no": "6",
+    "level": "Intermediate",
+    "keywords": "Scalar Functions, Anti-pattern, SARGability",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "SELECT * FROM Orders WHERE dbo.FormatDate(OrderDate) = '2023-01-01'",
+    "question": [
+      {
+        "t": "在 `WHERE` 子句中使用自定義的純量函數（Scalar Function），如上例所示，通常被視為一種 Anti-pattern。主要原因為何？",
+        "en": "Using a custom Scalar Function in the `WHERE` clause, as shown in the example above, is generally considered an Anti-pattern. What is the main reason?",
+        "wg": [
+          {
+            "t": "純量函數",
+            "en": "Scalar Function",
+            "ps": "noun"
+          },
+          {
+            "t": "逐行處理",
+            "en": "RBAR (Row By Row)",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "會導致 SQL Server 無法編譯執行計畫。",
+        "en": "It causes SQL Server to be unable to compile an execution plan.",
+        "wg": []
+      },
+      {
+        "t": "會導致逐行處理（RBAR），阻止索引搜尋（Seek）並可能抑制平行處理（Parallelism）。",
+        "en": "It causes Row-By-Row (RBAR) processing, prevents Index Seek, and may inhibit Parallelism.",
+        "wg": []
+      },
+      {
+        "t": "純量函數只能回傳整數，無法處理日期字串。",
+        "en": "Scalar functions can only return integers and cannot handle date strings.",
+        "wg": []
+      },
+      {
+        "t": "會導致資料庫交易紀錄檔（Transaction Log）瞬間爆滿。",
+        "en": "It causes the database Transaction Log to fill up instantly.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "將欄位包在函數中（如 `dbo.FormatDate(Col)`）會使該欄位變得「不可搜尋（Non-SARGable）」。SQL Server 必須對資料表中的每一行執行該函數後才能比對結果，這迫使它進行 Scan 而非 Seek，且傳統純量函數通常會阻止查詢使用多核心平行運算，導致效能嚴重下降。",
+      "en": "Wrapping a column in a function (like `dbo.FormatDate(Col)`) makes the column 'Non-SARGable'. SQL Server must execute the function on every row in the table before comparing the result, forcing a Scan instead of a Seek. Additionally, traditional scalar functions often prevent the query from using multi-core parallelism, leading to severe performance degradation.",
+      "wg": [
+        {
+          "t": "不可搜尋",
+          "en": "Non-SARGable",
+          "ps": "adjective"
+        }
+      ]
+    }
+  },
+  {
+    "no": "7",
+    "level": "Intermediate",
+    "keywords": "Query Store, Plan Regression, Force Plan",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "某個關鍵報表查詢昨天執行只需 2 秒，今天卻突然變成 2 分鐘，且應用程式程式碼與資料庫結構近期皆未變更。若資料庫已啟用 Query Store，下列哪一個是最快速且低風險的緩解步驟？",
+        "en": "A critical report query took only 2 seconds yesterday but suddenly takes 2 minutes today, with no recent changes to the application code or database schema. If Query Store is enabled, which of the following is the fastest and lowest-risk mitigation step?",
+        "wg": [
+          {
+            "t": "緩解步驟",
+            "en": "mitigation step",
+            "ps": "noun"
+          },
+          {
+            "t": "資料庫結構",
+            "en": "database schema",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "立即重建所有相關索引以更新統計資訊。",
+        "en": "Immediately rebuild all related indexes to update statistics.",
+        "wg": []
+      },
+      {
+        "t": "使用 Query Store 的「Regressed Queries」報告找出該查詢，並強制使用昨天的執行計畫（Force Plan）。",
+        "en": "Use the Query Store 'Regressed Queries' report to identify the query and force yesterday's execution plan.",
+        "wg": [
+          {
+            "t": "強制使用",
+            "en": "force",
+            "ps": "verb"
+          },
+          {
+            "t": "執行計畫",
+            "en": "execution plan",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "將資料庫重啟以清除 Plan Cache。",
+        "en": "Restart the database to clear the Plan Cache.",
+        "wg": []
+      },
+      {
+        "t": "在查詢中加入 `OPTION (RECOMPILE)` 並重新部署程式碼。",
+        "en": "Add `OPTION (RECOMPILE)` to the query and redeploy the code.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "這是典型的「計畫回歸（Plan Regression）」現象。Query Store 能夠識別效能退化的查詢，並允許管理員「強制（Force）」鎖定舊的優良計畫，這是最快恢復服務的方法。重建索引或重啟資料庫雖可能解決問題，但風險與影響範圍較大；修改程式碼則耗時過長。",
+      "en": "This is a typical 'Plan Regression' scenario. Query Store can identify regressed queries and allows administrators to 'Force' a known good plan from the past, which is the quickest way to restore service. Rebuilding indexes or restarting the database might fix it but carries higher risk and impact; modifying code takes too long.",
+      "wg": [
+        {
+          "t": "計畫回歸",
+          "en": "Plan Regression",
+          "ps": "noun"
+        },
+        {
+          "t": "效能退化",
+          "en": "performance degradation",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "8",
+    "level": "Intermediate",
+    "keywords": "Blocking, sp_WhoIsActive, Troubleshooting",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在使用 `sp_WhoIsActive` 排查系統卡頓時，你發現 Session 50 被 Session 40 封鎖（Blocked），而 Session 40 又被 Session 30 封鎖。Session 30 的狀態顯示為 `SLEEPING` 且持有 `LCK_M_X` 鎖。為了盡快解除阻塞，你應該優先調查或終止哪一個 Session？",
+        "en": "When using `sp_WhoIsActive` to troubleshoot system unresponsiveness, you find that Session 50 is blocked by Session 40, and Session 40 is blocked by Session 30. Session 30 shows a status of `SLEEPING` and holds an `LCK_M_X` lock. To resolve the blocking chain as quickly as possible, which session should you investigate or terminate first?",
+        "wg": [
+          {
+            "t": "封鎖",
+            "en": "blocked",
+            "ps": "verb"
+          },
+          {
+            "t": "解除阻塞",
+            "en": "resolve the blocking",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "Session 50（最後被影響者）。",
+        "en": "Session 50 (the last victim).",
+        "wg": []
+      },
+      {
+        "t": "Session 40（中間傳遞者）。",
+        "en": "Session 40 (the intermediate blocker).",
+        "wg": []
+      },
+      {
+        "t": "Session 30（源頭阻塞者，Head Blocker）。",
+        "en": "Session 30 (the Head Blocker).",
+        "wg": [
+          {
+            "t": "源頭阻塞者",
+            "en": "Head Blocker",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "所有 Session 都必須同時終止。",
+        "en": "All sessions must be terminated simultaneously.",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "Session 30 是「Head Blocker」，它是造成整串阻塞鏈的根源。解決源頭通常能自動釋放後續被卡住的 Session (40 和 50)。若只處理 Session 40 或 50，源頭的問題依然存在，可能會繼續阻塞其他新進來的查詢。",
+      "en": "Session 30 is the 'Head Blocker', the root cause of the blocking chain. Resolving the root usually automatically releases the subsequent blocked sessions (40 and 50). Handling only Session 40 or 50 leaves the root issue unresolved, potentially blocking other incoming queries.",
+      "wg": [
+        {
+          "t": "阻塞鏈",
+          "en": "blocking chain",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "9",
+    "level": "Advanced",
+    "keywords": "TempDB Spill, Memory Grant, Execution Plan Warning",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在分析執行計畫時，你發現 `Sort` 或 `Hash Match` 運算子上出現黃色驚嘆號警告，提示訊息包含「TempDB Spill」或「Writing to tempdb」。這通常代表什麼含義，且對效能有何影響？",
+        "en": "While analyzing an execution plan, you see a yellow warning icon on a `Sort` or `Hash Match` operator, with a message indicating 'TempDB Spill' or 'Writing to tempdb'. What does this usually imply, and how does it affect performance?",
+        "wg": [
+          {
+            "t": "運算子",
+            "en": "operator",
+            "ps": "noun"
+          },
+          {
+            "t": "驚嘆號警告",
+            "en": "warning icon",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "查詢使用了暫存資料表（Temporary Table），這是正常現象，不影響效能。",
+        "en": "The query is using a Temporary Table, which is normal and does not affect performance.",
+        "wg": []
+      },
+      {
+        "t": "執行計畫估算的記憶體不足以容納排序或雜湊操作的資料，導致必須將部分資料寫入磁碟（TempDB），會嚴重拖慢效能。",
+        "en": "The estimated memory for the execution plan was insufficient to hold the data for sorting or hashing, forcing data to be written to disk (TempDB), which severely degrades performance.",
+        "wg": [
+          {
+            "t": "估算的記憶體",
+            "en": "estimated memory",
+            "ps": "noun"
+          },
+          {
+            "t": "拖慢效能",
+            "en": "degrades performance",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "發生了死結（Deadlock），SQL Server 正在犧牲此查詢。",
+        "en": "A deadlock occurred, and SQL Server is killing this query.",
+        "wg": []
+      },
+      {
+        "t": "索引碎片過高，SQL Server 正在自動重組索引。",
+        "en": "Index fragmentation is too high, and SQL Server is automatically reorganizing the index.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "TempDB Spill 發生於查詢執行所需的記憶體（Memory Grant）超過了 Optimizer 最初的估算。當記憶體不夠用時，SQL Server 被迫將中間結果寫入磁碟（TempDB），這比記憶體操作慢上數個數量級，是嚴重的效能殺手。",
+      "en": "TempDB Spill occurs when the memory required for query execution (Memory Grant) exceeds the Optimizer's initial estimate. When memory runs out, SQL Server is forced to write intermediate results to disk (TempDB), which is orders of magnitude slower than memory operations and is a serious performance killer.",
+      "wg": [
+        {
+          "t": "記憶體授權",
+          "en": "Memory Grant",
+          "ps": "noun"
+        },
+        {
+          "t": "數量級",
+          "en": "orders of magnitude",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "10",
+    "level": "Intermediate",
+    "keywords": "Statistics IO, Logical Reads, Performance Metrics",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在進行效能調校時，為何資深工程師通常優先關注 `Logical Reads`（邏輯讀取數）的變化，而不是單純看 `Duration`（執行時間）？",
+        "en": "When tuning performance, why do senior engineers often prioritize monitoring changes in `Logical Reads` rather than just `Duration`?",
+        "wg": [
+          {
+            "t": "效能調校",
+            "en": "performance tuning",
+            "ps": "noun"
+          },
+          {
+            "t": "優先關注",
+            "en": "prioritize monitoring",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "因為 Logical Reads 代表實際的磁碟 I/O 次數，這才是瓶頸所在。",
+        "en": "Because Logical Reads represent the actual number of disk I/O operations, which is the bottleneck.",
+        "wg": []
+      },
+      {
+        "t": "因為 Duration 會受到快取狀態（Cold vs Warm Cache）與伺服器負載的嚴重影響而波動，但 Logical Reads 反映查詢演算法的成本，相對穩定。",
+        "en": "Because Duration fluctuates heavily due to cache state (Cold vs Warm Cache) and server load, whereas Logical Reads reflect the algorithmic cost of the query and are relatively stable.",
+        "wg": [
+          {
+            "t": "波動",
+            "en": "fluctuates",
+            "ps": "verb"
+          },
+          {
+            "t": "演算法的成本",
+            "en": "algorithmic cost",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "因為 Logical Reads 數值越低，代表 CPU 使用率一定越高。",
+        "en": "Because lower Logical Reads always imply higher CPU usage.",
+        "wg": []
+      },
+      {
+        "t": "因為 Duration 無法透過 `SET STATISTICS TIME ON` 準確測量。",
+        "en": "Because Duration cannot be accurately measured using `SET STATISTICS TIME ON`.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "Duration 是一個不穩定的指標，同樣的查詢第一次執行可能需要從磁碟讀取（慢），第二次則從記憶體讀取（快）。Logical Reads 代表查詢需要存取的 Page 數量，無論資料在記憶體或磁碟，這個數值通常是固定的。降低 Logical Reads 幾乎總是能同時降低 CPU 與 I/O 壓力。",
+      "en": "Duration is a volatile metric; the same query might read from disk (slow) the first time and from memory (fast) the second. Logical Reads represent the number of pages the query needs to access; this number is usually constant regardless of whether data is in memory or on disk. Reducing Logical Reads almost always reduces both CPU and I/O pressure.",
+      "wg": [
+        {
+          "t": "不穩定的指標",
+          "en": "volatile metric",
+          "ps": "noun"
+        },
+        {
+          "t": "存取",
+          "en": "access",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "11",
+    "level": "Advanced",
+    "keywords": "Indexing Strategy, Key Lookup, Write Performance",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你發現某個查詢使用了 `Key Lookup`，但該查詢每天僅執行一次，且回傳行數極少（< 10 行）。若為了消除這個 Key Lookup 而建立一個包含大量欄位（Include 10+ columns）的覆蓋索引（Covering Index），這通常被視為不好的做法。為什麼？",
+        "en": "You notice a query uses a `Key Lookup`, but it runs only once a day and returns very few rows (< 10 rows). Creating a Covering Index with many included columns (10+) to eliminate this Key Lookup is generally considered a bad practice. Why?",
+        "wg": [
+          {
+            "t": "覆蓋索引",
+            "en": "Covering Index",
+            "ps": "noun"
+          },
+          {
+            "t": "不好的做法",
+            "en": "bad practice",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "因為 Key Lookup 永遠比 Index Seek 快。",
+        "en": "Because Key Lookup is always faster than Index Seek.",
+        "wg": []
+      },
+      {
+        "t": "因為維護該寬索引的成本（儲存空間、Update/Insert 效能損耗）遠大於優化該低頻查詢所帶來的微小讀取效益。",
+        "en": "Because the cost of maintaining such a wide index (storage space, Update/Insert performance penalty) far outweighs the minimal read benefit gained for this low-frequency query.",
+        "wg": [
+          {
+            "t": "寬索引",
+            "en": "wide index",
+            "ps": "noun"
+          },
+          {
+            "t": "效能損耗",
+            "en": "performance penalty",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "因為 SQL Server 無法使用包含超過 5 個欄位的非叢集索引。",
+        "en": "Because SQL Server cannot use non-clustered indexes containing more than 5 columns.",
+        "wg": []
+      },
+      {
+        "t": "因為消除 Key Lookup 會導致參數嗅探問題。",
+        "en": "Because eliminating Key Lookup leads to parameter sniffing issues.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "索引設計是一種權衡（Trade-off）。雖然消除 Key Lookup 能減少讀取成本，但對於「低頻率、低回傳量」的查詢，其 Key Lookup 的總開銷很小。反之，建立一個巨大的寬索引會顯著增加資料寫入（Insert/Update）的負擔並佔用空間。在這種情況下，保留 Key Lookup 是可接受的。",
+      "en": "Index design is a trade-off. While eliminating Key Lookups reduces read costs, for 'low-frequency, low-volume' queries, the total overhead of Key Lookups is negligible. Conversely, creating a huge wide index significantly increases the burden on data writes (Insert/Update) and consumes space. In this case, keeping the Key Lookup is acceptable.",
+      "wg": [
+        {
+          "t": "權衡",
+          "en": "Trade-off",
+          "ps": "noun"
+        },
+        {
+          "t": "可接受的",
+          "en": "acceptable",
+          "ps": "adj"
+        }
+      ]
+    }
+  },
+  {
+    "no": "12",
+    "level": "Advanced",
+    "keywords": "Wait Stats, PAGEIOLATCH, I/O",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在分析 Wait Stats 時，若發現系統最高的等待類型是 `PAGEIOLATCH_SH`，這最可能代表什麼樣的瓶頸？",
+        "en": "When analyzing Wait Stats, if you find that the top wait type is `PAGEIOLATCH_SH`, what kind of bottleneck does this most likely indicate?",
+        "wg": [
+          {
+            "t": "等待類型",
+            "en": "wait type",
+            "ps": "noun"
+          },
+          {
+            "t": "瓶頸",
+            "en": "bottleneck",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "資料列鎖定競爭（Row Lock Contention），多個交易試圖修改同一行資料。",
+        "en": "Row Lock Contention, where multiple transactions are trying to modify the same row.",
+        "wg": []
+      },
+      {
+        "t": "CPU 運算能力不足，導致執行緒在排程器上等待。",
+        "en": "Insufficient CPU capacity, causing threads to wait on the scheduler.",
+        "wg": []
+      },
+      {
+        "t": "磁碟 I/O 子系統回應慢，或是記憶體（Buffer Pool）不足導致頻繁從磁碟讀取頁面。",
+        "en": "Slow Disk I/O subsystem response, or insufficient memory (Buffer Pool) causing frequent page reads from disk.",
+        "wg": [
+          {
+            "t": "磁碟 I/O 子系統",
+            "en": "Disk I/O subsystem",
+            "ps": "noun"
+          },
+          {
+            "t": "頻繁",
+            "en": "frequent",
+            "ps": "adj"
+          }
+        ]
+      },
+      {
+        "t": "網路延遲過高，導致客戶端接收資料緩慢。",
+        "en": "High network latency causing slow data reception by the client.",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "`PAGEIOLATCH_SH` 中的 'IO' 代表 SQL Server 正在等待磁碟子系統將資料頁（Page）載入到記憶體中，而 'SH' (Shared) 通常發生在讀取操作。這意味著資料不在 Buffer Pool 中（記憶體壓力）或者磁碟讀取速度太慢，與邏輯鎖定（Locking, `LCK_M_*`）無關。",
+      "en": "The 'IO' in `PAGEIOLATCH_SH` indicates that SQL Server is waiting for the disk subsystem to load a data page into memory, and 'SH' (Shared) typically occurs during read operations. This implies that data is not in the Buffer Pool (memory pressure) or the disk read speed is too slow, and is unrelated to logical locking (`LCK_M_*`).",
+      "wg": [
+        {
+          "t": "磁碟子系統",
+          "en": "disk subsystem",
+          "ps": "noun"
+        },
+        {
+          "t": "邏輯鎖定",
+          "en": "logical locking",
+          "ps": "noun"
+        }
+      ]
+    }
+  }
+]

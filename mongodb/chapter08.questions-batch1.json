@@ -1,0 +1,575 @@
+[
+  {
+    "no": "1",
+    "level": "intermediate",
+    "keywords": "Oplog, Replication, Maintenance, Troubleshooting",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您負責維護一個高寫入負載的 MongoDB 複本集 (Replica Set)。",
+        "en": "You are maintaining a high-write load MongoDB Replica Set.",
+        "wg": [
+          {
+            "t": "複本集",
+            "en": "Replica Set",
+            "ps": "N"
+          },
+          {
+            "t": "高寫入負載",
+            "en": "high-write load",
+            "ps": "NP"
+          }
+        ]
+      },
+      {
+        "t": "為了進行硬體升級，您將其中一個次要節點 (Secondary) 關閉了 4 小時。",
+        "en": "You shut down one of the Secondary nodes for 4 hours to perform a hardware upgrade.",
+        "wg": []
+      },
+      {
+        "t": "當您重新啟動該節點後，發現它進入了 `RECOVERING` 狀態，且 Log 顯示它無法再與主節點同步，必須進行完整的初始同步 (Initial Sync)。",
+        "en": "After restarting the node, you notice it enters the `RECOVERING` state, and the logs indicate it can no longer sync with the Primary, requiring a full Initial Sync.",
+        "wg": [
+          {
+            "t": "初始同步",
+            "en": "Initial Sync",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "造成此問題最可能的原因是什麼？",
+        "en": "What is the most likely cause of this issue?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 該節點的 `mongod.conf` 設定檔中遺失了 `replSet` 參數。",
+        "en": "(A) The `replSet` parameter is missing in the node's `mongod.conf` configuration file.",
+        "wg": []
+      },
+      {
+        "t": "(B) Oplog Window (操作日誌視窗) 的時間長度小於 4 小時，導致該節點錯過了部分操作紀錄。",
+        "en": "(B) The Oplog Window size was smaller than 4 hours, causing the node to miss some operation records.",
+        "wg": [
+          {
+            "t": "操作日誌視窗",
+            "en": "Oplog Window",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) 主節點 (Primary) 在維護期間發生了崩潰並重新選舉。",
+        "en": "(C) The Primary node crashed and triggered a re-election during the maintenance period.",
+        "wg": []
+      },
+      {
+        "t": "(D) 網路防火牆阻擋了該節點與主節點之間的 Port 27017 連線。",
+        "en": "(D) The network firewall blocked the connection on Port 27017 between the node and the Primary.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "Oplog 是一個固定大小的集合 (Capped Collection)。如果寫入量很大，舊的 Oplog 紀錄會被新的覆蓋。若次要節點離線的時間超過了 Oplog Window (即 Oplog 能保存的最早與最新紀錄的時間差)，該節點將無法透過重播 Oplog 來追上進度，因此必須進行完整的初始同步。",
+      "en": "The Oplog is a capped collection. If the write volume is high, old Oplog entries are overwritten by new ones. If a Secondary node is offline for longer than the Oplog Window (the time difference between the oldest and newest records), it cannot catch up by replaying the Oplog and must perform a full Initial Sync.",
+      "wg": [
+        {
+          "t": "固定大小的集合",
+          "en": "Capped Collection",
+          "ps": "NP"
+        },
+        {
+          "t": "覆蓋",
+          "en": "overwritten",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "2",
+    "level": "advanced",
+    "keywords": "Performance, WiredTiger, Tickets, Concurrency",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "db.serverStatus().wiredTiger.concurrentTransactions",
+    "question": [
+      {
+        "t": "您的應用程式在尖峰時段出現了嚴重的延遲 (Latency Spike)，但監控儀表板顯示 MongoDB 主機的 CPU 使用率僅為 40%，且記憶體與磁碟 I/O 均未飽和。",
+        "en": "Your application is experiencing severe latency spikes during peak hours, but the monitoring dashboard shows MongoDB host CPU usage is only at 40%, and memory and disk I/O are not saturated.",
+        "wg": [
+          {
+            "t": "尖峰時段",
+            "en": "peak hours",
+            "ps": "N"
+          },
+          {
+            "t": "飽和",
+            "en": "saturated",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "您執行了 `db.serverStatus().wiredTiger` 並檢查 `concurrentTransactions` 部分，發現 `read.available` 的數值接近 0。",
+        "en": "You run `db.serverStatus().wiredTiger` and check the `concurrentTransactions` section, finding that the `read.available` value is close to 0.",
+        "wg": []
+      },
+      {
+        "t": "這代表什麼意義？",
+        "en": "What does this indicate?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) MongoDB 正在進行大量的磁碟分頁交換 (Swapping)，導致讀取效能下降。",
+        "en": "(A) MongoDB is performing heavy disk swapping, causing degraded read performance.",
+        "wg": [
+          {
+            "t": "分頁交換",
+            "en": "Swapping",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(B) WiredTiger 儲存引擎的讀取並發票券 (Read Tickets) 已耗盡，新的讀取請求正在排隊等待。",
+        "en": "(B) The WiredTiger storage engine's Read Tickets are exhausted, and new read requests are queuing.",
+        "wg": [
+          {
+            "t": "並發票券",
+            "en": "concurrency tickets",
+            "ps": "N"
+          },
+          {
+            "t": "耗盡",
+            "en": "exhausted",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(C) 網路頻寬已滿，導致讀取請求無法傳送至客戶端。",
+        "en": "(C) Network bandwidth is full, preventing read requests from being sent to the client.",
+        "wg": []
+      },
+      {
+        "t": "(D) 這是正常現象，代表資料庫正在充分利用資源。",
+        "en": "(D) This is normal behavior, indicating the database is fully utilizing resources.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "WiredTiger 使用「Tickets」機制來控制並發 (Concurrency)。預設情況下，讀取和寫入各有 128 張 Tickets。當 `read.available` 接近 0 時，表示所有並發額度都已被佔用，後續請求必須排隊等待，這會導致即使 CPU 未滿載，延遲卻大幅增加。",
+      "en": "WiredTiger uses a 'Tickets' mechanism to control concurrency. By default, there are 128 tickets for reads and writes respectively. When `read.available` approaches 0, it means all concurrency quotas are occupied, and subsequent requests must queue, causing latency to spike even if the CPU is not fully loaded.",
+      "wg": [
+        {
+          "t": "並發",
+          "en": "Concurrency",
+          "ps": "N"
+        },
+        {
+          "t": "額度",
+          "en": "quota",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "3",
+    "level": "intermediate",
+    "keywords": "Security, Encryption, CSFLE, Compliance",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您正在為一家金融科技公司設計系統，必須儲存用戶的敏感個資 (PII)，如身分證號與信用卡號。",
+        "en": "You are designing a system for a Fintech company that must store sensitive user PII, such as SSNs and credit card numbers.",
+        "wg": [
+          {
+            "t": "敏感個資",
+            "en": "sensitive PII",
+            "ps": "NP"
+          }
+        ]
+      },
+      {
+        "t": "合規部門要求：即使是擁有資料庫 Root 權限的 DBA 或雲端供應商，也絕對不能看到明文的敏感資料。",
+        "en": "Compliance requires that even DBAs with Root privileges or cloud providers must absolutely not see the sensitive data in plain text.",
+        "wg": [
+          {
+            "t": "明文",
+            "en": "plain text",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "下列哪種加密策略最能滿足此需求？",
+        "en": "Which encryption strategy best satisfies this requirement?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 啟用 TLS/SSL 進行傳輸中加密 (Encryption in Transit)。",
+        "en": "(A) Enable TLS/SSL for Encryption in Transit.",
+        "wg": []
+      },
+      {
+        "t": "(B) 啟用磁碟靜態加密 (Encryption at Rest) 搭配 AWS KMS。",
+        "en": "(B) Enable Disk Encryption at Rest with AWS KMS.",
+        "wg": []
+      },
+      {
+        "t": "(C) 使用用戶端欄位級加密 (CSFLE)。",
+        "en": "(C) Use Client-Side Field Level Encryption (CSFLE).",
+        "wg": [
+          {
+            "t": "用戶端欄位級加密",
+            "en": "Client-Side Field Level Encryption",
+            "ps": "NP"
+          }
+        ]
+      },
+      {
+        "t": "(D) 設定嚴格的 RBAC 角色，禁止 DBA 存取該 Collection。",
+        "en": "(D) Configure strict RBAC roles to prevent DBAs from accessing that Collection.",
+        "wg": []
+      }
+    ],
+    "answer": "(C)",
+    "why": {
+      "t": "CSFLE (Client-Side Field Level Encryption) 在資料離開應用程式伺服器「之前」就進行加密。資料庫伺服器僅儲存密文，且沒有解密金鑰。即使 DBA 查詢資料庫或磁碟被竊取，看到的也只是亂碼。TLS 僅保護傳輸過程，靜態加密僅保護磁碟被盜，RBAC 無法防止擁有 Root 權限的人強制重置權限或直接讀取底層檔案。",
+      "en": "CSFLE (Client-Side Field Level Encryption) encrypts data 'before' it leaves the application server. The database server stores only ciphertext and does not have the decryption key. Even if a DBA queries the database or the disk is stolen, they only see garbled data. TLS only protects transit, Encryption at Rest only protects against disk theft, and RBAC cannot prevent someone with Root privileges from forcibly resetting permissions or reading underlying files.",
+      "wg": [
+        {
+          "t": "密文",
+          "en": "ciphertext",
+          "ps": "N"
+        },
+        {
+          "t": "亂碼",
+          "en": "garbled data",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "4",
+    "level": "intermediate",
+    "keywords": "Backup, PITR, Snapshot, Oplog",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "某位開發人員在下午 2:00 誤刪了一個重要的 Collection。您擁有每天凌晨 12:00 的全磁碟快照 (Snapshot)，以及連續備份的 Oplog。",
+        "en": "A developer accidentally dropped an important Collection at 2:00 PM. You have a full disk snapshot from 12:00 AM and continuously backed-up Oplogs.",
+        "wg": [
+          {
+            "t": "誤刪",
+            "en": "accidentally dropped",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "為了將資料恢復到誤刪前的狀態 (下午 1:59)，最佳的復原流程為何？",
+        "en": "To restore the data to the state just before the accidental drop (1:59 PM), what is the best recovery process?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 還原凌晨 12:00 的快照，並通知業務部門遺失了下午的資料。",
+        "en": "(A) Restore the 12:00 AM snapshot and notify the business unit that afternoon data is lost.",
+        "wg": []
+      },
+      {
+        "t": "(B) 僅使用 Oplog 進行復原，從頭開始重播所有操作直到下午 1:59。",
+        "en": "(B) Use only the Oplog for recovery, replaying all operations from the beginning until 1:59 PM.",
+        "wg": []
+      },
+      {
+        "t": "(C) 還原凌晨 12:00 的快照到一個臨時叢集，並重播 Oplog 直到下午 1:59，驗證後再將資料匯回生產環境。",
+        "en": "(C) Restore the 12:00 AM snapshot to a temporary cluster, replay the Oplog until 1:59 PM, verify, and then import the data back to production.",
+        "wg": [
+          {
+            "t": "臨時叢集",
+            "en": "temporary cluster",
+            "ps": "N"
+          },
+          {
+            "t": "重播",
+            "en": "replay",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(D) 直接在生產環境資料庫上執行 `db.repairDatabase()` 指令。",
+        "en": "(D) Execute the `db.repairDatabase()` command directly on the production database.",
+        "wg": []
+      }
+    ],
+    "answer": "(C)",
+    "why": {
+      "t": "這是標準的時間點恢復 (PITR) 流程。快照提供了基礎狀態 (Base)，Oplog 則用來「前滾 (Roll Forward)」變更至災難發生前的一刻。直接在生產環境操作風險過高，且僅用 Oplog (若無 Base) 可能耗時過長或不可行。",
+      "en": "This is the standard Point-in-Time Recovery (PITR) process. The snapshot provides the base state, and the Oplog is used to 'roll forward' changes to the moment before the disaster. Operating directly on production is too risky, and using only Oplog (without a base) might be too time-consuming or infeasible.",
+      "wg": [
+        {
+          "t": "時間點恢復",
+          "en": "Point-in-Time Recovery",
+          "ps": "NP"
+        },
+        {
+          "t": "前滾",
+          "en": "Roll Forward",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "5",
+    "level": "intermediate",
+    "keywords": "Backup, Performance, Production Operations",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "對於一個每秒寫入量 (Writes/Sec) 達到 10,000 次的高流量生產環境，下列哪種備份策略最不推薦？",
+        "en": "For a high-traffic production environment with 10,000 writes/sec, which of the following backup strategies is LEAST recommended?",
+        "wg": [
+          {
+            "t": "最不推薦",
+            "en": "LEAST recommended",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "請考量效能影響與資料一致性。",
+        "en": "Please consider performance impact and data consistency.",
+        "wg": [
+          {
+            "t": "資料一致性",
+            "en": "data consistency",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 在主節點 (Primary) 上直接執行 `mongodump`。",
+        "en": "(A) Run `mongodump` directly on the Primary node.",
+        "wg": []
+      },
+      {
+        "t": "(B) 使用底層儲存的快照功能 (如 AWS EBS Snapshot)，並確保 Journaling 已開啟。",
+        "en": "(B) Use underlying storage snapshot features (e.g., AWS EBS Snapshot) and ensure Journaling is enabled.",
+        "wg": []
+      },
+      {
+        "t": "(C) 在一個隱藏的次要節點 (Hidden Secondary) 上執行備份作業。",
+        "en": "(C) Perform backup operations on a Hidden Secondary node.",
+        "wg": [
+          {
+            "t": "隱藏的次要節點",
+            "en": "Hidden Secondary",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(D) 使用 MongoDB Atlas 或 Ops Manager 的連續備份服務。",
+        "en": "(D) Use continuous backup services from MongoDB Atlas or Ops Manager.",
+        "wg": []
+      }
+    ],
+    "answer": "(A)",
+    "why": {
+      "t": "`mongodump` 會讀取所有資料，這會將工作集 (Working Set) 中的熱資料擠出記憶體，嚴重影響主節點的查詢效能。此外，若不鎖定資料庫，`mongodump` 產生的備份可能不具備時間點一致性。在高流量環境下，應避免在 Primary 執行此類操作。",
+      "en": "`mongodump` reads all data, which can evict hot data from the Working Set in memory, severely impacting query performance on the Primary. Furthermore, without locking the database, backups created by `mongodump` may lack point-in-time consistency. In high-traffic environments, such operations on the Primary should be avoided.",
+      "wg": [
+        {
+          "t": "工作集",
+          "en": "Working Set",
+          "ps": "N"
+        },
+        {
+          "t": "擠出",
+          "en": "evict",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "6",
+    "level": "beginner",
+    "keywords": "Security, RBAC, Best Practices",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在審查團隊的程式碼時，您發現後端應用程式的 MongoDB 連線字串使用了 `root` 或 `dbAdmin` 角色。",
+        "en": "While reviewing your team's code, you notice the backend application's MongoDB connection string uses the `root` or `dbAdmin` role.",
+        "wg": [
+          {
+            "t": "連線字串",
+            "en": "connection string",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "這違反了哪項安全原則，且可能帶來什麼風險？",
+        "en": "Which security principle does this violate, and what is the potential risk?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 違反了「縱深防禦 (Defense in Depth)」原則；風險是網路延遲增加。",
+        "en": "(A) Violates 'Defense in Depth'; risk is increased network latency.",
+        "wg": []
+      },
+      {
+        "t": "(B) 違反了「最小權限原則 (Principle of Least Privilege)」；若應用程式遭入侵，攻擊者可刪除整個資料庫。",
+        "en": "(B) Violates 'Principle of Least Privilege'; if the app is compromised, attackers can drop the entire database.",
+        "wg": [
+          {
+            "t": "最小權限原則",
+            "en": "Principle of Least Privilege",
+            "ps": "NP"
+          },
+          {
+            "t": "遭入侵",
+            "en": "compromised",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(C) 違反了「職責分離 (Separation of Duties)」原則；風險是無法進行備份。",
+        "en": "(C) Violates 'Separation of Duties'; risk is inability to perform backups.",
+        "wg": []
+      },
+      {
+        "t": "(D) 違反了「可用性 (Availability)」原則；風險是連線池容易耗盡。",
+        "en": "(D) Violates 'Availability'; risk is connection pool exhaustion.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "應用程式僅應擁有其運作所需的最低權限 (如 `readWrite` 針對特定 DB)。使用 `root` 意味著如果應用程式有漏洞 (如 Injection)，攻擊者將獲得資料庫的完全控制權，包括刪除資料、建立使用者或存取其他租戶的資料。",
+      "en": "Applications should only have the minimum privileges necessary for their operation (e.g., `readWrite` on a specific DB). Using `root` means that if the application has vulnerabilities (like Injection), attackers gain full control of the database, including dropping data, creating users, or accessing other tenants' data.",
+      "wg": [
+        {
+          "t": "漏洞",
+          "en": "vulnerabilities",
+          "ps": "N"
+        },
+        {
+          "t": "租戶",
+          "en": "tenants",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "7",
+    "level": "intermediate",
+    "keywords": "Security, Network, Architecture",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在設計 MongoDB 的網路安全架構時，下列哪項措施屬於「網路層 (Network Layer)」的最佳實務？",
+        "en": "When designing the network security architecture for MongoDB, which of the following is a best practice for the 'Network Layer'?",
+        "wg": [
+          {
+            "t": "最佳實務",
+            "en": "best practice",
+            "ps": "NP"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 將 MongoDB 部署在公有子網 (Public Subnet) 以方便開發者連線，並使用強密碼保護。",
+        "en": "(A) Deploy MongoDB in a Public Subnet for easy developer access, protected by strong passwords.",
+        "wg": []
+      },
+      {
+        "t": "(B) 啟用 x.509 憑證驗證來取代密碼驗證。",
+        "en": "(B) Enable x.509 certificate authentication to replace password authentication.",
+        "wg": []
+      },
+      {
+        "t": "(C) 將 MongoDB 部署在私有子網 (Private Subnet)，僅允許透過 VPC Peering 或 PrivateLink 來自受信任應用程式的流量。",
+        "en": "(C) Deploy MongoDB in a Private Subnet, allowing traffic only from trusted applications via VPC Peering or PrivateLink.",
+        "wg": [
+          {
+            "t": "私有子網",
+            "en": "Private Subnet",
+            "ps": "NP"
+          },
+          {
+            "t": "受信任應用程式",
+            "en": "trusted applications",
+            "ps": "NP"
+          }
+        ]
+      },
+      {
+        "t": "(D) 使用 CSFLE 加密所有欄位。",
+        "en": "(D) Use CSFLE to encrypt all fields.",
+        "wg": []
+      }
+    ],
+    "answer": "(C)",
+    "why": {
+      "t": "網路層安全的核心是隔離。資料庫不應暴露在公網 (Public Internet)。最佳實務是將其置於私有網路環境，並透過白名單或私有連線技術 (Peering/PrivateLink) 嚴格限制來源 IP。選項 (B) 屬於驗證層，(D) 屬於資料層。",
+      "en": "The core of network layer security is isolation. Databases should not be exposed to the Public Internet. The best practice is to place them in a private network environment and strictly limit source IPs via whitelisting or private connectivity technologies (Peering/PrivateLink). Option (B) belongs to the Authentication layer, and (D) belongs to the Data layer.",
+      "wg": [
+        {
+          "t": "隔離",
+          "en": "isolation",
+          "ps": "N"
+        },
+        {
+          "t": "暴露",
+          "en": "exposed",
+          "ps": "V"
+        }
+      ]
+    }
+  }
+]

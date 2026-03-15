@@ -1,0 +1,867 @@
+[
+  {
+    "no": "1",
+    "level": "Easy",
+    "keywords": "Architecture, Config Servers, Metadata",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在 MongoDB 分片叢集（Sharded Cluster）中，若 Config Servers 發生故障導致無法連線，下列哪種情況最可能發生？",
+        "en": "In a MongoDB Sharded Cluster, what is the most likely consequence if the Config Servers become unavailable?",
+        "wg": [
+          {
+            "t": "分片叢集",
+            "en": "Sharded Cluster",
+            "ps": "noun"
+          },
+          {
+            "t": "配置伺服器",
+            "en": "Config Servers",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "整個叢集會立即停止運作，無法進行任何讀寫。",
+        "en": "The entire cluster stops working immediately; no reads or writes are possible.",
+        "wg": []
+      },
+      {
+        "t": "叢集仍可讀寫，但無法進行 Chunk 的分裂（Split）或搬移（Migration）。",
+        "en": "The cluster remains available for reads and writes, but Chunk splits or migrations cannot occur.",
+        "wg": [
+          {
+            "t": "區塊",
+            "en": "Chunk",
+            "ps": "noun"
+          },
+          {
+            "t": "搬移",
+            "en": "Migration",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "Mongos 會自動接管 Config Server 的角色，系統運作不受影響。",
+        "en": "Mongos will automatically take over the role of the Config Server, and the system continues unaffected.",
+        "wg": []
+      },
+      {
+        "t": "所有 Shard 會自動轉為 Standby 模式，等待 Config Server 恢復。",
+        "en": "All Shards automatically switch to Standby mode waiting for the Config Server to recover.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "Config Servers 負責儲存叢集的 Metadata（如 Chunk 與 Shard 的對應關係）。若其故障，叢集無法更新 Metadata，因此無法執行 Chunk Split 或 Migration（Balancing 失效），但 Mongos 通常會有快取，短期內仍可服務既有的讀寫請求。",
+      "en": "Config Servers store the cluster's metadata (mapping of Chunks to Shards). If they fail, the metadata cannot be updated, meaning Chunk splits or migrations (Balancing) cannot occur. However, Mongos usually caches metadata, so existing read/write operations can typically continue for a short period.",
+      "wg": [
+        {
+          "t": "中繼資料",
+          "en": "Metadata",
+          "ps": "noun"
+        },
+        {
+          "t": "平衡",
+          "en": "Balancing",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "2",
+    "level": "Medium",
+    "keywords": "Shard Key, Ranged Sharding, Anti-pattern, Hotspot",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你正在設計一個高頻率寫入的日誌系統，並決定使用 `created_at`（時間戳記）作為 Shard Key 進行「範圍分片（Ranged Sharding）」。這種設計最可能遭遇什麼問題？",
+        "en": "You are designing a high-write frequency log system and decide to use `created_at` (timestamp) as the Shard Key with 'Ranged Sharding'. What is the most likely issue with this design?",
+        "wg": [
+          {
+            "t": "範圍分片",
+            "en": "Ranged Sharding",
+            "ps": "noun"
+          },
+          {
+            "t": "時間戳記",
+            "en": "Timestamp",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "查詢效能極差，因為所有查詢都需要廣播到所有 Shard。",
+        "en": "Query performance will be extremely poor because all queries must be broadcast to all Shards.",
+        "wg": []
+      },
+      {
+        "t": "會產生寫入熱點（Insert Hotspot），所有新資料都集中寫入到最後一個 Shard。",
+        "en": "It will create an Insert Hotspot, where all new data is written to the last Shard.",
+        "wg": [
+          {
+            "t": "寫入熱點",
+            "en": "Insert Hotspot",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "資料無法被壓縮，導致磁碟空間不足。",
+        "en": "Data cannot be compressed, leading to insufficient disk space.",
+        "wg": []
+      },
+      {
+        "t": "Config Server 會因為 Metadata 更新過於頻繁而崩潰。",
+        "en": "The Config Server will crash due to overly frequent metadata updates.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "使用單調遞增（Monotonically Increasing）的 Key（如時間戳記）進行範圍分片時，最新的數據總是落在範圍的「末端」。這意味著所有新的寫入請求都會導向負責該末端範圍的單一 Shard，導致其他 Shard 在寫入時閒置，無法達成水平擴展寫入壓力的目的。",
+      "en": "When using a monotonically increasing key (like a timestamp) for Ranged Sharding, the newest data always falls at the 'end' of the range. This means all new write requests are directed to the single Shard responsible for that end range, leaving other Shards idle during writes and failing to achieve horizontal scaling of write load.",
+      "wg": [
+        {
+          "t": "單調遞增",
+          "en": "Monotonically Increasing",
+          "ps": "adjective"
+        },
+        {
+          "t": "水平擴展",
+          "en": "Horizontal Scaling",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "3",
+    "level": "Medium",
+    "keywords": "Hashed Sharding, Ranged Sharding, Trade-off",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "相較於範圍分片（Ranged Sharding），使用雜湊分片（Hashed Sharding）的主要優缺點權衡（Trade-off）為何？",
+        "en": "Compared to Ranged Sharding, what is the main trade-off of using Hashed Sharding?",
+        "wg": [
+          {
+            "t": "雜湊分片",
+            "en": "Hashed Sharding",
+            "ps": "noun"
+          },
+          {
+            "t": "權衡",
+            "en": "Trade-off",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "優點是支援更快的範圍查詢；缺點是寫入分佈不均。",
+        "en": "Pro: Supports faster range queries; Con: Uneven write distribution.",
+        "wg": []
+      },
+      {
+        "t": "優點是寫入分佈均勻（即使 Key 是單調的）；缺點是範圍查詢效能差。",
+        "en": "Pro: Even write distribution (even if the Key is monotonic); Con: Poor range query performance.",
+        "wg": [
+          {
+            "t": "範圍查詢",
+            "en": "Range Query",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "優點是節省儲存空間；缺點是需要更多的 Config Servers。",
+        "en": "Pro: Saves storage space; Con: Requires more Config Servers.",
+        "wg": []
+      },
+      {
+        "t": "優點是完全不需要 Mongos；缺點是客戶端實作複雜。",
+        "en": "Pro: Does not require Mongos at all; Con: Client implementation is complex.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "Hashed Sharding 會將相鄰的 Key 值打散到不同的 Shard，這確保了寫入均勻分佈（解決熱點問題），但也導致範圍查詢（如 `x > 100`）必須向所有 Shard 廣播（Scatter-Gather），因為資料不再連續存放。",
+      "en": "Hashed Sharding scatters adjacent Key values across different Shards. This ensures even write distribution (solving hotspot issues) but causes range queries (e.g., `x > 100`) to be broadcast to all Shards (Scatter-Gather) because the data is no longer stored contiguously.",
+      "wg": [
+        {
+          "t": "廣播",
+          "en": "Broadcast",
+          "ps": "verb"
+        },
+        {
+          "t": "連續存放",
+          "en": "Stored Contiguously",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "4",
+    "level": "Medium",
+    "keywords": "Performance, Scatter-Gather, Query Optimization",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "如果你的應用程式執行了一個查詢，但該查詢條件中**不包含** Shard Key，Mongos 會如何處理這個請求？",
+        "en": "If your application executes a query that does **not** include the Shard Key in its conditions, how does Mongos handle this request?",
+        "wg": [
+          {
+            "t": "查詢條件",
+            "en": "Query Conditions",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "Mongos 會拒絕該請求並回傳錯誤。",
+        "en": "Mongos will reject the request and return an error.",
+        "wg": []
+      },
+      {
+        "t": "Mongos 會隨機選擇一個 Shard 發送請求。",
+        "en": "Mongos will randomly select a Shard to send the request to.",
+        "wg": []
+      },
+      {
+        "t": "Mongos 會將查詢發送到所有 Shard，並等待彙整結果（Scatter-Gather）。",
+        "en": "Mongos will send the query to all Shards and wait to aggregate the results (Scatter-Gather).",
+        "wg": [
+          {
+            "t": "彙整",
+            "en": "Aggregate",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "Mongos 會先查詢 Config Server 獲取資料位置，再精準轉發。",
+        "en": "Mongos will first query the Config Server to get the data location, then forward precisely.",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "若查詢不含 Shard Key，Mongos 無法知道資料位於哪個 Shard，因此必須採用「廣播式查詢（Scatter-Gather）」，將請求發送給所有 Shard。這會消耗所有 Shard 的資源並增加延遲，應盡量避免。",
+      "en": "If the query does not contain the Shard Key, Mongos cannot know which Shard holds the data. Therefore, it must use a 'Scatter-Gather' approach, sending the request to all Shards. This consumes resources on all Shards and increases latency, so it should be avoided whenever possible.",
+      "wg": [
+        {
+          "t": "廣播式查詢",
+          "en": "Scatter-Gather Query",
+          "ps": "noun"
+        },
+        {
+          "t": "延遲",
+          "en": "Latency",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "5",
+    "level": "Hard",
+    "keywords": "Jumbo Chunk, Cardinality, Troubleshooting",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在維運過程中，你發現某個 Shard 上的資料量遠大於其他 Shard，且 Balancer 無法搬移其中的某些 Chunk（Jumbo Chunks）。最可能的根本原因是什麼？",
+        "en": "During operations, you notice that one Shard has significantly more data than others, and the Balancer cannot move some of its Chunks (Jumbo Chunks). What is the most likely root cause?",
+        "wg": [
+          {
+            "t": "巨型區塊",
+            "en": "Jumbo Chunks",
+            "ps": "noun"
+          },
+          {
+            "t": "根本原因",
+            "en": "Root Cause",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "Shard Key 的基數（Cardinality）太低，導致單一 Key 值的資料量超過 Chunk Size 上限。",
+        "en": "The Shard Key's Cardinality is too low, causing the data size for a single Key value to exceed the Chunk Size limit.",
+        "wg": [
+          {
+            "t": "基數",
+            "en": "Cardinality",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "Config Server 的硬碟空間不足。",
+        "en": "The Config Server is running out of disk space.",
+        "wg": []
+      },
+      {
+        "t": "網路頻寬不足導致 Migration 失敗。",
+        "en": "Insufficient network bandwidth caused the Migration to fail.",
+        "wg": []
+      },
+      {
+        "t": "沒有啟用 Hashed Sharding。",
+        "en": "Hashed Sharding was not enabled.",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "MongoDB 的 Chunk 分裂依賴於不同的 Shard Key 值。如果某個單一 Key 值（例如 `country: 'US'`）擁有的資料量超過 Chunk Size（預設 64MB），MongoDB 無法再對其進行切割（因為 Key 值都一樣），這就形成了 Jumbo Chunk，導致無法搬移與平衡。",
+      "en": "MongoDB's Chunk splitting relies on distinct Shard Key values. If a single Key value (e.g., `country: 'US'`) possesses data exceeding the Chunk Size (default 64MB), MongoDB cannot split it further (since the Key values are identical). This creates a Jumbo Chunk, making it impossible to move or balance.",
+      "wg": [
+        {
+          "t": "分裂",
+          "en": "Splitting",
+          "ps": "noun"
+        },
+        {
+          "t": "切割",
+          "en": "Split",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "6",
+    "level": "Hard",
+    "keywords": "Tag-aware Sharding, Zones, Data Locality, GDPR",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你的公司提供 SaaS 服務，必須遵守 GDPR 法規，要求歐洲客戶的資料必須儲存在位於法蘭克福的伺服器，而美國客戶資料則儲存在紐約。你應採用哪種 Sharding 策略？",
+        "en": "Your company provides a SaaS service and must comply with GDPR, requiring European customers' data to be stored on servers in Frankfurt, while US customers' data is stored in New York. Which Sharding strategy should you adopt?",
+        "wg": [
+          {
+            "t": "資料在地化",
+            "en": "Data Locality",
+            "ps": "noun"
+          },
+          {
+            "t": "法規",
+            "en": "Regulation",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "使用 Hashed Sharding 來確保資料隨機分佈。",
+        "en": "Use Hashed Sharding to ensure random data distribution.",
+        "wg": []
+      },
+      {
+        "t": "使用區域分片（Zoned / Tag-aware Sharding），將特定 Shard 標記並綁定對應的 Shard Key 範圍。",
+        "en": "Use Zoned / Tag-aware Sharding to tag specific Shards and bind them to corresponding Shard Key ranges.",
+        "wg": [
+          {
+            "t": "區域分片",
+            "en": "Zoned Sharding",
+            "ps": "noun"
+          },
+          {
+            "t": "標記",
+            "en": "Tag",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "建立兩個完全獨立的 MongoDB Cluster，應用層自行切換。",
+        "en": "Create two completely independent MongoDB Clusters and handle switching at the application layer.",
+        "wg": []
+      },
+      {
+        "t": "使用 Ranged Sharding 並依賴 Balancer 自動偵測地理位置。",
+        "en": "Use Ranged Sharding and rely on the Balancer to automatically detect geographic location.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "Zoned Sharding（或稱 Tag-aware Sharding）允許管理者將特定的 Shard Key 範圍（例如 `region: 'EU'`）綁定到具有特定標籤（Tag）的 Shard 上。這是實現資料在地化（Data Locality）與分層儲存（Tiered Storage）的標準做法。",
+      "en": "Zoned Sharding (or Tag-aware Sharding) allows administrators to bind specific Shard Key ranges (e.g., `region: 'EU'`) to Shards with specific tags. This is the standard practice for achieving Data Locality and Tiered Storage.",
+      "wg": [
+        {
+          "t": "分層儲存",
+          "en": "Tiered Storage",
+          "ps": "noun"
+        },
+        {
+          "t": "綁定",
+          "en": "Bind",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "7",
+    "level": "Medium",
+    "keywords": "Pre-splitting, Write Distribution, Best Practice, Initialization",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你正在為一個即將上線的大型遊戲專案規劃資料庫，預計上線首日會有極高頻率的寫入流量（High Throughput Ingestion）。",
+        "en": "You are planning a database for an upcoming large-scale game project, expecting extremely high write throughput ingestion on launch day.",
+        "wg": [
+          {
+            "t": "極高頻率的寫入流量",
+            "en": "High Throughput Ingestion",
+            "ps": "phrase"
+          }
+        ]
+      },
+      {
+        "t": "為了避免上線初期所有寫入請求都集中在單一 Shard 造成瓶頸，你應該採取下列哪項最佳實務？",
+        "en": "To avoid the bottleneck where all write requests target a single Shard during the initial launch, which of the following best practices should you adopt?",
+        "wg": [
+          {
+            "t": "最佳實務",
+            "en": "best practices",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "啟用 Hashed Sharding 並依賴 Balancer 自動平衡。",
+        "en": "Enable Hashed Sharding and rely on the Balancer to auto-balance.",
+        "wg": []
+      },
+      {
+        "t": "在寫入資料前，手動進行預先分片（Pre-splitting）。",
+        "en": "Manually perform Pre-splitting before writing any data.",
+        "wg": [
+          {
+            "t": "預先分片",
+            "en": "Pre-splitting",
+            "ps": "verb/noun"
+          }
+        ]
+      },
+      {
+        "t": "使用範圍分片（Ranged Sharding）並將 Chunk Size 調大。",
+        "en": "Use Ranged Sharding and increase the Chunk Size.",
+        "wg": []
+      },
+      {
+        "t": "增加 Config Servers 的數量以加快 Metadata 更新。",
+        "en": "Increase the number of Config Servers to speed up Metadata updates.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "對於全新的空 Collection，MongoDB 預設只會建立一個 Chunk 位於 Shard 0。若不進行預先分片（Pre-splitting），即使使用了 Hashed Sharding，初期所有寫入仍會命中這唯一的 Chunk，直到 Balancer 介入並開始搬移資料（這通常來不及應付突發流量）。手動建立並分散空的 Chunks 是處理初始大量寫入的標準做法。",
+      "en": "For a brand new empty Collection, MongoDB creates only one Chunk on Shard 0 by default. Without Pre-splitting, even with Hashed Sharding, all initial writes will hit this single Chunk until the Balancer intervenes and starts moving data (which is usually too late for burst traffic). Manually creating and distributing empty Chunks is the standard practice for handling initial high-volume writes.",
+      "wg": [
+        {
+          "t": "突發流量",
+          "en": "burst traffic",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "8",
+    "level": "Hard",
+    "keywords": "Shard Key, Compound Key, IoT, Data Locality, Write Distribution",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "Query: db.sensors.find({ device_id: \"A100\", timestamp: { $gt: t1, $lt: t2 } })",
+    "question": [
+      {
+        "t": "你正在設計一個 IoT 感測器數據平台，寫入量極大，且最常見的查詢模式是「查詢特定裝置（device_id）在特定時間範圍（timestamp）內的數據」。",
+        "en": "You are designing an IoT sensor data platform with huge write volume, and the most common query pattern is 'query data for a specific device (device_id) within a specific time range (timestamp)'.",
+        "wg": [
+          {
+            "t": "特定時間範圍",
+            "en": "specific time range",
+            "ps": "phrase"
+          }
+        ]
+      },
+      {
+        "t": "為了同時兼顧寫入分佈（Write Distribution）與讀取效能（Read Locality），下列哪種 Shard Key 設計最為合適？",
+        "en": "To balance both Write Distribution and Read Locality, which of the following Shard Key designs is most appropriate?",
+        "wg": [
+          {
+            "t": "寫入分佈",
+            "en": "Write Distribution",
+            "ps": "noun"
+          },
+          {
+            "t": "讀取效能",
+            "en": "Read Locality",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "{ timestamp: 1 }",
+        "en": "{ timestamp: 1 }",
+        "wg": []
+      },
+      {
+        "t": "{ device_id: 1 }",
+        "en": "{ device_id: 1 }",
+        "wg": []
+      },
+      {
+        "t": "{ device_id: 1, timestamp: 1 }",
+        "en": "{ device_id: 1, timestamp: 1 }",
+        "wg": []
+      },
+      {
+        "t": "{ timestamp: 1, device_id: 1 }",
+        "en": "{ timestamp: 1, device_id: 1 }",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "使用 `{ device_id: 1, timestamp: 1 }` 複合鍵是最佳解。`device_id` 確保了不同裝置的資料分散在不同 Shard（避免單點寫入瓶頸）；而 `timestamp` 確保了同一個裝置的連續時間資料在磁碟上是物理相鄰的，這能極大優化範圍查詢的 IO 效率。若只用 `timestamp` 會造成寫入熱點；若只用 `device_id` 則可能導致單一裝置資料過大（Jumbo Chunk）且缺乏時間維度的排序優勢。",
+      "en": "Using the compound key `{ device_id: 1, timestamp: 1 }` is the optimal solution. `device_id` ensures that data from different devices is distributed across different Shards (avoiding single-point write bottlenecks), while `timestamp` ensures that continuous time data for the same device is physically adjacent on disk, greatly optimizing IO efficiency for range queries. Using only `timestamp` causes write hotspots; using only `device_id` may lead to Jumbo Chunks and lacks sorting advantages on the time dimension.",
+      "wg": [
+        {
+          "t": "複合鍵",
+          "en": "compound key",
+          "ps": "noun"
+        },
+        {
+          "t": "物理相鄰",
+          "en": "physically adjacent",
+          "ps": "adjective"
+        }
+      ]
+    }
+  },
+  {
+    "no": "9",
+    "level": "Medium",
+    "keywords": "Anti-pattern, Capacity Planning, Migration Overhead, Death Spiral",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你的團隊維護的 MongoDB Replica Set 磁碟使用率已達到 95%，系統回應變慢。",
+        "en": "The MongoDB Replica Set maintained by your team has reached 95% disk usage, and system response is slowing down.",
+        "wg": []
+      },
+      {
+        "t": "此時決定立即啟用 Sharding 並加入新機器，最可能面臨什麼風險（即「Too Late Sharding」反模式）？",
+        "en": "At this point, deciding to immediately enable Sharding and add new machines poses what risk (i.e., the 'Too Late Sharding' anti-pattern)?",
+        "wg": [
+          {
+            "t": "反模式",
+            "en": "anti-pattern",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "新加入的 Shard 無法被 Config Servers 識別。",
+        "en": "The newly added Shard cannot be recognized by Config Servers.",
+        "wg": []
+      },
+      {
+        "t": "Chunk Migration 過程產生的額外 IO 負載可能導致原有機器完全崩潰。",
+        "en": "The extra IO load generated by the Chunk Migration process may cause the original machines to crash completely.",
+        "wg": [
+          {
+            "t": "額外 IO 負載",
+            "en": "extra IO load",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "Mongos 會拒絕將查詢路由到舊的 Shard。",
+        "en": "Mongos will refuse to route queries to the old Shard.",
+        "wg": []
+      },
+      {
+        "t": "資料會自動遺失以釋放空間。",
+        "en": "Data will be automatically lost to free up space.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "Sharding 的初始化與資料搬移（Balancing）是非常消耗 IO 與 CPU 的操作。當系統已經處於過載邊緣（如 Disk 95%），額外的 Migration 負載會成為壓垮系統的最後一根稻草，導致「死亡螺旋（Death Spiral）」，甚至無法完成資料搬移。建議應在容量達 60-70% 時就開始規劃。",
+      "en": "Sharding initialization and data movement (Balancing) are very IO and CPU intensive operations. When the system is already on the brink of overload (e.g., Disk 95%), the additional Migration load becomes the straw that breaks the camel's back, leading to a 'Death Spiral' where data movement might not even complete. It is recommended to start planning when capacity reaches 60-70%.",
+      "wg": [
+        {
+          "t": "死亡螺旋",
+          "en": "Death Spiral",
+          "ps": "noun"
+        },
+        {
+          "t": "壓垮系統的最後一根稻草",
+          "en": "straw that breaks the camel's back",
+          "ps": "idiom"
+        }
+      ]
+    }
+  },
+  {
+    "no": "10",
+    "level": "Medium",
+    "keywords": "Balancer, Operations, Performance, Chunk Migration",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你在上班時間向現有的 Sharded Cluster 新增了一個 Shard（執行 `sh.addShard()`）。隨後發現整個資料庫的磁碟 I/O 飆高，應用程式回應延遲增加。",
+        "en": "You added a new Shard to an existing Sharded Cluster (executed `sh.addShard()`) during business hours. Subsequently, you noticed a spike in disk I/O across the database and increased application response latency.",
+        "wg": [
+          {
+            "t": "飆高",
+            "en": "spike / surge",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "造成此現象最主要的原因為何？",
+        "en": "What is the primary reason for this phenomenon?",
+        "wg": []
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "Config Servers 正在重新選舉 Primary。",
+        "en": "Config Servers are re-electing a Primary.",
+        "wg": []
+      },
+      {
+        "t": "Balancer 開始將現有的 Chunks 搬移到新 Shard，消耗了大量 IO。",
+        "en": "The Balancer started moving existing Chunks to the new Shard, consuming a large amount of IO.",
+        "wg": [
+          {
+            "t": "搬移",
+            "en": "moving / migration",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "Mongos 正在重新建立所有連線。",
+        "en": "Mongos is re-establishing all connections.",
+        "wg": []
+      },
+      {
+        "t": "新 Shard 正在進行資料壓縮。",
+        "en": "The new Shard is performing data compression.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "當新增 Shard 後，Cluster 處於不平衡狀態。Balancer 會自動偵測並開始將 Chunks 從舊 Shard 搬移（Migration）到新 Shard 以達成平衡。這個搬移過程涉及大量的讀寫操作，若未設定 Balancer Window 避開高峰時段，會顯著影響線上效能。",
+      "en": "When a new Shard is added, the Cluster becomes unbalanced. The Balancer automatically detects this and starts moving (migrating) Chunks from old Shards to the new Shard to achieve balance. This migration process involves heavy read/write operations. If a Balancer Window is not configured to avoid peak hours, it will significantly impact live performance.",
+      "wg": [
+        {
+          "t": "不平衡狀態",
+          "en": "unbalanced state",
+          "ps": "noun"
+        },
+        {
+          "t": "高峰時段",
+          "en": "peak hours",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "11",
+    "level": "Medium",
+    "keywords": "Capacity Planning, RAM, Working Set, Performance",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在評估是否需要 Sharding 的決策樹中，除了磁碟空間（Disk Space）不足外，下列哪項指標通常是觸發 Sharding 的關鍵因素？",
+        "en": "In the decision tree for evaluating whether Sharding is needed, besides insufficient Disk Space, which of the following metrics is typically a key factor triggering Sharding?",
+        "wg": [
+          {
+            "t": "決策樹",
+            "en": "decision tree",
+            "ps": "noun"
+          },
+          {
+            "t": "關鍵因素",
+            "en": "key factor",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "Working Set（索引 + 熱資料）大小超過單機 RAM 上限。",
+        "en": "The Working Set (Indexes + Hot Data) size exceeds the single machine's RAM limit.",
+        "wg": [
+          {
+            "t": "熱資料",
+            "en": "Hot Data",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "資料庫的連線數（Connections）超過 100。",
+        "en": "Database connections exceed 100.",
+        "wg": []
+      },
+      {
+        "t": "需要備份（Backup）資料。",
+        "en": "Data backup is required.",
+        "wg": []
+      },
+      {
+        "t": "需要支援多文件交易（Multi-document Transactions）。",
+        "en": "Support for Multi-document Transactions is required.",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "MongoDB 的效能高度依賴記憶體。當 Working Set（頻繁存取的資料與索引）無法完全放入 RAM 時，系統會頻繁觸發 Disk I/O（Page Faults），導致效能急劇下降。透過 Sharding，可以將 Working Set 分散到多台機器的 RAM 中，這是水平擴展的主要動力之一。",
+      "en": "MongoDB's performance is highly dependent on memory. When the Working Set (frequently accessed data and indexes) cannot fit entirely into RAM, the system triggers frequent Disk I/O (Page Faults), causing a sharp drop in performance. Sharding allows distributing the Working Set across the RAM of multiple machines, which is a primary driver for horizontal scaling.",
+      "wg": [
+        {
+          "t": "頻繁存取",
+          "en": "frequently accessed",
+          "ps": "adjective"
+        }
+      ]
+    }
+  },
+  {
+    "no": "12",
+    "level": "Medium",
+    "keywords": "Architecture, Decision Tree, Replica Set, High Availability",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你的應用程式面臨大量的「讀取流量（Read Traffic）」，但資料總量僅有 100GB（遠小於磁碟上限），且寫入頻率不高。",
+        "en": "Your application faces massive 'Read Traffic', but the total data size is only 100GB (far below disk limits), and write frequency is low.",
+        "wg": [
+          {
+            "t": "讀取流量",
+            "en": "Read Traffic",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "根據架構決策原則，下列哪種方案最適合此場景？",
+        "en": "According to architectural decision principles, which solution is most suitable for this scenario?",
+        "wg": []
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "部署 Sharded Cluster 以分散讀取壓力。",
+        "en": "Deploy a Sharded Cluster to distribute read pressure.",
+        "wg": []
+      },
+      {
+        "t": "維持 Replica Set 架構，並增加 Secondary 節點來分擔讀取（Read Preference）。",
+        "en": "Maintain the Replica Set architecture and add Secondary nodes to offload reads (Read Preference).",
+        "wg": [
+          {
+            "t": "分擔",
+            "en": "offload / share",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "使用 Hashed Sharding 來優化查詢速度。",
+        "en": "Use Hashed Sharding to optimize query speed.",
+        "wg": []
+      },
+      {
+        "t": "將資料庫遷移至關聯式資料庫。",
+        "en": "Migrate the database to a relational database.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "Sharding 引入了顯著的維運複雜度（約為 Replica Set 的 3 倍）。若瓶頸僅在於「讀取」且資料量與寫入量未達單機極限，應優先透過擴充 Replica Set 的 Secondary 節點並設定適當的 Read Preference 來解決。Sharding 主要用於解決寫入瓶頸（Write Scaling）或儲存容量瓶頸。",
+      "en": "Sharding introduces significant operational complexity (about 3x that of a Replica Set). If the bottleneck is solely 'Read' and data volume/write volume has not reached single-machine limits, the priority should be to expand the Replica Set's Secondary nodes and configure appropriate Read Preference. Sharding is primarily used to solve Write Scaling or Storage Capacity bottlenecks.",
+      "wg": [
+        {
+          "t": "維運複雜度",
+          "en": "operational complexity",
+          "ps": "noun"
+        }
+      ]
+    }
+  }
+]
