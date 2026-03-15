@@ -1,0 +1,783 @@
+[
+  {
+    "no": "1",
+    "level": "Easy",
+    "keywords": "EXPLAIN, type, performance",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在 MySQL `EXPLAIN` 的輸出結果中，`type` 欄位代表了查詢存取資料的方式。請將以下存取類型由「快到慢」（效率由高到低）進行排序。",
+        "en": "In the output of MySQL `EXPLAIN`, the `type` field represents how the query accesses data. Please rank the following access types from 'fastest to slowest' (highest to lowest efficiency).",
+        "wg": [
+          {
+            "t": "存取類型",
+            "en": "access types",
+            "ps": "noun phrase"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "const > ref > range > index > ALL",
+        "en": "const > ref > range > index > ALL",
+        "wg": []
+      },
+      {
+        "t": "ref > const > range > index > ALL",
+        "en": "ref > const > range > index > ALL",
+        "wg": []
+      },
+      {
+        "t": "const > range > ref > ALL > index",
+        "en": "const > range > ref > ALL > index",
+        "wg": []
+      },
+      {
+        "t": "index > const > ref > range > ALL",
+        "en": "index > const > ref > range > ALL",
+        "wg": []
+      }
+    ],
+    "answer": "const > ref > range > index > ALL",
+    "why": {
+      "t": "`const` 代表主鍵或唯一索引的單行查找，速度最快；`ref` 是非唯一索引查找；`range` 是索引範圍掃描；`index` 是全索引掃描（雖然比全表掃描快但仍需遍歷索引樹）；`ALL` 是全表掃描，效率最低。",
+      "en": "`const` represents a single row lookup using a Primary or Unique Key, which is the fastest. `ref` is a non-unique index lookup. `range` is an index range scan. `index` is a Full Index Scan (faster than full table scan but still traverses the index tree). `ALL` is a Full Table Scan, which has the lowest efficiency.",
+      "wg": [
+        {
+          "t": "全索引掃描",
+          "en": "Full Index Scan",
+          "ps": "noun phrase"
+        },
+        {
+          "t": "全表掃描",
+          "en": "Full Table Scan",
+          "ps": "noun phrase"
+        }
+      ]
+    }
+  },
+  {
+    "no": "2",
+    "level": "Medium",
+    "keywords": "Covering Index, SELECT *, Optimizer, Table Lookup",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "CREATE INDEX idx_status_date ON orders (status, created_at);\n-- Query:\nSELECT * FROM orders WHERE status = 'shipped' ORDER BY created_at DESC;",
+    "question": [
+      {
+        "t": "你建立了一個複合索引 `(status, created_at)`，但在執行上述查詢時，`EXPLAIN` 顯示 MySQL 選擇了 `ALL` (全表掃描) 而非使用該索引。最可能的原因是什麼？",
+        "en": "You created a composite index `(status, created_at)`, but when executing the query above, `EXPLAIN` shows that MySQL chose `ALL` (Full Table Scan) instead of using the index. What is the most likely reason?",
+        "wg": [
+          {
+            "t": "複合索引",
+            "en": "composite index",
+            "ps": "noun phrase"
+          },
+          {
+            "t": "全表掃描",
+            "en": "Full Table Scan",
+            "ps": "noun phrase"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "因為 `ORDER BY` 的順序與索引定義相反。",
+        "en": "Because the `ORDER BY` direction is opposite to the index definition.",
+        "wg": []
+      },
+      {
+        "t": "因為使用了 `SELECT *`，且符合條件的資料量較大，優化器判斷「回表 (Table Lookup)」的成本高於全表掃描。",
+        "en": "Because `SELECT *` is used and the number of matching rows is large, the optimizer determined that the cost of 'Table Lookup' is higher than a Full Table Scan.",
+        "wg": [
+          {
+            "t": "回表",
+            "en": "Table Lookup / Back to Table",
+            "ps": "verb/noun"
+          }
+        ]
+      },
+      {
+        "t": "因為 `status` 欄位使用了字串，導致索引失效。",
+        "en": "Because the `status` column uses a string, causing the index to be invalid.",
+        "wg": []
+      },
+      {
+        "t": "因為複合索引必須包含所有查詢欄位才能被使用。",
+        "en": "Because a composite index must contain all queried columns to be used.",
+        "wg": []
+      }
+    ],
+    "answer": "因為使用了 `SELECT *`，且符合條件的資料量較大，優化器判斷「回表 (Table Lookup)」的成本高於全表掃描。",
+    "why": {
+      "t": "當查詢使用 `SELECT *` 時，MySQL 無法僅靠索引取得所有資料（非覆蓋索引），必須進行「回表」操作。若符合條件的行數過多（例如佔總表 20% 以上），隨機 I/O 的回表成本可能高於順序 I/O 的全表掃描，因此優化器會放棄使用索引。",
+      "en": "When `SELECT *` is used, MySQL cannot retrieve all data solely from the index (not a Covering Index) and must perform a 'Table Lookup'. If too many rows match (e.g., > 20% of the table), the random I/O cost of lookups may exceed the sequential I/O of a Full Table Scan, causing the optimizer to abandon the index.",
+      "wg": [
+        {
+          "t": "隨機 I/O",
+          "en": "Random I/O",
+          "ps": "noun phrase"
+        },
+        {
+          "t": "順序 I/O",
+          "en": "Sequential I/O",
+          "ps": "noun phrase"
+        }
+      ]
+    }
+  },
+  {
+    "no": "3",
+    "level": "Medium",
+    "keywords": "Composite Index, Using filesort, Sorting",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "SELECT id, total FROM orders WHERE user_id = 101 ORDER BY created_at DESC;",
+    "question": [
+      {
+        "t": "為了優化上述查詢並避免 `Using filesort`，下列哪一個索引定義是最佳選擇？",
+        "en": "To optimize the above query and avoid `Using filesort`, which of the following index definitions is the best choice?",
+        "wg": [
+          {
+            "t": "最佳選擇",
+            "en": "best choice",
+            "ps": "noun phrase"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "INDEX(created_at)",
+        "en": "INDEX(created_at)",
+        "wg": []
+      },
+      {
+        "t": "INDEX(user_id)",
+        "en": "INDEX(user_id)",
+        "wg": []
+      },
+      {
+        "t": "INDEX(created_at, user_id)",
+        "en": "INDEX(created_at, user_id)",
+        "wg": []
+      },
+      {
+        "t": "INDEX(user_id, created_at)",
+        "en": "INDEX(user_id, created_at)",
+        "wg": []
+      }
+    ],
+    "answer": "INDEX(user_id, created_at)",
+    "why": {
+      "t": "根據 B-Tree 的左前綴原則，索引應先滿足等值查詢 (`user_id`)，接著才能利用索引的有序性來滿足排序需求 (`created_at`)。`INDEX(user_id, created_at)` 可以讓 MySQL 直接定位到該用戶的資料，並按順序讀取，無需額外排序。",
+      "en": "According to the B-Tree leftmost prefix rule, the index should first satisfy the equality condition (`user_id`) and then leverage the index order for sorting (`created_at`). `INDEX(user_id, created_at)` allows MySQL to jump directly to the user's data and read it in order, eliminating the need for extra sorting.",
+      "wg": [
+        {
+          "t": "左前綴原則",
+          "en": "leftmost prefix rule",
+          "ps": "noun phrase"
+        },
+        {
+          "t": "等值查詢",
+          "en": "equality query",
+          "ps": "noun phrase"
+        }
+      ]
+    }
+  },
+  {
+    "no": "4",
+    "level": "Medium",
+    "keywords": "Anti-pattern, SARGable, Function on Column",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "下列哪一個查詢條件屬於「Non-SARGable」（無法有效利用索引），應被視為 Anti-pattern？",
+        "en": "Which of the following query conditions is 'Non-SARGable' (cannot effectively use an index) and should be considered an Anti-pattern?",
+        "wg": [
+          {
+            "t": "無法有效利用索引",
+            "en": "cannot effectively use an index",
+            "ps": "phrase"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "WHERE created_at >= '2023-01-01 00:00:00'",
+        "en": "WHERE created_at >= '2023-01-01 00:00:00'",
+        "wg": []
+      },
+      {
+        "t": "WHERE YEAR(created_at) = 2023",
+        "en": "WHERE YEAR(created_at) = 2023",
+        "wg": []
+      },
+      {
+        "t": "WHERE status IN ('PENDING', 'FAILED')",
+        "en": "WHERE status IN ('PENDING', 'FAILED')",
+        "wg": []
+      },
+      {
+        "t": "WHERE name LIKE 'John%'",
+        "en": "WHERE name LIKE 'John%'",
+        "wg": []
+      }
+    ],
+    "answer": "WHERE YEAR(created_at) = 2023",
+    "why": {
+      "t": "對欄位使用函數（如 `YEAR(created_at)`）會導致 MySQL 必須對每一行資料進行計算後才能比較，無法直接利用 B-Tree 索引導航。這被稱為 'Function on Column' 陷阱。正確做法是改寫為範圍查詢 `BETWEEN`。",
+      "en": "Applying a function to a column (like `YEAR(created_at)`) forces MySQL to perform the calculation on every row before comparison, preventing direct B-Tree index navigation. This is known as the 'Function on Column' trap. The correct approach is to rewrite it as a range query using `BETWEEN`.",
+      "wg": [
+        {
+          "t": "對欄位使用函數",
+          "en": "Function on Column",
+          "ps": "phrase"
+        },
+        {
+          "t": "範圍查詢",
+          "en": "range query",
+          "ps": "noun phrase"
+        }
+      ]
+    }
+  },
+  {
+    "no": "5",
+    "level": "Medium",
+    "keywords": "Implicit Type Conversion, Anti-pattern, Data Types",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "CREATE TABLE users (phone_number VARCHAR(20), ...);\nCREATE INDEX idx_phone ON users(phone_number);\n-- Query:\nSELECT * FROM users WHERE phone_number = 912345678;",
+    "question": [
+      {
+        "t": "上述查詢雖然有建立索引，但執行時卻發生了全表掃描。請問根本原因是什麼？",
+        "en": "Although an index exists, the above query performs a Full Table Scan. What is the root cause?",
+        "wg": [
+          {
+            "t": "根本原因",
+            "en": "root cause",
+            "ps": "noun phrase"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "隱式型別轉換 (Implicit Type Conversion)",
+        "en": "Implicit Type Conversion",
+        "wg": []
+      },
+      {
+        "t": "索引選擇性不足 (Low Index Selectivity)",
+        "en": "Low Index Selectivity",
+        "wg": []
+      },
+      {
+        "t": "使用了前綴模糊查詢 (Leading Wildcard)",
+        "en": "Used Leading Wildcard",
+        "wg": []
+      },
+      {
+        "t": "資料庫編碼不一致 (Collation Mismatch)",
+        "en": "Collation Mismatch",
+        "wg": []
+      }
+    ],
+    "answer": "隱式型別轉換 (Implicit Type Conversion)",
+    "why": {
+      "t": "欄位定義為 `VARCHAR`，但查詢輸入的是數字 `INT`。MySQL 會將欄位內容轉為數字進行比較，這導致無法使用索引樹查找，必須掃描全表進行轉換與比對。修正方式是將輸入值加上引號：`'912345678'`。",
+      "en": "The column is defined as `VARCHAR`, but the query input is an `INT`. MySQL casts the column content to numbers for comparison, which prevents using the index tree lookup and forces a full table scan to convert and compare. The fix is to quote the input value: `'912345678'`.",
+      "wg": [
+        {
+          "t": "隱式型別轉換",
+          "en": "Implicit Type Conversion",
+          "ps": "noun phrase"
+        }
+      ]
+    }
+  },
+  {
+    "no": "6",
+    "level": "Hard",
+    "keywords": "Pagination, Optimization, Derived Table, Late Row Lookup",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "SELECT * FROM logs ORDER BY created_at LIMIT 1000000, 10;",
+    "question": [
+      {
+        "t": "針對上述「深分頁 (Deep Pagination)」查詢，當無法使用 Keyset Pagination (例如需要跳頁) 時，下列哪種改寫方式能透過「延遲回表 (Late Row Lookups)」大幅提升效能？",
+        "en": "For the above 'Deep Pagination' query, when Keyset Pagination is not applicable (e.g., jumping to a page is required), which of the following rewrite patterns can significantly improve performance via 'Late Row Lookups'?",
+        "wg": [
+          {
+            "t": "深分頁",
+            "en": "Deep Pagination",
+            "ps": "noun phrase"
+          },
+          {
+            "t": "延遲回表",
+            "en": "Late Row Lookups",
+            "ps": "noun phrase"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "SELECT * FROM logs WHERE id > 1000000 LIMIT 10",
+        "en": "SELECT * FROM logs WHERE id > 1000000 LIMIT 10",
+        "wg": []
+      },
+      {
+        "t": "SELECT t1.* FROM logs t1 JOIN (SELECT id FROM logs ORDER BY created_at LIMIT 1000000, 10) t2 ON t1.id = t2.id",
+        "en": "SELECT t1.* FROM logs t1 JOIN (SELECT id FROM logs ORDER BY created_at LIMIT 1000000, 10) t2 ON t1.id = t2.id",
+        "wg": []
+      },
+      {
+        "t": "SELECT * FROM logs FORCE INDEX (created_at) LIMIT 1000000, 10",
+        "en": "SELECT * FROM logs FORCE INDEX (created_at) LIMIT 1000000, 10",
+        "wg": []
+      },
+      {
+        "t": "SELECT * FROM logs ORDER BY created_at DESC LIMIT 10 OFFSET 1000000",
+        "en": "SELECT * FROM logs ORDER BY created_at DESC LIMIT 10 OFFSET 1000000",
+        "wg": []
+      }
+    ],
+    "answer": "SELECT t1.* FROM logs t1 JOIN (SELECT id FROM logs ORDER BY created_at LIMIT 1000000, 10) t2 ON t1.id = t2.id",
+    "why": {
+      "t": "這種寫法利用子查詢先在索引樹上（Covering Index）快速掃描並丟棄前 100 萬筆 `id`，只取出目標的 10 個 `id`，最後再與主表 JOIN 進行回表讀取完整欄位。這避免了對前 100 萬筆資料進行無謂的回表操作。",
+      "en": "This pattern uses a subquery to quickly scan and discard the first 1 million `id`s solely on the index tree (Covering Index), retrieving only the target 10 `id`s. It then joins with the main table to fetch the full columns. This avoids unnecessary table lookups for the first 1 million rows.",
+      "wg": [
+        {
+          "t": "子查詢",
+          "en": "subquery",
+          "ps": "noun"
+        },
+        {
+          "t": "無謂的",
+          "en": "unnecessary / wasted",
+          "ps": "adjective"
+        }
+      ]
+    }
+  },
+  {
+    "no": "7",
+    "level": "Medium",
+    "keywords": "OR condition, UNION, Optimization",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "SELECT * FROM orders WHERE status = 'PENDING' OR created_at > '2023-10-01';",
+    "question": [
+      {
+        "t": "當 `status` 與 `created_at` 都有各自的索引時，上述使用 `OR` 的查詢通常難以同時利用兩個索引，容易退化成全表掃描。根據 Handbook，建議改寫成什麼形式來優化？",
+        "en": "When both `status` and `created_at` have their own indexes, the above query using `OR` often struggles to use both indexes simultaneously and degrades to a Full Table Scan. According to the Handbook, what is the recommended rewrite pattern for optimization?",
+        "wg": [
+          {
+            "t": "退化",
+            "en": "degrade / fallback",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "使用 `UNION` 將兩個查詢合併",
+        "en": "Use `UNION` to combine two queries",
+        "wg": []
+      },
+      {
+        "t": "強制使用 `FORCE INDEX`",
+        "en": "Force usage with `FORCE INDEX`",
+        "wg": []
+      },
+      {
+        "t": "將 `OR` 改為 `AND`",
+        "en": "Change `OR` to `AND`",
+        "wg": []
+      },
+      {
+        "t": "建立一個包含所有欄位的 Hash Index",
+        "en": "Create a Hash Index containing all columns",
+        "wg": []
+      }
+    ],
+    "answer": "使用 `UNION` 將兩個查詢合併",
+    "why": {
+      "t": "將查詢拆解為兩個獨立的 `SELECT`，分別針對 `status` 和 `created_at` 進行查詢，然後用 `UNION` 合併結果。這樣每個子查詢都能完美利用各自的索引，避免了單一查詢中優化器難以同時使用多個索引的問題。",
+      "en": "Break the query into two independent `SELECT` statements targeting `status` and `created_at` respectively, then combine the results with `UNION`. This allows each subquery to perfectly utilize its own index, avoiding the issue where the optimizer struggles to use multiple indexes in a single query.",
+      "wg": [
+        {
+          "t": "拆解",
+          "en": "break down / decompose",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "8",
+    "level": "Medium",
+    "keywords": "EXPLAIN, Extra, Covering Index, Performance",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在解讀 `EXPLAIN` 的 `Extra` 欄位時，下列哪一個訊息代表該查詢能夠完全透過索引滿足，而無需進行「回表」(Table Lookup) 讀取實際資料行？",
+        "en": "When interpreting the `Extra` column in `EXPLAIN`, which of the following messages indicates that the query can be satisfied entirely by the index without performing a 'Table Lookup' to read the actual data rows?",
+        "wg": [
+          {
+            "t": "回表",
+            "en": "Table Lookup",
+            "ps": "verb / noun"
+          },
+          {
+            "t": "實際資料行",
+            "en": "actual data rows",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "`Using where`",
+        "en": "`Using where`",
+        "wg": []
+      },
+      {
+        "t": "`Using index`",
+        "en": "`Using index`",
+        "wg": []
+      },
+      {
+        "t": "`Using index condition`",
+        "en": "`Using index condition`",
+        "wg": []
+      },
+      {
+        "t": "`Using filesort`",
+        "en": "`Using filesort`",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "`Using index` 表示使用了「覆蓋索引」(Covering Index)，所有需要的欄位都在索引樹中，因此效能極佳。`Using where` 僅表示在 Server 層進行過濾；`Using index condition` 代表使用了 ICP 優化但仍可能需要回表；`Using filesort` 則代表需要額外的排序操作。",
+      "en": "`Using index` indicates the use of a 'Covering Index', where all required columns are present in the index tree, resulting in excellent performance. `Using where` only implies filtering at the Server layer; `Using index condition` implies ICP optimization but may still require table lookups; `Using filesort` indicates an extra sorting operation is needed.",
+      "wg": [
+        {
+          "t": "覆蓋索引",
+          "en": "Covering Index",
+          "ps": "noun"
+        },
+        {
+          "t": "Server 層",
+          "en": "Server layer",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "9",
+    "level": "Medium",
+    "keywords": "Anti-pattern, LIKE, Wildcard, Indexing",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "SELECT * FROM users WHERE name LIKE '%son';",
+    "question": [
+      {
+        "t": "即使 `name` 欄位已經建立了標準的 B-Tree 索引，上述查詢通常仍會導致全表掃描 (Full Table Scan)。請問主要原因是什麼？",
+        "en": "Even if the `name` column has a standard B-Tree index, the query above will usually result in a Full Table Scan. What is the primary reason for this?",
+        "wg": [
+          {
+            "t": "全表掃描",
+            "en": "Full Table Scan",
+            "ps": "noun"
+          },
+          {
+            "t": "前綴",
+            "en": "prefix",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "因為 `LIKE` 運算子永遠無法使用索引。",
+        "en": "Because the `LIKE` operator can never use indexes.",
+        "wg": []
+      },
+      {
+        "t": "因為 B-Tree 索引是依據「前綴」排序的，而開頭的萬用字元 `%` 使得索引順序無法被利用。",
+        "en": "Because B-Tree indexes are sorted by 'prefix', and the leading wildcard `%` prevents the index order from being utilized.",
+        "wg": [
+          {
+            "t": "萬用字元",
+            "en": "wildcard",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "因為查詢中包含了 `SELECT *`，導致優化器放棄索引。",
+        "en": "Because the query includes `SELECT *`, causing the optimizer to abandon the index.",
+        "wg": []
+      },
+      {
+        "t": "因為字串比對需要進行隱式型別轉換。",
+        "en": "Because string comparison requires implicit type conversion.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "這是經典的「Leading Wildcard」反模式。B-Tree 索引依賴最左前綴 (Leftmost Prefix) 來進行導航，當搜尋條件以 `%` 開頭時，資料庫無法確定搜尋範圍，只能掃描每一行。若需後綴搜尋，應考慮 Full-Text Search 或反轉字串儲存。",
+      "en": "This is the classic 'Leading Wildcard' anti-pattern. B-Tree indexes rely on the Leftmost Prefix for navigation. When a search condition starts with `%`, the database cannot determine the search range and must scan every row. For suffix searches, consider Full-Text Search or storing reversed strings.",
+      "wg": [
+        {
+          "t": "最左前綴",
+          "en": "Leftmost Prefix",
+          "ps": "noun"
+        },
+        {
+          "t": "反模式",
+          "en": "anti-pattern",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "10",
+    "level": "Medium",
+    "keywords": "EXPLAIN ANALYZE, MySQL 8.0, Performance Tuning",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在 MySQL 8.0+ 中，當標準的 `EXPLAIN` 顯示查詢計畫似乎合理，但查詢執行速度仍然不如預期時，你應該使用哪一個指令來「實際執行」查詢並測量各階段的耗時？",
+        "en": "In MySQL 8.0+, when the standard `EXPLAIN` shows a seemingly reasonable query plan but the execution speed is still slower than expected, which command should you use to 'actually execute' the query and measure the time spent in each stage?",
+        "wg": [
+          {
+            "t": "實際執行",
+            "en": "actually execute",
+            "ps": "verb"
+          },
+          {
+            "t": "耗時",
+            "en": "time spent / elapsed time",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "`SHOW PROFILE`",
+        "en": "`SHOW PROFILE`",
+        "wg": []
+      },
+      {
+        "t": "`EXPLAIN EXTENDED`",
+        "en": "`EXPLAIN EXTENDED`",
+        "wg": []
+      },
+      {
+        "t": "`EXPLAIN ANALYZE`",
+        "en": "`EXPLAIN ANALYZE`",
+        "wg": []
+      },
+      {
+        "t": "`OPTIMIZE TABLE`",
+        "en": "`OPTIMIZE TABLE`",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "`EXPLAIN ANALYZE` 是 MySQL 8.0 引入的重要工具，它會實際執行 SQL 並回傳帶有實際計時與行數統計的執行計畫樹，能幫助開發者區分是「掃描資料」還是「回傳資料」階段耗時。傳統 `EXPLAIN` 僅是基於統計資訊的估算。",
+      "en": "`EXPLAIN ANALYZE` is a key tool introduced in MySQL 8.0. It actually executes the SQL and returns an execution plan tree with real timing and row count statistics, helping developers distinguish whether time is spent in the 'scanning' or 'returning' phase. Traditional `EXPLAIN` is only an estimation based on statistics.",
+      "wg": [
+        {
+          "t": "估算",
+          "en": "estimation",
+          "ps": "noun"
+        },
+        {
+          "t": "統計資訊",
+          "en": "statistics",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "11",
+    "level": "Medium",
+    "keywords": "Metrics, Rows Examined, Filtering Efficiency, Checklist",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在進行 Code Review 或分析慢查詢日誌 (Slow Query Log) 時，若發現某個查詢的 `Rows_examined` (掃描行數) 遠大於 `Rows_sent` (回傳行數)，例如 10000:1，這通常暗示了什麼問題？",
+        "en": "When performing a Code Review or analyzing the Slow Query Log, if you find a query where `Rows_examined` is much larger than `Rows_sent` (e.g., 10000:1), what problem does this usually imply?",
+        "wg": [
+          {
+            "t": "掃描行數",
+            "en": "Rows_examined",
+            "ps": "noun"
+          },
+          {
+            "t": "回傳行數",
+            "en": "Rows_sent",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "這是正常現象，資料庫本來就需要掃描很多資料才能找到結果。",
+        "en": "This is normal; the database naturally needs to scan a lot of data to find results.",
+        "wg": []
+      },
+      {
+        "t": "索引的過濾性極差 (Poor Filtering)，導致大量資料在讀出後才被 `WHERE` 條件丟棄。",
+        "en": "The index has poor filtering efficiency, causing a large amount of data to be discarded by the `WHERE` clause after being read.",
+        "wg": [
+          {
+            "t": "過濾性",
+            "en": "filtering efficiency / selectivity",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "查詢使用了 `LIMIT`，導致計數不準確。",
+        "en": "The query uses `LIMIT`, causing inaccurate counting.",
+        "wg": []
+      },
+      {
+        "t": "發生了死鎖 (Deadlock)，導致重試多次。",
+        "en": "A deadlock occurred, causing multiple retries.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "理想的查詢應盡量接近 1:1 到 10:1 的比例。極高的比例 (如 10000:1) 代表索引未能有效縮小掃描範圍，導致引擎層讀取了大量無效資料，最後才在 Server 層被過濾掉 (通常伴隨 `Using where`)。",
+      "en": "An ideal query should have a ratio close to 1:1 to 10:1. An extremely high ratio (like 10000:1) indicates that the index failed to effectively narrow down the scan range, causing the engine layer to read a lot of invalid data that was only filtered out later at the Server layer (often accompanied by `Using where`).",
+      "wg": [
+        {
+          "t": "引擎層",
+          "en": "engine layer",
+          "ps": "noun"
+        },
+        {
+          "t": "無效資料",
+          "en": "invalid data",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "12",
+    "level": "Hard",
+    "keywords": "Pagination, Deterministic, ORDER BY, Stability",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "SELECT * FROM users WHERE status = 'active' ORDER BY created_at LIMIT 10 OFFSET 10;",
+    "question": [
+      {
+        "t": "使用者回報在翻頁時（從第 1 頁到第 2 頁），發現有部分資料重複出現，或者有些資料憑空消失。已知 `created_at` 並非唯一值。根據 Handbook 的檢查清單，最可能的修復方式為何？",
+        "en": "Users report that when navigating pages (from page 1 to page 2), some data appears twice, or some data goes missing. It is known that `created_at` is not unique. According to the Handbook checklist, what is the most likely fix?",
+        "wg": [
+          {
+            "t": "翻頁",
+            "en": "pagination / navigating pages",
+            "ps": "verb"
+          },
+          {
+            "t": "憑空消失",
+            "en": "go missing / disappear",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "將 `LIMIT` 改為 `LIMIT 20` 並在應用層進行過濾。",
+        "en": "Change `LIMIT` to `LIMIT 20` and filter in the application layer.",
+        "wg": []
+      },
+      {
+        "t": "在 `ORDER BY` 中加入唯一鍵 (如 `id`) 以確保排序的「確定性」 (Deterministic)。",
+        "en": "Add a unique key (like `id`) to `ORDER BY` to ensure 'deterministic' sorting.",
+        "wg": [
+          {
+            "t": "確定性",
+            "en": "deterministic",
+            "ps": "adj"
+          }
+        ]
+      },
+      {
+        "t": "移除 `ORDER BY` 子句，讓資料庫自行決定順序。",
+        "en": "Remove the `ORDER BY` clause and let the database decide the order.",
+        "wg": []
+      },
+      {
+        "t": "使用 `GROUP BY created_at` 來去除重複資料。",
+        "en": "Use `GROUP BY created_at` to remove duplicate data.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "當排序欄位 (`created_at`) 包含重複值時，MySQL 對於相同時間的資料排序是不確定的 (Non-deterministic)，這會導致分頁時資料跳動。解決方案是加入一個唯一欄位 (Tie-breaker)，例如 `ORDER BY created_at, id`，確保每次查詢的順序一致。",
+      "en": "When the sort column (`created_at`) contains duplicate values, MySQL's sorting of data with the same timestamp is non-deterministic, causing data jitter during pagination. The solution is to add a unique column (Tie-breaker), such as `ORDER BY created_at, id`, to ensure consistent order for every query.",
+      "wg": [
+        {
+          "t": "不確定的",
+          "en": "non-deterministic",
+          "ps": "adj"
+        },
+        {
+          "t": "決勝欄位",
+          "en": "Tie-breaker",
+          "ps": "noun"
+        }
+      ]
+    }
+  }
+]

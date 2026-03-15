@@ -1,0 +1,1150 @@
+[
+  {
+    "no": "1",
+    "level": "intermediate",
+    "keywords": "Transaction, Anti-pattern, Database Locking, Latency",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "const t = await sequelize.transaction();\ntry {\n  const user = await User.create({ email: 'test@example.com' }, { transaction: t });\n  \n  // Call external 3rd party service\n  await emailService.sendWelcomeEmail(user.email);\n  \n  await t.commit();\n} catch (error) {\n  await t.rollback();\n}",
+    "question": [
+      {
+        "t": "請審查上述程式碼片段，指出其中最嚴重的效能隱憂是什麼？",
+        "en": "Please review the code snippet above and identify the most critical performance concern.",
+        "wg": [
+          {
+            "t": "效能隱憂",
+            "en": "performance concern",
+            "ps": "NP"
+          },
+          {
+            "t": "審查",
+            "en": "review",
+            "ps": "V"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) `User.create` 應該使用 `upsert` 來避免重複建立。",
+        "en": "(A) `User.create` should use `upsert` to avoid duplicate creation.",
+        "wg": []
+      },
+      {
+        "t": "(B) 在資料庫交易 (Transaction) 中呼叫外部 API 會導致長時間持有資料庫鎖定 (Locks)。",
+        "en": "(B) Calling an external API within a database transaction causes database locks to be held for a long time.",
+        "wg": [
+          {
+            "t": "資料庫交易",
+            "en": "database transaction",
+            "ps": "NP"
+          },
+          {
+            "t": "鎖定",
+            "en": "locks",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) `emailService` 應該放在 `try-catch` 區塊之外執行。",
+        "en": "(C) `emailService` should be executed outside the `try-catch` block.",
+        "wg": []
+      },
+      {
+        "t": "(D) 沒有檢查 `user.email` 的格式是否正確。",
+        "en": "(D) There is no validation to check if `user.email` is in the correct format.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "在 Transaction 內執行非資料庫操作（特別是網路請求如 API 呼叫）是反模式。若外部服務回應緩慢（例如 5 秒），資料庫連線與相關的 Row Locks 就會被佔用 5 秒，這極易導致連線池耗盡或 Deadlock。",
+      "en": "Executing non-database operations (especially network requests like API calls) inside a transaction is an anti-pattern. If the external service is slow (e.g., 5 seconds), the database connection and associated Row Locks are held for 5 seconds, which can easily lead to connection pool exhaustion or deadlocks.",
+      "wg": [
+        {
+          "t": "反模式",
+          "en": "anti-pattern",
+          "ps": "N"
+        },
+        {
+          "t": "連線池耗盡",
+          "en": "connection pool exhaustion",
+          "ps": "NP"
+        },
+        {
+          "t": "死鎖",
+          "en": "deadlock",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "2",
+    "level": "advanced",
+    "keywords": "ORM, Hydration, CPU Bound, Event Loop",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您正在排查一個 Node.js 效能問題：某個 API 需要從資料庫讀取 20,000 筆使用者資料。",
+        "en": "You are troubleshooting a Node.js performance issue: an API needs to fetch 20,000 user records from the database.",
+        "wg": [
+          {
+            "t": "排查",
+            "en": "troubleshoot",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "監控顯示資料庫本身的 CPU 使用率很低，且查詢回應很快，但 Node.js 應用程式的 CPU 卻飆升至 100% 並導致 Event Loop 阻塞。",
+        "en": "Monitoring shows that the database CPU usage is low and query response is fast, but the Node.js application CPU spikes to 100% and blocks the Event Loop.",
+        "wg": [
+          {
+            "t": "飆升",
+            "en": "spike",
+            "ps": "V"
+          },
+          {
+            "t": "阻塞",
+            "en": "block",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "最可能的原因是什麼？",
+        "en": "What is the most likely cause?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 網路頻寬不足導致資料傳輸延遲。",
+        "en": "(A) Insufficient network bandwidth causing data transfer latency.",
+        "wg": []
+      },
+      {
+        "t": "(B) ORM 的 Hydration 過程消耗了大量 CPU 資源來實例化 JavaScript 物件。",
+        "en": "(B) The ORM's Hydration process is consuming excessive CPU resources to instantiate JavaScript objects.",
+        "wg": [
+          {
+            "t": "實例化",
+            "en": "instantiate",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(C) 資料庫連線池 (Connection Pool) 設定過小，導致請求排隊。",
+        "en": "(C) The database Connection Pool setting is too small, causing request queuing.",
+        "wg": []
+      },
+      {
+        "t": "(D) Node.js 的 Garbage Collection (GC) 機制失效。",
+        "en": "(D) The Node.js Garbage Collection (GC) mechanism has failed.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "在 Node.js 中，將資料庫回傳的 Raw Rows 轉換（Hydrate）成 ORM Model Instances 是 CPU 密集型操作。處理大量資料時，V8 引擎需執行數萬次物件建立與賦值，這會阻塞單執行緒的 Event Loop。解決方案通常是使用 `.lean()` 或 Raw Query。",
+      "en": "In Node.js, transforming (Hydrating) Raw Rows returned by the database into ORM Model Instances is a CPU-intensive operation. When processing large datasets, the V8 engine has to execute object creation and assignment tens of thousands of times, blocking the single-threaded Event Loop. Solutions often involve using `.lean()` or Raw Queries.",
+      "wg": [
+        {
+          "t": "CPU 密集型",
+          "en": "CPU-intensive",
+          "ps": "Adj"
+        },
+        {
+          "t": "賦值",
+          "en": "assignment",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "3",
+    "level": "intermediate",
+    "keywords": "Connection Pool, Scalability, Configuration, PostgreSQL",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您的團隊管理一個 PostgreSQL 資料庫，其最大連線數 (`max_connections`) 設定為 200。",
+        "en": "Your team manages a PostgreSQL database with `max_connections` set to 200.",
+        "wg": []
+      },
+      {
+        "t": "您部署了 40 個 Node.js 容器 (Pods) 來處理流量，每個容器的連線池設定為 `min: 2, max: 10`。",
+        "en": "You have deployed 40 Node.js containers (Pods) to handle traffic, with each container's connection pool set to `min: 2, max: 10`.",
+        "wg": [
+          {
+            "t": "容器",
+            "en": "container",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "在高流量負載下，系統最可能發生什麼問題？",
+        "en": "What is the most likely issue the system will encounter under high traffic load?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) Node.js Event Loop 會因為連線數過多而變慢。",
+        "en": "(A) The Node.js Event Loop will slow down due to too many connections.",
+        "wg": []
+      },
+      {
+        "t": "(B) 資料庫會拒絕新的連線請求，因為總連線數可能達到 400，超過了 DB 上限。",
+        "en": "(B) The database will reject new connection requests because the total connections could reach 400, exceeding the DB limit.",
+        "wg": [
+          {
+            "t": "拒絕",
+            "en": "reject",
+            "ps": "V"
+          },
+          {
+            "t": "上限",
+            "en": "limit",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) `min: 2` 設定會導致連線池無法自動擴展。",
+        "en": "(C) The `min: 2` setting will prevent the connection pool from auto-scaling.",
+        "wg": []
+      },
+      {
+        "t": "(D) 什麼都不會發生，連線池會自動協調跨容器的連線數。",
+        "en": "(D) Nothing will happen; the connection pools will automatically coordinate the connection count across containers.",
+        "wg": [
+          {
+            "t": "協調",
+            "en": "coordinate",
+            "ps": "V"
+          }
+        ]
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "總潛在連線數為 `40 (Pods) * 10 (Max per Pod) = 400`。當所有 Pods 在高負載下擴展連線池時，會輕易超過資料庫的 `200` 上限，導致 `Too many connections` 錯誤。連線池是在應用程式端管理的，無法跨容器自動協調。",
+      "en": "The total potential connection count is `40 (Pods) * 10 (Max per Pod) = 400`. When all Pods expand their pools under high load, they will easily exceed the database's limit of `200`, resulting in `Too many connections` errors. Connection pools are managed on the application side and cannot automatically coordinate across containers.",
+      "wg": [
+        {
+          "t": "潛在的",
+          "en": "potential",
+          "ps": "Adj"
+        },
+        {
+          "t": "高負載",
+          "en": "high load",
+          "ps": "NP"
+        }
+      ]
+    }
+  },
+  {
+    "no": "4",
+    "level": "advanced",
+    "keywords": "Caching, Cache Stampede, Redis, System Design",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在設計高流量的「熱門商品」API 時，您使用了 Redis 進行快取 (Cache-Aside)。",
+        "en": "When designing a high-traffic 'Hot Products' API, you used Redis for caching (Cache-Aside).",
+        "wg": []
+      },
+      {
+        "t": "然而，每當快取 Key 過期 (Expire) 的瞬間，資料庫都會收到數百個併發請求，導致 CPU 飆高。",
+        "en": "However, the moment the cache Key expires, the database receives hundreds of concurrent requests, causing a CPU spike.",
+        "wg": [
+          {
+            "t": "過期",
+            "en": "expire",
+            "ps": "V"
+          },
+          {
+            "t": "併發請求",
+            "en": "concurrent requests",
+            "ps": "NP"
+          }
+        ]
+      },
+      {
+        "t": "這種現象稱為什麼？且下列哪種策略最適合解決此問題？",
+        "en": "What is this phenomenon called, and which strategy is best suited to solve it?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) Cache Penetration (快取穿透)；解決方案是使用 Bloom Filter。",
+        "en": "(A) Cache Penetration; the solution is to use a Bloom Filter.",
+        "wg": []
+      },
+      {
+        "t": "(B) Cache Avalanche (快取雪崩)；解決方案是將所有 Key 的 TTL 設為相同時間。",
+        "en": "(B) Cache Avalanche; the solution is to set the TTL of all Keys to the same time.",
+        "wg": []
+      },
+      {
+        "t": "(C) Cache Stampede (快取擊穿/狗樁效應)；解決方案是使用 Mutex (互斥鎖) 或機率性提早過期。",
+        "en": "(C) Cache Stampede (Dog-piling); the solution is to use a Mutex or probabilistic early expiration.",
+        "wg": [
+          {
+            "t": "互斥鎖",
+            "en": "Mutex",
+            "ps": "N"
+          },
+          {
+            "t": "機率性",
+            "en": "probabilistic",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "(D) Race Condition (競態條件)；解決方案是改用 Write-Through 快取模式。",
+        "en": "(D) Race Condition; the solution is to switch to the Write-Through cache pattern.",
+        "wg": []
+      }
+    ],
+    "answer": "(C)",
+    "why": {
+      "t": "這是典型的 Cache Stampede（或稱 Dog-piling），指單一熱點 Key 過期導致大量請求同時打穿到 DB。使用 Mutex 可以確保同一時間只有一個請求去查 DB 並回寫 Cache，其他請求則等待。",
+      "en": "This is a typical Cache Stampede (or Dog-piling), where a single hot Key expires, causing a flood of requests to hit the DB simultaneously. Using a Mutex ensures that only one request queries the DB and repopulates the Cache at a time, while others wait.",
+      "wg": [
+        {
+          "t": "熱點",
+          "en": "hotspot",
+          "ps": "N"
+        },
+        {
+          "t": "打穿",
+          "en": "hit/penetrate",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "5",
+    "level": "advanced",
+    "keywords": "Redis, Serialization, Event Loop, Performance",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您決定將一個非常大的物件（約 5MB 的 JSON）快取到 Redis 中以減少資料庫負載。",
+        "en": "You decide to cache a very large object (about 5MB of JSON) in Redis to reduce database load.",
+        "wg": []
+      },
+      {
+        "t": "雖然 Redis 回應速度極快（< 1ms），但您發現 Node.js 應用程式的整體吞吐量（Throughput）卻顯著下降。",
+        "en": "Although Redis response times are extremely fast (< 1ms), you notice a significant drop in the overall throughput of the Node.js application.",
+        "wg": [
+          {
+            "t": "吞吐量",
+            "en": "throughput",
+            "ps": "N"
+          },
+          {
+            "t": "顯著",
+            "en": "significant",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "造成此效能瓶頸的主要原因是什麼？",
+        "en": "What is the primary cause of this performance bottleneck?",
+        "wg": [
+          {
+            "t": "瓶頸",
+            "en": "bottleneck",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) Redis 的網路頻寬被佔滿了。",
+        "en": "(A) Redis network bandwidth is saturated.",
+        "wg": []
+      },
+      {
+        "t": "(B) `JSON.parse` 與 `JSON.stringify` 是同步且 CPU 密集的操作，阻塞了 Event Loop。",
+        "en": "(B) `JSON.parse` and `JSON.stringify` are synchronous and CPU-intensive operations, blocking the Event Loop.",
+        "wg": [
+          {
+            "t": "同步",
+            "en": "synchronous",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "(C) Node.js 的記憶體不足以容納 5MB 的字串。",
+        "en": "(C) Node.js memory is insufficient to hold a 5MB string.",
+        "wg": []
+      },
+      {
+        "t": "(D) Redis 不支援大於 1MB 的 Value。",
+        "en": "(D) Redis does not support Values larger than 1MB.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "雖然 I/O (Redis) 很快，但在 Node.js 中處理 5MB 字串的序列化與反序列化會佔用主執行緒數十毫秒。在這段時間內，Event Loop 無法處理其他請求，導致併發能力大幅下降。對於大物件，應考慮 Stream 處理或僅快取必要欄位。",
+      "en": "Although I/O (Redis) is fast, serializing and deserializing a 5MB string in Node.js occupies the main thread for tens of milliseconds. During this time, the Event Loop cannot handle other requests, significantly reducing concurrency. For large objects, consider using Streams or caching only necessary fields.",
+      "wg": [
+        {
+          "t": "序列化",
+          "en": "serialization",
+          "ps": "N"
+        },
+        {
+          "t": "反序列化",
+          "en": "deserialization",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "6",
+    "level": "intermediate",
+    "keywords": "N+1 Problem, ORM, Performance, Database Queries",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "async function getAuthorsWithBooks(authorIds) {\n  const authors = await Author.findAll({ \n    where: { id: authorIds } \n  });\n\n  const result = [];\n  for (const author of authors) {\n    const books = await Book.findAll({ \n      where: { authorId: author.id } \n    });\n    result.push({ ...author, books });\n  }\n  return result;\n}",
+    "question": [
+      {
+        "t": "請分析上述程式碼片段，並指出其主要的效能缺陷為何？",
+        "en": "Please analyze the code snippet above and identify its main performance flaw.",
+        "wg": [
+          {
+            "t": "效能缺陷",
+            "en": "performance flaw",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "它會導致記憶體洩漏 (Memory Leak)，因為陣列 `result` 持續增長。",
+        "en": "It causes a memory leak because the `result` array keeps growing.",
+        "wg": []
+      },
+      {
+        "t": "它產生了 N+1 查詢問題，導致資料庫往返次數過多。",
+        "en": "It creates an N+1 query problem, resulting in excessive database round-trips.",
+        "wg": [
+          {
+            "t": "往返次數",
+            "en": "round-trips",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "它會阻塞 Event Loop，因為 `await` 在迴圈中被同步執行。",
+        "en": "It blocks the Event Loop because `await` is executed synchronously within the loop.",
+        "wg": []
+      },
+      {
+        "t": "它無法正確處理資料庫連線錯誤。",
+        "en": "It fails to handle database connection errors correctly.",
+        "wg": []
+      }
+    ],
+    "answer": "Option 2",
+    "why": {
+      "t": "這段程式碼首先執行 1 次查詢取得作者列表，然後針對每位作者（N 位）在迴圈中執行額外的查詢，總共產生 N+1 次資料庫請求，顯著增加了網路延遲。",
+      "en": "The code executes 1 query to get the authors, and then executes an additional query for each author (N authors) inside the loop, resulting in N+1 database requests, which significantly increases network latency.",
+      "wg": [
+        {
+          "t": "網路延遲",
+          "en": "network latency",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "7",
+    "level": "advanced",
+    "keywords": "Cache Penetration, Redis, Security, Performance",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您的系統遭受惡意攻擊，攻擊者大量請求「不存在於資料庫中」的 ID。",
+        "en": "Your system is under a malicious attack where attackers are requesting a large number of IDs that 'do not exist in the database'.",
+        "wg": [
+          {
+            "t": "惡意攻擊",
+            "en": "malicious attack",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "這導致每次請求都穿透快取直接打擊資料庫（Cache Penetration）。",
+        "en": "This causes every request to bypass the cache and hit the database directly (Cache Penetration).",
+        "wg": [
+          {
+            "t": "穿透",
+            "en": "penetrate / bypass",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "下列哪種策略最適合用來防禦此類問題？",
+        "en": "Which of the following strategies is best suited to defend against this issue?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "使用互斥鎖 (Mutex Lock) 來限制併發查詢。",
+        "en": "Use Mutex Locks to limit concurrent queries.",
+        "wg": []
+      },
+      {
+        "t": "將這些不存在的 Key 快取為 `null` 並設定較短的過期時間 (TTL)，或使用 Bloom Filter。",
+        "en": "Cache these non-existent keys as `null` with a short TTL, or use a Bloom Filter.",
+        "wg": [
+          {
+            "t": "布隆過濾器",
+            "en": "Bloom Filter",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "增加資料庫的連線池大小 (Connection Pool Size)。",
+        "en": "Increase the database Connection Pool Size.",
+        "wg": []
+      },
+      {
+        "t": "實作 Write-Through 快取策略。",
+        "en": "Implement a Write-Through caching strategy.",
+        "wg": []
+      }
+    ],
+    "answer": "Option 2",
+    "why": {
+      "t": "快取穿透是指查詢不存在的資料，導致快取無法命中。將空結果（null）快取起來或使用 Bloom Filter 過濾請求，能有效攔截這些無效請求到達資料庫。",
+      "en": "Cache penetration occurs when querying non-existent data, causing cache misses. Caching the empty result (null) or using a Bloom Filter to filter requests effectively intercepts these invalid requests before they reach the database.",
+      "wg": [
+        {
+          "t": "攔截",
+          "en": "intercept",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "8",
+    "level": "intermediate",
+    "keywords": "L1 Cache, L2 Cache, Distributed Systems, Memory Management",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在設計快取架構時，您考慮在 Node.js Process 記憶體中引入 L1 Cache (如 `lru-cache`)，並搭配 Redis 作為 L2 Cache。",
+        "en": "When designing a caching architecture, you are considering introducing an L1 Cache (e.g., `lru-cache`) within the Node.js process memory, alongside Redis as an L2 Cache.",
+        "wg": [
+          {
+            "t": "程序記憶體",
+            "en": "process memory",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "關於 L1 Cache 的特性，下列敘述何者正確？",
+        "en": "Which of the following statements about L1 Cache characteristics is correct?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "L1 Cache 適合儲存頻繁變動且需要跨實例即時一致的資料。",
+        "en": "L1 Cache is suitable for storing frequently changing data that requires real-time consistency across instances.",
+        "wg": []
+      },
+      {
+        "t": "L1 Cache 的讀取速度比 Redis 慢，因為它佔用 Event Loop。",
+        "en": "L1 Cache reads are slower than Redis because it occupies the Event Loop.",
+        "wg": []
+      },
+      {
+        "t": "L1 Cache 能夠減少網路 I/O，但會增加 Node.js 的 Heap 記憶體壓力。",
+        "en": "L1 Cache reduces network I/O but increases Heap memory pressure on Node.js.",
+        "wg": [
+          {
+            "t": "堆積記憶體",
+            "en": "Heap memory",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "L1 Cache 會自動與其他 Node.js 實例同步資料。",
+        "en": "L1 Cache automatically synchronizes data with other Node.js instances.",
+        "wg": []
+      }
+    ],
+    "answer": "Option 3",
+    "why": {
+      "t": "L1 Cache 位於應用程式記憶體中，讀取極快且無網路開銷，但缺點是會佔用 Heap 空間（可能導致 GC 頻繁）且無法在不同實例間自動共享或同步。",
+      "en": "L1 Cache resides in application memory, offering extremely fast reads with no network overhead, but the downside is it consumes Heap space (potentially causing frequent GC) and cannot be automatically shared or synchronized across different instances.",
+      "wg": [
+        {
+          "t": "開銷",
+          "en": "overhead",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "9",
+    "level": "intermediate",
+    "keywords": "Connection Pool, Event Loop, Asynchronous, Queuing",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在 Node.js 中，當資料庫連線池的所有連線都在使用中（已達 `max` 上限），新的查詢請求會發生什麼事？",
+        "en": "In Node.js, when all connections in the database connection pool are in use (reached `max` limit), what happens to a new query request?",
+        "wg": [
+          {
+            "t": "上限",
+            "en": "limit / cap",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "請求會立即拋出 Error 並終止程式。",
+        "en": "The request immediately throws an Error and terminates the program.",
+        "wg": []
+      },
+      {
+        "t": "請求會進入佇列（Queued），其 Promise 處於 Pending 狀態，直到有連線被釋放或超時。",
+        "en": "The request enters a queue, with its Promise in a Pending state, until a connection is released or it times out.",
+        "wg": [
+          {
+            "t": "佇列",
+            "en": "queue",
+            "ps": "N"
+          },
+          {
+            "t": "釋放",
+            "en": "released",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "Node.js 會自動建立超過 `max` 設定的新連線以處理請求。",
+        "en": "Node.js will automatically create new connections exceeding the `max` setting to handle the request.",
+        "wg": []
+      },
+      {
+        "t": "Event Loop 會被完全阻塞，直到有連線可用。",
+        "en": "The Event Loop will be completely blocked until a connection becomes available.",
+        "wg": []
+      }
+    ],
+    "answer": "Option 2",
+    "why": {
+      "t": "連線池的機制是將超額的請求放入佇列等待。在 Node.js 中，這表現為非同步操作（Promise）持續 Pending，不會阻塞 Event Loop，但若等待過久可能會觸發連線取得超時（Connection Acquire Timeout）。",
+      "en": "The connection pool mechanism queues excess requests. In Node.js, this manifests as an asynchronous operation (Promise) remaining Pending; it does not block the Event Loop, but waiting too long may trigger a Connection Acquire Timeout.",
+      "wg": [
+        {
+          "t": "觸發",
+          "en": "trigger",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "10",
+    "level": "advanced",
+    "keywords": "Scalability, PgBouncer, Architecture, Connection Limits",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您的 Node.js 服務部署在 Kubernetes 上，並設定了自動擴充（HPA）。",
+        "en": "Your Node.js service is deployed on Kubernetes with Horizontal Pod Autoscaling (HPA) configured.",
+        "wg": [
+          {
+            "t": "自動擴充",
+            "en": "autoscaling",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "當流量高峰導致 Pod 數量從 10 擴增到 100 時，資料庫開始拒絕連線（`Too many connections`）。",
+        "en": "When a traffic spike causes the number of Pods to scale from 10 to 100, the database starts rejecting connections (`Too many connections`).",
+        "wg": [
+          {
+            "t": "拒絕",
+            "en": "reject",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "除了增加資料庫規格外，下列哪項是解決此架構瓶頸的最佳長期方案？",
+        "en": "Besides increasing database specs, which of the following is the best long-term solution to this architectural bottleneck?",
+        "wg": [
+          {
+            "t": "瓶頸",
+            "en": "bottleneck",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "在每個 Node.js Pod 中將連線池 `max` 設定為 1。",
+        "en": "Set the connection pool `max` to 1 in each Node.js Pod.",
+        "wg": []
+      },
+      {
+        "t": "引入 PgBouncer 等連線池中介軟體 (Middleware) 來複用連線。",
+        "en": "Introduce connection pooling middleware like PgBouncer to reuse connections.",
+        "wg": [
+          {
+            "t": "中介軟體",
+            "en": "middleware",
+            "ps": "N"
+          },
+          {
+            "t": "複用",
+            "en": "reuse",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "移除 Node.js 的連線池設定，改用短連線（每次請求建立新連線）。",
+        "en": "Remove Node.js connection pool settings and use short-lived connections (create new connection per request).",
+        "wg": []
+      },
+      {
+        "t": "增加 Node.js 的 `UV_THREADPOOL_SIZE`。",
+        "en": "Increase the `UV_THREADPOOL_SIZE` in Node.js.",
+        "wg": []
+      }
+    ],
+    "answer": "Option 2",
+    "why": {
+      "t": "當應用程式實例數（Pods）大量增加時，每個實例即使維持很小的 Pool，總連線數也容易超過資料庫上限。PgBouncer 位於 App 與 DB 之間，能有效彙整並複用連線，讓數千個 App 連線共享數百個實際 DB 連線。",
+      "en": "When the number of application instances (Pods) increases significantly, the total number of connections can easily exceed the database limit even if each instance keeps a small pool. PgBouncer sits between the App and DB, effectively aggregating and reusing connections, allowing thousands of App connections to share hundreds of actual DB connections.",
+      "wg": [
+        {
+          "t": "彙整",
+          "en": "aggregate",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "11",
+    "level": "advanced",
+    "keywords": "Streaming, Memory Efficiency, Large Datasets, Backpressure",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您需要實作一個 API，將 100 萬筆交易紀錄匯出為 CSV 檔案供使用者下載。",
+        "en": "You need to implement an API to export 1 million transaction records as a CSV file for user download.",
+        "wg": [
+          {
+            "t": "匯出",
+            "en": "export",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "為了避免 Node.js 發生 Out of Memory (OOM) 錯誤，下列哪種實作方式最合適？",
+        "en": "To prevent Node.js from encountering an Out of Memory (OOM) error, which implementation approach is most appropriate?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "使用 `findAll` 一次讀取所有資料，然後用 `JSON.stringify` 轉換。",
+        "en": "Use `findAll` to fetch all data at once, then convert using `JSON.stringify`.",
+        "wg": []
+      },
+      {
+        "t": "分頁讀取（Pagination），將每頁資料暫存在全域變數陣列中再一次寫入。",
+        "en": "Read via pagination, buffering each page in a global variable array before writing at once.",
+        "wg": [
+          {
+            "t": "暫存",
+            "en": "buffer",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "使用資料庫游標（Cursor）或 Stream，配合 Node.js 的 `pipe` 將資料串流至 Response。",
+        "en": "Use a database Cursor or Stream, combined with Node.js `pipe` to stream data to the Response.",
+        "wg": [
+          {
+            "t": "游標",
+            "en": "cursor",
+            "ps": "N"
+          },
+          {
+            "t": "串流",
+            "en": "stream",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "增加 Node.js 的 `--max-old-space-size` 參數至 16GB。",
+        "en": "Increase the Node.js `--max-old-space-size` parameter to 16GB.",
+        "wg": []
+      }
+    ],
+    "answer": "Option 3",
+    "why": {
+      "t": "一次性載入大量資料會耗盡記憶體。使用 Stream 可以逐筆或分批處理資料，並透過 Pipe 機制將資料直接送往客戶端，保持低記憶體佔用（Low Memory Footprint）。",
+      "en": "Loading massive data at once exhausts memory. Using Streams allows processing data row-by-row or in chunks, and piping it directly to the client keeps the memory footprint low.",
+      "wg": [
+        {
+          "t": "耗盡",
+          "en": "exhaust",
+          "ps": "V"
+        },
+        {
+          "t": "佔用",
+          "en": "footprint / usage",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "12",
+    "level": "intermediate",
+    "keywords": "Cache Invalidation, Consistency, Cache-Aside, Best Practices",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在使用 Cache-Aside 模式時，當資料庫中的資料被更新後，為了確保資料一致性，最佳的快取處理策略是什麼？",
+        "en": "When using the Cache-Aside pattern, what is the best caching strategy to ensure data consistency after data in the database is updated?",
+        "wg": [
+          {
+            "t": "一致性",
+            "en": "consistency",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "先更新快取，再更新資料庫。",
+        "en": "Update the cache first, then update the database.",
+        "wg": []
+      },
+      {
+        "t": "先更新資料庫，成功後刪除（Delete/Invalidate）快取中的對應 Key。",
+        "en": "Update the database first, and upon success, delete (invalidate) the corresponding Key in the cache.",
+        "wg": [
+          {
+            "t": "無效化",
+            "en": "invalidate",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "先更新資料庫，成功後更新快取中的值。",
+        "en": "Update the database first, and upon success, update the value in the cache.",
+        "wg": []
+      },
+      {
+        "t": "不需主動處理，等待 TTL 過期即可。",
+        "en": "No active action needed; just wait for the TTL to expire.",
+        "wg": []
+      }
+    ],
+    "answer": "Option 2",
+    "why": {
+      "t": "「先更新 DB，再刪除 Cache」是 Cache-Aside 模式中的標準做法。若選擇更新快取值，可能會因為併發寫入導致 Race Condition（髒資料）；若只依賴 TTL，則會有一段時間的資料不一致。",
+      "en": "\"Update DB first, then delete Cache\" is the standard practice in Cache-Aside. Updating the cache value can lead to Race Conditions (dirty data) due to concurrent writes; relying solely on TTL results in a period of data inconsistency.",
+      "wg": [
+        {
+          "t": "髒資料",
+          "en": "dirty data",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "13",
+    "level": "intermediate",
+    "keywords": "ORM, Optimization, CPU Bound, Hydration",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您的 API 需要回傳一個包含 5,000 筆資料的唯讀列表，目前回應速度緩慢且 CPU 使用率高。",
+        "en": "Your API needs to return a read-only list containing 5,000 records. Currently, the response is slow and CPU usage is high.",
+        "wg": [
+          {
+            "t": "唯讀",
+            "en": "read-only",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "經排查發現瓶頸在於 ORM 的 Hydration 過程。在不更換 ORM 的前提下，最簡單的優化方式是什麼？",
+        "en": "Investigation reveals the bottleneck is the ORM Hydration process. Without changing the ORM, what is the simplest optimization?",
+        "wg": [
+          {
+            "t": "實體化",
+            "en": "Hydration",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "使用 `JSON.parse(JSON.stringify(data))` 來加速。",
+        "en": "Use `JSON.parse(JSON.stringify(data))` to speed it up.",
+        "wg": []
+      },
+      {
+        "t": "啟用 ORM 的 `lean()` (Mongoose) 或 `raw: true` (Sequelize) 選項。",
+        "en": "Enable the ORM's `lean()` (Mongoose) or `raw: true` (Sequelize) option.",
+        "wg": []
+      },
+      {
+        "t": "將資料庫遷移到 NoSQL。",
+        "en": "Migrate the database to NoSQL.",
+        "wg": []
+      },
+      {
+        "t": "使用 `process.nextTick` 分散處理。",
+        "en": "Use `process.nextTick` to distribute the processing.",
+        "wg": []
+      }
+    ],
+    "answer": "Option 2",
+    "why": {
+      "t": "ORM 預設會將資料庫回傳的原始資料（Plain Object）轉換為功能豐富的 Model Instance（Hydration），這在大量資料時非常消耗 CPU。對於唯讀場景，使用 `lean` 或 `raw` 模式可跳過此步驟，直接回傳原始物件，顯著提升效能。",
+      "en": "ORMs default to converting raw database data (Plain Objects) into feature-rich Model Instances (Hydration), which is very CPU-intensive for large datasets. For read-only scenarios, using `lean` or `raw` mode skips this step, returning plain objects and significantly improving performance.",
+      "wg": [
+        {
+          "t": "消耗",
+          "en": "consume / intensive",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "14",
+    "level": "advanced",
+    "keywords": "Microservices, Data Consistency, Saga Pattern, Distributed Transactions",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在微服務架構中，您需要跨兩個服務（訂單服務與庫存服務）更新資料。",
+        "en": "In a microservices architecture, you need to update data across two services (Order Service and Inventory Service).",
+        "wg": []
+      },
+      {
+        "t": "由於 Node.js 與現代分散式系統通常不建議使用 Two-Phase Commit (2PC)，您應採用哪種模式來保證最終一致性？",
+        "en": "Since Two-Phase Commit (2PC) is generally discouraged in Node.js and modern distributed systems, which pattern should you adopt to ensure eventual consistency?",
+        "wg": [
+          {
+            "t": "最終一致性",
+            "en": "eventual consistency",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "在單一資料庫 Transaction 中直接呼叫另一個服務的 API。",
+        "en": "Call the other service's API directly within a single database Transaction.",
+        "wg": []
+      },
+      {
+        "t": "使用 Saga Pattern（配合補償交易 Compensating Transactions）。",
+        "en": "Use the Saga Pattern (with Compensating Transactions).",
+        "wg": [
+          {
+            "t": "補償交易",
+            "en": "compensating transactions",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "使用 `setTimeout` 重試直到成功。",
+        "en": "Use `setTimeout` to retry until successful.",
+        "wg": []
+      },
+      {
+        "t": "將兩個服務合併回單體架構 (Monolith) 以使用 ACID Transaction。",
+        "en": "Merge both services back into a Monolith to use ACID Transactions.",
+        "wg": []
+      }
+    ],
+    "answer": "Option 2",
+    "why": {
+      "t": "Saga Pattern 透過一連串的本地交易與事件驅動來達成跨服務一致性。若某個步驟失敗，則執行「補償交易」來復原先前的操作，這是分散式系統中處理長流程的標準做法。",
+      "en": "The Saga Pattern achieves cross-service consistency through a sequence of local transactions and event-driven steps. If a step fails, 'Compensating Transactions' are executed to undo previous operations, which is the standard practice for handling long flows in distributed systems.",
+      "wg": [
+        {
+          "t": "復原",
+          "en": "undo / revert",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "15",
+    "level": "advanced",
+    "keywords": "Redis, Concurrency, Atomic Operations, Race Condition",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您正在使用 Redis 實作一個簡單的「API 限流器 (Rate Limiter)」，限制每分鐘 100 次請求。",
+        "en": "You are implementing a simple 'API Rate Limiter' using Redis, limiting to 100 requests per minute.",
+        "wg": [
+          {
+            "t": "限流器",
+            "en": "rate limiter",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "為了避免併發請求導致計數錯誤（Race Condition），您應該使用下列哪種操作？",
+        "en": "To avoid counting errors (Race Conditions) caused by concurrent requests, which operation should you use?",
+        "wg": [
+          {
+            "t": "競態條件",
+            "en": "Race Condition",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "先 `get` 目前數值，在 Node.js 中加 1，然後 `set` 回去。",
+        "en": "First `get` the current value, increment it in Node.js, and then `set` it back.",
+        "wg": []
+      },
+      {
+        "t": "使用 Redis 的原子操作指令，如 `INCR`。",
+        "en": "Use Redis atomic operation commands, such as `INCR`.",
+        "wg": [
+          {
+            "t": "原子操作",
+            "en": "atomic operation",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "使用 `JSON.stringify` 儲存計數器物件。",
+        "en": "Use `JSON.stringify` to store the counter object.",
+        "wg": []
+      },
+      {
+        "t": "在 Node.js 中使用 `AsyncLock` 套件鎖定整段程式碼。",
+        "en": "Use the `AsyncLock` package in Node.js to lock the entire code block.",
+        "wg": []
+      }
+    ],
+    "answer": "Option 2",
+    "why": {
+      "t": "「讀取-修改-寫入」若分開執行，在併發下會導致覆蓋更新。Redis 的 `INCR` 是原子操作（Atomic），能保證在單一指令週期內完成讀取與累加，徹底避免 Race Condition。",
+      "en": "If 'Read-Modify-Write' are executed separately, concurrency can lead to overwrite updates. Redis `INCR` is an atomic operation, guaranteeing that reading and incrementing happen within a single command cycle, completely avoiding Race Conditions.",
+      "wg": [
+        {
+          "t": "覆蓋",
+          "en": "overwrite",
+          "ps": "V"
+        }
+      ]
+    }
+  }
+]

@@ -1,0 +1,897 @@
+[
+  {
+    "no": "1",
+    "level": "Easy",
+    "keywords": "Replication Lag, Master-Slave, Consistency",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在「讀寫分離」的架構中，使用者更新了自己的個人資料（Write），隨即重新整理頁面（Read），卻發現資料仍是舊的。",
+        "en": "In a 'Read/Write Splitting' architecture, a user updates their profile (Write) and immediately refreshes the page (Read), but sees the old data.",
+        "wg": [
+          {
+            "t": "讀寫分離",
+            "en": "Read/Write Splitting",
+            "ps": "noun"
+          },
+          {
+            "t": "重新整理",
+            "en": "refresh",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "請問這種現象在分散式系統中稱為什麼？其主要成因為何？",
+        "en": "What is this phenomenon called in distributed systems, and what is its primary cause?",
+        "wg": []
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "髒讀 (Dirty Read)；因為交易隔離層級設定過低。",
+        "en": "Dirty Read; because the transaction isolation level is set too low.",
+        "wg": [
+          {
+            "t": "髒讀",
+            "en": "Dirty Read",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "過期讀取 (Stale Read)；因為主從複製存在延遲 (Replication Lag)。",
+        "en": "Stale Read; because of Replication Lag between Master and Slaves.",
+        "wg": [
+          {
+            "t": "過期讀取",
+            "en": "Stale Read",
+            "ps": "noun"
+          },
+          {
+            "t": "主從複製",
+            "en": "Master-Slave Replication",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "幻讀 (Phantom Read)；因為沒有使用 Next-Key Lock。",
+        "en": "Phantom Read; because Next-Key Lock was not used.",
+        "wg": []
+      },
+      {
+        "t": "快取雪崩 (Cache Avalanche)；因為快取同時失效。",
+        "en": "Cache Avalanche; because caches expired simultaneously.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "這是典型的「過期讀取 (Stale Read)」現象。在 MySQL 的非同步複製 (Asynchronous Replication) 機制下，Master 完成寫入後，Slave 需要一點時間才能同步該變更。若讀取請求剛好落在尚未同步的 Slave 上，就會讀到舊資料。",
+      "en": "This is a typical 'Stale Read' phenomenon. Under MySQL's asynchronous replication mechanism, it takes time for Slaves to sync changes after the Master completes a write. If a read request hits a Slave that hasn't synced yet, old data is returned.",
+      "wg": [
+        {
+          "t": "非同步複製",
+          "en": "Asynchronous Replication",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "2",
+    "level": "Intermediate",
+    "keywords": "Read-Your-Own-Writes, Session Consistency, Routing",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "if cache.get(f\"user_wrote:{user_id}\"):\n    user = db.master.query(...)\nelse:\n    user = db.slave.query(...)",
+    "question": [
+      {
+        "t": "為了決上述的「過期讀取」問題，同時不犧牲過多效能，下列哪一種實作模式最符合「Read-Your-Own-Writes」原則？",
+        "en": "To solve the aforementioned 'Stale Read' problem without sacrificing too much performance, which implementation pattern best fits the 'Read-Your-Own-Writes' principle?",
+        "wg": [
+          {
+            "t": "實作模式",
+            "en": "implementation pattern",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "強制所有讀取請求都路由至 Master，確保絕對一致性。",
+        "en": "Force all read requests to route to the Master to ensure absolute consistency.",
+        "wg": []
+      },
+      {
+        "t": "在寫入後讓執行緒 Sleep 1 秒，等待 Slave 同步完成後再回應前端。",
+        "en": "Sleep the thread for 1 second after writing, waiting for the Slave to sync before responding to the frontend.",
+        "wg": []
+      },
+      {
+        "t": "利用快取標記該使用者剛進行過寫入，在短時間內將該使用者的讀取請求路由至 Master，其餘使用者仍走 Slave。",
+        "en": "Use a cache to mark that the user just performed a write, and route that user's read requests to the Master for a short period, while others continue to use Slaves.",
+        "wg": [
+          {
+            "t": "路由",
+            "en": "route",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "放棄讀寫分離，將所有 Slave 升級為 Master 進行多主寫入 (Multi-Master)。",
+        "en": "Abandon read/write splitting and upgrade all Slaves to Masters for Multi-Master writes.",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "選項 2 是最佳實務。它僅針對「剛修改過資料」的使用者提供 Session Consistency，避免了將所有流量打回 Master (選項 0) 的效能瓶頸，也避免了 Sleep (選項 1) 帶來的延遲體驗。",
+      "en": "Option 2 is the best practice. It provides Session Consistency only for users who have 'just modified data', avoiding the performance bottleneck of routing all traffic to the Master (Option 0) and the latency of Sleeping (Option 1).",
+      "wg": [
+        {
+          "t": "效能瓶頸",
+          "en": "performance bottleneck",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "3",
+    "level": "Intermediate",
+    "keywords": "Sharding Key, Hotspot, Anti-pattern",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在設計分庫分表 (Sharding) 時，選擇 Sharding Key 至關重要。",
+        "en": "Choosing a Sharding Key is critical when designing Sharding.",
+        "wg": [
+          {
+            "t": "分庫分表",
+            "en": "Sharding",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "若你選擇 `created_at` (時間戳記) 作為主要的 Sharding Key 並採用 Range-based 路由，最可能遭遇什麼問題？",
+        "en": "If you choose `created_at` (timestamp) as the primary Sharding Key and use Range-based routing, what problem are you most likely to encounter?",
+        "wg": [
+          {
+            "t": "時間戳記",
+            "en": "timestamp",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "資料遷移困難 (Migration Difficulty)。",
+        "en": "Migration Difficulty.",
+        "wg": []
+      },
+      {
+        "t": "寫入熱點 (Write Hotspot)；所有新資料都會集中寫入到最後一個分片。",
+        "en": "Write Hotspot; all new data will be written to the last shard.",
+        "wg": [
+          {
+            "t": "寫入熱點",
+            "en": "Write Hotspot",
+            "ps": "noun"
+          },
+          {
+            "t": "分片",
+            "en": "shard",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "查詢無法使用索引 (Index Miss)。",
+        "en": "Index Miss for queries.",
+        "wg": []
+      },
+      {
+        "t": "UUID 生成衝突。",
+        "en": "UUID generation conflict.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "使用時間作為 Range Sharding Key 會導致所有最新的寫入請求都落在負責「當前時間區間」的那一個 Shard 上，造成該節點過載，而其他舊節點卻很閒置。這被稱為寫入熱點 (Write Hotspot)。",
+      "en": "Using time as a Range Sharding Key causes all latest write requests to fall on the single Shard responsible for the 'current time range', overloading that node while older nodes remain idle. This is called a Write Hotspot.",
+      "wg": [
+        {
+          "t": "過載",
+          "en": "overload",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "4",
+    "level": "Advanced",
+    "keywords": "Sharding, Gene Strategy, Data Locality",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "function getShardId(orderId) {\n    const userGene = extractGene(orderId); \n    return userGene % TOTAL_SHARDS;\n}",
+    "question": [
+      {
+        "t": "你正在設計一個訂單系統，決定依據 `order_id` 進行分庫。",
+        "en": "You are designing an order system and decided to shard by `order_id`.",
+        "wg": []
+      },
+      {
+        "t": "但業務需求常需要「查詢某位 User 的所有訂單」。為了避免跨庫查詢 (Cross-shard Query)，你應該採用哪種策略？",
+        "en": "However, business requirements often need to 'query all orders for a specific User'. To avoid Cross-shard Query, which strategy should you adopt?",
+        "wg": [
+          {
+            "t": "跨庫查詢",
+            "en": "Cross-shard Query",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "建立一個全域的索引表 (Lookup Table)，記錄 `user_id` 對應的所有 `order_id`。",
+        "en": "Create a global Lookup Table recording all `order_id`s corresponding to a `user_id`.",
+        "wg": [
+          {
+            "t": "索引表",
+            "en": "Lookup Table",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "基因法 (Gene Strategy)；在生成 `order_id` 時，將 `user_id` 的特徵值（如 hash 後幾位）嵌入其中，並依此特徵值進行路由。",
+        "en": "Gene Strategy; embed the `user_id`'s characteristic (e.g., last few bits of hash) into the `order_id` during generation, and route based on this characteristic.",
+        "wg": [
+          {
+            "t": "基因法",
+            "en": "Gene Strategy",
+            "ps": "noun"
+          },
+          {
+            "t": "嵌入",
+            "en": "embed",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "廣播表 (Broadcasting)；將 `orders` 表複製到所有分片中。",
+        "en": "Broadcasting; replicate the `orders` table to all shards.",
+        "wg": [
+          {
+            "t": "廣播表",
+            "en": "Broadcasting Table",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "雙寫 (Dual Write)；同時維護以 `order_id` 分片和以 `user_id` 分片的兩個資料庫。",
+        "en": "Dual Write; maintain two databases simultaneously, one sharded by `order_id` and the other by `user_id`.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "基因法 (Gene Strategy) 是最佳解。透過將 `user_id` 的資訊嵌入 `order_id`，我們可以保證「同一個使用者的所有訂單」以及「該使用者的特定訂單」都會被路由到同一個 Shard，達成 Data Locality，且無需額外的 Lookup Table 查詢開銷。",
+      "en": "The Gene Strategy is the best solution. By embedding `user_id` info into `order_id`, we ensure that 'all orders of a user' and 'a specific order of that user' are routed to the same Shard, achieving Data Locality without the overhead of an extra Lookup Table query.",
+      "wg": [
+        {
+          "t": "資料在地性",
+          "en": "Data Locality",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "5",
+    "level": "Advanced",
+    "keywords": "Resharding, Logical Shards, Scalability",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "為了避免未來擴容時發生「Resharding Nightmare」（需要大規模遷移數據），在初期設計分片策略時，下列哪種做法是建議的？",
+        "en": "To avoid the 'Resharding Nightmare' (massive data migration) during future scaling, which approach is recommended when designing the initial sharding strategy?",
+        "wg": [
+          {
+            "t": "擴容",
+            "en": "scaling / expansion",
+            "ps": "verb"
+          },
+          {
+            "t": "大規模遷移",
+            "en": "massive migration",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "直接依據實體機器數量進行 Hash 取模（例如 `id % 2`），擴容時再改為 `id % 3`。",
+        "en": "Hash modulo directly by the number of physical machines (e.g., `id % 2`), and change to `id % 3` when scaling.",
+        "wg": []
+      },
+      {
+        "t": "使用邏輯分片 (Logical Shards)；預先切分足夠多（如 1024）的虛擬分片，初期將它們映射到少數實體節點上。",
+        "en": "Use Logical Shards; pre-partition into enough (e.g., 1024) virtual shards and map them to a few physical nodes initially.",
+        "wg": [
+          {
+            "t": "邏輯分片",
+            "en": "Logical Shards",
+            "ps": "noun"
+          },
+          {
+            "t": "映射",
+            "en": "map",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "完全依賴 Auto-increment ID，不進行 Hash。",
+        "en": "Rely entirely on Auto-increment ID without Hashing.",
+        "wg": []
+      },
+      {
+        "t": "等到資料量大到撐不住時，再開始思考分片策略。",
+        "en": "Wait until the data volume is unmanageable before thinking about sharding strategy.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "選項 1 是標準解法。若直接依賴實體節點數量取模（選項 0），每次增加節點都會導致幾乎所有數據需要重新分佈。使用邏輯分片 (Logical Shards) 可以將數據遷移單位變為「分片」而非「單筆資料」，擴容時只需將部分邏輯分片搬移至新節點，無需重新計算 Hash。",
+      "en": "Option 1 is the standard solution. Modulo by physical node count (Option 0) causes almost all data to reshuffle when adding nodes. Using Logical Shards turns the migration unit into 'shards' instead of 'rows', allowing you to simply move some logical shards to new nodes without recomputing hashes.",
+      "wg": [
+        {
+          "t": "重新分佈",
+          "en": "reshuffle / redistribute",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "6",
+    "level": "Advanced",
+    "keywords": "Migration, Zero-Downtime, Dual Write",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在執行「無停機分庫分表遷移 (Zero-Downtime Sharding Migration)」時，通常會採用「雙寫 (Dual Write)」策略。",
+        "en": "When performing a 'Zero-Downtime Sharding Migration', the 'Dual Write' strategy is often used.",
+        "wg": [
+          {
+            "t": "無停機",
+            "en": "Zero-Downtime",
+            "ps": "adj"
+          },
+          {
+            "t": "雙寫",
+            "en": "Dual Write",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "請問在遷移初期的雙寫階段，對於「寫入新庫失敗」的情況，應如何處理？",
+        "en": "During the initial Dual Write phase, how should 'write failures to the new database' be handled?",
+        "wg": []
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "視為嚴重錯誤，立即回滾 (Rollback) 舊庫的交易，並向使用者報錯。",
+        "en": "Treat as a critical error, immediately rollback the transaction in the old database, and return an error to the user.",
+        "wg": [
+          {
+            "t": "回滾",
+            "en": "rollback",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "以舊庫為準 (Source of Truth)，新庫寫入失敗僅記錄 Log 或進行異步重試，不影響主流程。",
+        "en": "Treat the old database as the Source of Truth; failures in the new database are only logged or retried asynchronously, without affecting the main flow.",
+        "wg": [
+          {
+            "t": "單一真值來源",
+            "en": "Source of Truth",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "暫停所有寫入服務，直到新庫修復為止。",
+        "en": "Suspend all write services until the new database is fixed.",
+        "wg": []
+      },
+      {
+        "t": "略過舊庫，強制只寫入新庫。",
+        "en": "Skip the old database and force writing only to the new database.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "在遷移初期，系統仍以舊庫為主要資料來源 (Source of Truth)。雙寫的目的是為了讓新庫開始累積數據，但不應影響現有業務的穩定性。因此，新庫寫入失敗應採用「盡力而為 (Best Effort)」策略，透過 Log 或背景修復，而不應中斷使用者請求。",
+      "en": "In the early migration phase, the old database is still the Source of Truth. The purpose of Dual Write is to start populating the new database without compromising current stability. Therefore, write failures to the new DB should follow a 'Best Effort' strategy (log or background fix) and not interrupt user requests.",
+      "wg": [
+        {
+          "t": "盡力而為",
+          "en": "Best Effort",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "7",
+    "level": "Intermediate",
+    "keywords": "Range-based Sharding, Hotspot, Routing Strategy",
+    "parentNo": null,
+    "images": "",
+    "codeSnippet": "",
+    "question": [
+      {
+        "t": "在選擇分庫分表的路由策略時，若採用「基於範圍的分片」（Range-based Sharding，例如 User ID 1-10000 在 Shard A，10001-20000 在 Shard B），雖然擴容方便，但最容易面臨下列哪項風險？",
+        "en": "When choosing a routing strategy for sharding, if you adopt 'Range-based Sharding' (e.g., User ID 1-10000 in Shard A, 10001-20000 in Shard B), while it is easy to scale, what is the primary risk you are most likely to face?",
+        "wg": [
+          {
+            "t": "基於範圍的分片",
+            "en": "Range-based Sharding",
+            "ps": "noun phrase"
+          },
+          {
+            "t": "擴容",
+            "en": "scaling / resharding",
+            "ps": "verb/noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "擴容時需要遷移大量數據（High Migration Cost）。",
+        "en": "High data migration cost during scaling.",
+        "wg": []
+      },
+      {
+        "t": "產生寫入熱點（Write Hotspot），新數據集中在單一分片。",
+        "en": "Creating a Write Hotspot, where new data is concentrated on a single shard.",
+        "wg": [
+          {
+            "t": "寫入熱點",
+            "en": "Write Hotspot",
+            "ps": "noun phrase"
+          }
+        ]
+      },
+      {
+        "t": "無法支援交易（Transactions）。",
+        "en": "Inability to support transactions.",
+        "wg": []
+      },
+      {
+        "t": "查詢路由邏輯過於複雜。",
+        "en": "The query routing logic is too complex.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "Range-based Sharding 的主要缺點是新生成的數據（通常 ID 較大）會全部落在最後一個分片上，導致該分片承受所有的寫入壓力（Write Hotspot），而舊分片則相對閒置。選項 0 描述的是 Hash-based Sharding 的缺點。",
+      "en": "The main drawback of Range-based Sharding is that newly generated data (usually with larger IDs) will all land on the last shard, causing that shard to bear all the write pressure (Write Hotspot), while older shards remain relatively idle. Option 0 describes the drawback of Hash-based Sharding.",
+      "wg": [
+        {
+          "t": "閒置",
+          "en": "idle",
+          "ps": "adjective"
+        }
+      ]
+    }
+  },
+  {
+    "no": "8",
+    "level": "Intermediate",
+    "keywords": "Broadcasting Tables, Cross-Shard Join, Dictionary Data",
+    "parentNo": null,
+    "images": "",
+    "codeSnippet": "",
+    "question": [
+      {
+        "t": "在分庫分表架構中，`orders` 表已進行分片，但業務邏輯常需要將訂單與變動極少且資料量小的 `currency_rates`（匯率表）進行關聯查詢（Join）。",
+        "en": "In a sharded architecture, the `orders` table is already sharded, but business logic often requires joining orders with a `currency_rates` table, which is small and rarely changes.",
+        "wg": [
+          {
+            "t": "關聯查詢",
+            "en": "Join",
+            "ps": "verb/noun"
+          }
+        ]
+      },
+      {
+        "t": "為了避免跨庫 Join 帶來的效能問題，下列哪種模式是處理此類「字典表」的最佳實踐？",
+        "en": "To avoid performance issues caused by cross-shard joins, which of the following patterns is the best practice for handling such 'dictionary tables'?",
+        "wg": [
+          {
+            "t": "跨庫 Join",
+            "en": "Cross-shard Join",
+            "ps": "noun phrase"
+          },
+          {
+            "t": "字典表",
+            "en": "dictionary tables",
+            "ps": "noun phrase"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "廣播表（Broadcasting Tables）：在每個分片中都複製一份完整的匯率表。",
+        "en": "Broadcasting Tables: Replicate a complete copy of the currency rates table in every shard.",
+        "wg": [
+          {
+            "t": "廣播表",
+            "en": "Broadcasting Tables",
+            "ps": "noun phrase"
+          }
+        ]
+      },
+      {
+        "t": "應用層關聯（Application-side Join）：先查訂單，再依匯率 ID 逐筆查詢匯率庫。",
+        "en": "Application-side Join: Query orders first, then query the currency database one by one based on rate ID.",
+        "wg": []
+      },
+      {
+        "t": "建立全域索引表（Global Lookup Table）。",
+        "en": "Create a Global Lookup Table.",
+        "wg": []
+      },
+      {
+        "t": "強制使用 Federated Storage Engine 進行跨庫連結。",
+        "en": "Force the use of Federated Storage Engine for cross-database linking.",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "對於資料量小且變動少的表（如配置、字典、匯率），最佳解法是將其「廣播」到所有分片中。這樣在執行 Join 時，每個分片都能在本地完成操作，完全避免了跨網路的跨庫 Join。",
+      "en": "For tables with small data volume and infrequent changes (e.g., configurations, dictionaries, rates), the best solution is to 'broadcast' them to all shards. This allows each shard to complete the Join locally, completely avoiding cross-network cross-shard joins.",
+      "wg": [
+        {
+          "t": "本地",
+          "en": "locally",
+          "ps": "adverb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "9",
+    "level": "Advanced",
+    "keywords": "Global ID, UUID, Clustered Index, Page Splitting",
+    "parentNo": null,
+    "images": "",
+    "codeSnippet": "",
+    "question": [
+      {
+        "t": "在分庫分表後，我們需要全域唯一的 ID。",
+        "en": "After sharding, we need globally unique IDs.",
+        "wg": []
+      },
+      {
+        "t": "為何在 MySQL InnoDB 中，直接使用標準的隨機 UUID（如 `f47ac10b-58cc...`）作為主鍵（Primary Key）通常被視為效能反模式（Anti-pattern）？",
+        "en": "Why is using a standard random UUID (e.g., `f47ac10b-58cc...`) as a Primary Key generally considered a performance anti-pattern in MySQL InnoDB?",
+        "wg": [
+          {
+            "t": "主鍵",
+            "en": "Primary Key",
+            "ps": "noun"
+          },
+          {
+            "t": "反模式",
+            "en": "Anti-pattern",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "UUID 的長度過長，導致單行資料儲存空間不足。",
+        "en": "UUIDs are too long, causing insufficient storage space for a single row.",
+        "wg": []
+      },
+      {
+        "t": "隨機性導致 Clustered Index 頻繁發生頁分裂（Page Splitting）與碎片化，嚴重影響寫入效能。",
+        "en": "Randomness causes frequent Page Splitting and fragmentation in the Clustered Index, severely impacting write performance.",
+        "wg": [
+          {
+            "t": "頁分裂",
+            "en": "Page Splitting",
+            "ps": "noun phrase"
+          },
+          {
+            "t": "碎片化",
+            "en": "fragmentation",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "UUID 無法保證全域唯一性，容易發生衝突。",
+        "en": "UUIDs cannot guarantee global uniqueness and are prone to collisions.",
+        "wg": []
+      },
+      {
+        "t": "MySQL 不支援 UUID 資料型態。",
+        "en": "MySQL does not support the UUID data type.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "InnoDB 的主鍵是 Clustered Index，資料依主鍵順序儲存。隨機 UUID 會導致新資料被插入到索引樹的中間位置，而非尾端，引發頻繁的 Page Splitting 和磁碟隨機 I/O，大幅降低寫入吞吐量。建議使用 Snowflake 或 Ordered UUID。",
+      "en": "InnoDB's Primary Key is a Clustered Index, where data is stored in key order. Random UUIDs cause new data to be inserted into the middle of the index tree rather than the end, triggering frequent Page Splitting and random disk I/O, significantly reducing write throughput. Snowflake or Ordered UUID is recommended.",
+      "wg": [
+        {
+          "t": "吞吐量",
+          "en": "throughput",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "10",
+    "level": "Intermediate",
+    "keywords": "Premature Sharding, Scale Up, Optimization",
+    "parentNo": null,
+    "images": "",
+    "codeSnippet": "",
+    "question": [
+      {
+        "t": "你的團隊負責維護一個 50GB、約 1000 萬行資料的資料庫，近期查詢變慢。",
+        "en": "Your team maintains a database with 50GB of data and about 10 million rows, and queries have recently become slow.",
+        "wg": []
+      },
+      {
+        "t": "經理建議立刻進行「分庫分表」以解決效能問題。根據擴展性設計的最佳實務，下列哪項回應最為恰當？",
+        "en": "The manager suggests immediately implementing 'Sharding' to solve the performance issue. According to scalability design best practices, which of the following responses is most appropriate?",
+        "wg": [
+          {
+            "t": "最佳實務",
+            "en": "best practices",
+            "ps": "noun phrase"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "同意，因為 1000 萬行已經達到 MySQL 的單表極限。",
+        "en": "Agree, because 10 million rows have reached the single-table limit of MySQL.",
+        "wg": []
+      },
+      {
+        "t": "反對，這是「過早分庫（Premature Sharding）」。應優先檢查索引、快取或讀寫分離，分庫是最後手段。",
+        "en": "Disagree, this is 'Premature Sharding'. Priority should be given to checking indexes, caching, or read/write splitting; sharding is the last resort.",
+        "wg": [
+          {
+            "t": "過早分庫",
+            "en": "Premature Sharding",
+            "ps": "noun phrase"
+          },
+          {
+            "t": "最後手段",
+            "en": "last resort",
+            "ps": "noun phrase"
+          }
+        ]
+      },
+      {
+        "t": "建議改用 NoSQL 資料庫，因為關聯式資料庫無法處理此量級。",
+        "en": "Suggest switching to a NoSQL database, as relational databases cannot handle this scale.",
+        "wg": []
+      },
+      {
+        "t": "同意，但應先進行垂直拆分（Vertical Partitioning）。",
+        "en": "Agree, but Vertical Partitioning should be done first.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "50GB/1000萬行對現代 MySQL 來說並非巨大負擔。分庫分表會帶來極高的維護成本與開發複雜度（複雜度稅）。應遵循 Scale Up 優先於 Scale Out 的原則，先優化索引、引入 Redis 或 Read Replicas，直到物理極限才考慮 Sharding。",
+      "en": "50GB/10M rows is not a huge burden for modern MySQL. Sharding introduces extremely high maintenance costs and development complexity (Complexity Tax). The principle of 'Scale Up before Scale Out' should be followed: optimize indexes, introduce Redis or Read Replicas first, and consider Sharding only when physical limits are reached.",
+      "wg": [
+        {
+          "t": "複雜度稅",
+          "en": "Complexity Tax",
+          "ps": "noun phrase"
+        }
+      ]
+    }
+  },
+  {
+    "no": "11",
+    "level": "Advanced",
+    "keywords": "Cross-Shard Join, Application-side Join, Denormalization",
+    "parentNo": null,
+    "images": "",
+    "codeSnippet": "",
+    "question": [
+      {
+        "t": "在已分庫的系統中，`users` 表依 `user_id` 分片，`orders` 表依 `order_id` 分片。",
+        "en": "In a sharded system, the `users` table is sharded by `user_id` and the `orders` table is sharded by `order_id`.",
+        "wg": []
+      },
+      {
+        "t": "若你需要產出一份「訂單列表包含使用者姓名」的報表，且無法透過反正規化（Denormalization）解決，下列哪種實作方式能避免「跨庫關聯陷阱（Cross-Shard Join Trap）」？",
+        "en": "If you need to generate a report of 'Order List including User Names' and cannot solve it via Denormalization, which implementation avoids the 'Cross-Shard Join Trap'?",
+        "wg": [
+          {
+            "t": "反正規化",
+            "en": "Denormalization",
+            "ps": "noun"
+          },
+          {
+            "t": "跨庫關聯陷阱",
+            "en": "Cross-Shard Join Trap",
+            "ps": "noun phrase"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "在資料庫層使用分散式交易進行 Join。",
+        "en": "Use distributed transactions at the database layer to perform the Join.",
+        "wg": []
+      },
+      {
+        "t": "應用層關聯（Application-side Join）：先查詢 Orders 取得 user_ids，再用 `IN (...)` 查詢 Users，最後在記憶體中組裝。",
+        "en": "Application-side Join: Query Orders first to get user_ids, then query Users using `IN (...)`, and finally assemble them in memory.",
+        "wg": [
+          {
+            "t": "應用層關聯",
+            "en": "Application-side Join",
+            "ps": "noun phrase"
+          },
+          {
+            "t": "組裝",
+            "en": "assemble / merge",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "直接在 SQL 中寫 `JOIN` 語句，依賴 Middleware 自動處理。",
+        "en": "Write the `JOIN` statement directly in SQL and rely on Middleware to handle it automatically.",
+        "wg": []
+      },
+      {
+        "t": "將 `users` 表的資料全部遷移到 `orders` 所在的資料庫。",
+        "en": "Migrate all data from the `users` table to the database where `orders` resides.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "跨實體庫的 Join 在資料庫層極難實現且效能低落。標準解法是將 Join 邏輯上移至應用層（Application Layer），分兩次查詢並在記憶體中聚合。雖然增加了程式碼複雜度，但避免了資料庫層的鎖定與資源耗盡。",
+      "en": "Cross-physical-database Joins are extremely difficult to implement and perform poorly at the database layer. The standard solution is to move the Join logic up to the Application Layer, performing two queries and aggregating in memory. Although this increases code complexity, it avoids locking and resource exhaustion at the database layer.",
+      "wg": [
+        {
+          "t": "資源耗盡",
+          "en": "resource exhaustion",
+          "ps": "noun phrase"
+        }
+      ]
+    }
+  },
+  {
+    "no": "12",
+    "level": "Intermediate",
+    "keywords": "ProxySQL, Middleware, Network Hop, Routing",
+    "parentNo": null,
+    "images": "",
+    "codeSnippet": "",
+    "question": [
+      {
+        "t": "關於讀寫分離的路由實作，比較「Middleware 模式（如 ProxySQL）」與「Application-Side 模式（如 ShardingSphere-JDBC）」，下列敘述何者正確？",
+        "en": "Regarding the routing implementation of read/write splitting, comparing 'Middleware Pattern (e.g., ProxySQL)' vs. 'Application-Side Pattern (e.g., ShardingSphere-JDBC)', which of the following statements is correct?",
+        "wg": [
+          {
+            "t": "路由實作",
+            "en": "routing implementation",
+            "ps": "noun phrase"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "Application-Side 模式對程式碼無侵入性，運維團隊可獨立管理。",
+        "en": "The Application-Side pattern is non-intrusive to code, allowing the Ops team to manage it independently.",
+        "wg": []
+      },
+      {
+        "t": "Middleware 模式效能最好，因為它減少了一次網路跳躍（Network Hop）。",
+        "en": "The Middleware pattern has the best performance because it reduces one Network Hop.",
+        "wg": []
+      },
+      {
+        "t": "Application-Side 模式雖然侵入程式碼，但省去了中間代理層的額外網路延遲（Extra Hop）。",
+        "en": "Although the Application-Side pattern is intrusive to the code, it eliminates the extra network latency (Extra Hop) of the intermediate proxy layer.",
+        "wg": [
+          {
+            "t": "侵入程式碼",
+            "en": "intrusive to code",
+            "ps": "verb phrase"
+          },
+          {
+            "t": "網路跳躍",
+            "en": "Network Hop",
+            "ps": "noun phrase"
+          }
+        ]
+      },
+      {
+        "t": "兩者都必須依賴 DNS 輪詢來達成負載平衡。",
+        "en": "Both must rely on DNS round-robin to achieve load balancing.",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "Middleware（Proxy）位於 App 與 DB 之間，會增加一次網路傳輸（Hop）。Application-Side Routing（如 JDBC 驅動層）則是直接由 App 連線至正確的 DB，效能較高但需要修改程式碼或依賴特定函式庫，且路由規則變更需重新部署應用。",
+      "en": "Middleware (Proxy) sits between the App and DB, adding one network transmission (Hop). Application-Side Routing (e.g., JDBC driver layer) connects directly from the App to the correct DB, offering higher performance but requiring code changes or specific libraries, and routing rule changes require application redeployment.",
+      "wg": [
+        {
+          "t": "重新部署",
+          "en": "redeployment",
+          "ps": "noun"
+        }
+      ]
+    }
+  }
+]

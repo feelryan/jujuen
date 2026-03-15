@@ -1,0 +1,836 @@
+[
+  {
+    "no": "1",
+    "level": "Hard",
+    "keywords": "ReDoS,Event Loop,Regex,Availability",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "const emailRegex = /^([a-zA-Z0-9_\\.\\-])+@(([a-zA-Z0-9\\-])+\\.)+([a-zA-Z0-9]{2,4})+$/;\n// ... inside a request handler\nif (!emailRegex.test(req.body.email)) {\n  return res.status(400).send('Invalid Email');\n}",
+    "question": [
+      {
+        "t": "在 Code Review 中，你發現同事提交了上述的正則表達式 (Regex) 來驗證 Email。作為資深工程師，你為什麼應該拒絕這段程式碼並要求修改？",
+        "en": "During a Code Review, you notice a colleague submitted the above Regex for Email validation. As a senior engineer, why should you reject this code and request changes?",
+        "wg": [
+          {
+            "t": "正則表達式",
+            "en": "Regular Expression",
+            "ps": "noun"
+          },
+          {
+            "t": "拒絕",
+            "en": "reject",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "因為該 Regex 無法正確匹配所有合法的 Email 格式（如含有特殊字元的 Email）。",
+        "en": "Because the Regex cannot correctly match all valid Email formats (e.g., those with special characters).",
+        "wg": []
+      },
+      {
+        "t": "因為該 Regex 包含巢狀量詞 (Nested Quantifiers)，容易受到 ReDoS 攻擊，導致 Event Loop 被阻塞。",
+        "en": "Because the Regex contains Nested Quantifiers, making it vulnerable to ReDoS attacks, which can block the Event Loop.",
+        "wg": [
+          {
+            "t": "巢狀量詞",
+            "en": "Nested Quantifiers",
+            "ps": "noun"
+          },
+          {
+            "t": "阻塞",
+            "en": "block",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "因為在 Node.js 中使用 Regex 進行字串驗證是非常消耗記憶體的行為。",
+        "en": "Because using Regex for string validation in Node.js is extremely memory-intensive.",
+        "wg": []
+      },
+      {
+        "t": "因為應該使用前端驗證即可，後端不需要再次驗證 Email。",
+        "en": "Because frontend validation should be sufficient; the backend does not need to validate the Email again.",
+        "wg": []
+      }
+    ],
+    "answer": "因為該 Regex 包含巢狀量詞 (Nested Quantifiers)，容易受到 ReDoS 攻擊，導致 Event Loop 被阻塞。",
+    "why": {
+      "t": "這是典型的 ReDoS (Regex Denial of Service) 陷阱。由於 Node.js 是單執行緒的，當 Regex 引擎處理惡意構造的字串（例如極長的字串且在結尾不匹配）時，巢狀量詞會導致指數級的時間複雜度 (O(2^n))，進而卡死 Event Loop，導致整個服務對所有使用者無法回應。",
+      "en": "This is a classic ReDoS (Regex Denial of Service) trap. Since Node.js is single-threaded, when the Regex engine processes a maliciously crafted string (e.g., a very long string that fails at the very end), nested quantifiers cause exponential time complexity (O(2^n)). This blocks the Event Loop, rendering the service unresponsive for all users.",
+      "wg": [
+        {
+          "t": "單執行緒",
+          "en": "single-threaded",
+          "ps": "adjective"
+        },
+        {
+          "t": "指數級",
+          "en": "exponential",
+          "ps": "adjective"
+        }
+      ]
+    }
+  },
+  {
+    "no": "2",
+    "level": "Medium",
+    "keywords": "NoSQL Injection,MongoDB,Sanitization,Input Validation",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "app.post('/login', async (req, res) => {\n  // Vulnerable implementation\n  const user = await db.users.findOne({\n    username: req.body.username,\n    password: req.body.password\n  });\n  if (user) {\n    // Grant Access\n  }\n});",
+    "question": [
+      {
+        "t": "上述的 MongoDB 登入實作存在嚴重的安全漏洞。攻擊者可以透過傳送什麼樣的 Payload 來繞過密碼驗證？",
+        "en": "The MongoDB login implementation above has a critical security vulnerability. What kind of payload can an attacker send to bypass password verification?",
+        "wg": [
+          {
+            "t": "繞過",
+            "en": "bypass",
+            "ps": "verb"
+          },
+          {
+            "t": "實作",
+            "en": "implementation",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "傳送 SQL Injection 字串，如 `' OR '1'='1`。",
+        "en": "Send a SQL Injection string, such as `' OR '1'='1`.",
+        "wg": []
+      },
+      {
+        "t": "傳送一個包含 MongoDB 運算子的物件，如 `{\"password\": {\"$gt\": \"\"}}`。",
+        "en": "Send an object containing a MongoDB operator, such as `{\"password\": {\"$gt\": \"\"}}`.",
+        "wg": [
+          {
+            "t": "運算子",
+            "en": "operator",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "傳送一個極長的密碼字串導致 Buffer Overflow。",
+        "en": "Send an extremely long password string to cause a Buffer Overflow.",
+        "wg": []
+      },
+      {
+        "t": "傳送 `null` 值來觸發資料庫錯誤。",
+        "en": "Send a `null` value to trigger a database error.",
+        "wg": []
+      }
+    ],
+    "answer": "傳送一個包含 MongoDB 運算子的物件，如 `{\"password\": {\"$gt\": \"\"}}`。",
+    "why": {
+      "t": "這是 NoSQL Injection。如果沒有驗證 `req.body.password` 的型別為字串，攻擊者可以傳入物件 `{ \"$gt\": \"\" }`（大於空字串）。在 MongoDB 查詢中，這會匹配任何非空的密碼欄位，導致在不知道密碼的情況下成功登入。修復方式是強制轉型 `String(req.body.password)` 或使用 Schema 驗證庫（如 Zod）。",
+      "en": "This is NoSQL Injection. If `req.body.password` is not validated as a string, an attacker can pass an object `{ \"$gt\": \"\" }` (greater than empty string). In a MongoDB query, this matches any non-empty password field, allowing login without knowing the password. The fix is to cast to string explicitly `String(req.body.password)` or use a schema validation library like Zod.",
+      "wg": [
+        {
+          "t": "強制轉型",
+          "en": "explicit cast / type coercion",
+          "ps": "verb"
+        },
+        {
+          "t": "大於",
+          "en": "greater than",
+          "ps": "phrase"
+        }
+      ]
+    }
+  },
+  {
+    "no": "3",
+    "level": "Medium",
+    "keywords": "Prototype Pollution,JavaScript,Security,Object",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "const merge = (target, source) => {\n  for (let key in source) {\n    if (typeof source[key] === 'object') {\n      if (!target[key]) target[key] = {};\n      merge(target[key], source[key]);\n    } else {\n      target[key] = source[key];\n    }\n  }\n  return target;\n};",
+    "question": [
+      {
+        "t": "這段遞迴合併物件的程式碼容易受到「原型污染 (Prototype Pollution)」攻擊。為了修復此漏洞，下列哪一種做法是**最無效**或**錯誤**的？",
+        "en": "This recursive object merge code is vulnerable to 'Prototype Pollution'. Which of the following approaches is the **least effective** or **incorrect** for fixing this vulnerability?",
+        "wg": [
+          {
+            "t": "原型污染",
+            "en": "Prototype Pollution",
+            "ps": "noun"
+          },
+          {
+            "t": "遞迴",
+            "en": "recursive",
+            "ps": "adjective"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "在迴圈中檢查 `key` 是否等於 `__proto__`、`constructor` 或 `prototype`，若是則跳過。",
+        "en": "Check inside the loop if `key` equals `__proto__`, `constructor`, or `prototype`, and skip if true.",
+        "wg": []
+      },
+      {
+        "t": "使用 `Object.create(null)` 來建立沒有原型的物件作為 target。",
+        "en": "Use `Object.create(null)` to create objects without a prototype as the target.",
+        "wg": []
+      },
+      {
+        "t": "使用 `Object.freeze(Object.prototype)` 來禁止修改全域原型（雖然可能影響其他依賴修改原型的庫）。",
+        "en": "Use `Object.freeze(Object.prototype)` to prevent modifications to the global prototype (though this may affect libraries that rely on prototype modification).",
+        "wg": []
+      },
+      {
+        "t": "使用 `JSON.parse(JSON.stringify(source))` 來深拷貝物件。",
+        "en": "Use `JSON.parse(JSON.stringify(source))` to deep copy the object.",
+        "wg": []
+      }
+    ],
+    "answer": "使用 `JSON.parse(JSON.stringify(source))` 來深拷貝物件。",
+    "why": {
+      "t": "`JSON.parse(JSON.stringify(source))` 雖然可以移除 `undefined` 或 `function`，但它並不能阻止 `__proto__` 鍵被解析為普通屬性（取決於 JSON 實作），或者如果攻擊者控制的是 `merge` 函式的輸入來源，單純拷貝並不能解決合併邏輯本身的漏洞。正確的防禦是在合併邏輯中明確過濾危險的 Key，或使用像 Lodash 這樣已修復此漏洞的庫。",
+      "en": "While `JSON.parse(JSON.stringify(source))` removes `undefined` or `functions`, it does not necessarily prevent `__proto__` keys from being parsed as normal properties (depending on JSON implementation). More importantly, if the attacker controls the input to the `merge` function, simply copying doesn't fix the flaw in the merge logic itself. The correct defense is to explicitly filter dangerous keys in the merge logic or use a library like Lodash that has patched this vulnerability.",
+      "wg": [
+        {
+          "t": "深拷貝",
+          "en": "deep copy",
+          "ps": "verb"
+        },
+        {
+          "t": "過濾",
+          "en": "filter",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "4",
+    "level": "Easy",
+    "keywords": "Information Leakage,Error Handling,Production,Express",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "// Express Error Handler\napp.use((err, req, res, next) => {\n  res.status(500).json({\n    error: err.message,\n    stack: err.stack // <--- This line\n  });\n});",
+    "question": [
+      {
+        "t": "在生產環境 (Production) 中，為什麼將 `err.stack` 直接回傳給客戶端被視為一種安全反模式 (Anti-pattern)？",
+        "en": "In a Production environment, why is returning `err.stack` directly to the client considered a security Anti-pattern?",
+        "wg": [
+          {
+            "t": "反模式",
+            "en": "Anti-pattern",
+            "ps": "noun"
+          },
+          {
+            "t": "洩漏",
+            "en": "leak",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "因為 Stack Trace 會佔用過多的網路頻寬。",
+        "en": "Because the Stack Trace consumes too much network bandwidth.",
+        "wg": []
+      },
+      {
+        "t": "因為它會暴露伺服器的內部檔案路徑、使用的模組版本及程式邏輯，協助攻擊者尋找漏洞。",
+        "en": "Because it exposes internal server file paths, module versions used, and program logic, helping attackers find vulnerabilities.",
+        "wg": [
+          {
+            "t": "暴露",
+            "en": "expose",
+            "ps": "verb"
+          },
+          {
+            "t": "檔案路徑",
+            "en": "file paths",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "因為這會導致瀏覽器無法正確解析 JSON 回應。",
+        "en": "Because this causes the browser to fail in parsing the JSON response correctly.",
+        "wg": []
+      },
+      {
+        "t": "因為 `err.stack` 可能包含無限遞迴，導致客戶端當機。",
+        "en": "Because `err.stack` might contain infinite recursion, causing the client to crash.",
+        "wg": []
+      }
+    ],
+    "answer": "因為它會暴露伺服器的內部檔案路徑、使用的模組版本及程式邏輯，協助攻擊者尋找漏洞。",
+    "why": {
+      "t": "詳細的錯誤訊息（Verbose Error Leaking）是資訊洩漏的一種。Stack Trace 包含了專案的目錄結構、依賴庫的名稱與版本，甚至程式碼片段。攻擊者可以利用這些資訊來針對特定版本的已知漏洞進行攻擊 (CVE exploitation)。",
+      "en": "Verbose Error Leaking is a form of information leakage. A Stack Trace contains the project's directory structure, dependency names and versions, and even code snippets. Attackers can use this information to target known vulnerabilities in specific versions (CVE exploitation).",
+      "wg": [
+        {
+          "t": "資訊洩漏",
+          "en": "Information Leakage",
+          "ps": "noun"
+        },
+        {
+          "t": "依賴庫",
+          "en": "dependencies",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "5",
+    "level": "Medium",
+    "keywords": "Supply Chain Attack,NPM,CI/CD,Security",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "為了防範 NPM 供應鏈攻擊（如惡意套件在安裝時執行腳本竊取環境變數），在 CI/CD Pipeline 中安裝依賴時，下列哪項指令組合是最佳實務？",
+        "en": "To prevent NPM supply chain attacks (e.g., malicious packages running scripts to steal env vars during installation), which of the following command combinations is the best practice for installing dependencies in a CI/CD Pipeline?",
+        "wg": [
+          {
+            "t": "供應鏈攻擊",
+            "en": "Supply Chain Attack",
+            "ps": "noun"
+          },
+          {
+            "t": "最佳實務",
+            "en": "best practice",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "`npm install`",
+        "en": "`npm install`",
+        "wg": []
+      },
+      {
+        "t": "`npm update && npm install`",
+        "en": "`npm update && npm install`",
+        "wg": []
+      },
+      {
+        "t": "`npm ci --ignore-scripts`",
+        "en": "`npm ci --ignore-scripts`",
+        "wg": []
+      },
+      {
+        "t": "`npm install --no-save`",
+        "en": "`npm install --no-save`",
+        "wg": []
+      }
+    ],
+    "answer": "`npm ci --ignore-scripts`",
+    "why": {
+      "t": "`npm ci` (Clean Install) 確保安裝的版本與 `package-lock.json` 完全一致，避免因版本範圍寬鬆而拉到被植入惡意程式碼的新版本。`--ignore-scripts` 則禁止執行 `preinstall` 或 `postinstall` 腳本，這是惡意套件最常隱藏攻擊程式碼的地方。",
+      "en": "`npm ci` (Clean Install) ensures that the installed versions match `package-lock.json` exactly, preventing the retrieval of a new version injected with malicious code due to loose version ranges. `--ignore-scripts` prevents the execution of `preinstall` or `postinstall` scripts, which is where malicious packages most often hide attack code.",
+      "wg": [
+        {
+          "t": "版本範圍",
+          "en": "version ranges",
+          "ps": "noun"
+        },
+        {
+          "t": "植入",
+          "en": "inject",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "6",
+    "level": "Medium",
+    "keywords": "Cookies,XSS,Security Headers,Authentication",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "res.cookie('session_id', token, {\n  httpOnly: true,\n  secure: true,\n  sameSite: 'strict'\n});",
+    "question": [
+      {
+        "t": "在設定 Session Cookie 時，開啟 `httpOnly: true` 屬性的主要安全目的是什麼？",
+        "en": "When setting a Session Cookie, what is the primary security purpose of enabling the `httpOnly: true` attribute?",
+        "wg": [
+          {
+            "t": "屬性",
+            "en": "attribute",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "確保 Cookie 只能透過 HTTPS 傳輸，防止中間人攻擊 (MITM)。",
+        "en": "Ensure the Cookie is only transmitted over HTTPS, preventing Man-in-the-Middle (MITM) attacks.",
+        "wg": []
+      },
+      {
+        "t": "防止客戶端的 JavaScript (如 `document.cookie`) 存取該 Cookie，減緩 XSS 攻擊的影響。",
+        "en": "Prevent client-side JavaScript (e.g., `document.cookie`) from accessing the Cookie, mitigating the impact of XSS attacks.",
+        "wg": [
+          {
+            "t": "減緩",
+            "en": "mitigate",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "防止跨站請求偽造 (CSRF) 攻擊。",
+        "en": "Prevent Cross-Site Request Forgery (CSRF) attacks.",
+        "wg": []
+      },
+      {
+        "t": "確保 Cookie 在瀏覽器關閉後自動刪除。",
+        "en": "Ensure the Cookie is automatically deleted when the browser is closed.",
+        "wg": []
+      }
+    ],
+    "answer": "防止客戶端的 JavaScript (如 `document.cookie`) 存取該 Cookie，減緩 XSS 攻擊的影響。",
+    "why": {
+      "t": "`httpOnly` 標記指示瀏覽器該 Cookie 不能透過客戶端腳本存取。這意味著即使網站有 XSS 漏洞（攻擊者能執行 JS），攻擊者也無法透過 `document.cookie` 竊取 Session ID。選項 A 是 `secure` 屬性的功能；選項 C 主要是由 `SameSite` 屬性或 CSRF Token 處理。",
+      "en": "The `httpOnly` flag instructs the browser that the Cookie cannot be accessed via client-side scripts. This means even if the site has an XSS vulnerability (attacker can run JS), the attacker cannot steal the Session ID via `document.cookie`. Option A describes the `secure` attribute; Option C is primarily handled by the `SameSite` attribute or CSRF tokens.",
+      "wg": [
+        {
+          "t": "竊取",
+          "en": "steal",
+          "ps": "verb"
+        },
+        {
+          "t": "指示",
+          "en": "instruct",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "7",
+    "level": "Medium",
+    "keywords": "Mass Assignment, Input Validation, Security, ORM",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "app.post('/update-profile', async (req, res) => {\n  // 假設 req.user.id 來自驗證過的 session\n  await db.User.update({ id: req.user.id }, req.body);\n  res.json({ success: true });\n});",
+    "question": [
+      {
+        "t": "請檢視上述程式碼。雖然使用者身分已驗證，但直接將 `req.body` 傳入資料庫更新函式會導致什麼特定的安全漏洞？",
+        "en": "Review the code above. Although the user is authenticated, what specific security vulnerability is introduced by passing `req.body` directly into the database update function?",
+        "wg": [
+          {
+            "t": "身分已驗證",
+            "en": "authenticated",
+            "ps": "verb"
+          },
+          {
+            "t": "安全漏洞",
+            "en": "security vulnerability",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "SQL 注入 (SQL Injection)",
+        "en": "SQL Injection",
+        "wg": []
+      },
+      {
+        "t": "跨站腳本攻擊 (XSS)",
+        "en": "Cross-Site Scripting (XSS)",
+        "wg": []
+      },
+      {
+        "t": "批量賦值 / 物件注入 (Mass Assignment)",
+        "en": "Mass Assignment / Object Injection",
+        "wg": [
+          {
+            "t": "批量賦值",
+            "en": "Mass Assignment",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "阻斷服務攻擊 (DoS)",
+        "en": "Denial of Service (DoS)",
+        "wg": []
+      }
+    ],
+    "answer": "批量賦值 / 物件注入 (Mass Assignment)",
+    "why": {
+      "t": "這是一個典型的「批量賦值 (Mass Assignment)」漏洞。攻擊者可以在 `req.body` 中包含如 `isAdmin: true` 或 `balance: 99999` 等未預期的欄位，若沒有透過 Schema (如 Zod) 過濾或明確指定允許更新的欄位 (Allowlist)，這些敏感屬性就會被寫入資料庫。",
+      "en": "This is a classic 'Mass Assignment' vulnerability. An attacker can include unexpected fields like `isAdmin: true` or `balance: 99999` in `req.body`. Without filtering via a Schema (like Zod) or explicitly specifying an allowlist of updatable fields, these sensitive attributes will be written to the database.",
+      "wg": [
+        {
+          "t": "過濾",
+          "en": "filtering",
+          "ps": "verb"
+        },
+        {
+          "t": "白名單",
+          "en": "allowlist",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "8",
+    "level": "Medium",
+    "keywords": "CSP, Security Headers, XSS, Helmet",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在使用 `Helmet.js` 加固 HTTP Headers 時，哪一個 Header 被認為是防禦跨站腳本攻擊 (XSS) 的重要防線，它能限制瀏覽器僅載入與執行來自受信任來源的腳本？",
+        "en": "When hardening HTTP Headers using `Helmet.js`, which header is considered a critical defense against Cross-Site Scripting (XSS) by restricting the browser to load and execute scripts only from trusted sources?",
+        "wg": [
+          {
+            "t": "加固",
+            "en": "hardening",
+            "ps": "verb"
+          },
+          {
+            "t": "受信任來源",
+            "en": "trusted sources",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "X-Frame-Options",
+        "en": "X-Frame-Options",
+        "wg": []
+      },
+      {
+        "t": "Strict-Transport-Security (HSTS)",
+        "en": "Strict-Transport-Security (HSTS)",
+        "wg": []
+      },
+      {
+        "t": "Content-Security-Policy (CSP)",
+        "en": "Content-Security-Policy (CSP)",
+        "wg": []
+      },
+      {
+        "t": "X-Content-Type-Options",
+        "en": "X-Content-Type-Options",
+        "wg": []
+      }
+    ],
+    "answer": "Content-Security-Policy (CSP)",
+    "why": {
+      "t": "CSP (Content-Security-Policy) 允許伺服器定義哪些來源的內容（如 Script, Style, Image）是合法的。這能有效防止攻擊者注入並執行惡意腳本，即使發生了 XSS 漏洞，瀏覽器也會因為來源不在白名單中而拒絕執行。",
+      "en": "CSP (Content-Security-Policy) allows the server to define which content sources (like Scripts, Styles, Images) are legitimate. This effectively prevents attackers from injecting and executing malicious scripts, as the browser will refuse to execute them if the source is not in the allowlist, even if an XSS vulnerability exists.",
+      "wg": [
+        {
+          "t": "拒絕執行",
+          "en": "refuse to execute",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "9",
+    "level": "Easy",
+    "keywords": "Secrets Management, Docker, Security, Environment Variables",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "關於 Node.js 應用程式的「秘密管理 (Secrets Management)」，下列哪一種做法存在**最高**的安全風險，應絕對避免？",
+        "en": "Regarding 'Secrets Management' in Node.js applications, which of the following practices poses the **highest** security risk and should be absolutely avoided?",
+        "wg": [
+          {
+            "t": "秘密管理",
+            "en": "Secrets Management",
+            "ps": "noun"
+          },
+          {
+            "t": "絕對避免",
+            "en": "absolutely avoided",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "在生產環境啟動時，透過 Container Orchestrator (如 K8s) 注入環境變數",
+        "en": "Injecting environment variables via Container Orchestrator (e.g., K8s) at runtime in production",
+        "wg": []
+      },
+      {
+        "t": "使用 AWS Secrets Manager 或 HashiCorp Vault 動態獲取金鑰",
+        "en": "Dynamically fetching keys using AWS Secrets Manager or HashiCorp Vault",
+        "wg": []
+      },
+      {
+        "t": "將 `.env` 檔案包含在 Docker Image 的建置過程中 (COPY .env .)",
+        "en": "Including the `.env` file in the Docker Image build process (COPY .env .)",
+        "wg": []
+      },
+      {
+        "t": "在本地開發時使用 `dotenv` 載入 `.env` 檔案 (且該檔案已列入 .gitignore)",
+        "en": "Using `dotenv` to load `.env` files during local development (and the file is listed in .gitignore)",
+        "wg": []
+      }
+    ],
+    "answer": "將 `.env` 檔案包含在 Docker Image 的建置過程中 (COPY .env .)",
+    "why": {
+      "t": "將 `.env` 檔案 COPY 到 Docker Image 中會導致機密資訊被永久寫入映像檔層 (Layer) 中。任何有權限存取該映像檔的人（或若映像檔意外公開）都可以輕易提取出所有密碼與金鑰。正確做法是在 Runtime 時才注入。",
+      "en": "Copying the `.env` file into the Docker Image causes confidential information to be permanently written into the image layers. Anyone with access to the image (or if the image is accidentally exposed) can easily extract all passwords and keys. The correct practice is to inject them only at runtime.",
+      "wg": [
+        {
+          "t": "映像檔層",
+          "en": "image layers",
+          "ps": "noun"
+        },
+        {
+          "t": "提取",
+          "en": "extract",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "10",
+    "level": "Medium",
+    "keywords": "Rate Limiting, Brute-force, Security, Login",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "針對「登入 API (Login Endpoint)」實作速率限制 (Rate Limiting) 的主要安全目的是為了防範下列哪種攻擊？",
+        "en": "What is the primary security purpose of implementing Rate Limiting specifically on a 'Login Endpoint'?",
+        "wg": [
+          {
+            "t": "速率限制",
+            "en": "Rate Limiting",
+            "ps": "noun"
+          },
+          {
+            "t": "防範",
+            "en": "prevent/mitigate",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "SQL 注入 (SQL Injection)",
+        "en": "SQL Injection",
+        "wg": []
+      },
+      {
+        "t": "暴力破解密碼攻擊 (Brute-force Attack)",
+        "en": "Brute-force Password Attack",
+        "wg": [
+          {
+            "t": "暴力破解",
+            "en": "Brute-force",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "跨站請求偽造 (CSRF)",
+        "en": "Cross-Site Request Forgery (CSRF)",
+        "wg": []
+      },
+      {
+        "t": "中間人攻擊 (MITM)",
+        "en": "Man-in-the-Middle Attack (MITM)",
+        "wg": []
+      }
+    ],
+    "answer": "暴力破解密碼攻擊 (Brute-force Attack)",
+    "why": {
+      "t": "雖然速率限制也能減緩 DoS 攻擊，但針對登入介面，其最關鍵的價值在於防止攻擊者使用字典或腳本在短時間內嘗試成千上萬組密碼組合 (Brute-force)。",
+      "en": "While rate limiting can also mitigate DoS attacks, its most critical value for login interfaces is preventing attackers from using dictionaries or scripts to try thousands of password combinations in a short period (Brute-force).",
+      "wg": [
+        {
+          "t": "減緩",
+          "en": "mitigate",
+          "ps": "verb"
+        },
+        {
+          "t": "密碼組合",
+          "en": "password combinations",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "11",
+    "level": "Medium",
+    "keywords": "Docker, Least Privilege, Security, Infrastructure",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "FROM node:18\nWORKDIR /app\nCOPY . .\nRUN npm install\n# Missing USER instruction\nCMD [\"node\", \"index.js\"]",
+    "question": [
+      {
+        "t": "在上述 Dockerfile 中，Node.js 應用程式預設會以 `root` 權限執行。根據「最小權限原則 (Least Privilege)」，為什麼這被視為安全隱憂？",
+        "en": "In the Dockerfile above, the Node.js application runs with `root` privileges by default. According to the 'Principle of Least Privilege', why is this considered a security concern?",
+        "wg": [
+          {
+            "t": "最小權限原則",
+            "en": "Principle of Least Privilege",
+            "ps": "noun"
+          },
+          {
+            "t": "安全隱憂",
+            "en": "security concern",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "因為 root 使用者無法存取 NPM 全域模組",
+        "en": "Because the root user cannot access NPM global modules",
+        "wg": []
+      },
+      {
+        "t": "因為 root 權限會導致 Node.js 的 Garbage Collection 效率變差",
+        "en": "Because root privileges cause Node.js Garbage Collection to become less efficient",
+        "wg": []
+      },
+      {
+        "t": "若應用程式遭 RCE (遠端程式碼執行) 攻陷，攻擊者將擁有容器內的最高權限，容易進行逃逸或破壞",
+        "en": "If the application is compromised via RCE, the attacker gains highest privileges inside the container, facilitating escape or damage",
+        "wg": [
+          {
+            "t": "攻陷",
+            "en": "compromised",
+            "ps": "verb"
+          },
+          {
+            "t": "逃逸",
+            "en": "escape",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "因為 Docker 不允許 root 使用者綁定 Port 80",
+        "en": "Because Docker does not allow the root user to bind Port 80",
+        "wg": []
+      }
+    ],
+    "answer": "若應用程式遭 RCE (遠端程式碼執行) 攻陷，攻擊者將擁有容器內的最高權限，容易進行逃逸或破壞",
+    "why": {
+      "t": "若應用程式以 root 執行，一旦駭客透過漏洞 (如 RCE) 取得控制權，他們就能在容器內安裝軟體、修改系統檔案，甚至更容易嘗試容器逃逸 (Container Escape) 攻擊宿主機。使用非 root 使用者 (如 `USER node`) 可大幅限制攻擊後的損害範圍。",
+      "en": "If the application runs as root, once a hacker gains control via a vulnerability (like RCE), they can install software, modify system files, and more easily attempt Container Escape to attack the host. Using a non-root user (like `USER node`) significantly limits the blast radius of an attack.",
+      "wg": [
+        {
+          "t": "損害範圍",
+          "en": "blast radius / damage scope",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "12",
+    "level": "Hard",
+    "keywords": "Compression, BREACH Attack, Nginx, Performance",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "Handbook 建議在生產環境中，應由反向代理 (如 Nginx) 負責回應壓縮 (Gzip/Brotli)，而非由 Node.js 處理。除了效能考量外，這主要有助於緩解哪一種與「HTTPS + 壓縮」相關的安全攻擊？",
+        "en": "The Handbook recommends that response compression (Gzip/Brotli) should be handled by a reverse proxy (e.g., Nginx) in production, rather than Node.js. Besides performance, which specific security attack related to 'HTTPS + Compression' does this help mitigate?",
+        "wg": [
+          {
+            "t": "反向代理",
+            "en": "reverse proxy",
+            "ps": "noun"
+          },
+          {
+            "t": "緩解",
+            "en": "mitigate",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "MITM (中間人攻擊)",
+        "en": "MITM (Man-in-the-Middle Attack)",
+        "wg": []
+      },
+      {
+        "t": "BREACH 攻擊",
+        "en": "BREACH Attack",
+        "wg": []
+      },
+      {
+        "t": "DDoS 攻擊",
+        "en": "DDoS Attack",
+        "wg": []
+      },
+      {
+        "t": "Clickjacking (點擊劫持)",
+        "en": "Clickjacking",
+        "wg": []
+      }
+    ],
+    "answer": "BREACH 攻擊",
+    "why": {
+      "t": "BREACH (Browser Reconnaissance and Exfiltration via Adaptive Compression of Hypertext) 是一種旁路攻擊 (Side-channel attack)，利用 HTTP 壓縮與加密的特性來竊取如 CSRF Token 等敏感資料。雖然 Nginx 本身開啟壓縮也可能有此風險，但將壓縮邏輯移出 Node.js 至少避免了 Event Loop 阻塞，且通常在基礎設施層更容易統一管理或關閉特定敏感頁面的壓縮以防禦此攻擊。",
+      "en": "BREACH is a side-channel attack that exploits HTTP compression and encryption to steal sensitive data like CSRF tokens. While enabling compression in Nginx also carries this risk, moving compression out of Node.js avoids Event Loop blocking, and it is generally easier to manage or disable compression for specific sensitive pages at the infrastructure level to defend against this attack.",
+      "wg": [
+        {
+          "t": "旁路攻擊",
+          "en": "Side-channel attack",
+          "ps": "noun"
+        },
+        {
+          "t": "阻塞",
+          "en": "blocking",
+          "ps": "verb"
+        }
+      ]
+    }
+  }
+]

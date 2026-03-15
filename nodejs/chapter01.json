@@ -1,0 +1,1152 @@
+[
+  {
+    "no": "1",
+    "level": "intermediate",
+    "keywords": "Event Loop, Microtasks, Macrotasks, Execution Order",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "console.log('Start');\n\nsetTimeout(() => console.log('Timeout'), 0);\nsetImmediate(() => console.log('Immediate'));\n\nPromise.resolve().then(() => console.log('Promise'));\nprocess.nextTick(() => console.log('NextTick'));\n\nconsole.log('End');",
+    "question": [
+      {
+        "t": "請分析上述程式碼在 Node.js 主模組（Main Module）中的執行順序，並選出正確的輸出結果。",
+        "en": "Analyze the execution order of the code above in a Node.js Main Module and select the correct output.",
+        "wg": [
+          {
+            "t": "主模組",
+            "en": "Main Module",
+            "ps": "N"
+          },
+          {
+            "t": "執行順序",
+            "en": "execution order",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "假設環境沒有其他外部干擾，且 `setTimeout` 與 `setImmediate` 的非確定性順序在此題中視為特定情境（詳見選項）。",
+        "en": "Assume no external interference, and consider the non-deterministic order of `setTimeout` and `setImmediate` as specific scenarios in the options.",
+        "wg": [
+          {
+            "t": "非確定性",
+            "en": "non-deterministic",
+            "ps": "Adj"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "Start -> End -> NextTick -> Promise -> Timeout -> Immediate (或 Immediate -> Timeout)",
+        "en": "Start -> End -> NextTick -> Promise -> Timeout -> Immediate (or Immediate -> Timeout)",
+        "wg": []
+      },
+      {
+        "t": "Start -> End -> Promise -> NextTick -> Timeout -> Immediate",
+        "en": "Start -> End -> Promise -> NextTick -> Timeout -> Immediate",
+        "wg": []
+      },
+      {
+        "t": "Start -> NextTick -> Promise -> End -> Timeout -> Immediate",
+        "en": "Start -> NextTick -> Promise -> End -> Timeout -> Immediate",
+        "wg": []
+      },
+      {
+        "t": "Start -> End -> Timeout -> Immediate -> NextTick -> Promise",
+        "en": "Start -> End -> Timeout -> Immediate -> NextTick -> Promise",
+        "wg": []
+      }
+    ],
+    "answer": "Start -> End -> NextTick -> Promise -> Timeout -> Immediate (或 Immediate -> Timeout)",
+    "why": {
+      "t": "同步程式碼（Start, End）最先執行。接著 V8 會清空 Microtask Queue，其中 `process.nextTick` 優先於 `Promise`。最後才進入 Event Loop 執行 Macrotasks（Timer 或 Check 階段）。在主模組中，Timer 與 Check 的順序取決於啟動效能，故兩者順序不保證。",
+      "en": "Synchronous code (Start, End) runs first. Then V8 drains the Microtask Queue, where `process.nextTick` has priority over `Promise`. Finally, the Event Loop executes Macrotasks (Timer or Check phases). In the main module, the order of Timer and Check depends on startup performance, so their order is not guaranteed.",
+      "wg": [
+        {
+          "t": "同步程式碼",
+          "en": "synchronous code",
+          "ps": "N"
+        },
+        {
+          "t": "清空",
+          "en": "drain",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "2",
+    "level": "advanced",
+    "keywords": "libuv, Thread Pool, Performance, Blocking",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "const crypto = require('crypto');\n\nconst start = Date.now();\n\n// 假設預設 Thread Pool Size 為 4\nfor (let i = 0; i < 6; i++) {\n  crypto.pbkdf2('pwd', 'salt', 100000, 512, 'sha512', () => {\n    console.log(`${i+1}:`, Date.now() - start);\n  });\n}",
+    "question": [
+      {
+        "t": "在預設的 Node.js 環境下（`UV_THREADPOOL_SIZE` 預設為 4），同時執行 6 個耗時的加密雜湊運算（如 `pbkdf2`）。",
+        "en": "In a default Node.js environment (default `UV_THREADPOOL_SIZE` is 4), 6 time-consuming cryptographic hash operations (like `pbkdf2`) are executed simultaneously.",
+        "wg": [
+          {
+            "t": "加密雜湊運算",
+            "en": "cryptographic hash operations",
+            "ps": "N"
+          },
+          {
+            "t": "耗時的",
+            "en": "time-consuming",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "您預期會觀察到什麼樣的時間分佈模式？",
+        "en": "What timing distribution pattern do you expect to observe?",
+        "wg": [
+          {
+            "t": "時間分佈模式",
+            "en": "timing distribution pattern",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "所有 6 個請求大約在同一時間完成（並行處理）。",
+        "en": "All 6 requests complete at approximately the same time (parallel processing).",
+        "wg": [
+          {
+            "t": "並行處理",
+            "en": "parallel processing",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "前 4 個請求會先完成且時間相近，後 2 個請求會明顯延遲，等待執行緒釋放後才完成。",
+        "en": "The first 4 requests complete first with similar timings, while the last 2 are significantly delayed, completing only after threads are released.",
+        "wg": [
+          {
+            "t": "釋放",
+            "en": "release",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "請求會嚴格按照 1 到 6 的順序依序完成（序列處理）。",
+        "en": "Requests complete strictly in order from 1 to 6 (sequential processing).",
+        "wg": [
+          {
+            "t": "序列處理",
+            "en": "sequential processing",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "因為 Node.js 是單執行緒，這 6 個操作會阻塞 Main Thread，導致無法處理其他請求。",
+        "en": "Since Node.js is single-threaded, these 6 operations will block the Main Thread, preventing other requests from being handled.",
+        "wg": [
+          {
+            "t": "阻塞",
+            "en": "block",
+            "ps": "V"
+          }
+        ]
+      }
+    ],
+    "answer": "前 4 個請求會先完成且時間相近，後 2 個請求會明顯延遲，等待執行緒釋放後才完成。",
+    "why": {
+      "t": "`crypto.pbkdf2` 是 CPU 密集型操作，會被卸載到 libuv 的 Thread Pool。預設 Pool Size 為 4，因此前 4 個任務會佔用所有執行緒，剩下的 2 個必須等待前面的任務完成後才能開始執行。",
+      "en": "`crypto.pbkdf2` is a CPU-intensive operation offloaded to the libuv Thread Pool. The default Pool Size is 4, so the first 4 tasks occupy all threads, and the remaining 2 must wait for previous tasks to complete before starting.",
+      "wg": [
+        {
+          "t": "卸載",
+          "en": "offload",
+          "ps": "V"
+        },
+        {
+          "t": "佔用",
+          "en": "occupy",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "3",
+    "level": "intermediate",
+    "keywords": "Event Loop, Phases, I/O Callback, setImmediate",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "const fs = require('fs');\n\nfs.readFile(__filename, () => {\n  setTimeout(() => console.log('Timeout'), 0);\n  setImmediate(() => console.log('Immediate'));\n});",
+    "question": [
+      {
+        "t": "在 I/O callback（例如 `fs.readFile`）內部同時呼叫 `setTimeout(..., 0)` 與 `setImmediate(...)`。",
+        "en": "Inside an I/O callback (e.g., `fs.readFile`), `setTimeout(..., 0)` and `setImmediate(...)` are called simultaneously.",
+        "wg": []
+      },
+      {
+        "t": "關於它們的執行順序，下列敘述何者正確？",
+        "en": "Which of the following statements about their execution order is correct?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "順序不確定，取決於系統效能。",
+        "en": "The order is non-deterministic and depends on system performance.",
+        "wg": []
+      },
+      {
+        "t": "`setImmediate` 總是先執行，因為 I/O callback 在 Poll 階段執行，而下一個階段是 Check。",
+        "en": "`setImmediate` always executes first because the I/O callback runs in the Poll phase, and the next phase is Check.",
+        "wg": [
+          {
+            "t": "總是",
+            "en": "always",
+            "ps": "Adv"
+          }
+        ]
+      },
+      {
+        "t": "`setTimeout` 總是先執行，因為 Timer 的優先級高於 Check。",
+        "en": "`setTimeout` always executes first because Timer priority is higher than Check.",
+        "wg": []
+      },
+      {
+        "t": "兩者會在同一個 Event Loop 迭代中平行執行。",
+        "en": "Both execute in parallel within the same Event Loop iteration.",
+        "wg": []
+      }
+    ],
+    "answer": "`setImmediate` 總是先執行，因為 I/O callback 在 Poll 階段執行，而下一個階段是 Check。",
+    "why": {
+      "t": "當 `fs.readFile` callback 執行時，Event Loop 正處於 **Poll Phase**。Poll 階段結束後，Event Loop 會依序進入 **Check Phase**。因此，`setImmediate` 的 callback 會在當前迴圈被執行，而 `setTimeout` 則需等到下一輪迴圈的 **Timers Phase**。",
+      "en": "When the `fs.readFile` callback executes, the Event Loop is in the **Poll Phase**. After the Poll phase finishes, the Event Loop sequentially enters the **Check Phase**. Therefore, the `setImmediate` callback is executed in the current loop, while `setTimeout` must wait for the **Timers Phase** of the next loop iteration.",
+      "wg": [
+        {
+          "t": "迭代",
+          "en": "iteration",
+          "ps": "N"
+        },
+        {
+          "t": "依序",
+          "en": "sequentially",
+          "ps": "Adv"
+        }
+      ]
+    }
+  },
+  {
+    "no": "4",
+    "level": "advanced",
+    "keywords": "process.nextTick, Starvation, Anti-pattern, Event Loop",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "function recursive() {\n  // ... some logic ...\n  process.nextTick(recursive);\n}\n\nrecursive();",
+    "question": [
+      {
+        "t": "一位初階工程師寫了上述遞迴函式來處理連續任務。這會對 Node.js 應用程式造成什麼後果？",
+        "en": "A junior engineer wrote the recursive function above to handle continuous tasks. What consequence will this have on the Node.js application?",
+        "wg": [
+          {
+            "t": "遞迴",
+            "en": "recursive",
+            "ps": "Adj"
+          },
+          {
+            "t": "後果",
+            "en": "consequence",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "會導致 Stack Overflow 錯誤，程式崩潰。",
+        "en": "It will cause a Stack Overflow error and crash the program.",
+        "wg": [
+          {
+            "t": "崩潰",
+            "en": "crash",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "會導致 I/O 飢餓（Starvation），Event Loop 無法進入 Poll 階段處理網路請求或檔案操作。",
+        "en": "It will cause I/O Starvation, preventing the Event Loop from entering the Poll phase to handle network requests or file operations.",
+        "wg": [
+          {
+            "t": "飢餓",
+            "en": "starvation",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "沒有負面影響，這是在 Node.js 中處理背景任務的標準做法。",
+        "en": "No negative impact; this is the standard way to handle background tasks in Node.js.",
+        "wg": []
+      },
+      {
+        "t": "會自動觸發 Garbage Collection，導致 CPU 使用率短暫飆升。",
+        "en": "It will automatically trigger Garbage Collection, causing a brief spike in CPU usage.",
+        "wg": []
+      }
+    ],
+    "answer": "會導致 I/O 飢餓（Starvation），Event Loop 無法進入 Poll 階段處理網路請求或檔案操作。",
+    "why": {
+      "t": "`process.nextTick` 的 callback 會在進入下一個 Event Loop 階段前被「完全清空」。遞迴呼叫會不斷向 Microtask Queue 添加新任務，導致 Event Loop 永遠卡在 Microtask 處理階段，無法推進到 Timers 或 Poll 階段，使伺服器無法回應任何 I/O。",
+      "en": "`process.nextTick` callbacks are 'fully drained' before entering the next Event Loop phase. Recursive calls continuously add new tasks to the Microtask Queue, causing the Event Loop to get stuck processing Microtasks and never advancing to the Timers or Poll phases, rendering the server unresponsive to I/O.",
+      "wg": [
+        {
+          "t": "完全清空",
+          "en": "fully drained",
+          "ps": "V"
+        },
+        {
+          "t": "推進",
+          "en": "advance",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "5",
+    "level": "advanced",
+    "keywords": "System Design, CPU Intensive, Worker Threads, Partitioning",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您的 Node.js 服務需要處理一個 CPU 密集型的圖像處理任務，該任務大約需要 500ms 才能完成。",
+        "en": "Your Node.js service needs to handle a CPU-intensive image processing task that takes about 500ms to complete.",
+        "wg": [
+          {
+            "t": "CPU 密集型",
+            "en": "CPU-intensive",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "為了避免阻塞 Event Loop 並影響其他 API 請求的延遲，下列哪種架構設計最為合適？",
+        "en": "To avoid blocking the Event Loop and affecting the latency of other API requests, which architectural design is most appropriate?",
+        "wg": [
+          {
+            "t": "延遲",
+            "en": "latency",
+            "ps": "N"
+          },
+          {
+            "t": "架構設計",
+            "en": "architectural design",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "使用 `process.nextTick` 將任務包裹起來，使其非同步執行。",
+        "en": "Wrap the task with `process.nextTick` to execute it asynchronously.",
+        "wg": []
+      },
+      {
+        "t": "將任務放入 `Promise` 中執行，利用 Microtask Queue 的特性。",
+        "en": "Execute the task inside a `Promise` to leverage the Microtask Queue.",
+        "wg": []
+      },
+      {
+        "t": "使用 `Worker Threads` 將計算任務移至 Main Thread 之外執行。",
+        "en": "Use `Worker Threads` to move the computation task off the Main Thread.",
+        "wg": [
+          {
+            "t": "移至...之外",
+            "en": "move off",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "增加 `UV_THREADPOOL_SIZE` 的數值。",
+        "en": "Increase the value of `UV_THREADPOOL_SIZE`.",
+        "wg": []
+      }
+    ],
+    "answer": "使用 `Worker Threads` 將計算任務移至 Main Thread 之外執行。",
+    "why": {
+      "t": "`process.nextTick` 和 `Promise` 仍然在 Main Thread 上執行，無法解決 CPU 密集型導致的阻塞。`UV_THREADPOOL_SIZE` 僅影響 libuv 內建的 C++ 任務（如 fs, crypto），對自定義 JS 邏輯無效。唯有 `Worker Threads` 能建立獨立的 JS 執行環境，真正並行處理 CPU 任務。",
+      "en": "`process.nextTick` and `Promise` still run on the Main Thread and cannot solve blocking caused by CPU-intensive tasks. `UV_THREADPOOL_SIZE` only affects libuv's built-in C++ tasks (like fs, crypto) and does not apply to custom JS logic. Only `Worker Threads` can create an independent JS execution environment to truly process CPU tasks in parallel.",
+      "wg": [
+        {
+          "t": "內建的",
+          "en": "built-in",
+          "ps": "Adj"
+        },
+        {
+          "t": "並行處理",
+          "en": "process in parallel",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "6",
+    "level": "intermediate",
+    "keywords": "async/await, Promise, Microtasks, Execution Order",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "async function asyncTask() {\n  console.log('1. asyncTask start');\n  await new Promise(resolve => resolve());\n  console.log('2. asyncTask end');\n}\n\nconsole.log('3. Script start');\nsetTimeout(() => console.log('4. setTimeout'), 0);\nasyncTask();\nnew Promise(resolve => {\n  console.log('5. Promise constructor');\n  resolve();\n}).then(() => console.log('6. Promise then'));\nconsole.log('7. Script end');",
+    "question": [
+      {
+        "t": "請分析上述程式碼的執行順序，並選出正確的 Console 輸出結果。",
+        "en": "Please analyze the execution order of the code above and select the correct Console output.",
+        "wg": [
+          {
+            "t": "執行順序",
+            "en": "execution order",
+            "ps": "N"
+          },
+          {
+            "t": "輸出結果",
+            "en": "output result",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "3 -> 1 -> 5 -> 7 -> 2 -> 6 -> 4",
+        "en": "3 -> 1 -> 5 -> 7 -> 2 -> 6 -> 4",
+        "wg": []
+      },
+      {
+        "t": "3 -> 1 -> 5 -> 7 -> 6 -> 2 -> 4",
+        "en": "3 -> 1 -> 5 -> 7 -> 6 -> 2 -> 4",
+        "wg": []
+      },
+      {
+        "t": "3 -> 5 -> 1 -> 7 -> 2 -> 6 -> 4",
+        "en": "3 -> 5 -> 1 -> 7 -> 2 -> 6 -> 4",
+        "wg": []
+      },
+      {
+        "t": "3 -> 1 -> 5 -> 7 -> 4 -> 2 -> 6",
+        "en": "3 -> 1 -> 5 -> 7 -> 4 -> 2 -> 6",
+        "wg": []
+      }
+    ],
+    "answer": "3 -> 1 -> 5 -> 7 -> 2 -> 6 -> 4",
+    "why": {
+      "t": "同步程式碼先執行：`3. Script start` -> `asyncTask` 內的 `1. asyncTask start` -> `5. Promise constructor` -> `7. Script end`。`await` 後的內容與 `Promise.then` 都屬於 Microtasks，依註冊順序執行：先是 `asyncTask` 的後半部（`2. asyncTask end`），接著是外部的 Promise (`6. Promise then`)。最後 Event Loop 進入 Timers 階段執行 `4. setTimeout`。",
+      "en": "Synchronous code runs first: `3. Script start` -> `1. asyncTask start` inside `asyncTask` -> `5. Promise constructor` -> `7. Script end`. The content after `await` and `Promise.then` are both Microtasks, executed in registration order: first the second half of `asyncTask` (`2. asyncTask end`), then the external Promise (`6. Promise then`). Finally, the Event Loop enters the Timers phase to execute `4. setTimeout`.",
+      "wg": [
+        {
+          "t": "同步程式碼",
+          "en": "synchronous code",
+          "ps": "N"
+        },
+        {
+          "t": "註冊順序",
+          "en": "registration order",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "7",
+    "level": "advanced",
+    "keywords": "dns.lookup, Thread Pool, libuv, Performance",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您的 Node.js 應用程式同時處理大量檔案讀寫與網域名稱解析（DNS Lookup）。",
+        "en": "Your Node.js application handles heavy file I/O and domain name resolution (DNS Lookup) simultaneously.",
+        "wg": [
+          {
+            "t": "網域名稱解析",
+            "en": "domain name resolution",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "您發現當 DNS 請求量暴增時，檔案讀取的延遲也隨之顯著增加，即使 CPU 使用率並不高。",
+        "en": "You notice that when DNS request volume spikes, file read latency increases significantly, even though CPU usage is not high.",
+        "wg": [
+          {
+            "t": "暴增",
+            "en": "spikes",
+            "ps": "V"
+          },
+          {
+            "t": "延遲",
+            "en": "latency",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "請問最可能的原因是什麼？",
+        "en": "What is the most likely cause?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "DNS 查詢佔用了過多的網路頻寬，導致檔案系統 I/O 被阻塞。",
+        "en": "DNS queries are consuming too much network bandwidth, causing file system I/O to block.",
+        "wg": []
+      },
+      {
+        "t": "Node.js 的 `dns.lookup` 與 `fs` 模組預設共用 libuv 的 Thread Pool，導致執行緒競爭。",
+        "en": "Node.js's `dns.lookup` and `fs` modules share the default libuv Thread Pool, causing thread contention.",
+        "wg": [
+          {
+            "t": "共用",
+            "en": "share",
+            "ps": "V"
+          },
+          {
+            "t": "競爭",
+            "en": "contention",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "V8 引擎在處理大量字串解析時發生了 Garbage Collection 停頓。",
+        "en": "The V8 engine is experiencing Garbage Collection pauses while processing large amounts of string parsing.",
+        "wg": []
+      },
+      {
+        "t": "Event Loop 的 Poll 階段因為等待 DNS 回應而完全暫停。",
+        "en": "The Poll phase of the Event Loop is completely paused waiting for DNS responses.",
+        "wg": []
+      }
+    ],
+    "answer": "Node.js 的 `dns.lookup` 與 `fs` 模組預設共用 libuv 的 Thread Pool，導致執行緒競爭。",
+    "why": {
+      "t": "`dns.lookup` 在 libuv 中是使用 Thread Pool 實作的（因為 `getaddrinfo` 是阻塞的），而 `fs` 操作也使用同一個 Thread Pool。當 Pool 中的 4 個執行緒都被 DNS 查詢佔用時，檔案讀寫請求必須排隊等待，導致延遲增加。",
+      "en": "`dns.lookup` is implemented using the Thread Pool in libuv (because `getaddrinfo` is blocking), and `fs` operations use the same Thread Pool. When all 4 threads in the Pool are occupied by DNS queries, file I/O requests must queue up, causing increased latency.",
+      "wg": [
+        {
+          "t": "實作",
+          "en": "implemented",
+          "ps": "V"
+        },
+        {
+          "t": "排隊等待",
+          "en": "queue up",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "8",
+    "level": "intermediate",
+    "keywords": "Observability, Event Loop Lag, Monitoring, APM",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在監控 Node.js 生產環境時，您觀察到「Event Loop Lag」指標持續超過 200ms。",
+        "en": "While monitoring a Node.js production environment, you observe that the 'Event Loop Lag' metric consistently exceeds 200ms.",
+        "wg": [
+          {
+            "t": "指標",
+            "en": "metric",
+            "ps": "N"
+          },
+          {
+            "t": "持續",
+            "en": "consistently",
+            "ps": "Adv"
+          }
+        ]
+      },
+      {
+        "t": "這代表系統正面臨什麼樣的狀況？",
+        "en": "What situation does this indicate the system is facing?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "系統記憶體不足，導致頻繁的 Swap 操作。",
+        "en": "The system is running out of memory, causing frequent Swap operations.",
+        "wg": []
+      },
+      {
+        "t": "Thread Pool 中的執行緒數量不足以處理當前的 I/O 請求。",
+        "en": "The number of threads in the Thread Pool is insufficient to handle current I/O requests.",
+        "wg": []
+      },
+      {
+        "t": "Main Thread 被同步的 CPU 密集型任務或過長的 Callback 阻塞，無法及時處理事件。",
+        "en": "The Main Thread is blocked by synchronous CPU-intensive tasks or overly long callbacks, preventing timely event processing.",
+        "wg": [
+          {
+            "t": "阻塞",
+            "en": "blocked",
+            "ps": "V"
+          },
+          {
+            "t": "及時",
+            "en": "timely",
+            "ps": "Adv"
+          }
+        ]
+      },
+      {
+        "t": "網路連線數過多，超過了 Node.js 的最大連線限制。",
+        "en": "There are too many network connections, exceeding Node.js's maximum connection limit.",
+        "wg": []
+      }
+    ],
+    "answer": "Main Thread 被同步的 CPU 密集型任務或過長的 Callback 阻塞，無法及時處理事件。",
+    "why": {
+      "t": "Event Loop Lag 測量的是 Event Loop 完成一次迭代所需時間與預期時間的差值。高 Lag 代表 Main Thread 正忙於執行同步程式碼（如複雜運算、JSON 解析），導致無法及時回到 Poll 階段處理新的 I/O 事件。",
+      "en": "Event Loop Lag measures the difference between the time taken for the Event Loop to complete an iteration and the expected time. High Lag indicates the Main Thread is busy executing synchronous code (e.g., complex calculations, JSON parsing), preventing it from returning to the Poll phase to handle new I/O events in time.",
+      "wg": [
+        {
+          "t": "迭代",
+          "en": "iteration",
+          "ps": "N"
+        },
+        {
+          "t": "差值",
+          "en": "difference",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "9",
+    "level": "intermediate",
+    "keywords": "V8, libuv, Architecture, Mental Model",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "關於 Node.js 架構中 V8 引擎與 libuv 的分工，下列敘述何者正確？",
+        "en": "Regarding the division of labor between the V8 engine and libuv in the Node.js architecture, which of the following statements is correct?",
+        "wg": [
+          {
+            "t": "分工",
+            "en": "division of labor",
+            "ps": "N"
+          },
+          {
+            "t": "敘述",
+            "en": "statement",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "V8 負責執行 JavaScript 程式碼與管理 Thread Pool；libuv 負責垃圾回收 (GC)。",
+        "en": "V8 is responsible for executing JavaScript code and managing the Thread Pool; libuv handles Garbage Collection (GC).",
+        "wg": []
+      },
+      {
+        "t": "V8 是多執行緒的，負責併發處理請求；libuv 僅提供底層作業系統的 API 綁定。",
+        "en": "V8 is multi-threaded and handles concurrent requests; libuv only provides low-level OS API bindings.",
+        "wg": []
+      },
+      {
+        "t": "V8 負責解析與執行 JavaScript（單執行緒）；libuv 提供 Event Loop 機制與非同步 I/O 的 Thread Pool。",
+        "en": "V8 parses and executes JavaScript (single-threaded); libuv provides the Event Loop mechanism and the Thread Pool for asynchronous I/O.",
+        "wg": [
+          {
+            "t": "解析",
+            "en": "parse",
+            "ps": "V"
+          },
+          {
+            "t": "機制",
+            "en": "mechanism",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "libuv 將 JavaScript 程式碼編譯為機械碼，交由 V8 的 Thread Pool 執行。",
+        "en": "libuv compiles JavaScript code into machine code and hands it to V8's Thread Pool for execution.",
+        "wg": []
+      }
+    ],
+    "answer": "V8 負責解析與執行 JavaScript（單執行緒）；libuv 提供 Event Loop 機制與非同步 I/O 的 Thread Pool。",
+    "why": {
+      "t": "這是 Node.js 的核心心智模型：V8 是唯一的「服務生」（Main Thread），負責執行 JS；libuv 是「廚房」（Thread Pool & Event Loop），負責處理耗時的 I/O 任務與排程。",
+      "en": "This is the core mental model of Node.js: V8 is the single 'Waiter' (Main Thread), responsible for executing JS; libuv is the 'Kitchen' (Thread Pool & Event Loop), responsible for handling time-consuming I/O tasks and scheduling.",
+      "wg": [
+        {
+          "t": "心智模型",
+          "en": "mental model",
+          "ps": "N"
+        },
+        {
+          "t": "排程",
+          "en": "scheduling",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "10",
+    "level": "intermediate",
+    "keywords": "Microtasks, process.nextTick, Promise, Priority",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "Promise.resolve().then(() => console.log('Promise'));\nprocess.nextTick(() => console.log('nextTick'));",
+    "question": [
+      {
+        "t": "在 Node.js 中，Microtask Queue 包含 `process.nextTick` 與 `Promise`。",
+        "en": "In Node.js, the Microtask Queue includes `process.nextTick` and `Promise`.",
+        "wg": []
+      },
+      {
+        "t": "根據上述程式碼，哪一個 callback 會先被執行？為什麼？",
+        "en": "Based on the code above, which callback will be executed first? Why?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "`Promise` 先執行，因為 Promise 是標準 ECMAScript 規範，優先級高於 Node.js 專有的 API。",
+        "en": "`Promise` runs first because Promise is a standard ECMAScript specification and has higher priority than Node.js proprietary APIs.",
+        "wg": []
+      },
+      {
+        "t": "`nextTick` 先執行，因為在 Node.js 的 Microtask 處理機制中，`process.nextTick` 的優先級高於 `Promise`。",
+        "en": "`nextTick` runs first because in Node.js's Microtask processing mechanism, `process.nextTick` has higher priority than `Promise`.",
+        "wg": [
+          {
+            "t": "優先級",
+            "en": "priority",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "兩者順序不一定，取決於系統當時的負載狀況。",
+        "en": "The order is indeterminate and depends on the system load at that time.",
+        "wg": []
+      },
+      {
+        "t": "同時執行，因為 Microtasks 是並行處理的。",
+        "en": "They run simultaneously because Microtasks are processed in parallel.",
+        "wg": []
+      }
+    ],
+    "answer": "`nextTick` 先執行，因為在 Node.js 的 Microtask 處理機制中，`process.nextTick` 的優先級高於 `Promise`。",
+    "why": {
+      "t": "雖然兩者都屬於 Microtasks，但在 Node.js 實作中，`process.nextTick` 佇列會在 `Promise` 佇列之前被清空。這是為了確保某些需要在 I/O 事件觸發前執行的邏輯能被優先處理。",
+      "en": "Although both are Microtasks, in Node.js implementation, the `process.nextTick` queue is drained before the `Promise` queue. This ensures that logic needing to run before I/O events trigger is handled with priority.",
+      "wg": [
+        {
+          "t": "佇列",
+          "en": "queue",
+          "ps": "N"
+        },
+        {
+          "t": "清空",
+          "en": "drained",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "11",
+    "level": "intermediate",
+    "keywords": "System Design, BFF, API Gateway, High Concurrency",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在系統設計中，Node.js 常被推薦作為 BFF (Backend for Frontend) 或 API Gateway。",
+        "en": "In system design, Node.js is often recommended as a BFF (Backend for Frontend) or API Gateway.",
+        "wg": [
+          {
+            "t": "推薦",
+            "en": "recommended",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "其主要技術優勢為何？",
+        "en": "What is its primary technical advantage?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "Node.js 擁有最強大的 CPU 運算能力，適合處理請求的加密與解密。",
+        "en": "Node.js has the most powerful CPU computing capability, suitable for handling request encryption and decryption.",
+        "wg": []
+      },
+      {
+        "t": "Node.js 預設為多執行緒模型，能為每個請求分配獨立的 CPU 核心。",
+        "en": "Node.js defaults to a multi-threaded model, allocating an independent CPU core for each request.",
+        "wg": []
+      },
+      {
+        "t": "Node.js 的非阻塞 I/O 模型能以極低的記憶體消耗維持數萬個處於等待狀態（I/O Wait）的連線。",
+        "en": "Node.js's non-blocking I/O model can maintain tens of thousands of connections in a waiting state (I/O Wait) with very low memory consumption.",
+        "wg": [
+          {
+            "t": "非阻塞",
+            "en": "non-blocking",
+            "ps": "Adj"
+          },
+          {
+            "t": "消耗",
+            "en": "consumption",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "Node.js 保證所有請求都能在 10ms 內完成回應，適合即時系統。",
+        "en": "Node.js guarantees that all requests are responded to within 10ms, making it suitable for real-time systems.",
+        "wg": []
+      }
+    ],
+    "answer": "Node.js 的非阻塞 I/O 模型能以極低的記憶體消耗維持數萬個處於等待狀態（I/O Wait）的連線。",
+    "why": {
+      "t": "BFF 或 Gateway 的特性是「轉發」請求，大部分時間都在等待下游服務回應（I/O Bound）。Node.js 的 Event Loop 機制允許單一執行緒高效處理這些等待，而不需要像傳統 Thread-per-request 模型那樣為每個連線消耗大量 Stack 記憶體。",
+      "en": "BFFs or Gateways typically 'forward' requests, spending most of their time waiting for downstream service responses (I/O Bound). Node.js's Event Loop mechanism allows a single thread to handle these waits efficiently without consuming large amounts of stack memory per connection like traditional Thread-per-request models.",
+      "wg": [
+        {
+          "t": "轉發",
+          "en": "forward",
+          "ps": "V"
+        },
+        {
+          "t": "下游服務",
+          "en": "downstream service",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "12",
+    "level": "advanced",
+    "keywords": "Poll Phase, Blocking, Event Loop, Internals",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "當 Event Loop 進入 **Poll Phase** 時，如果 Poll Queue 是空的，且沒有設定 `setImmediate`，也沒有過期的 Timer。",
+        "en": "When the Event Loop enters the **Poll Phase**, if the Poll Queue is empty, no `setImmediate` is scheduled, and there are no expired Timers.",
+        "wg": [
+          {
+            "t": "過期",
+            "en": "expired",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "此時 Node.js 會發生什麼行為？",
+        "en": "What behavior will Node.js exhibit at this point?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "立即退出 Event Loop 並結束 Process。",
+        "en": "Immediately exit the Event Loop and terminate the Process.",
+        "wg": []
+      },
+      {
+        "t": "進入 Busy Loop（空轉），不斷消耗 CPU 直到有新事件進來。",
+        "en": "Enter a Busy Loop (spinning), continuously consuming CPU until a new event arrives.",
+        "wg": [
+          {
+            "t": "空轉",
+            "en": "spinning",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "在 Poll Phase 暫停（Block），等待新的 I/O 事件發生，避免 CPU 空轉。",
+        "en": "Pause (Block) in the Poll Phase, waiting for new I/O events to occur, avoiding CPU spinning.",
+        "wg": [
+          {
+            "t": "暫停",
+            "en": "pause",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "跳過 Poll Phase，直接進入 Check Phase。",
+        "en": "Skip the Poll Phase and proceed directly to the Check Phase.",
+        "wg": []
+      }
+    ],
+    "answer": "在 Poll Phase 暫停（Block），等待新的 I/O 事件發生，避免 CPU 空轉。",
+    "why": {
+      "t": "這是 Poll Phase 的關鍵特性。如果沒有其他任務需要處理（如 Timers 或 Immediate），Event Loop 會在 Poll 階段「阻塞」並等待 I/O callback（例如檔案讀取完成或新的網路請求），這是 Node.js 能在閒置時保持低 CPU 使用率的原因。",
+      "en": "This is a key feature of the Poll Phase. If there are no other tasks to process (like Timers or Immediate), the Event Loop will 'block' in the Poll phase and wait for I/O callbacks (e.g., file read completion or new network requests). This is why Node.js maintains low CPU usage when idle.",
+      "wg": [
+        {
+          "t": "閒置",
+          "en": "idle",
+          "ps": "Adj"
+        }
+      ]
+    }
+  },
+  {
+    "no": "13",
+    "level": "intermediate",
+    "keywords": "Partitioning, setImmediate, Performance, Best Practices",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "const largeArray = new Array(1000000).fill(0);\n\nfunction processArray(arr) {\n  for (let i = 0; i < arr.length; i++) {\n    heavyCompute(arr[i]);\n  }\n}",
+    "question": [
+      {
+        "t": "您有一個需要同步處理的大型陣列（如上圖），直接執行會導致 Event Loop 阻塞數秒。",
+        "en": "You have a large array to process synchronously (as shown above). Executing it directly will block the Event Loop for several seconds.",
+        "wg": [
+          {
+            "t": "同步處理",
+            "en": "process synchronously",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "若不使用 Worker Threads，應如何修改程式碼以實作「Partitioning（切分）」策略，讓伺服器仍能回應其他請求？",
+        "en": "Without using Worker Threads, how should you modify the code to implement a 'Partitioning' strategy so the server can still respond to other requests?",
+        "wg": [
+          {
+            "t": "切分",
+            "en": "partitioning",
+            "ps": "N"
+          },
+          {
+            "t": "策略",
+            "en": "strategy",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "將 `heavyCompute` 包在 `process.nextTick` 中遞迴呼叫。",
+        "en": "Wrap `heavyCompute` in `process.nextTick` and call it recursively.",
+        "wg": []
+      },
+      {
+        "t": "將陣列切分為小塊，每處理完一塊後使用 `setImmediate` 排程下一塊的處理。",
+        "en": "Split the array into small chunks, and after processing each chunk, use `setImmediate` to schedule the processing of the next chunk.",
+        "wg": [
+          {
+            "t": "小塊",
+            "en": "chunks",
+            "ps": "N"
+          },
+          {
+            "t": "排程",
+            "en": "schedule",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "使用 `Promise.resolve().then()` 來處理每個元素。",
+        "en": "Use `Promise.resolve().then()` to process each element.",
+        "wg": []
+      },
+      {
+        "t": "使用 `setTimeout(..., 1000)` 強制每秒只處理一個元素。",
+        "en": "Use `setTimeout(..., 1000)` to force processing only one element per second.",
+        "wg": []
+      }
+    ],
+    "answer": "將陣列切分為小塊，每處理完一塊後使用 `setImmediate` 排程下一塊的處理。",
+    "why": {
+      "t": "使用 `setImmediate` 可以將控制權交還給 Event Loop，使其有機會在 **Poll Phase** 處理 I/O 事件（如 HTTP 請求），然後在 **Check Phase** 繼續處理下一塊陣列。若使用 `nextTick` 或 `Promise`，由於 Microtasks 優先級極高，仍會導致 I/O 飢餓（Starvation）。",
+      "en": "Using `setImmediate` yields control back to the Event Loop, allowing it to handle I/O events (like HTTP requests) in the **Poll Phase**, and then continue processing the next array chunk in the **Check Phase**. Using `nextTick` or `Promise` would still cause I/O starvation due to the extremely high priority of Microtasks.",
+      "wg": [
+        {
+          "t": "交還",
+          "en": "yield / return",
+          "ps": "V"
+        },
+        {
+          "t": "飢餓",
+          "en": "starvation",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "14",
+    "level": "intermediate",
+    "keywords": "Close Callbacks, Event Loop Phases, Resource Management",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在 Event Loop 的六個階段中，`socket.on('close', ...)` 這類的回呼函式通常是在哪個階段執行的？",
+        "en": "In the six phases of the Event Loop, in which phase are callbacks like `socket.on('close', ...)` typically executed?",
+        "wg": [
+          {
+            "t": "回呼函式",
+            "en": "callback function",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "Poll Phase",
+        "en": "Poll Phase",
+        "wg": []
+      },
+      {
+        "t": "Check Phase",
+        "en": "Check Phase",
+        "wg": []
+      },
+      {
+        "t": "Close Callbacks Phase",
+        "en": "Close Callbacks Phase",
+        "wg": []
+      },
+      {
+        "t": "Timers Phase",
+        "en": "Timers Phase",
+        "wg": []
+      }
+    ],
+    "answer": "Close Callbacks Phase",
+    "why": {
+      "t": "這是 Event Loop 的最後一個階段，專門用於處理資源關閉的事件（例如 `socket.destroy()`）。這確保了在資源完全釋放前，其他的 I/O 操作有機會先完成。",
+      "en": "This is the final phase of the Event Loop, specifically dedicated to handling resource closure events (e.g., `socket.destroy()`). This ensures that other I/O operations have a chance to complete before the resource is fully released.",
+      "wg": [
+        {
+          "t": "資源釋放",
+          "en": "resource release",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "15",
+    "level": "advanced",
+    "keywords": "Pending Callbacks, System Errors, Event Loop Phases",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "Event Loop 中的 **Pending Callbacks** 階段主要負責處理下列哪一類型的任務？",
+        "en": "What type of tasks is the **Pending Callbacks** phase of the Event Loop primarily responsible for handling?",
+        "wg": [
+          {
+            "t": "主要負責",
+            "en": "primarily responsible for",
+            "ps": "V"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "所有的非同步 I/O 回呼（如 `fs.readFile`）。",
+        "en": "All asynchronous I/O callbacks (e.g., `fs.readFile`).",
+        "wg": []
+      },
+      {
+        "t": "被延遲到下一個迴圈迭代執行的系統級 I/O 錯誤（如 TCP ECONNREFUSED）。",
+        "en": "System-level I/O errors deferred to the next loop iteration (e.g., TCP ECONNREFUSED).",
+        "wg": [
+          {
+            "t": "延遲",
+            "en": "deferred",
+            "ps": "V"
+          },
+          {
+            "t": "系統級",
+            "en": "system-level",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "`setTimeout` 與 `setInterval` 的回呼。",
+        "en": "Callbacks for `setTimeout` and `setInterval`.",
+        "wg": []
+      },
+      {
+        "t": "`process.nextTick` 註冊的微任務。",
+        "en": "Microtasks registered by `process.nextTick`.",
+        "wg": []
+      }
+    ],
+    "answer": "被延遲到下一個迴圈迭代執行的系統級 I/O 錯誤（如 TCP ECONNREFUSED）。",
+    "why": {
+      "t": "大多數 I/O callback 是在 Poll 階段執行的。Pending Callbacks 階段比較特殊，它處理那些由系統操作（System Operations）產生、並被排程到下一輪迴圈執行的 callback，常見於某些 TCP 錯誤報告。",
+      "en": "Most I/O callbacks are executed in the Poll phase. The Pending Callbacks phase is special; it handles callbacks generated by system operations that are scheduled for the next loop iteration, commonly seen with certain TCP error reports.",
+      "wg": [
+        {
+          "t": "特殊",
+          "en": "special / distinct",
+          "ps": "Adj"
+        }
+      ]
+    }
+  }
+]

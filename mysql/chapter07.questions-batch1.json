@@ -1,0 +1,533 @@
+[
+  {
+    "no": "1",
+    "level": "intermediate",
+    "keywords": "Partitioning, Sharding, Write Throughput, Vertical Scaling",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您的團隊維護一個單一 MySQL 實例，其中包含一個 3TB 的日誌表，且寫入吞吐量 (Write QPS) 已達到硬體極限。",
+        "en": "Your team maintains a single MySQL instance with a 3TB log table, and the write throughput (Write QPS) has reached the hardware limit.",
+        "wg": [
+          {
+            "t": "吞吐量",
+            "en": "throughput",
+            "ps": "N"
+          },
+          {
+            "t": "硬體極限",
+            "en": "hardware limit",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "資深開發者建議使用 `PARTITION BY HASH(id) PARTITIONS 10` 來解決寫入效能問題。",
+        "en": "A senior developer suggests using `PARTITION BY HASH(id) PARTITIONS 10` to solve the write performance issue.",
+        "wg": [
+          {
+            "t": "分區",
+            "en": "partition",
+            "ps": "V/N"
+          }
+        ]
+      },
+      {
+        "t": "請問這個建議是否有效？為什麼？",
+        "en": "Is this suggestion effective? Why?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 有效，因為分區可以將寫入負載分散到同一台機器的不同 CPU 核心。",
+        "en": "(A) Effective, because partitioning distributes the write load across different CPU cores on the same machine.",
+        "wg": []
+      },
+      {
+        "t": "(B) 有效，因為分區將資料檔案拆分，減少了單一檔案的鎖定競爭。",
+        "en": "(B) Effective, because partitioning splits data files, reducing lock contention on a single file.",
+        "wg": [
+          {
+            "t": "鎖定競爭",
+            "en": "lock contention",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) 無效，MySQL 分區主要用於資料管理（如刪除舊資料），在單一節點上無法顯著突破 IOPS 或 CPU 的寫入瓶頸。",
+        "en": "(C) Ineffective, MySQL partitioning is mainly for data management (e.g., pruning old data) and cannot significantly break IOPS or CPU write bottlenecks on a single node.",
+        "wg": [
+          {
+            "t": "瓶頸",
+            "en": "bottleneck",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(D) 無效，Hash 分區會導致範圍查詢 (Range Query) 效能下降，應改用 Range 分區。",
+        "en": "(D) Ineffective, Hash partitioning degrades Range Query performance; Range partitioning should be used instead.",
+        "wg": []
+      }
+    ],
+    "answer": "(C)",
+    "why": {
+      "t": "分區 (Partitioning) 是「本地優化」，資料仍位於同一台伺服器/磁碟上。若單機 IOPS 或 CPU 已飽和，僅靠分區無法擴展寫入能力，必須採用分片 (Sharding) 將資料分散至不同實體節點。",
+      "en": "Partitioning is a 'local optimization' where data remains on the same server/disk. If the single node's IOPS or CPU is saturated, partitioning alone cannot scale write capacity; Sharding is required to distribute data across different physical nodes.",
+      "wg": [
+        {
+          "t": "本地優化",
+          "en": "local optimization",
+          "ps": "N"
+        },
+        {
+          "t": "飽和",
+          "en": "saturated",
+          "ps": "Adj"
+        }
+      ]
+    }
+  },
+  {
+    "no": "2",
+    "level": "intermediate",
+    "keywords": "Sharding Key, Scatter-Gather, Query Routing",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在設計一個大型 B2C 電商平台的訂單系統時，您需要選擇分片鍵 (Sharding Key)。",
+        "en": "When designing an order system for a large B2C e-commerce platform, you need to choose a Sharding Key.",
+        "wg": [
+          {
+            "t": "分片鍵",
+            "en": "Sharding Key",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "系統中最頻繁的查詢是使用者查看「我的訂單列表」。",
+        "en": "The most frequent query in the system is users viewing 'My Order List'.",
+        "wg": []
+      },
+      {
+        "t": "若選擇 `order_id` 作為分片鍵，會導致什麼主要的效能問題？",
+        "en": "If `order_id` is chosen as the Sharding Key, what major performance issue will arise?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 寫入熱點 (Write Hotspot)，因為訂單 ID 是遞增的。",
+        "en": "(A) Write Hotspot, because order IDs are sequential.",
+        "wg": [
+          {
+            "t": "寫入熱點",
+            "en": "Write Hotspot",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(B) 廣播查詢 (Scatter-Gather)，查詢某使用者的訂單時需掃描所有分片。",
+        "en": "(B) Scatter-Gather, querying a user's orders requires scanning all shards.",
+        "wg": [
+          {
+            "t": "廣播查詢",
+            "en": "Scatter-Gather",
+            "ps": "N"
+          },
+          {
+            "t": "掃描",
+            "en": "scan",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(C) 資料分佈不均 (Data Skew)，因為某些訂單包含更多商品。",
+        "en": "(C) Data Skew, because some orders contain more items.",
+        "wg": [
+          {
+            "t": "資料分佈不均",
+            "en": "Data Skew",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(D) 跨分片 Join (Cross-Shard Join)，無法關聯使用者資料表。",
+        "en": "(D) Cross-Shard Join, unable to join with the user table.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "若依 `order_id` 分片，`user_id` 與分片位置無關。執行 `WHERE user_id = ?` 時，系統無法知道資料在哪個分片，必須向**所有**分片發送查詢並彙整結果，這會導致嚴重的效能與延遲問題。",
+      "en": "If sharded by `order_id`, `user_id` has no correlation with the shard location. When executing `WHERE user_id = ?`, the system cannot know where the data lies and must send the query to **all** shards and aggregate results, causing severe performance and latency issues.",
+      "wg": [
+        {
+          "t": "彙整",
+          "en": "aggregate",
+          "ps": "V"
+        },
+        {
+          "t": "延遲",
+          "en": "latency",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "3",
+    "level": "advanced",
+    "keywords": "Distributed ID, UUID, Snowflake, B+ Tree, Fragmentation",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在分片環境中，我們需要全域唯一的 ID。",
+        "en": "In a sharded environment, we need globally unique IDs.",
+        "wg": [
+          {
+            "t": "全域唯一",
+            "en": "globally unique",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "為什麼在 MySQL InnoDB 中，使用隨機生成的 UUID (如 v4) 作為 Primary Key 通常被視為反模式 (Anti-pattern)？",
+        "en": "Why is using randomly generated UUIDs (like v4) as a Primary Key generally considered an Anti-pattern in MySQL InnoDB?",
+        "wg": [
+          {
+            "t": "反模式",
+            "en": "Anti-pattern",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) UUID 字串太長，會導致網路頻寬耗盡。",
+        "en": "(A) UUID strings are too long, causing network bandwidth exhaustion.",
+        "wg": []
+      },
+      {
+        "t": "(B) 隨機性會導致 B+ Tree 頻繁的頁分裂 (Page Splitting) 與碎片化，大幅降低寫入效能。",
+        "en": "(B) Randomness causes frequent Page Splitting and fragmentation in the B+ Tree, significantly degrading write performance.",
+        "wg": [
+          {
+            "t": "頁分裂",
+            "en": "Page Splitting",
+            "ps": "N"
+          },
+          {
+            "t": "碎片化",
+            "en": "fragmentation",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) UUID 無法保證全域唯一性，可能會發生碰撞。",
+        "en": "(C) UUID cannot guarantee global uniqueness and collisions may occur.",
+        "wg": [
+          {
+            "t": "碰撞",
+            "en": "collision",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(D) MySQL 不支援 UUID 類型，必須轉換為二進位儲存，增加 CPU 負擔。",
+        "en": "(D) MySQL does not support the UUID type and must convert it to binary storage, increasing CPU load.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "InnoDB 使用叢集索引 (Clustered Index)，資料依主鍵順序儲存。隨機的主鍵 (UUID) 會導致新資料被插入到頁面的隨機位置，引發大量的頁分裂與磁碟隨機 I/O，而 Snowflake ID 是大致有序 (k-ordered) 的，能維持 B+ Tree 的寫入效率。",
+      "en": "InnoDB uses a Clustered Index where data is stored in primary key order. Random primary keys (UUID) cause new data to be inserted at random positions in pages, triggering massive page splitting and random disk I/O, whereas Snowflake IDs are roughly ordered (k-ordered), maintaining B+ Tree write efficiency.",
+      "wg": [
+        {
+          "t": "叢集索引",
+          "en": "Clustered Index",
+          "ps": "N"
+        },
+        {
+          "t": "隨機 I/O",
+          "en": "random I/O",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "4",
+    "level": "advanced",
+    "keywords": "Mapping Table, Dual Write, Multi-dimensional Query",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您的訂單系統已依據 `user_id` 進行分片，解決了買家查詢的效能問題。",
+        "en": "Your order system has been sharded by `user_id`, solving performance issues for buyer queries.",
+        "wg": []
+      },
+      {
+        "t": "現在商家 (Merchant) 需要高效地查詢「我的銷售訂單」，但商家的訂單分散在不同使用者的分片中。",
+        "en": "Now Merchants need to efficiently query 'My Sales Orders', but their orders are scattered across different user shards.",
+        "wg": [
+          {
+            "t": "分散",
+            "en": "scattered",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "下列哪種架構模式最適合解決此「多維度查詢」問題？",
+        "en": "Which architectural pattern is best suited to solve this 'multi-dimensional query' problem?",
+        "wg": [
+          {
+            "t": "多維度查詢",
+            "en": "multi-dimensional query",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 在應用層同時寫入「使用者分片」與「商家分片 (Mapping Table)」。",
+        "en": "(A) Write to both the 'User Shard' and a 'Merchant Shard (Mapping Table)' at the application layer.",
+        "wg": [
+          {
+            "t": "應用層",
+            "en": "application layer",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(B) 建立一個全域的 View，跨所有分片進行即時 Join。",
+        "en": "(B) Create a global View that performs real-time Joins across all shards.",
+        "wg": []
+      },
+      {
+        "t": "(C) 使用 `merchant_id` 作為次要分片鍵，將資料複製一份到所有分片。",
+        "en": "(C) Use `merchant_id` as a secondary sharding key and replicate data to all shards.",
+        "wg": []
+      },
+      {
+        "t": "(D) 強制商家查詢時使用 Scatter-Gather 模式，並增加 Cache 時間。",
+        "en": "(D) Force merchants to use the Scatter-Gather pattern and increase Cache duration.",
+        "wg": []
+      }
+    ],
+    "answer": "(A)",
+    "why": {
+      "t": "這是標準的「異構索引」或「空間換時間」策略。透過雙寫 (Dual Write) 或非同步同步，建立一份依 `merchant_id` 分片的索引表 (Mapping Table) 或使用 Elasticsearch，讓商家查詢也能命中單一分片。",
+      "en": "This is a standard 'heterogeneous indexing' or 'space for time' strategy. By using Dual Write or async synchronization, create an index table (Mapping Table) sharded by `merchant_id` or use Elasticsearch, allowing merchant queries to also hit a single shard.",
+      "wg": [
+        {
+          "t": "異構索引",
+          "en": "heterogeneous indexing",
+          "ps": "N"
+        },
+        {
+          "t": "空間換時間",
+          "en": "space for time",
+          "ps": "Idom"
+        }
+      ]
+    }
+  },
+  {
+    "no": "5",
+    "level": "advanced",
+    "keywords": "Pagination, LIMIT OFFSET, Performance, Aggregation",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在分片資料庫中執行深度分頁查詢，例如 `SELECT * FROM orders ORDER BY time LIMIT 10 OFFSET 10000`，會遇到什麼效能瓶頸？",
+        "en": "What performance bottleneck occurs when executing a deep pagination query like `SELECT * FROM orders ORDER BY time LIMIT 10 OFFSET 10000` in a sharded database?",
+        "wg": [
+          {
+            "t": "深度分頁",
+            "en": "deep pagination",
+            "ps": "N"
+          },
+          {
+            "t": "瓶頸",
+            "en": "bottleneck",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 每個分片只需回傳 10 筆資料，Middleware 進行合併，效能影響極小。",
+        "en": "(A) Each shard only needs to return 10 rows, and the Middleware merges them, with minimal performance impact.",
+        "wg": []
+      },
+      {
+        "t": "(B) 必須從每個分片取出 10010 筆資料，在記憶體中全域排序後再丟棄前 10000 筆，消耗大量頻寬與記憶體。",
+        "en": "(B) Must fetch 10,010 rows from *each* shard, globally sort them in memory, and then discard the first 10,000, consuming massive bandwidth and memory.",
+        "wg": [
+          {
+            "t": "全域排序",
+            "en": "globally sort",
+            "ps": "V"
+          },
+          {
+            "t": "丟棄",
+            "en": "discard",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(C) 資料庫會自動將 OFFSET 轉換為 Seek Method，因此效能很高。",
+        "en": "(C) The database will automatically convert OFFSET to the Seek Method, so performance is high.",
+        "wg": []
+      },
+      {
+        "t": "(D) 這種查詢會導致死鎖 (Deadlock)，因為需要同時鎖定所有分片。",
+        "en": "(D) This query will cause a Deadlock because it needs to lock all shards simultaneously.",
+        "wg": [
+          {
+            "t": "死鎖",
+            "en": "Deadlock",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "為了保證全域順序的正確性，Middleware 無法只從每個分片取第 10001 到 10010 筆。它必須拿到每個分片的前 `OFFSET + LIMIT` 筆資料，匯總後重新排序才能確定真正的全域分頁結果。這被稱為「分頁爆炸」問題。",
+      "en": "To ensure global order correctness, the Middleware cannot just fetch rows 10,001 to 10,010 from each shard. It must fetch the top `OFFSET + LIMIT` rows from *each* shard, aggregate, and resort them to determine the true global page. This is known as the 'pagination explosion' problem.",
+      "wg": [
+        {
+          "t": "分頁爆炸",
+          "en": "pagination explosion",
+          "ps": "N"
+        },
+        {
+          "t": "匯總",
+          "en": "aggregate",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "6",
+    "level": "advanced",
+    "keywords": "Migration, Zero Downtime, Dual Write",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您計畫將一個單體資料庫遷移至分片架構，且要求「零停機 (Zero Downtime)」。",
+        "en": "You plan to migrate a monolithic database to a sharded architecture with a 'Zero Downtime' requirement.",
+        "wg": [
+          {
+            "t": "單體資料庫",
+            "en": "monolithic database",
+            "ps": "N"
+          },
+          {
+            "t": "零停機",
+            "en": "Zero Downtime",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "下列哪一個步驟順序最符合標準的「雙寫 (Dual Write)」遷移策略？",
+        "en": "Which of the following sequences best fits the standard 'Dual Write' migration strategy?",
+        "wg": [
+          {
+            "t": "雙寫",
+            "en": "Dual Write",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 停止寫入舊庫 -> 匯出資料 -> 匯入新分片庫 -> 切換讀寫流量 -> 恢復服務。",
+        "en": "(A) Stop writing to old DB -> Export data -> Import to new sharded DB -> Switch read/write traffic -> Restore service.",
+        "wg": []
+      },
+      {
+        "t": "(B) 應用層雙寫 (新舊皆寫) -> 歷史資料回填 (Backfill) -> 資料一致性驗證 -> 切換讀取至新庫 -> 停止寫入舊庫。",
+        "en": "(B) App-layer Dual Write (write both) -> Backfill historical data -> Verify data consistency -> Switch reads to new DB -> Stop writing to old DB.",
+        "wg": [
+          {
+            "t": "回填",
+            "en": "Backfill",
+            "ps": "V/N"
+          },
+          {
+            "t": "一致性驗證",
+            "en": "consistency verification",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) 設定 MySQL Master-Slave 複製 -> 將 Slave 提升為新的分片叢集 -> 刪除 Slave 上的多餘資料。",
+        "en": "(C) Setup MySQL Master-Slave replication -> Promote Slaves to new sharded cluster -> Delete excess data on Slaves.",
+        "wg": []
+      },
+      {
+        "t": "(D) 使用一致性雜湊 (Consistent Hashing) 動態搬移資料，無需雙寫。",
+        "en": "(D) Use Consistent Hashing to move data dynamically without dual writes.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "選項 (A) 需要停機；選項 (C) 無法處理分片邏輯（因為分片通常涉及資料重組）；選項 (D) 仍需處理資料搬移期間的並發寫入。選項 (B) 是業界標準的線上遷移流程，透過雙寫確保增量資料不遺失，透過回填處理存量資料。",
+      "en": "Option (A) requires downtime; Option (C) cannot handle sharding logic (as sharding involves data reorganization); Option (D) still needs to handle concurrent writes during data movement. Option (B) is the industry standard for online migration, ensuring incremental data is captured via dual writes and historical data is handled via backfilling.",
+      "wg": [
+        {
+          "t": "增量資料",
+          "en": "incremental data",
+          "ps": "N"
+        },
+        {
+          "t": "存量資料",
+          "en": "historical/existing data",
+          "ps": "N"
+        }
+      ]
+    }
+  }
+]

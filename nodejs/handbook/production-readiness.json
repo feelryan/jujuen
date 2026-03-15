@@ -1,0 +1,890 @@
+[
+  {
+    "no": "1",
+    "level": "Intermediate",
+    "keywords": "uncaughtException, stability, process management, anti-pattern",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "process.on('uncaughtException', (err) => {\n  logger.error(err);\n  // Missing process.exit(1)\n});",
+    "question": [
+      {
+        "t": "在 Node.js 生產環境中，若應用程式遭遇 `uncaughtException`，僅記錄錯誤日誌卻不終止 Process (如上方程式碼所示) 被視為一種反模式 (Anti-pattern)。",
+        "en": "In a Node.js production environment, encountering an `uncaughtException` and only logging the error without terminating the process (as shown in the code snippet) is considered an anti-pattern.",
+        "wg": [
+          {
+            "t": "反模式",
+            "en": "Anti-pattern",
+            "ps": "noun"
+          },
+          {
+            "t": "未捕獲的異常",
+            "en": "uncaughtException",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "請問這種做法的主要風險是什麼？",
+        "en": "What is the primary risk of this approach?",
+        "wg": []
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "會導致 Event Loop 阻塞，無法處理新的請求。",
+        "en": "It will cause the Event Loop to block, preventing the handling of new requests.",
+        "wg": [
+          {
+            "t": "阻塞",
+            "en": "block",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "應用程式可能處於「不確定狀態 (Corrupted State)」，繼續執行可能導致資料損毀或不可預期的行為。",
+        "en": "The application may be in a 'Corrupted State', and continuing execution could lead to data corruption or unpredictable behavior.",
+        "wg": [
+          {
+            "t": "不確定狀態",
+            "en": "Corrupted State",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "會導致記憶體洩漏，因為錯誤物件無法被垃圾回收。",
+        "en": "It will cause memory leaks because the error object cannot be garbage collected.",
+        "wg": []
+      },
+      {
+        "t": "Process Manager (如 PM2) 無法偵測到錯誤，因此無法觸發自動重啟。",
+        "en": "The Process Manager (e.g., PM2) cannot detect the error and therefore cannot trigger an automatic restart.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "當 `uncaughtException` 發生時，代表程式邏輯出現了開發者未預期的錯誤，此時記憶體中的物件參考、I/O 狀態可能已經損壞或不一致。",
+      "en": "When an `uncaughtException` occurs, it indicates an unexpected error in the program logic, meaning object references in memory or I/O states may already be corrupted or inconsistent.",
+      "wg": [
+        {
+          "t": "不一致",
+          "en": "inconsistent",
+          "ps": "adjective"
+        }
+      ]
+    }
+  },
+  {
+    "no": "2",
+    "level": "Intermediate",
+    "keywords": "Graceful Shutdown, SIGTERM, SIGINT, Deployment",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "當 Kubernetes 或 PM2 準備停止你的 Node.js 應用程式時（例如進行滾動更新），通常會發送 `SIGTERM` 訊號。",
+        "en": "When Kubernetes or PM2 prepares to stop your Node.js application (e.g., during a rolling update), it typically sends a `SIGTERM` signal.",
+        "wg": [
+          {
+            "t": "滾動更新",
+            "en": "rolling update",
+            "ps": "noun"
+          },
+          {
+            "t": "訊號",
+            "en": "signal",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "為了實現「優雅離場 (Graceful Shutdown)」，應用程式收到此訊號後應依序執行哪些步驟？",
+        "en": "To achieve a 'Graceful Shutdown', what steps should the application execute in order upon receiving this signal?",
+        "wg": [
+          {
+            "t": "優雅離場",
+            "en": "Graceful Shutdown",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "立即呼叫 `process.exit(0)` 以釋放資源。",
+        "en": "Immediately call `process.exit(0)` to release resources.",
+        "wg": []
+      },
+      {
+        "t": "停止接收新連線 -> 等待現有請求處理完畢 -> 關閉資料庫連線 -> 退出 Process。",
+        "en": "Stop accepting new connections -> Wait for existing requests to finish -> Close database connections -> Exit Process.",
+        "wg": []
+      },
+      {
+        "t": "關閉資料庫連線 -> 停止接收新連線 -> 強制中斷現有請求 -> 退出 Process。",
+        "en": "Close database connections -> Stop accepting new connections -> Forcefully interrupt existing requests -> Exit Process.",
+        "wg": []
+      },
+      {
+        "t": "記錄 Log -> 忽略訊號並繼續執行，直到收到 SIGKILL。",
+        "en": "Log the event -> Ignore the signal and continue execution until SIGKILL is received.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "正確的流程必須先確保不再有新客進入（停止 Server 監聽），並讓正在用餐的客人吃完（處理現有 Request），最後才關燈鎖門（關閉 DB/Redis 連線）並離開。",
+      "en": "The correct flow must first ensure no new guests enter (stop Server listening), let current guests finish their meals (process existing requests), and finally turn off lights and lock doors (close DB/Redis connections) before leaving.",
+      "wg": []
+    }
+  },
+  {
+    "no": "3",
+    "level": "Advanced",
+    "keywords": "Docker, PID 1, Tini, Signals, Containerization",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "FROM node:18-alpine\n# ...\n# Bad Practice: Node as PID 1\nCMD [\"node\", \"index.js\"]",
+    "question": [
+      {
+        "t": "在容器化環境（Docker/K8s）中，直接將 Node.js 作為 Entrypoint (PID 1) 執行通常是不建議的。",
+        "en": "In a containerized environment (Docker/K8s), running Node.js directly as the Entrypoint (PID 1) is generally not recommended.",
+        "wg": [
+          {
+            "t": "容器化環境",
+            "en": "containerized environment",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "除了無法處理殭屍行程 (Zombie Processes) 外，另一個主要原因是什麼？",
+        "en": "Besides the inability to handle Zombie Processes, what is another primary reason for this?",
+        "wg": [
+          {
+            "t": "殭屍行程",
+            "en": "Zombie Processes",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "Node.js 在 PID 1 模式下效能會顯著下降。",
+        "en": "Node.js performance degrades significantly when running as PID 1.",
+        "wg": []
+      },
+      {
+        "t": "Node.js 預設不會轉發系統訊號 (如 SIGTERM) 給子行程，導致無法正確執行 Graceful Shutdown。",
+        "en": "Node.js does not forward system signals (like SIGTERM) to child processes by default, preventing proper Graceful Shutdown.",
+        "wg": [
+          {
+            "t": "轉發",
+            "en": "forward",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "PID 1 的 Process 無法存取環境變數。",
+        "en": "Processes with PID 1 cannot access environment variables.",
+        "wg": []
+      },
+      {
+        "t": "Node.js 無法在 PID 1 下使用 Cluster Mode。",
+        "en": "Node.js cannot use Cluster Mode when running as PID 1.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "Linux 核心對 PID 1 有特殊處理，若 PID 1 沒有明確註冊訊號處理器，它會忽略預設的終止訊號。",
+      "en": "The Linux kernel treats PID 1 specially; if PID 1 does not explicitly register signal handlers, it ignores default termination signals.",
+      "wg": [
+        {
+          "t": "訊號處理器",
+          "en": "signal handlers",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "4",
+    "level": "Advanced",
+    "keywords": "Kubernetes, Health Checks, Liveness, Readiness, Database",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在 Kubernetes 中配置 Health Checks 時，區分 Liveness Probe 與 Readiness Probe 至關重要。",
+        "en": "When configuring Health Checks in Kubernetes, distinguishing between Liveness Probe and Readiness Probe is crucial.",
+        "wg": [
+          {
+            "t": "存活探針",
+            "en": "Liveness Probe",
+            "ps": "noun"
+          },
+          {
+            "t": "就緒探針",
+            "en": "Readiness Probe",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "假設你的 Node.js 應用程式因為資料庫暫時斷線而無法處理請求，但 Event Loop 運作正常。",
+        "en": "Suppose your Node.js application cannot process requests due to a temporary database disconnection, but the Event Loop is functioning normally.",
+        "wg": []
+      },
+      {
+        "t": "此時這兩種 Probe 應如何回應？",
+        "en": "How should these two probes respond in this situation?",
+        "wg": []
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "Liveness: 失敗 (Fail), Readiness: 失敗 (Fail)",
+        "en": "Liveness: Fail, Readiness: Fail",
+        "wg": []
+      },
+      {
+        "t": "Liveness: 成功 (Pass), Readiness: 成功 (Pass)",
+        "en": "Liveness: Pass, Readiness: Pass",
+        "wg": []
+      },
+      {
+        "t": "Liveness: 成功 (Pass), Readiness: 失敗 (Fail)",
+        "en": "Liveness: Pass, Readiness: Fail",
+        "wg": []
+      },
+      {
+        "t": "Liveness: 失敗 (Fail), Readiness: 成功 (Pass)",
+        "en": "Liveness: Fail, Readiness: Pass",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "Liveness 檢查的是「程式是否活著」，如果 Event Loop 正常，重啟容器無法解決資料庫連線問題，反而會造成重啟迴圈，故應回傳 Pass。",
+      "en": "Liveness checks if 'the program is alive'. If the Event Loop is normal, restarting the container won't fix the DB connection issue and will cause a restart loop, so it should return Pass.",
+      "wg": [
+        {
+          "t": "重啟迴圈",
+          "en": "restart loop",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "5",
+    "level": "Intermediate",
+    "keywords": "Logging, Performance, console.log, Structured Logging",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在生產環境中，為何建議使用 `pino` 或 `winston` 等結構化日誌庫 (Structured Logging)，而非直接使用 `console.log`？",
+        "en": "In production environments, why is it recommended to use structured logging libraries like `pino` or `winston` instead of using `console.log` directly?",
+        "wg": [
+          {
+            "t": "結構化日誌",
+            "en": "Structured Logging",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "`console.log` 在某些環境下是同步阻塞的 (Synchronous/Blocking)，且缺乏易於機器解析的 JSON 格式。",
+        "en": "`console.log` is synchronous/blocking in some environments and lacks a machine-parsable JSON format.",
+        "wg": [
+          {
+            "t": "同步阻塞",
+            "en": "Synchronous/Blocking",
+            "ps": "adjective"
+          },
+          {
+            "t": "機器解析",
+            "en": "machine-parsable",
+            "ps": "adjective"
+          }
+        ]
+      },
+      {
+        "t": "`console.log` 無法輸出到標準輸出 (stdout)。",
+        "en": "`console.log` cannot output to standard output (stdout).",
+        "wg": []
+      },
+      {
+        "t": "`console.log` 會自動將日誌寫入檔案系統，導致磁碟空間不足。",
+        "en": "`console.log` automatically writes logs to the file system, causing disk space issues.",
+        "wg": []
+      },
+      {
+        "t": "`pino` 只能在 Kubernetes 環境中使用，`console.log` 則不支援。",
+        "en": "`pino` can only be used in Kubernetes environments, whereas `console.log` is not supported.",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "`console.log` 輸出的純文字難以被 Log Aggregator (如 ELK, Datadog) 索引與查詢，且其同步寫入特性可能在高併發下成為效能瓶頸。",
+      "en": "Plain text output from `console.log` is difficult for Log Aggregators (like ELK, Datadog) to index and query, and its synchronous writing nature can become a performance bottleneck under high concurrency.",
+      "wg": [
+        {
+          "t": "日誌聚合器",
+          "en": "Log Aggregator",
+          "ps": "noun"
+        },
+        {
+          "t": "效能瓶頸",
+          "en": "performance bottleneck",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "6",
+    "level": "Advanced",
+    "keywords": "Memory, V8, Docker, OOM, Configuration",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "當你在 Docker 容器中執行 Node.js 應用程式，並限制容器記憶體為 1GB。",
+        "en": "When running a Node.js application in a Docker container with a memory limit of 1GB.",
+        "wg": []
+      },
+      {
+        "t": "為何應用程式可能在記憶體使用量尚未達到 1GB 時就崩潰 (OOM Killed)，或者反而超過 1GB 導致容器被殺掉？",
+        "en": "Why might the application crash (OOM Killed) before memory usage reaches 1GB, or conversely exceed 1GB causing the container to be killed?",
+        "wg": [
+          {
+            "t": "記憶體溢出",
+            "en": "OOM (Out of Memory)",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "應如何正確設定以避免此問題？",
+        "en": "How should it be configured correctly to avoid this issue?",
+        "wg": []
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "V8 預設的 Heap 上限可能不符合容器限制；應設定 `--max-old-space-size` 為容器限制的約 75-80%。",
+        "en": "V8's default Heap limit may not match the container limit; set `--max-old-space-size` to about 75-80% of the container limit.",
+        "wg": [
+          {
+            "t": "堆疊上限",
+            "en": "Heap limit",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "這是 Docker 的 Bug，必須升級 Docker 版本。",
+        "en": "This is a Docker bug and requires upgrading the Docker version.",
+        "wg": []
+      },
+      {
+        "t": "Node.js 無法在小於 2GB 的記憶體環境中執行。",
+        "en": "Node.js cannot run in environments with less than 2GB of memory.",
+        "wg": []
+      },
+      {
+        "t": "應使用 `process.memoryUsage()` 手動觸發垃圾回收 (GC)。",
+        "en": "You should use `process.memoryUsage()` to manually trigger Garbage Collection (GC).",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "Node.js (V8) 需要一部分記憶體用於非 Heap 結構（如 Stack, Buffer），若將 Heap 上限設為等於容器限制，總用量會超標導致容器被殺；若未設定，V8 預設值可能高於容器限制。",
+      "en": "Node.js (V8) needs some memory for non-Heap structures (like Stack, Buffer). If the Heap limit equals the container limit, total usage will exceed it, killing the container; if unset, V8 defaults might exceed the container limit.",
+      "wg": []
+    }
+  },
+  {
+    "no": "7",
+    "level": "Advanced",
+    "keywords": "Kubernetes, PM2, Scaling, Architecture, Containerization",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "當將 Node.js 應用程式從虛擬機 (VM) 遷移至 Kubernetes 環境時，關於 Process Management 的最佳實踐，下列敘述何者正確？",
+        "en": "When migrating a Node.js application from a Virtual Machine (VM) to a Kubernetes environment, which of the following statements regarding Process Management is correct?",
+        "wg": [
+          {
+            "t": "遷移",
+            "en": "migrating",
+            "ps": "verb"
+          },
+          {
+            "t": "最佳實踐",
+            "en": "best practice",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "應繼續使用 PM2 的 Cluster Mode (`instances: 'max'`)，以確保單個容器能充分利用該節點的所有 CPU 核心。",
+        "en": "You should continue using PM2's Cluster Mode (`instances: 'max'`) to ensure a single container can fully utilize all CPU cores of the node.",
+        "wg": []
+      },
+      {
+        "t": "建議移除 PM2 的 Cluster Mode，改由 Kubernetes 的 ReplicaSet 來控制 Pod 的數量以進行水平擴展。",
+        "en": "It is recommended to remove PM2's Cluster Mode and instead rely on Kubernetes ReplicaSets to control the number of Pods for horizontal scaling.",
+        "wg": [
+          {
+            "t": "水平擴展",
+            "en": "horizontal scaling",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "Kubernetes 不支援 Node.js 的單執行緒模型，因此必須在容器內運行多個 Node.js process 才能正常運作。",
+        "en": "Kubernetes does not support Node.js's single-threaded model, so you must run multiple Node.js processes inside a container for it to work properly.",
+        "wg": []
+      },
+      {
+        "t": "應在容器內同時使用 PM2 與 Systemd 來確保雙重穩定性。",
+        "en": "You should use both PM2 and Systemd inside the container to ensure double stability.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "在容器化編排系統（如 K8s）中，擴展的單位應為 Pod 而非容器內的 Process。若在容器內使用 PM2 Cluster Mode，會導致 K8s 難以監控個別 Process 的狀態與資源使用，且混合了兩層調度邏輯（PM2 與 K8s）會增加複雜度。正確做法是讓每個容器只運行一個 Node.js Process，並透過增加 Pod 數量來利用多核資源。",
+      "en": "In container orchestration systems like K8s, the unit of scaling should be the Pod, not the processes inside a container. Using PM2 Cluster Mode inside a container makes it difficult for K8s to monitor individual process health and resource usage, and mixing two layers of orchestration (PM2 and K8s) adds unnecessary complexity. The best practice is to run a single Node.js process per container and scale by increasing the number of Pods.",
+      "wg": [
+        {
+          "t": "編排系統",
+          "en": "orchestration systems",
+          "ps": "noun"
+        },
+        {
+          "t": "調度邏輯",
+          "en": "scheduling logic",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "8",
+    "level": "Intermediate",
+    "keywords": "NODE_ENV, Performance, Express, Configuration",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在生產環境部署清單中，將環境變數 `NODE_ENV` 設定為 `production` 是極為關鍵的一步。對於使用 Express.js 等框架的應用程式而言，此設定最主要的技術效益為何？",
+        "en": "Setting the environment variable `NODE_ENV` to `production` is a critical step in the deployment checklist. What is the primary technical benefit of this setting for applications using frameworks like Express.js?",
+        "wg": [
+          {
+            "t": "技術效益",
+            "en": "technical benefit",
+            "ps": "noun"
+          },
+          {
+            "t": "框架",
+            "en": "framework",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "它會自動開啟 HTTPS 強制加密連線。",
+        "en": "It automatically enables forced HTTPS encryption.",
+        "wg": []
+      },
+      {
+        "t": "它會啟用 View Template 的快取機制並減少錯誤堆疊追蹤 (Stack Trace) 的詳細輸出，顯著提升效能。",
+        "en": "It enables caching for View Templates and reduces the verbosity of error stack traces, significantly improving performance.",
+        "wg": [
+          {
+            "t": "快取機制",
+            "en": "caching mechanism",
+            "ps": "noun"
+          },
+          {
+            "t": "堆疊追蹤",
+            "en": "stack trace",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "它會自動將 JavaScript 程式碼編譯為二進位檔案以防止反組譯。",
+        "en": "It automatically compiles JavaScript code into binary files to prevent decompilation.",
+        "wg": []
+      },
+      {
+        "t": "它允許開發者在生產環境中直接使用 `console.log` 進行除錯而不影響效能。",
+        "en": "It allows developers to use `console.log` directly in production for debugging without affecting performance.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "許多 Node.js 框架（如 Express）會檢查 `NODE_ENV`。當設為 `production` 時，框架會快取編譯後的 View Templates（避免每次請求都重新讀取檔案與編譯），並停止回傳詳細的錯誤堆疊資訊給客戶端，這能大幅降低 CPU 負載並提升安全性。",
+      "en": "Many Node.js frameworks (like Express) check `NODE_ENV`. When set to `production`, the framework caches compiled View Templates (avoiding file reads and recompilation on every request) and stops sending detailed error stack traces to the client, which significantly reduces CPU load and improves security.",
+      "wg": [
+        {
+          "t": "編譯",
+          "en": "compile",
+          "ps": "verb"
+        },
+        {
+          "t": "負載",
+          "en": "load",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "9",
+    "level": "Intermediate",
+    "keywords": "Security, Docker, Root, Least Privilege",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "FROM node:18-alpine\nWORKDIR /app\nCOPY . .\n# ... (dependencies installed)\n# USER node  <-- Commented out\nCMD [\"node\", \"index.js\"]",
+    "question": [
+      {
+        "t": "觀察上述 Dockerfile 片段，開發者註解掉了 `USER node` 指令。若此容器在生產環境中遭遇遠端代碼執行 (RCE) 攻擊，最嚴重的潛在風險是什麼？",
+        "en": "Observing the Dockerfile snippet above, the developer commented out the `USER node` instruction. If this container suffers a Remote Code Execution (RCE) attack in a production environment, what is the most severe potential risk?",
+        "wg": [
+          {
+            "t": "註解掉",
+            "en": "commented out",
+            "ps": "verb"
+          },
+          {
+            "t": "遠端代碼執行",
+            "en": "Remote Code Execution (RCE)",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "攻擊者將獲得容器內的 root 權限，這使得他們更容易修改系統檔案或嘗試逃逸至宿主機 (Host)。",
+        "en": "The attacker will gain root privileges inside the container, making it easier for them to modify system files or attempt to escape to the host machine.",
+        "wg": [
+          {
+            "t": "逃逸",
+            "en": "escape",
+            "ps": "verb"
+          },
+          {
+            "t": "宿主機",
+            "en": "host machine",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "Node.js 應用程式會因為權限過大而自動崩潰。",
+        "en": "The Node.js application will automatically crash due to excessive privileges.",
+        "wg": []
+      },
+      {
+        "t": "攻擊者只能存取 `/app` 目錄下的檔案，無法影響容器內的其他部分。",
+        "en": "The attacker can only access files under the `/app` directory and cannot affect other parts of the container.",
+        "wg": []
+      },
+      {
+        "t": "這會導致 Docker 映像檔體積變大，增加部署時間。",
+        "en": "This will cause the Docker image size to increase, increasing deployment time.",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "預設情況下，Docker 容器以 root 身份執行。若未切換至非特權使用者（如 `node`），一旦應用程式被攻破，攻擊者即擁有容器內的最高權限（Root）。這違反了最小權限原則（Principle of Least Privilege），大幅增加了攻擊者安裝惡意軟體、修改系統配置或進行容器逃逸的風險。",
+      "en": "By default, Docker containers run as root. If not switched to a non-privileged user (like `node`), once the application is compromised, the attacker possesses the highest privileges (Root) inside the container. This violates the Principle of Least Privilege and significantly increases the risk of the attacker installing malware, modifying system configurations, or performing container escape.",
+      "wg": [
+        {
+          "t": "最小權限原則",
+          "en": "Principle of Least Privilege",
+          "ps": "noun"
+        },
+        {
+          "t": "攻破",
+          "en": "compromised",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "10",
+    "level": "Advanced",
+    "keywords": "Event Loop, Blocking, Health Checks, Troubleshooting",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "app.get('/compute-hash', (req, res) => {\n  // 錯誤示範：在主執行緒進行同步繁重運算\n  const hash = crypto.pbkdf2Sync('secret', 'salt', 100000, 64, 'sha512');\n  res.send(hash.toString('hex'));\n});\n\napp.get('/health', (req, res) => {\n  res.status(200).send('OK');\n});",
+    "question": [
+      {
+        "t": "你的 Node.js 服務部署在 Kubernetes 上，並配置了 Liveness Probe 監控 `/health`。當大量請求湧入 `/compute-hash` 端點時，K8s 開始頻繁重啟你的 Pod。根據上方程式碼，根本原因是什麼？",
+        "en": "Your Node.js service is deployed on Kubernetes with a Liveness Probe configured to monitor `/health`. When a large number of requests hit the `/compute-hash` endpoint, K8s starts frequently restarting your Pod. Based on the code above, what is the root cause?",
+        "wg": [
+          {
+            "t": "頻繁重啟",
+            "en": "frequently restarting",
+            "ps": "verb"
+          },
+          {
+            "t": "根本原因",
+            "en": "root cause",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "記憶體洩漏 (Memory Leak) 導致 OOM Kill。",
+        "en": "Memory Leak causing OOM Kill.",
+        "wg": []
+      },
+      {
+        "t": "同步的 CPU 密集型運算阻塞了 Event Loop，導致 `/health` 端點無法在超時時間內回應 Liveness Probe。",
+        "en": "Synchronous CPU-intensive operations blocked the Event Loop, causing the `/health` endpoint to fail to respond to the Liveness Probe within the timeout period.",
+        "wg": [
+          {
+            "t": "阻塞",
+            "en": "blocked",
+            "ps": "verb"
+          },
+          {
+            "t": "超時時間",
+            "en": "timeout period",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "Kubernetes 的 Liveness Probe 配置錯誤，不應使用 HTTP GET 請求。",
+        "en": "Kubernetes Liveness Probe is misconfigured; HTTP GET requests should not be used.",
+        "wg": []
+      },
+      {
+        "t": "`crypto` 模組在 Node.js 中是不穩定的，導致 Process 崩潰。",
+        "en": "The `crypto` module is unstable in Node.js, causing the Process to crash.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "Node.js 是單執行緒的。`pbkdf2Sync` 是一個同步且耗時的 CPU 運算，它會完全佔用主執行緒（Block Event Loop）。在此期間，Node.js 無法處理任何其他請求，包括 K8s 發送的 `/health` 檢查。當阻塞時間超過 Liveness Probe 的 timeout 設定，K8s 會判定服務已死並重啟 Pod。",
+      "en": "Node.js is single-threaded. `pbkdf2Sync` is a synchronous and CPU-intensive operation that fully occupies the main thread (Blocking the Event Loop). During this time, Node.js cannot process any other requests, including the `/health` check sent by K8s. When the blocking time exceeds the Liveness Probe's timeout setting, K8s determines the service is dead and restarts the Pod.",
+      "wg": [
+        {
+          "t": "單執行緒",
+          "en": "single-threaded",
+          "ps": "adj"
+        },
+        {
+          "t": "佔用",
+          "en": "occupy",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "11",
+    "level": "Intermediate",
+    "keywords": "Observability, Logging, Microservices, Correlation ID",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在由多個 Node.js 微服務組成的系統中，為了能有效追蹤單一使用者請求在不同服務間的流轉路徑與錯誤排查，最佳實踐是引入什麼機制？",
+        "en": "In a system composed of multiple Node.js microservices, what mechanism is best practice to introduce for effectively tracking the flow of a single user request across different services and for troubleshooting?",
+        "wg": [
+          {
+            "t": "微服務",
+            "en": "microservices",
+            "ps": "noun"
+          },
+          {
+            "t": "流轉路徑",
+            "en": "flow path",
+            "ps": "noun"
+          },
+          {
+            "t": "錯誤排查",
+            "en": "troubleshooting",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "在每個服務中使用 `console.error` 輸出詳細錯誤。",
+        "en": "Use `console.error` in every service to output detailed errors.",
+        "wg": []
+      },
+      {
+        "t": "Correlation ID (關聯 ID)：在請求入口生成唯一 ID，並透過 HTTP Headers 傳遞至下游服務，且記錄在所有 Log 中。",
+        "en": "Correlation ID: Generate a unique ID at the request entry point, pass it to downstream services via HTTP Headers, and include it in all logs.",
+        "wg": [
+          {
+            "t": "關聯 ID",
+            "en": "Correlation ID",
+            "ps": "noun"
+          },
+          {
+            "t": "下游服務",
+            "en": "downstream services",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "將所有服務的 Log 寫入同一個實體檔案 (File)。",
+        "en": "Write logs from all services into the same physical file.",
+        "wg": []
+      },
+      {
+        "t": "依賴請求的時間戳記 (Timestamp) 來手動對照不同服務的日誌。",
+        "en": "Rely on request timestamps to manually correlate logs from different services.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "在分散式系統中，單一請求會經過多個服務。若無共同標識符，幾乎無法將分散在不同機器的日誌串聯起來。Correlation ID (通常是 UUID) 讓運維人員可以在 Log Aggregator (如 ELK/Datadog) 中透過搜尋該 ID，一次調閱出該請求在所有服務中的完整歷程。",
+      "en": "In a distributed system, a single request passes through multiple services. Without a common identifier, it is nearly impossible to stitch together logs scattered across different machines. A Correlation ID (usually a UUID) allows operators to search for that ID in a Log Aggregator (like ELK/Datadog) and retrieve the complete history of that request across all services at once.",
+      "wg": [
+        {
+          "t": "分散式系統",
+          "en": "distributed system",
+          "ps": "noun"
+        },
+        {
+          "t": "標識符",
+          "en": "identifier",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "12",
+    "level": "Intermediate",
+    "keywords": "Graceful Shutdown, Database, Implementation, Logic",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "function gracefulShutdown() {\n  // Step A: server.close(() => { ... })\n  // Step B: db.close()\n  // Step C: process.exit(0)\n}",
+    "question": [
+      {
+        "t": "在實作 Graceful Shutdown 時，為何通常建議先執行 `server.close()` (停止 HTTP Server)，然後在 callback 中才執行 `db.close()` (關閉資料庫連線)？",
+        "en": "When implementing Graceful Shutdown, why is it generally recommended to execute `server.close()` (stop HTTP Server) first, and then execute `db.close()` (close database connection) inside its callback?",
+        "wg": [
+          {
+            "t": "實作",
+            "en": "implementing",
+            "ps": "verb"
+          },
+          {
+            "t": "回呼函式",
+            "en": "callback",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "因為資料庫連線關閉需要比較久的時間，應該先讓它在背景執行。",
+        "en": "Because closing the database connection takes longer, it should be allowed to run in the background first.",
+        "wg": []
+      },
+      {
+        "t": "確保在切斷資料庫連線前，應用程式已停止接收新的請求，並已處理完當前正在進行中的請求（這些請求可能仍需存取資料庫）。",
+        "en": "To ensure that before cutting off the database connection, the application has stopped accepting new requests and has finished processing currently active requests (which may still need to access the database).",
+        "wg": [
+          {
+            "t": "切斷",
+            "en": "cutting off",
+            "ps": "verb"
+          },
+          {
+            "t": "進行中",
+            "en": "active / in-flight",
+            "ps": "adj"
+          }
+        ]
+      },
+      {
+        "t": "這只是個人偏好，順序並不影響結果。",
+        "en": "This is just a personal preference; the order does not affect the result.",
+        "wg": []
+      },
+      {
+        "t": "為了防止 Node.js Event Loop 提早退出。",
+        "en": "To prevent the Node.js Event Loop from exiting prematurely.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "`server.close()` 的作用是停止接受「新」連線，並等待既有連線處理完畢。如果先關閉資料庫 (`db.close()`)，那些正在處理中（In-flight）的請求若嘗試存取資料庫就會失敗，導致錯誤回傳給使用者。正確順序是：停收新客 -> 服務完舊客 -> 關閉資源 -> 退出。",
+      "en": "`server.close()` stops accepting \"new\" connections and waits for existing connections to complete. If you close the database (`db.close()`) first, those in-flight requests will fail if they try to access the database, resulting in errors returned to the user. The correct order is: Stop accepting new guests -> Finish serving existing guests -> Close resources -> Exit.",
+      "wg": [
+        {
+          "t": "既有連線",
+          "en": "existing connections",
+          "ps": "noun"
+        },
+        {
+          "t": "處理中",
+          "en": "in-flight",
+          "ps": "adj"
+        }
+      ]
+    }
+  }
+]

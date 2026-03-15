@@ -1,0 +1,537 @@
+[
+  {
+    "no": "7",
+    "level": "intermediate",
+    "keywords": "Anti-pattern, Function-based Indexing, Query Optimization, B+Tree",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "CREATE INDEX idx_created_at ON orders (created_at);\n\n-- Query A\nSELECT * FROM orders WHERE created_at >= '2023-01-01' AND created_at < '2024-01-01';\n\n-- Query B\nSELECT * FROM orders WHERE YEAR(created_at) = 2023;",
+    "question": [
+      {
+        "t": "在 `orders` 資料表中，針對 `created_at` 欄位建立了 B+Tree 索引。",
+        "en": "In the `orders` table, a B+Tree index is created on the `created_at` column.",
+        "wg": []
+      },
+      {
+        "t": "觀察上述兩個 SQL 查詢，雖然它們在業務邏輯上都試圖篩選 2023 年的訂單，但在效能上卻有顯著差異。",
+        "en": "Observing the two SQL queries above, although they both attempt to filter orders for the year 2023 in terms of business logic, there is a significant difference in performance.",
+        "wg": [
+          {
+            "t": "業務邏輯",
+            "en": "business logic",
+            "ps": "N"
+          },
+          {
+            "t": "顯著差異",
+            "en": "significant difference",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "請問關於 Query B 的執行計畫與效能表現，下列敘述何者正確？",
+        "en": "Regarding the execution plan and performance of Query B, which of the following statements is correct?",
+        "wg": [
+          {
+            "t": "執行計畫",
+            "en": "execution plan",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) Query B 會觸發全表掃描 (Full Table Scan) 或全索引掃描 (Full Index Scan)，因為對索引欄位使用了函數運算。",
+        "en": "(A) Query B will trigger a Full Table Scan or Full Index Scan because a function is applied to the indexed column.",
+        "wg": [
+          {
+            "t": "全表掃描",
+            "en": "Full Table Scan",
+            "ps": "N"
+          },
+          {
+            "t": "函數運算",
+            "en": "function operation",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(B) MySQL 優化器會自動將 `YEAR(created_at) = 2023` 轉換為範圍查詢，因此效能與 Query A 相同。",
+        "en": "(B) The MySQL optimizer will automatically convert `YEAR(created_at) = 2023` into a range query, so the performance is the same as Query A.",
+        "wg": []
+      },
+      {
+        "t": "(C) Query B 能夠利用索引的排序特性，進行快速的二分搜尋 (Binary Search)。",
+        "en": "(C) Query B can utilize the sorting property of the index to perform a fast Binary Search.",
+        "wg": [
+          {
+            "t": "二分搜尋",
+            "en": "Binary Search",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(D) 只要 `created_at` 欄位的基數 (Cardinality) 足夠高，Query B 就能使用索引範圍掃描 (Range Scan)。",
+        "en": "(D) As long as the cardinality of the `created_at` column is high enough, Query B can use an Index Range Scan.",
+        "wg": [
+          {
+            "t": "基數",
+            "en": "Cardinality",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "answer": "(A)",
+    "why": {
+      "t": "B+Tree 索引儲存的是欄位的原始值，而非經過函數計算後的值。當對索引欄位使用函數（如 `YEAR()`）時，資料庫無法利用 B+Tree 的有序性進行範圍查找，必須掃描所有資料列來計算函數值並進行比對，導致索引失效。",
+      "en": "The B+Tree index stores the raw values of the column, not the values computed by a function. When a function (like `YEAR()`) is applied to an indexed column, the database cannot utilize the ordered nature of the B+Tree for range lookups. It must scan all rows to compute the function value and compare, causing the index to be ineffective.",
+      "wg": [
+        {
+          "t": "原始值",
+          "en": "raw value",
+          "ps": "N"
+        },
+        {
+          "t": "有序性",
+          "en": "ordered nature",
+          "ps": "N"
+        },
+        {
+          "t": "索引失效",
+          "en": "index invalidation",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "8",
+    "level": "advanced",
+    "keywords": "Optimizer, Cost Model, Selectivity, Random I/O",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "CREATE TABLE users (\n  id BIGINT PRIMARY KEY,\n  gender CHAR(1), -- 'M' or 'F'\n  name VARCHAR(50),\n  KEY idx_gender (gender)\n);\n\n-- 假設資料表中有 100 萬筆資料，其中 'M' 佔 50%。\nSELECT * FROM users WHERE gender = 'M';",
+    "question": [
+      {
+        "t": "在上述 `users` 資料表中，雖然 `gender` 欄位建立了索引 `idx_gender`，但執行查詢時，`EXPLAIN` 顯示 MySQL 選擇了全表掃描 (Full Table Scan) 而非使用該索引。",
+        "en": "In the `users` table above, although an index `idx_gender` is created on the `gender` column, `EXPLAIN` shows that MySQL chooses a Full Table Scan instead of using the index when executing the query.",
+        "wg": [
+          {
+            "t": "全表掃描",
+            "en": "Full Table Scan",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "請問導致此現象最主要的原因是什麼？",
+        "en": "What is the primary reason for this phenomenon?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 因為回表 (Table Access) 產生的隨機 I/O 成本過高，當篩選出的資料量超過一定比例（如 30%）時，順序讀取全表反而更快。",
+        "en": "(A) Because the Random I/O cost incurred by Table Access is too high, when the filtered data exceeds a certain percentage (e.g., 30%), sequentially reading the full table is faster.",
+        "wg": [
+          {
+            "t": "回表",
+            "en": "Table Access",
+            "ps": "N"
+          },
+          {
+            "t": "隨機 I/O",
+            "en": "Random I/O",
+            "ps": "N"
+          },
+          {
+            "t": "順序讀取",
+            "en": "sequentially reading",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(B) `CHAR(1)` 型別太短，MySQL 無法為其建立有效的 B+Tree 結構。",
+        "en": "(B) The `CHAR(1)` type is too short for MySQL to build an effective B+Tree structure.",
+        "wg": []
+      },
+      {
+        "t": "(C) 索引 `idx_gender` 損壞，需要執行 `OPTIMIZE TABLE` 修復。",
+        "en": "(C) The index `idx_gender` is corrupted and requires `OPTIMIZE TABLE` to repair.",
+        "wg": []
+      },
+      {
+        "t": "(D) 因為查詢沒有包含 `ORDER BY` 子句，所以優化器忽略了索引。",
+        "en": "(D) Because the query does not include an `ORDER BY` clause, the optimizer ignores the index.",
+        "wg": []
+      }
+    ],
+    "answer": "(A)",
+    "why": {
+      "t": "當索引的選擇性 (Selectivity) 很低（如性別欄位只有兩個值，且分佈均勻），使用索引需要先讀取 Secondary Index，再對每一筆符合的資料進行回表 (Table Access)。回表屬於隨機 I/O，其成本遠高於順序 I/O。因此，若需讀取的資料量很大（通常 > 20-30%），全表掃描的效率會優於索引掃描。",
+      "en": "When index selectivity is low (e.g., a gender column with only two evenly distributed values), using the index requires reading the Secondary Index first, then performing Table Access for each matching record. Table Access involves Random I/O, which is much more expensive than Sequential I/O. Therefore, if a large portion of data needs to be read (usually > 20-30%), a Full Table Scan is more efficient than an Index Scan.",
+      "wg": [
+        {
+          "t": "選擇性",
+          "en": "Selectivity",
+          "ps": "N"
+        },
+        {
+          "t": "分佈均勻",
+          "en": "evenly distributed",
+          "ps": "Adj"
+        }
+      ]
+    }
+  },
+  {
+    "no": "9",
+    "level": "intermediate",
+    "keywords": "Hash Index, B+Tree, Range Query, Sorting",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在面試中，您被問到：「為什麼 MySQL InnoDB 引擎主要使用 B+Tree 作為索引結構，而不是查詢速度理論上更快的 Hash 索引？」",
+        "en": "In an interview, you are asked: \"Why does the MySQL InnoDB engine primarily use B+Tree as the index structure instead of Hash indexes, which are theoretically faster for lookups?\"",
+        "wg": [
+          {
+            "t": "理論上",
+            "en": "theoretically",
+            "ps": "Adv"
+          }
+        ]
+      },
+      {
+        "t": "下列哪一個選項最準確地描述了 Hash 索引在關聯式資料庫應用中的主要限制？",
+        "en": "Which of the following options most accurately describes the main limitations of Hash indexes in relational database applications?",
+        "wg": [
+          {
+            "t": "關聯式資料庫",
+            "en": "relational database",
+            "ps": "N"
+          },
+          {
+            "t": "限制",
+            "en": "limitation",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) Hash 索引不支援範圍查詢 (如 `>`) 與排序操作 (`ORDER BY`)，且無法利用最左前綴原則。",
+        "en": "(A) Hash indexes do not support range queries (e.g., `>`) and sorting operations (`ORDER BY`), and cannot utilize the leftmost prefix principle.",
+        "wg": [
+          {
+            "t": "範圍查詢",
+            "en": "range queries",
+            "ps": "N"
+          },
+          {
+            "t": "最左前綴原則",
+            "en": "leftmost prefix principle",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(B) Hash 索引佔用的磁碟空間遠大於 B+Tree 索引。",
+        "en": "(B) Hash indexes consume significantly more disk space than B+Tree indexes.",
+        "wg": []
+      },
+      {
+        "t": "(C) Hash 索引在處理等值查詢 (`=`) 時的效能比 B+Tree 差。",
+        "en": "(C) Hash indexes perform worse than B+Tree indexes for equality lookups (`=`).",
+        "wg": [
+          {
+            "t": "等值查詢",
+            "en": "equality lookups",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(D) Hash 索引無法處理 NULL 值。",
+        "en": "(D) Hash indexes cannot handle NULL values.",
+        "wg": []
+      }
+    ],
+    "answer": "(A)",
+    "why": {
+      "t": "Hash 索引將鍵值轉換為雜湊值，這導致原始數據的順序資訊遺失。因此，它無法支援範圍查詢（無法知道哪些雜湊值對應到 `> 100` 的數據）或排序操作。此外，複合索引的 Hash 值是基於所有欄位計算的，因此無法僅使用部分欄位（最左前綴）進行查找。",
+      "en": "Hash indexes convert key values into hash codes, causing the loss of the original data's order information. Therefore, they cannot support range queries (impossible to know which hash codes correspond to data `> 100`) or sorting operations. Additionally, the hash value for a composite index is computed based on all columns, so it cannot utilize partial columns (leftmost prefix) for lookups.",
+      "wg": [
+        {
+          "t": "雜湊值",
+          "en": "hash code",
+          "ps": "N"
+        },
+        {
+          "t": "順序資訊",
+          "en": "order information",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "10",
+    "level": "intermediate",
+    "keywords": "Secondary Index, Clustered Index, Leaf Node, Storage Structure",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在 InnoDB 儲存引擎中，次級索引 (Secondary Index) 的葉子節點 (Leaf Node) 實際上儲存了什麼內容？",
+        "en": "In the InnoDB storage engine, what is actually stored in the leaf nodes of a Secondary Index?",
+        "wg": [
+          {
+            "t": "次級索引",
+            "en": "Secondary Index",
+            "ps": "N"
+          },
+          {
+            "t": "葉子節點",
+            "en": "Leaf Node",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 該筆資料的主鍵值 (Primary Key Value)。",
+        "en": "(A) The Primary Key Value of the record.",
+        "wg": [
+          {
+            "t": "主鍵值",
+            "en": "Primary Key Value",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(B) 指向該筆資料在磁碟上物理位置的指標 (Row ID / Address)。",
+        "en": "(B) A pointer to the physical location of the record on the disk (Row ID / Address).",
+        "wg": [
+          {
+            "t": "物理位置",
+            "en": "physical location",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) 該筆資料的完整內容 (Full Row Data)。",
+        "en": "(C) The full content of the record (Full Row Data).",
+        "wg": []
+      },
+      {
+        "t": "(D) 該筆資料的雜湊值 (Hash Value)。",
+        "en": "(D) The hash value of the record.",
+        "wg": []
+      }
+    ],
+    "answer": "(A)",
+    "why": {
+      "t": "InnoDB 是基於聚簇索引 (Clustered Index) 組織的。次級索引的葉子節點儲存的是索引欄位的值以及對應的主鍵值 (Primary Key)。當透過次級索引查找時，MySQL 會先取得主鍵，再回到聚簇索引（回表）查找完整的資料列。這與 MyISAM 儲存物理地址的方式不同。",
+      "en": "InnoDB is organized based on Clustered Indexes. The leaf nodes of a Secondary Index store the values of the indexed columns and the corresponding Primary Key. When searching via a Secondary Index, MySQL retrieves the Primary Key first and then looks up the full row data in the Clustered Index (Table Access). This differs from MyISAM, which stores physical addresses.",
+      "wg": [
+        {
+          "t": "聚簇索引",
+          "en": "Clustered Index",
+          "ps": "N"
+        },
+        {
+          "t": "物理地址",
+          "en": "physical address",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "11",
+    "level": "advanced",
+    "keywords": "Composite Index, Range Query, Leftmost Prefix, Query Optimization",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "CREATE INDEX idx_a_b ON my_table (col_a, col_b);\n\nSELECT * FROM my_table WHERE col_a > 100 AND col_b = 50;",
+    "question": [
+      {
+        "t": "您建立了一個複合索引 `idx_a_b (col_a, col_b)`。考慮上述 SQL 查詢。",
+        "en": "You created a composite index `idx_a_b (col_a, col_b)`. Consider the SQL query above.",
+        "wg": [
+          {
+            "t": "複合索引",
+            "en": "composite index",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "關於此查詢如何使用索引，下列敘述何者正確？",
+        "en": "Regarding how this query uses the index, which of the following statements is correct?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 索引只能用於定位 `col_a > 100` 的範圍，`col_b` 無法用於索引排序或快速查找，因為 `col_a` 的範圍查詢破壞了後續欄位的有序性。",
+        "en": "(A) The index can only be used to locate the range `col_a > 100`. `col_b` cannot be used for index sorting or fast lookup because the range query on `col_a` breaks the ordering of subsequent columns.",
+        "wg": [
+          {
+            "t": "有序性",
+            "en": "ordering",
+            "ps": "N"
+          },
+          {
+            "t": "範圍查詢",
+            "en": "range query",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(B) MySQL 會同時使用 `col_a` 和 `col_b` 進行精確的索引查找，效率極高。",
+        "en": "(B) MySQL will use both `col_a` and `col_b` for a precise index lookup, resulting in high efficiency.",
+        "wg": []
+      },
+      {
+        "t": "(C) 由於 `col_b` 是等值查詢 (`=`)，MySQL 會優先使用 `col_b` 進行過濾，再檢查 `col_a`。",
+        "en": "(C) Since `col_b` is an equality query (`=`), MySQL will prioritize using `col_b` for filtering, then check `col_a`.",
+        "wg": [
+          {
+            "t": "優先使用",
+            "en": "prioritize using",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(D) 索引完全失效，將觸發全表掃描。",
+        "en": "(D) The index becomes completely invalid, triggering a Full Table Scan.",
+        "wg": []
+      }
+    ],
+    "answer": "(A)",
+    "why": {
+      "t": "在複合索引 (A, B) 中，資料是先按 A 排序，當 A 相同時才按 B 排序。一旦對 A 進行了範圍查詢 (`> 100`)，在跨越多個 A 值的範圍內，B 的值並不是全域有序的（例如 A=101 時 B=5, A=102 時 B=1）。因此，索引掃描只能止步於 A，無法利用 B 進行二分查找或排序（儘管 ICP 機制可能在掃描過程中幫助過濾 B，但索引本身的搜尋路徑僅能利用 A）。",
+      "en": "In a composite index (A, B), data is sorted first by A, and then by B only when A values are identical. Once a range query (`> 100`) is performed on A, the values of B are not globally ordered across the range of multiple A values (e.g., B=5 when A=101, B=1 when A=102). Therefore, the index scan stops at A and cannot utilize B for binary search or sorting (although ICP might help filter B during the scan, the index search path itself relies only on A).",
+      "wg": [
+        {
+          "t": "全域有序",
+          "en": "globally ordered",
+          "ps": "Adj"
+        },
+        {
+          "t": "搜尋路徑",
+          "en": "search path",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "12",
+    "level": "intermediate",
+    "keywords": "B+Tree, Page Structure, Fan-out, Tree Height",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "B+Tree 的設計特色之一是「矮胖」的樹狀結構，通常 3 到 4 層的高度就能容納數千萬甚至上億筆資料。",
+        "en": "One of the design features of B+Tree is its \"short and fat\" tree structure, which can typically hold tens or hundreds of millions of records with a height of just 3 to 4 levels.",
+        "wg": [
+          {
+            "t": "矮胖",
+            "en": "short and fat",
+            "ps": "Adj"
+          },
+          {
+            "t": "容納",
+            "en": "hold / accommodate",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "請問是什麼關鍵因素造就了這種高扇出 (High Fan-out) 特性？",
+        "en": "What is the key factor that contributes to this High Fan-out characteristic?",
+        "wg": [
+          {
+            "t": "高扇出",
+            "en": "High Fan-out",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 非葉子節點 (Non-Leaf Nodes) 不儲存實際資料列，只儲存索引鍵值與指標，因此單一 Page 能容納更多路徑指標。",
+        "en": "(A) Non-Leaf Nodes do not store actual data rows; they only store index keys and pointers, allowing a single Page to hold many more path pointers.",
+        "wg": [
+          {
+            "t": "非葉子節點",
+            "en": "Non-Leaf Nodes",
+            "ps": "N"
+          },
+          {
+            "t": "路徑指標",
+            "en": "path pointers",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(B) 葉子節點 (Leaf Nodes) 之間使用了雙向鏈結串列 (Doubly Linked List) 連接。",
+        "en": "(B) Leaf Nodes are connected using a Doubly Linked List.",
+        "wg": []
+      },
+      {
+        "t": "(C) InnoDB 使用了壓縮演算法來縮小資料佔用的空間。",
+        "en": "(C) InnoDB uses compression algorithms to reduce the space occupied by data.",
+        "wg": []
+      },
+      {
+        "t": "(D) B+Tree 允許每個節點的大小動態調整，不受 Page Size (16KB) 的限制。",
+        "en": "(D) B+Tree allows the size of each node to be dynamically adjusted, unrestricted by the Page Size (16KB).",
+        "wg": []
+      }
+    ],
+    "answer": "(A)",
+    "why": {
+      "t": "B+Tree 與 B-Tree 的最大區別在於非葉子節點不存資料 (Data)。這使得在固定的 Page Size (如 16KB) 下，非葉子節點可以塞入數百甚至上千個索引鍵與指標。這個數量稱為「扇出 (Fan-out)」。扇出越大，樹的高度就越低，進而減少查找資料所需的磁碟 I/O 次數。",
+      "en": "The main difference between B+Tree and B-Tree is that non-leaf nodes do not store data. This allows a non-leaf node to fit hundreds or even thousands of index keys and pointers within a fixed Page Size (e.g., 16KB). This number is called \"Fan-out.\" The higher the fan-out, the shorter the tree, which reduces the number of Disk I/O operations required to look up data.",
+      "wg": [
+        {
+          "t": "扇出",
+          "en": "Fan-out",
+          "ps": "N"
+        },
+        {
+          "t": "磁碟 I/O",
+          "en": "Disk I/O",
+          "ps": "N"
+        }
+      ]
+    }
+  }
+]

@@ -1,0 +1,1191 @@
+[
+  {
+    "no": "1",
+    "level": "intermediate",
+    "keywords": "Binlog, Replication, CDC, Data Consistency",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您正在為一家金融科技公司設計資料庫架構，該架構需要支援下游的 CDC (Change Data Capture) 工具以進行即時資料倉儲同步。",
+        "en": "You are designing a database architecture for a fintech company that requires support for downstream CDC (Change Data Capture) tools for real-time data warehouse synchronization.",
+        "wg": [
+          {
+            "t": "資料倉儲",
+            "en": "data warehouse",
+            "ps": "N"
+          },
+          {
+            "t": "即時",
+            "en": "real-time",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "為了確保最高的資料一致性並避免非確定性函數導致的主從數據差異，您應該選擇哪種 Binlog 格式？",
+        "en": "To ensure the highest data consistency and avoid master-slave data divergence caused by non-deterministic functions, which Binlog format should you choose?",
+        "wg": [
+          {
+            "t": "非確定性函數",
+            "en": "non-deterministic functions",
+            "ps": "N"
+          },
+          {
+            "t": "資料一致性",
+            "en": "data consistency",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) Statement-based Replication (SBR)，因為它產生的日誌量最小，I/O 效能最好。",
+        "en": "(A) Statement-based Replication (SBR), because it generates the smallest log volume and has the best I/O performance.",
+        "wg": []
+      },
+      {
+        "t": "(B) Row-based Replication (RBR)，因為它記錄每一行資料的具體變更，能保證一致性並被 CDC 工具解析。",
+        "en": "(B) Row-based Replication (RBR), because it logs the specific changes of each row, ensuring consistency and parsability by CDC tools.",
+        "wg": []
+      },
+      {
+        "t": "(C) Mixed-based Replication，因為它能自動在 Statement 和 Row 之間切換，是唯一的選擇。",
+        "en": "(C) Mixed-based Replication, because it automatically switches between Statement and Row, making it the only choice.",
+        "wg": []
+      },
+      {
+        "t": "(D) 使用 Statement 格式並強制關閉所有非確定性函數的使用。",
+        "en": "(D) Use Statement format and forcibly disable the use of all non-deterministic functions.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "Row-based Replication (RBR) 是現代高可用架構的標準。它記錄資料變更後的最終狀態，避免了 `NOW()` 或 `UUID()` 等函數在主從執行結果不一致的問題，且是 Debezium 等 CDC 工具運作的基礎。",
+      "en": "Row-based Replication (RBR) is the standard for modern high-availability architectures. It records the final state of data changes, avoiding inconsistencies caused by functions like `NOW()` or `UUID()` between master and slave, and is the foundation for CDC tools like Debezium.",
+      "wg": [
+        {
+          "t": "標準",
+          "en": "standard",
+          "ps": "N"
+        },
+        {
+          "t": "基礎",
+          "en": "foundation",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "2",
+    "level": "advanced",
+    "keywords": "Semi-Sync, Replication, Data Safety, Phantom Read",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "SET GLOBAL rpl_semi_sync_master_wait_point = '...';",
+    "question": [
+      {
+        "t": "在配置 MySQL 半同步複製 (Semi-Sync Replication) 時，為了確保 RPO (Recovery Point Objective) 趨近於 0，並避免「Master 當機後，已提交的交易在 Slave 上遺失」的情況。",
+        "en": "When configuring MySQL Semi-Sync Replication, to ensure RPO (Recovery Point Objective) approaches 0 and avoid the scenario where 'committed transactions on Master are lost on Slave after Master crash'.",
+        "wg": [
+          {
+            "t": "遺失",
+            "en": "lost",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "您應該將 `rpl_semi_sync_master_wait_point` 設定為下列何者？",
+        "en": "Which of the following should you set `rpl_semi_sync_master_wait_point` to?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) AFTER_COMMIT",
+        "en": "(A) AFTER_COMMIT",
+        "wg": []
+      },
+      {
+        "t": "(B) AFTER_SYNC",
+        "en": "(B) AFTER_SYNC",
+        "wg": []
+      },
+      {
+        "t": "(C) AFTER_BINLOG",
+        "en": "(C) AFTER_BINLOG",
+        "wg": []
+      },
+      {
+        "t": "(D) BEFORE_COMMIT",
+        "en": "(D) BEFORE_COMMIT",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "`AFTER_SYNC` (MySQL 5.7+) 讓 Master 在寫入 Binlog 後、提交到儲存引擎前就等待 Slave ACK。若此時 Master 當機，交易尚未提交，Client 會收到失敗，Slave 也無資料，保證了全域一致性。相比之下，`AFTER_COMMIT` 可能導致 Master 已提交但 Slave 未收到，產生幻讀 (Phantom Read) 與資料遺失。",
+      "en": "`AFTER_SYNC` (MySQL 5.7+) makes the Master wait for Slave ACK after writing to Binlog but before committing to the storage engine. If the Master crashes at this point, the transaction is not committed, the Client receives a failure, and the Slave has no data, ensuring global consistency. In contrast, `AFTER_COMMIT` can lead to scenarios where the Master has committed but the Slave hasn't received it, causing Phantom Reads and data loss.",
+      "wg": [
+        {
+          "t": "儲存引擎",
+          "en": "storage engine",
+          "ps": "N"
+        },
+        {
+          "t": "幻讀",
+          "en": "Phantom Read",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "3",
+    "level": "intermediate",
+    "keywords": "GTID, Failover, Operations, High Availability",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在傳統的 MySQL 複製中，當 Master 故障需要進行 Failover 時，DBA 往往需要手動計算 Binlog File 和 Position。",
+        "en": "In traditional MySQL replication, when the Master fails and Failover is required, DBAs often need to manually calculate the Binlog File and Position.",
+        "wg": [
+          {
+            "t": "故障",
+            "en": "failure",
+            "ps": "N"
+          },
+          {
+            "t": "手動計算",
+            "en": "manually calculate",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "引入 GTID (Global Transaction ID) 後，主要解決了上述哪個痛點？",
+        "en": "After introducing GTID (Global Transaction ID), which of the above pain points is primarily solved?",
+        "wg": [
+          {
+            "t": "痛點",
+            "en": "pain point",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "請選出 GTID 在 Failover 場景中的核心優勢。",
+        "en": "Please select the core advantage of GTID in Failover scenarios.",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) GTID 能夠壓縮 Binlog 大小，加快同步速度。",
+        "en": "(A) GTID can compress Binlog size and speed up synchronization.",
+        "wg": []
+      },
+      {
+        "t": "(B) GTID 允許 Slave 自動向新 Master 報告已執行的交易 ID，實現「自動定位 (Auto-positioning)」，無需人工指定日誌位置。",
+        "en": "(B) GTID allows the Slave to automatically report executed transaction IDs to the new Master, enabling 'Auto-positioning' without manually specifying log positions.",
+        "wg": [
+          {
+            "t": "自動定位",
+            "en": "Auto-positioning",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) GTID 強制所有 Slave 必須同步寫入，消除了複製延遲。",
+        "en": "(C) GTID forces all Slaves to write synchronously, eliminating replication lag.",
+        "wg": []
+      },
+      {
+        "t": "(D) GTID 使得 Master 可以同時寫入多個 Binlog 檔案以提升吞吐量。",
+        "en": "(D) GTID allows the Master to write to multiple Binlog files simultaneously to improve throughput.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "GTID 的核心價值在於全域唯一性。在 Failover 或拓撲變更時，Slave 只需告訴新 Master 「我執行過哪些 GTID」，Master 即可自動計算並發送剩餘的 Binlog，徹底移除了脆弱的 `File Position` 對應過程。",
+      "en": "The core value of GTID lies in its global uniqueness. During Failover or topology changes, the Slave simply tells the new Master 'which GTIDs I have executed,' and the Master automatically calculates and sends the remaining Binlogs, completely removing the fragile `File Position` mapping process.",
+      "wg": [
+        {
+          "t": "拓撲變更",
+          "en": "topology change",
+          "ps": "N"
+        },
+        {
+          "t": "脆弱的",
+          "en": "fragile",
+          "ps": "Adj"
+        }
+      ]
+    }
+  },
+  {
+    "no": "4",
+    "level": "advanced",
+    "keywords": "System Design, Read-Write Splitting, Replication Lag, Caching",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在一個讀寫分離 (Read-Write Splitting) 的系統中，使用者更新個人資料後立即重新整理頁面，卻發現資料變回了舊版本。",
+        "en": "In a Read-Write Splitting system, a user updates their profile and immediately refreshes the page, only to find the data has reverted to the old version.",
+        "wg": [
+          {
+            "t": "讀寫分離",
+            "en": "Read-Write Splitting",
+            "ps": "N"
+          },
+          {
+            "t": "變回",
+            "en": "reverted to",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "這被稱為「讀己之寫 (Read Your Own Write)」問題。作為資深工程師，下列哪種應用層解決方案最能平衡「使用者體驗」與「資料庫負載」？",
+        "en": "This is known as the 'Read Your Own Write' problem. As a Senior Engineer, which of the following application-layer solutions best balances 'User Experience' and 'Database Load'?",
+        "wg": [
+          {
+            "t": "平衡",
+            "en": "balance",
+            "ps": "V"
+          },
+          {
+            "t": "負載",
+            "en": "load",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 將所有讀取請求都強制路由到 Master 資料庫。",
+        "en": "(A) Forcibly route all read requests to the Master database.",
+        "wg": []
+      },
+      {
+        "t": "(B) 使用「快取標記 (Cache Marker)」策略：寫入後在 Redis 設定一個帶有 TTL 的 Key，讀取時若 Key 存在則走 Master，否則走 Slave。",
+        "en": "(B) Use a 'Cache Marker' strategy: Set a Key with TTL in Redis after writing; if the Key exists during read, route to Master, otherwise route to Slave.",
+        "wg": [
+          {
+            "t": "快取標記",
+            "en": "Cache Marker",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) 在 Slave 上啟用同步複製 (Synchronous Replication) 以確保零延遲。",
+        "en": "(C) Enable Synchronous Replication on Slaves to ensure zero latency.",
+        "wg": []
+      },
+      {
+        "t": "(D) 在前端 UI 顯示「資料更新中」，並強制使用者等待 5 秒後才能重新整理。",
+        "en": "(D) Display 'Data Updating' in the frontend UI and force the user to wait 5 seconds before refreshing.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "選項 (A) 會導致 Master 過載，失去讀寫分離的意義；選項 (C) MySQL 原生不支援完全同步（且會嚴重影響寫入效能）；選項 (D) 體驗極差。選項 (B) 是一種精準的折衷方案，僅在寫入後的短時間內（Replication Lag 期間）增加 Master 負載，其餘時間仍利用 Slave 讀取。",
+      "en": "Option (A) overloads the Master, defeating the purpose of read-write splitting; Option (C) is not natively supported by MySQL (and severely impacts write performance); Option (D) offers poor UX. Option (B) is a precise compromise, increasing Master load only for a short period after writes (during Replication Lag), while utilizing Slaves for reads the rest of the time.",
+      "wg": [
+        {
+          "t": "折衷方案",
+          "en": "compromise",
+          "ps": "N"
+        },
+        {
+          "t": "過載",
+          "en": "overload",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "5",
+    "level": "intermediate",
+    "keywords": "Troubleshooting, Replication Error, Operational",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "Last_SQL_Error: Could not execute Write_rows event on table ...; Duplicate entry '1001' for key 'PRIMARY'",
+    "question": [
+      {
+        "t": "您的監控系統發出警報，顯示某台 Slave 的複製中斷，錯誤訊息如上所示 (Duplicate entry)。",
+        "en": "Your monitoring system alerts that replication on a Slave is broken, with the error message shown above (Duplicate entry).",
+        "wg": [
+          {
+            "t": "複製中斷",
+            "en": "replication broken",
+            "ps": "N"
+          },
+          {
+            "t": "警報",
+            "en": "alert",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "假設 Master 運作正常且沒有發生雜湊衝突，最可能導致此錯誤的操作原因是什麼？",
+        "en": "Assuming the Master is functioning normally and there are no hash collisions, what is the most likely operational cause of this error?",
+        "wg": [
+          {
+            "t": "操作原因",
+            "en": "operational cause",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 網路封包重複發送，導致 Slave 收到兩次相同的 Binlog 事件。",
+        "en": "(A) Network packets were resent, causing the Slave to receive the same Binlog event twice.",
+        "wg": []
+      },
+      {
+        "t": "(B) 有應用程式或管理員意外地直接連線到該 Slave 並寫入了資料（例如 ID 1001），導致 Master 傳來相同 ID 的資料時發生衝突。",
+        "en": "(B) An application or administrator accidentally connected directly to the Slave and wrote data (e.g., ID 1001), causing a conflict when the same ID arrived from the Master.",
+        "wg": [
+          {
+            "t": "意外地",
+            "en": "accidentally",
+            "ps": "Adv"
+          },
+          {
+            "t": "衝突",
+            "en": "conflict",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) Master 的 Binlog 格式被設定為 STATEMENT，導致 ID 生成不一致。",
+        "en": "(C) The Master's Binlog format is set to STATEMENT, causing inconsistent ID generation.",
+        "wg": []
+      },
+      {
+        "t": "(D) Slave 的硬碟空間已滿，無法寫入新資料。",
+        "en": "(D) The Slave's disk space is full, preventing new data writes.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "這是最常見的人為疏失或配置錯誤。若 Slave 未設定 `read_only=1` 或 `super_read_only=1`，意外的寫入會導致資料庫狀態與 Master 不一致。當 Master 隨後傳送包含相同 Primary Key 的變更時，Slave 就會報 Duplicate Entry 錯誤。",
+      "en": "This is the most common human error or misconfiguration. If the Slave is not set to `read_only=1` or `super_read_only=1`, accidental writes cause the database state to diverge from the Master. When the Master subsequently sends changes with the same Primary Key, the Slave throws a Duplicate Entry error.",
+      "wg": [
+        {
+          "t": "人為疏失",
+          "en": "human error",
+          "ps": "N"
+        },
+        {
+          "t": "不一致",
+          "en": "diverge/inconsistent",
+          "ps": "Adj"
+        }
+      ]
+    }
+  },
+  {
+    "no": "6",
+    "level": "intermediate",
+    "keywords": "CAP Theorem, Async Replication, Architecture",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "從 CAP 定理 (Consistency, Availability, Partition Tolerance) 的角度來看，MySQL 預設的「非同步複製 (Asynchronous Replication)」屬於哪種類型的系統？",
+        "en": "From the perspective of the CAP theorem (Consistency, Availability, Partition Tolerance), which type of system does MySQL's default 'Asynchronous Replication' belong to?",
+        "wg": [
+          {
+            "t": "非同步複製",
+            "en": "Asynchronous Replication",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "請選擇最貼切的描述。",
+        "en": "Please select the most appropriate description.",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) CP 系統：優先保證一致性，當網路分區發生時會拒絕寫入。",
+        "en": "(A) CP System: Prioritizes Consistency; rejects writes when network partitions occur.",
+        "wg": []
+      },
+      {
+        "t": "(B) AP 系統：優先保證可用性與效能，Master 不等待 Slave 回應即可提交，但在故障時可能遺失資料（最終一致性）。",
+        "en": "(B) AP System: Prioritizes Availability and Performance; Master commits without waiting for Slave response, but may lose data during failures (Eventual Consistency).",
+        "wg": [
+          {
+            "t": "最終一致性",
+            "en": "Eventual Consistency",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) CA 系統：保證一致性與可用性，但無法容忍網路分區（這在分散式系統中是不存在的）。",
+        "en": "(C) CA System: Guarantees Consistency and Availability but cannot tolerate network partitions (which doesn't exist in distributed systems).",
+        "wg": []
+      },
+      {
+        "t": "(D) AC 系統：這是 ACID 的縮寫，與 CAP 無關。",
+        "en": "(D) AC System: This is an abbreviation for ACID and is unrelated to CAP.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "非同步複製下，Master 寫入後立即返回成功，不等待網路傳輸，這最大化了可用性 (Availability) 與效能，但犧牲了強一致性 (Consistency)。若 Master 當機，尚未傳輸的 Binlog 會遺失，因此符合 AP 模型的特徵。",
+      "en": "Under asynchronous replication, the Master returns success immediately after writing without waiting for network transmission. This maximizes Availability and performance but sacrifices Strong Consistency. If the Master crashes, untransmitted Binlogs are lost, fitting the characteristics of an AP model.",
+      "wg": [
+        {
+          "t": "犧牲",
+          "en": "sacrifices",
+          "ps": "V"
+        },
+        {
+          "t": "特徵",
+          "en": "characteristics",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "chapter06-q07",
+    "level": "intermediate",
+    "keywords": "Binlog Format, Statement-Based, Data Consistency, Non-deterministic",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "DELETE FROM access_logs WHERE log_time < NOW() - INTERVAL 7 DAY;",
+    "question": [
+      {
+        "t": "您的團隊正在維護一個舊有的 MySQL 5.6 資料庫，且目前的 Binlog 格式設定為 `STATEMENT`。",
+        "en": "Your team is maintaining a legacy MySQL 5.6 database, and the current Binlog format is set to `STATEMENT`.",
+        "wg": [
+          {
+            "t": "舊有的",
+            "en": "legacy",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "開發人員執行了上述的 SQL 語句來清理舊日誌。",
+        "en": "A developer executed the SQL statement above to clean up old logs.",
+        "wg": []
+      },
+      {
+        "t": "請問這可能會導致什麼潛在問題？",
+        "en": "What potential issue could this cause?",
+        "wg": [
+          {
+            "t": "潛在問題",
+            "en": "potential issue",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "Slave 節點可能會因為鎖定過多行而導致複製延遲。",
+        "en": "The Slave node might experience replication lag due to locking too many rows.",
+        "wg": []
+      },
+      {
+        "t": "主從資料可能不一致，因為 `NOW()` 在 Master 與 Slave 上執行的時間點不同。",
+        "en": "Data inconsistency may occur between Master and Slave because `NOW()` executes at different times.",
+        "wg": [
+          {
+            "t": "主從資料",
+            "en": "Master-Slave data",
+            "ps": "N"
+          },
+          {
+            "t": "不一致",
+            "en": "inconsistent",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "該語句會被自動轉換為 `ROW` 格式以確保安全。",
+        "en": "The statement will be automatically converted to `ROW` format to ensure safety.",
+        "wg": []
+      },
+      {
+        "t": "Binlog 檔案會變得非常巨大，消耗過多磁碟空間。",
+        "en": "The Binlog file will become extremely large, consuming excessive disk space.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "在 `STATEMENT` 格式下，SQL 語句會原封不動地在 Slave 重播。若語句包含非確定性函數（如 `NOW()`、`UUID()`），Slave 執行時的結果可能與 Master 不同，導致資料不一致。這也是現代架構首選 `ROW` 格式的原因。",
+      "en": "In `STATEMENT` format, the SQL statement is replayed exactly as is on the Slave. If the statement contains non-deterministic functions (like `NOW()`, `UUID()`), the execution result on the Slave might differ from the Master, leading to data inconsistency. This is why `ROW` format is preferred in modern architectures.",
+      "wg": [
+        {
+          "t": "非確定性函數",
+          "en": "non-deterministic functions",
+          "ps": "N"
+        },
+        {
+          "t": "重播",
+          "en": "replay",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "chapter06-q08",
+    "level": "advanced",
+    "keywords": "Semi-Sync, Availability, Timeout, Trade-off",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您配置了 MySQL 半同步複製 (Semi-Sync Replication) 並設定 `rpl_semi_sync_master_timeout = 1000` (1秒)。",
+        "en": "You have configured MySQL Semi-Sync Replication and set `rpl_semi_sync_master_timeout = 1000` (1 second).",
+        "wg": []
+      },
+      {
+        "t": "假設網路發生短暫擁塞，導致所有 Slave 在 1 秒內都無法回傳 ACK。",
+        "en": "Suppose there is temporary network congestion, causing no Slaves to return an ACK within 1 second.",
+        "wg": [
+          {
+            "t": "擁塞",
+            "en": "congestion",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "此時 Master 會發生什麼行為？",
+        "en": "What behavior will occur on the Master at this point?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "Master 會暫停所有寫入交易，直到網路恢復並收到 ACK 為止。",
+        "en": "The Master will pause all write transactions until the network recovers and an ACK is received.",
+        "wg": []
+      },
+      {
+        "t": "Master 會自動降級為非同步複製 (Asynchronous Replication) 以維持可用性。",
+        "en": "The Master will automatically downgrade to Asynchronous Replication to maintain availability.",
+        "wg": [
+          {
+            "t": "降級",
+            "en": "downgrade",
+            "ps": "V"
+          },
+          {
+            "t": "可用性",
+            "en": "availability",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "Master 會回滾 (Rollback) 該筆交易並向客戶端回傳錯誤。",
+        "en": "The Master will rollback the transaction and return an error to the client.",
+        "wg": [
+          {
+            "t": "回滾",
+            "en": "rollback",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "Master 會觸發自動 Failover，將其中一台 Slave 提升為新 Master。",
+        "en": "The Master will trigger an automated Failover, promoting one of the Slaves to be the new Master.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "這是半同步複製的設計特性。當超過 Timeout 時間仍未收到 ACK 時，為了不阻塞業務寫入，Master 會暫時切換回預設的非同步模式，直到再次收到 Slave 的 ACK 為止。這是在「一致性」與「可用性」之間的權衡。",
+      "en": "This is a design feature of Semi-Sync replication. When no ACK is received within the timeout, to avoid blocking business writes, the Master temporarily switches back to the default Asynchronous mode until it receives an ACK from a Slave again. This is a trade-off between 'Consistency' and 'Availability'.",
+      "wg": [
+        {
+          "t": "阻塞",
+          "en": "block",
+          "ps": "V"
+        },
+        {
+          "t": "權衡",
+          "en": "trade-off",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "chapter06-q09",
+    "level": "advanced",
+    "keywords": "Split-Brain, High Availability, Fencing, Orchestrator",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在設計自動化 Failover 機制時，若發生網路分區 (Network Partition)，舊 Master 仍存活但無法連線到監控系統，而新 Master 已被提升。",
+        "en": "When designing an automated Failover mechanism, if a Network Partition occurs, the old Master is still alive but cannot connect to the monitoring system, while a new Master has been promoted.",
+        "wg": [
+          {
+            "t": "網路分區",
+            "en": "network partition",
+            "ps": "N"
+          },
+          {
+            "t": "提升",
+            "en": "promoted",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "這導致兩個節點同時接受寫入，稱為「腦裂 (Split-Brain)」。",
+        "en": "This leads to both nodes accepting writes simultaneously, known as 'Split-Brain'.",
+        "wg": [
+          {
+            "t": "腦裂",
+            "en": "Split-Brain",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "下列哪種機制最能有效防止此情況？",
+        "en": "Which of the following mechanisms is most effective in preventing this situation?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "增加更多 Slave 節點以提高讀取效能。",
+        "en": "Add more Slave nodes to improve read performance.",
+        "wg": []
+      },
+      {
+        "t": "實作 Fencing 機制（如 STONITH 或切斷 VIP），確保舊 Master 無法接受寫入。",
+        "en": "Implement a Fencing mechanism (such as STONITH or cutting off VIP) to ensure the old Master cannot accept writes.",
+        "wg": [
+          {
+            "t": "隔離/防護",
+            "en": "Fencing",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "將 Binlog 格式改為 Mixed。",
+        "en": "Change the Binlog format to Mixed.",
+        "wg": []
+      },
+      {
+        "t": "縮短 `connect_timeout` 的時間。",
+        "en": "Shorten the `connect_timeout` duration.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "防止腦裂的關鍵在於「隔離 (Fencing)」舊的 Master。這可以透過關閉其網路埠、強制斷電 (STONITH)、移除 VIP 或將其設為 `read_only` 來達成，確保叢集中同一時間只有一個可寫入的 Master。",
+      "en": "The key to preventing Split-Brain is 'Fencing' the old Master. This can be achieved by disabling its network port, forcing a power off (STONITH), removing the VIP, or setting it to `read_only`, ensuring there is only one writable Master in the cluster at a time.",
+      "wg": [
+        {
+          "t": "隔離",
+          "en": "Fencing",
+          "ps": "N"
+        },
+        {
+          "t": "強制斷電",
+          "en": "STONITH (Shoot The Other Node In The Head)",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "chapter06-q10",
+    "level": "intermediate",
+    "keywords": "Operations, Binlog, Disk Space, Configuration",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您的 MySQL Master 伺服器突然當機，經檢查發現磁碟空間已滿 (100% usage)。",
+        "en": "Your MySQL Master server suddenly crashed, and inspection revealed that the disk space is full (100% usage).",
+        "wg": [
+          {
+            "t": "當機",
+            "en": "crashed",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "進一步分析發現 `/var/lib/mysql` 目錄下充滿了大量的 `mysql-bin.000XXX` 檔案。",
+        "en": "Further analysis showed that the `/var/lib/mysql` directory is filled with a large number of `mysql-bin.000XXX` files.",
+        "wg": []
+      },
+      {
+        "t": "最可能遺漏了哪項配置？",
+        "en": "Which configuration was most likely missed?",
+        "wg": [
+          {
+            "t": "遺漏",
+            "en": "missed",
+            "ps": "V"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "`sync_binlog = 1`",
+        "en": "`sync_binlog = 1`",
+        "wg": []
+      },
+      {
+        "t": "`binlog_format = ROW`",
+        "en": "`binlog_format = ROW`",
+        "wg": []
+      },
+      {
+        "t": "`binlog_expire_logs_seconds` (或 `expire_logs_days`)",
+        "en": "`binlog_expire_logs_seconds` (or `expire_logs_days`)",
+        "wg": []
+      },
+      {
+        "t": "`max_binlog_size`",
+        "en": "`max_binlog_size`",
+        "wg": []
+      }
+    ],
+    "answer": "(C)",
+    "why": {
+      "t": "若未設定 Binlog 的過期時間，MySQL 預設可能不會自動刪除舊的 Log，導致磁碟空間隨時間被耗盡。設定 `binlog_expire_logs_seconds` 可以讓系統自動清理過期的日誌。",
+      "en": "If the Binlog expiration time is not set, MySQL may not automatically delete old logs by default, causing disk space to be exhausted over time. Setting `binlog_expire_logs_seconds` allows the system to automatically clean up expired logs.",
+      "wg": [
+        {
+          "t": "耗盡",
+          "en": "exhausted",
+          "ps": "V"
+        },
+        {
+          "t": "過期",
+          "en": "expired",
+          "ps": "Adj"
+        }
+      ]
+    }
+  },
+  {
+    "no": "chapter06-q11",
+    "level": "intermediate",
+    "keywords": "GTID, Auto-positioning, Operations, Replication",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在啟用了 GTID (Global Transaction ID) 的叢集中新增一台 Slave 時，相比於傳統的 File Position 方式，最大的優勢是什麼？",
+        "en": "When adding a new Slave to a GTID (Global Transaction ID) enabled cluster, what is the biggest advantage compared to the traditional File Position method?",
+        "wg": [
+          {
+            "t": "叢集",
+            "en": "cluster",
+            "ps": "N"
+          },
+          {
+            "t": "優勢",
+            "en": "advantage",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "可以略過 `CHANGE MASTER TO` 指令，Slave 會自動發現 Master。",
+        "en": "You can skip the `CHANGE MASTER TO` command; the Slave will automatically discover the Master.",
+        "wg": []
+      },
+      {
+        "t": "不需要手動指定 `MASTER_LOG_FILE` 與 `MASTER_LOG_POS`，只需設定 `MASTER_AUTO_POSITION = 1`。",
+        "en": "No need to manually specify `MASTER_LOG_FILE` and `MASTER_LOG_POS`; just set `MASTER_AUTO_POSITION = 1`.",
+        "wg": [
+          {
+            "t": "指定",
+            "en": "specify",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "Slave 可以同時從多個 Master 進行複製 (Multi-Source Replication)。",
+        "en": "The Slave can replicate from multiple Masters simultaneously (Multi-Source Replication).",
+        "wg": []
+      },
+      {
+        "t": "資料傳輸速度會比傳統方式快兩倍。",
+        "en": "Data transfer speed will be twice as fast as the traditional method.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "GTID 的核心優勢之一是「自動定位 (Auto-positioning)」。Slave 只需告訴 Master 它執行過哪些 GTID，Master 就會自動計算並傳送剩餘的 Binlog，消除了手動查找 Log File 和 Position 的繁瑣與風險。",
+      "en": "One of the core advantages of GTID is 'Auto-positioning'. The Slave simply tells the Master which GTIDs it has executed, and the Master automatically calculates and sends the remaining Binlogs, eliminating the hassle and risk of manually looking up Log File and Position.",
+      "wg": [
+        {
+          "t": "自動定位",
+          "en": "Auto-positioning",
+          "ps": "N"
+        },
+        {
+          "t": "繁瑣",
+          "en": "hassle",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "chapter06-q12",
+    "level": "advanced",
+    "keywords": "System Design, Read-Write Splitting, Caching, Consistency",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您正在設計一個讀寫分離的系統，為了改善「使用者剛更新完資料卻讀到舊值」的體驗，您決定採用「快取標記 (Cache Marker)」策略。",
+        "en": "You are designing a system with read-write splitting. To improve the experience where 'a user reads old values immediately after updating', you decide to adopt the 'Cache Marker' strategy.",
+        "wg": [
+          {
+            "t": "快取標記",
+            "en": "Cache Marker",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "請問該策略的運作邏輯為何？",
+        "en": "What is the operational logic of this strategy?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "寫入 Master 後，將更新後的資料直接寫入 Redis，讀取時只讀 Redis。",
+        "en": "After writing to Master, write the updated data directly to Redis, and only read from Redis.",
+        "wg": []
+      },
+      {
+        "t": "寫入 Master 後，在 Redis 設定一個帶有過期時間的 Key；讀取時若發現該 Key 存在，則強制路由到 Master。",
+        "en": "After writing to Master, set a Key with an expiration time in Redis; if the Key exists during a read, forcibly route to the Master.",
+        "wg": [
+          {
+            "t": "強制路由",
+            "en": "forcibly route",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "讀取 Slave 時若發現資料不存在，則自動重試讀取 Master。",
+        "en": "If data is not found when reading from Slave, automatically retry reading from Master.",
+        "wg": []
+      },
+      {
+        "t": "所有來自登入使用者的請求一律路由到 Master，未登入者路由到 Slave。",
+        "en": "All requests from logged-in users are routed to Master, while non-logged-in users are routed to Slave.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "Cache Marker 是一種常見的應用層解決方案。透過在寫入後設定一個短暫存在的標記（例如維持 1-2 秒，涵蓋預期的複製延遲），系統可以識別出「剛發生過寫入」的使用者，並將其讀取請求暫時導向 Master 以確保一致性，而其他使用者仍讀取 Slave。",
+      "en": "Cache Marker is a common application-layer solution. By setting a short-lived marker after a write (e.g., lasting 1-2 seconds to cover expected replication lag), the system can identify users who have 'just written' and temporarily route their read requests to the Master to ensure consistency, while other users continue to read from Slaves.",
+      "wg": [
+        {
+          "t": "涵蓋",
+          "en": "cover",
+          "ps": "V"
+        },
+        {
+          "t": "識別",
+          "en": "identify",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "chapter06-q13",
+    "level": "advanced",
+    "keywords": "Performance, Binlog Format, Replication Lag, Troubleshooting",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "UPDATE users SET status = 'active' WHERE last_login > '2023-01-01';",
+    "question": [
+      {
+        "t": "您的資料庫 Binlog 格式設定為 `ROW`。",
+        "en": "Your database Binlog format is set to `ROW`.",
+        "wg": []
+      },
+      {
+        "t": "當執行上述 SQL 更新全表大量資料時，監控系統顯示 Slave 的 Replication Lag 急劇飆升。",
+        "en": "When executing the SQL above to update a large amount of data in the full table, the monitoring system shows a sharp spike in Replication Lag on the Slave.",
+        "wg": [
+          {
+            "t": "急劇飆升",
+            "en": "sharp spike",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "造成此現象的主要技術原因為何？",
+        "en": "What is the primary technical reason for this phenomenon?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "Master 在執行更新時鎖住了資料表，導致 Slave 無法讀取。",
+        "en": "The Master locked the table during the update, preventing the Slave from reading.",
+        "wg": []
+      },
+      {
+        "t": "ROW 格式會為每一行受影響的資料產生一條 Log，導致 Binlog 檔案極大，增加了網路傳輸與 Slave 重播的 I/O 負擔。",
+        "en": "The ROW format generates a log entry for every affected row, resulting in huge Binlog files, which increases network transfer and I/O load for replay on the Slave.",
+        "wg": [
+          {
+            "t": "受影響的",
+            "en": "affected",
+            "ps": "Adj"
+          },
+          {
+            "t": "重播",
+            "en": "replay",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "Slave 的硬體規格通常比 Master 差，無法處理複雜的 SQL 運算。",
+        "en": "Slave hardware specifications are usually lower than Master, making it unable to handle complex SQL computations.",
+        "wg": []
+      },
+      {
+        "t": "該 SQL 語句在 Slave 上無法使用索引。",
+        "en": "The SQL statement cannot use indexes on the Slave.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "這是 ROW 格式的主要缺點。對於大量更新（Bulk Update），Statement 格式只需記錄一行 SQL，而 ROW 格式必須記錄每一行資料變更前後的內容。這會產生巨大的 Binlog 流量，導致 Slave 在接收與寫入 Relay Log 時產生瓶頸，進而引發延遲。",
+      "en": "This is the main disadvantage of the ROW format. For bulk updates, Statement format only logs a single SQL line, whereas ROW format must log the content before and after the change for every single row. This generates massive Binlog traffic, causing bottlenecks when the Slave receives and writes to the Relay Log, leading to lag.",
+      "wg": [
+        {
+          "t": "大量更新",
+          "en": "Bulk Update",
+          "ps": "N"
+        },
+        {
+          "t": "瓶頸",
+          "en": "bottleneck",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "chapter06-q14",
+    "level": "intermediate",
+    "keywords": "Security, Configuration, Best Practices, Operational",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "為了防止應用程式錯誤地連線到 Slave 進行寫入，導致複製中斷，最佳的防護配置是什麼？",
+        "en": "To prevent applications from erroneously connecting to a Slave for writes, which causes replication breakage, what is the best protective configuration?",
+        "wg": [
+          {
+            "t": "錯誤地",
+            "en": "erroneously",
+            "ps": "Adv"
+          },
+          {
+            "t": "防護配置",
+            "en": "protective configuration",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "僅設定 `read_only = 1`。",
+        "en": "Set `read_only = 1` only.",
+        "wg": []
+      },
+      {
+        "t": "設定 `read_only = 1` 並配合 `super_read_only = 1`。",
+        "en": "Set `read_only = 1` combined with `super_read_only = 1`.",
+        "wg": []
+      },
+      {
+        "t": "在防火牆層級封鎖所有寫入埠口。",
+        "en": "Block all write ports at the firewall level.",
+        "wg": []
+      },
+      {
+        "t": "將 Slave 的使用者權限全部設為 SELECT only。",
+        "en": "Set all user privileges on the Slave to SELECT only.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "單純設定 `read_only = 1` 對於擁有 SUPER 權限的使用者（通常是 DBA 或維運腳本）無效。為了徹底防止意外寫入（包括管理員誤操作），最佳實踐是同時啟用 `super_read_only = 1`，這會限制所有使用者（包括 SUPER）的寫入權限（Slave 執行複製除外）。",
+      "en": "Setting `read_only = 1` alone is ineffective for users with SUPER privileges (often DBAs or ops scripts). To thoroughly prevent accidental writes (including admin errors), the best practice is to also enable `super_read_only = 1`, which restricts write privileges for all users (including SUPER), except for the Slave replication process.",
+      "wg": [
+        {
+          "t": "徹底",
+          "en": "thoroughly",
+          "ps": "Adv"
+        },
+        {
+          "t": "誤操作",
+          "en": "operation error",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "chapter06-q15",
+    "level": "advanced",
+    "keywords": "Semi-Sync, Phantom Read, Data Consistency, Wait Point",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在 MySQL 5.7+ 的半同步複製中，若將 `rpl_semi_sync_master_wait_point` 設定為 `AFTER_COMMIT` (舊版預設值)。",
+        "en": "In MySQL 5.7+ Semi-Sync replication, if `rpl_semi_sync_master_wait_point` is set to `AFTER_COMMIT` (legacy default).",
+        "wg": []
+      },
+      {
+        "t": "當 Master 在「提交交易後」但在「收到 Slave ACK 前」當機，可能會發生什麼特殊的資料異常？",
+        "en": "When the Master crashes 'after committing the transaction' but 'before receiving the Slave ACK', what specific data anomaly might occur?",
+        "wg": [
+          {
+            "t": "資料異常",
+            "en": "data anomaly",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "幻讀 (Phantom Read)：其他連線可能在 Master 上讀到該資料，但 Failover 後該資料卻憑空消失。",
+        "en": "Phantom Read: Other connections might read the data on the Master, but the data disappears after Failover.",
+        "wg": [
+          {
+            "t": "幻讀",
+            "en": "Phantom Read",
+            "ps": "N"
+          },
+          {
+            "t": "憑空消失",
+            "en": "disappears into thin air",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "死鎖 (Deadlock)：Master 重啟後會無法釋放該交易的鎖。",
+        "en": "Deadlock: The Master cannot release the lock for that transaction after restart.",
+        "wg": []
+      },
+      {
+        "t": "資料重複 (Duplicate Data)：Slave 恢復後會重複寫入兩次該筆資料。",
+        "en": "Duplicate Data: The Slave will write the data twice after recovery.",
+        "wg": []
+      },
+      {
+        "t": "Split-Brain：Master 與 Slave 會同時認為自己擁有最新資料。",
+        "en": "Split-Brain: Both Master and Slave will think they have the latest data.",
+        "wg": []
+      }
+    ],
+    "answer": "(A)",
+    "why": {
+      "t": "在 `AFTER_COMMIT` 模式下，Master 先在引擎層 Commit，才等待 ACK。若此時 Master 當機，該資料已對 Master 上的其他 Session 可見（被讀取到），但 Slave 尚未收到。若發生 Failover，新 Master 沒有這筆資料，導致使用者剛才讀到的資料「消失」了。這也是為何推薦使用 `AFTER_SYNC`。",
+      "en": "In `AFTER_COMMIT` mode, the Master commits to the engine layer first, then waits for ACK. If the Master crashes at this point, the data is already visible to other sessions on the Master (can be read), but the Slave hasn't received it yet. If Failover occurs, the new Master won't have this data, causing the data the user just read to 'disappear'. This is why `AFTER_SYNC` is recommended.",
+      "wg": [
+        {
+          "t": "可見",
+          "en": "visible",
+          "ps": "Adj"
+        }
+      ]
+    }
+  }
+]

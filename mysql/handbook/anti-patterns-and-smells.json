@@ -1,0 +1,748 @@
+[
+  {
+    "no": "1",
+    "level": "Easy",
+    "keywords": "Performance Metrics, Rows Examined, Rows Returned",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在分析 MySQL 慢查詢日誌 (Slow Query Log) 時，觀察「掃描行數」(Rows Examined) 與「返回行數」(Rows Returned) 的比例是關鍵的心智模型。下列哪一種比例通常代表該查詢處於最「病態」(Pathological) 或效率極差的狀態？",
+        "en": "When analyzing the MySQL Slow Query Log, observing the ratio between 'Rows Examined' and 'Rows Returned' is a key mental model. Which of the following ratios typically indicates that the query is in the most 'pathological' or inefficient state?",
+        "wg": [
+          {
+            "t": "掃描行數",
+            "en": "Rows Examined",
+            "ps": "noun"
+          },
+          {
+            "t": "返回行數",
+            "en": "Rows Returned",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "choice",
+    "options": [
+      {
+        "t": "Examined 10 : Returned 10 (比例 1:1)",
+        "en": "Examined 10 : Returned 10 (Ratio 1:1)",
+        "wg": []
+      },
+      {
+        "t": "Examined 150 : Returned 10 (比例 15:1)",
+        "en": "Examined 150 : Returned 10 (Ratio 15:1)",
+        "wg": []
+      },
+      {
+        "t": "Examined 100,000 : Returned 10 (比例 10,000:1)",
+        "en": "Examined 100,000 : Returned 10 (Ratio 10,000:1)",
+        "wg": []
+      },
+      {
+        "t": "Examined 0 : Returned 0 (空結果)",
+        "en": "Examined 0 : Returned 0 (Empty result)",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "當掃描行數遠大於返回行數（如 10,000:1）時，代表資料庫為了找到極少量的資料，被迫讀取並過濾了大量無關的資料（通常意味著全表掃描或索引效率低落）。理想的狀態應接近 1:1 或在 10:1 以內。",
+      "en": "When 'Rows Examined' is vastly larger than 'Rows Returned' (e.g., 10,000:1), it indicates the database is forced to read and filter a large amount of irrelevant data to find a few records (often implying a Full Table Scan or poor index usage). An ideal state should be close to 1:1 or within 10:1.",
+      "wg": [
+        {
+          "t": "全表掃描",
+          "en": "Full Table Scan",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "2",
+    "level": "Medium",
+    "keywords": "Implicit Conversion, Data Types, Index Usage",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "Schema: `phone` VARCHAR(20), INDEX(phone)\nQuery: SELECT * FROM users WHERE phone = 912345678;",
+    "question": [
+      {
+        "t": "參考上方的 Schema 與 Query，欄位 `phone` 定義為 `VARCHAR`，但在查詢時傳入了整數 (Integer)。這種情況被稱為「隱式型別轉換」(Implicit Conversion)。請問這會對資料庫效能造成什麼主要影響？",
+        "en": "Refer to the Schema and Query above. The `phone` column is defined as `VARCHAR`, but an Integer is passed in the query. This is known as 'Implicit Conversion'. What is the primary impact of this on database performance?",
+        "wg": [
+          {
+            "t": "隱式型別轉換",
+            "en": "Implicit Conversion",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "choice",
+    "options": [
+      {
+        "t": "沒有影響，MySQL 會自動優化並使用索引。",
+        "en": "No impact; MySQL will automatically optimize and use the index.",
+        "wg": []
+      },
+      {
+        "t": "會導致索引失效，MySQL 必須將每一行的字串轉為數字進行比較，引發全表掃描 (Full Table Scan)。",
+        "en": "It causes index invalidation; MySQL must convert the string in every row to a number for comparison, triggering a Full Table Scan.",
+        "wg": [
+          {
+            "t": "索引失效",
+            "en": "Index Invalidation",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "只會影響寫入效能，讀取效能不受影響。",
+        "en": "It only affects write performance; read performance is unaffected.",
+        "wg": []
+      },
+      {
+        "t": "會導致資料庫拋出語法錯誤 (Syntax Error) 並拒絕執行。",
+        "en": "It will cause the database to throw a Syntax Error and refuse execution.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "當查詢條件的型別與欄位定義不一致時（特別是字串欄位與數字比較），MySQL 無法利用 B-Tree 的有序性，必須逐行轉換資料值來比對，導致索引失效並退化為全表掃描。",
+      "en": "When the query condition type mismatches the column definition (especially string columns vs. numbers), MySQL cannot utilize the B-Tree's ordering. It must convert the data value row by row for comparison, causing index invalidation and degrading to a Full Table Scan.",
+      "wg": []
+    }
+  },
+  {
+    "no": "3",
+    "level": "Medium",
+    "keywords": "Functions on Index, Query Optimization, SARGable",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "Bad: SELECT * FROM orders WHERE YEAR(created_at) = 2023;",
+    "question": [
+      {
+        "t": "在索引欄位上使用函數（如 `YEAR()`）是常見的反模式。請問應該如何改寫上述 SQL，才能讓 MySQL 有效利用 `created_at` 的索引？",
+        "en": "Using functions on indexed columns (like `YEAR()`) is a common anti-pattern. How should the above SQL be rewritten so that MySQL can effectively utilize the index on `created_at`?",
+        "wg": [
+          {
+            "t": "反模式",
+            "en": "Anti-pattern",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "choice",
+    "options": [
+      {
+        "t": "SELECT * FROM orders WHERE created_at LIKE '2023%';",
+        "en": "SELECT * FROM orders WHERE created_at LIKE '2023%';",
+        "wg": []
+      },
+      {
+        "t": "SELECT * FROM orders WHERE created_at >= '2023-01-01' AND created_at < '2024-01-01';",
+        "en": "SELECT * FROM orders WHERE created_at >= '2023-01-01' AND created_at < '2024-01-01';",
+        "wg": []
+      },
+      {
+        "t": "SELECT * FROM orders WHERE DATE(created_at) = '2023-01-01';",
+        "en": "SELECT * FROM orders WHERE DATE(created_at) = '2023-01-01';",
+        "wg": []
+      },
+      {
+        "t": "SELECT * FROM orders WHERE created_at = 2023;",
+        "en": "SELECT * FROM orders WHERE created_at = 2023;",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "將函數運算移除，改為對欄位進行「範圍查詢」(Range Query)，能讓 MySQL 直接在 B-Tree 索引上定位範圍。選項 0 的 `LIKE` 雖然有時可行，但對於 `DATETIME` 型別，標準做法是使用範圍比較（選項 1）。選項 2 依然對欄位使用了函數。",
+      "en": "Removing the function operation and changing it to a 'Range Query' allows MySQL to locate the range directly on the B-Tree index. While option 0's `LIKE` might work sometimes, the standard practice for `DATETIME` types is using range comparison (Option 1). Option 2 still applies a function to the column.",
+      "wg": [
+        {
+          "t": "範圍查詢",
+          "en": "Range Query",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "4",
+    "level": "Hard",
+    "keywords": "Pagination, OFFSET, Keyset Pagination, Performance",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "Scenario: Fetching page 10,000 (rows 100,000 to 100,020)",
+    "question": [
+      {
+        "t": "在處理「深分頁」(Deep Pagination) 時，使用 `LIMIT 100000, 20` 會導致效能嚴重低落。下列哪一種替代方案（Pattern）能將查詢複雜度從 O(N) 降為 O(1) 或 O(log N)？",
+        "en": "When handling 'Deep Pagination', using `LIMIT 100000, 20` causes severe performance degradation. Which of the following alternatives (Patterns) can reduce query complexity from O(N) to O(1) or O(log N)?",
+        "wg": [
+          {
+            "t": "深分頁",
+            "en": "Deep Pagination",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "choice",
+    "options": [
+      {
+        "t": "增加 `OFFSET` 的值並同時增加 `LIMIT` 的數量。",
+        "en": "Increase the `OFFSET` value and simultaneously increase the `LIMIT` count.",
+        "wg": []
+      },
+      {
+        "t": "使用 Keyset Pagination (Seek Method)，例如 `WHERE id > last_seen_id LIMIT 20`。",
+        "en": "Use Keyset Pagination (Seek Method), e.g., `WHERE id > last_seen_id LIMIT 20`.",
+        "wg": [
+          {
+            "t": "游標分頁法",
+            "en": "Keyset Pagination",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "先 `SELECT *` 取出全表資料，再由應用程式端 (Application) 進行切割。",
+        "en": "First `SELECT *` to fetch the full table, then slice it on the Application side.",
+        "wg": []
+      },
+      {
+        "t": "將資料表改為 MyISAM 引擎。",
+        "en": "Change the table engine to MyISAM.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "傳統 `OFFSET` 必須讀取並丟棄前 10 萬筆資料。Keyset Pagination (Seek Method) 透過記住上一頁最後一筆的 ID (Cursor)，直接利用索引跳轉到目標位置，無需掃描前面的資料。",
+      "en": "Traditional `OFFSET` must read and discard the first 100,000 records. Keyset Pagination (Seek Method) remembers the ID (Cursor) of the last record from the previous page, allowing direct jumps to the target position using the index without scanning prior data.",
+      "wg": []
+    }
+  },
+  {
+    "no": "5",
+    "level": "Easy",
+    "keywords": "LIKE, Wildcard, B-Tree, Indexing",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "B-Tree 索引類似於電話簿的排序方式。基於此特性，下列哪一種 `LIKE` 查詢方式**無法**有效利用索引，而會導致全表掃描？",
+        "en": "B-Tree indexes are sorted similarly to a phone book. Based on this characteristic, which of the following `LIKE` query patterns **cannot** effectively use the index and will result in a Full Table Scan?",
+        "wg": [
+          {
+            "t": "萬用字元",
+            "en": "Wildcard",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "choice",
+    "options": [
+      {
+        "t": "LIKE 'keyword%' (後綴模糊)",
+        "en": "LIKE 'keyword%' (Suffix wildcard)",
+        "wg": []
+      },
+      {
+        "t": "LIKE 'key%word' (中間模糊)",
+        "en": "LIKE 'key%word' (Middle wildcard)",
+        "wg": []
+      },
+      {
+        "t": "LIKE '%keyword' (前綴模糊)",
+        "en": "LIKE '%keyword' (Prefix wildcard)",
+        "wg": []
+      },
+      {
+        "t": "以上皆無法使用索引",
+        "en": "None of the above can use the index",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "B-Tree 索引是依據字串開頭（前綴）排序的。如果查詢字串的開頭是萬用字元 `%`（如 `%keyword`），資料庫就無法確定從哪裡開始搜尋，必須掃描整張表。`keyword%` 則可以使用索引。",
+      "en": "B-Tree indexes are sorted by the beginning of the string (prefix). If the query string starts with a wildcard `%` (e.g., `%keyword`), the database cannot determine where to start searching and must scan the entire table. `keyword%` can use the index.",
+      "wg": [
+        {
+          "t": "前綴",
+          "en": "Prefix",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "6",
+    "level": "Medium",
+    "keywords": "N+1 Problem, Batch Loading, Application Optimization",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "posts = db.query(\"SELECT * FROM posts LIMIT 10\")\nfor post in posts:\n    author = db.query(\"SELECT * FROM users WHERE id = %s\", (post.author_id,))",
+    "question": [
+      {
+        "t": "觀察上述程式碼，這是一個經典的效能反模式。請問它被稱為什麼？以及最佳的解決策略為何？",
+        "en": "Observe the code snippet above; this is a classic performance anti-pattern. What is it called, and what is the best strategy to fix it?",
+        "wg": [
+          {
+            "t": "反模式",
+            "en": "Anti-pattern",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "choice",
+    "options": [
+      {
+        "t": "Deadlock (死鎖)；解決策略是使用 Transaction。",
+        "en": "Deadlock; the strategy is to use Transactions.",
+        "wg": []
+      },
+      {
+        "t": "N+1 Query Problem；解決策略是 Batch Loading (使用 IN 子句一次查回)。",
+        "en": "N+1 Query Problem; the strategy is Batch Loading (using IN clause to fetch at once).",
+        "wg": [
+          {
+            "t": "批次載入",
+            "en": "Batch Loading",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "SQL Injection (隱碼攻擊)；解決策略是使用 Prepared Statements。",
+        "en": "SQL Injection; the strategy is to use Prepared Statements.",
+        "wg": []
+      },
+      {
+        "t": "Race Condition (競態條件)；解決策略是使用 Table Lock。",
+        "en": "Race Condition; the strategy is to use Table Locks.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "這段程式碼先執行 1 次查詢取得列表，再對列表中的 N 筆資料各執行 1 次查詢，總共 N+1 次查詢。這會造成大量的網路往返 (Round-trip)。最佳解法是收集所有 ID，使用 `WHERE id IN (...)` 一次查回（Batch Loading）。",
+      "en": "This code executes 1 query to get the list, then executes 1 query for each of the N items, totaling N+1 queries. This causes massive network round-trips. The best fix is to collect all IDs and fetch them at once using `WHERE id IN (...)` (Batch Loading).",
+      "wg": []
+    }
+  },
+  {
+    "no": "7",
+    "level": "Medium",
+    "keywords": "SELECT *, Covering Index, Back to Table",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "Index: (category, status, id)\nQuery: SELECT * FROM products WHERE category='A' AND status='active';",
+    "question": [
+      {
+        "t": "假設 `products` 表格有建立索引 `(category, status, id)`。使用 `SELECT *` 而非明確指定需要的欄位（如 `SELECT id`），最可能導致下列哪種效能損失？",
+        "en": "Assuming the `products` table has an index `(category, status, id)`. Using `SELECT *` instead of explicitly selecting needed columns (e.g., `SELECT id`) is most likely to cause which of the following performance penalties?",
+        "wg": [
+          {
+            "t": "覆蓋索引",
+            "en": "Covering Index",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "choice",
+    "options": [
+      {
+        "t": "導致 Covering Index 失效，強迫 MySQL 進行「回表」(Back to Table / Clustered Index Lookup)。",
+        "en": "Invalidates the Covering Index, forcing MySQL to perform a 'Back to Table' (Clustered Index Lookup) operation.",
+        "wg": [
+          {
+            "t": "回表",
+            "en": "Back to Table",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "導致 MySQL 必須重新建立索引。",
+        "en": "Causes MySQL to rebuild the index.",
+        "wg": []
+      },
+      {
+        "t": "導致查詢結果排序錯誤。",
+        "en": "Causes the query results to be sorted incorrectly.",
+        "wg": []
+      },
+      {
+        "t": "沒有差別，MySQL 總是會讀取整行資料。",
+        "en": "No difference; MySQL always reads the full row data.",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "若查詢只請求索引中已有的欄位（如 `id`），MySQL 可以直接從索引回傳結果（Covering Index），無需讀取實際的資料行。使用 `SELECT *` 通常包含未被索引覆蓋的欄位，迫使 MySQL 必須回到主資料表（回表）讀取完整資料，增加了隨機 I/O。",
+      "en": "If the query only requests columns present in the index (like `id`), MySQL can return results directly from the index (Covering Index) without reading the actual data rows. Using `SELECT *` usually includes non-indexed columns, forcing MySQL to go back to the main table (Back to Table) to read full data, increasing random I/O.",
+      "wg": []
+    }
+  },
+  {
+    "no": "8",
+    "level": "Easy",
+    "keywords": "Troubleshooting, EXPLAIN, Workflow, Slow Query",
+    "parentNo": null,
+    "images": "",
+    "codeSnippet": "",
+    "question": [
+      {
+        "t": "根據手冊中的「故障排除流程」(Troubleshooting Workflow)，當你透過慢查詢日誌 (Slow Query Log) 識別出一個執行緩慢的 SQL 後，緊接著應該執行的步驟是什麼？",
+        "en": "According to the 'Troubleshooting Workflow' in the handbook, after identifying a slow SQL query via the Slow Query Log, what is the immediate next step to take?",
+        "wg": [
+          {
+            "t": "故障排除流程",
+            "en": "Troubleshooting Workflow",
+            "ps": "noun"
+          },
+          {
+            "t": "慢查詢日誌",
+            "en": "Slow Query Log",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "choice",
+    "options": [
+      {
+        "t": "立即為 `WHERE` 子句中的欄位建立索引。",
+        "en": "Immediately create indexes for the columns in the `WHERE` clause.",
+        "wg": []
+      },
+      {
+        "t": "執行 `EXPLAIN FORMAT=JSON <query>` 來分析查詢計畫。",
+        "en": "Execute `EXPLAIN FORMAT=JSON <query>` to analyze the query plan.",
+        "wg": [
+          {
+            "t": "查詢計畫",
+            "en": "query plan",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "檢查應用程式層是否使用了迴圈查詢 (N+1 問題)。",
+        "en": "Check if the application layer is using loop queries (N+1 problem).",
+        "wg": []
+      },
+      {
+        "t": "將查詢改寫為批次載入 (Batch Loading) 模式。",
+        "en": "Rewrite the query into a Batch Loading pattern.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "在嘗試優化之前，必須先了解 MySQL 如何執行該查詢。手冊指出第二步是 **Analyze**，即使用 `EXPLAIN` 檢查 `type`、`key` 與 `rows` 等資訊，確認是否發生了全表掃描或索引失效。",
+      "en": "Before attempting optimization, you must understand how MySQL executes the query. The handbook states the second step is **Analyze**, which involves using `EXPLAIN` to check `type`, `key`, and `rows` to confirm if a full table scan or index failure is occurring.",
+      "wg": [
+        {
+          "t": "全表掃描",
+          "en": "full table scan",
+          "ps": "noun"
+        },
+        {
+          "t": "索引失效",
+          "en": "index failure",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "9",
+    "level": "Medium",
+    "keywords": "SELECT *, Bandwidth, BLOB, Performance",
+    "parentNo": null,
+    "images": "",
+    "codeSnippet": "SELECT * FROM articles WHERE category_id = 10;",
+    "question": [
+      {
+        "t": "假設 `articles` 表格中包含一個儲存文章內容的 `content` 欄位（型別為 `TEXT` 或 `LONGTEXT`）。除了無法使用覆蓋索引外，使用 `SELECT *` 在此情境下最大的風險是什麼？",
+        "en": "Assuming the `articles` table contains a `content` column (type `TEXT` or `LONGTEXT`) for article bodies. Besides preventing the use of a Covering Index, what is the biggest risk of using `SELECT *` in this scenario?",
+        "wg": [
+          {
+            "t": "覆蓋索引",
+            "en": "Covering Index",
+            "ps": "noun"
+          },
+          {
+            "t": "風險",
+            "en": "risk",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "choice",
+    "options": [
+      {
+        "t": "會導致 MySQL 鎖定整張表格 (Table Lock)。",
+        "en": "It will cause MySQL to lock the entire table (Table Lock).",
+        "wg": []
+      },
+      {
+        "t": "會導致隱式型別轉換 (Implicit Conversion)。",
+        "en": "It will cause Implicit Conversion.",
+        "wg": []
+      },
+      {
+        "t": "會消耗大量的 I/O 與網路頻寬 (Bandwidth Waste)。",
+        "en": "It will consume a large amount of I/O and network bandwidth (Bandwidth Waste).",
+        "wg": [
+          {
+            "t": "網路頻寬",
+            "en": "network bandwidth",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "會導致 N+1 查詢問題。",
+        "en": "It will cause the N+1 query problem.",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "手冊中提到 `SELECT *` 的陷阱之一是 **頻寬浪費 (Bandwidth Waste)**。若包含 `TEXT` 或 `BLOB` 等大欄位，即使應用程式不需要這些資料，資料庫仍需將其讀出並透過網路傳輸，造成不必要的效能損耗。",
+      "en": "One of the pitfalls of `SELECT *` mentioned in the handbook is **Bandwidth Waste**. If the table contains large columns like `TEXT` or `BLOB`, the database must read and transmit this data over the network even if the application doesn't need it, causing unnecessary performance overhead.",
+      "wg": [
+        {
+          "t": "頻寬浪費",
+          "en": "Bandwidth Waste",
+          "ps": "noun"
+        },
+        {
+          "t": "效能損耗",
+          "en": "performance overhead",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "10",
+    "level": "Hard",
+    "keywords": "Pagination, Keyset Pagination, UX, Trade-off",
+    "parentNo": null,
+    "images": "",
+    "codeSnippet": "",
+    "question": [
+      {
+        "t": "你為了優化深分頁效能，將系統改為使用「游標分頁法」(Keyset Pagination / Seek Method)。然而，產品經理 (PM) 現在要求在頁面上加入「跳轉到第 50 頁」的功能。為什麼這在技術上難以高效實現？",
+        "en": "You switched to 'Keyset Pagination' (Seek Method) to optimize deep pagination performance. However, the Product Manager (PM) now requests a 'Jump to Page 50' feature. Why is this technically difficult to implement efficiently?",
+        "wg": [
+          {
+            "t": "游標分頁法",
+            "en": "Keyset Pagination",
+            "ps": "noun"
+          },
+          {
+            "t": "跳轉",
+            "en": "jump to",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "type": "choice",
+    "options": [
+      {
+        "t": "因為 Keyset Pagination 依賴上一頁最後一筆資料的 ID (Cursor) 來定位，無法直接計算出第 50 頁的起始位置。",
+        "en": "Because Keyset Pagination relies on the ID (Cursor) of the last record from the previous page to locate data, making it impossible to directly calculate the starting position of page 50.",
+        "wg": [
+          {
+            "t": "定位",
+            "en": "locate",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "因為 Keyset Pagination 會導致全表掃描 (Full Table Scan)，不適合頻繁跳頁。",
+        "en": "Because Keyset Pagination causes a Full Table Scan, making it unsuitable for frequent page jumping.",
+        "wg": []
+      },
+      {
+        "t": "因為 `WHERE id < last_seen_id` 的語法不支援 `ORDER BY`。",
+        "en": "Because the syntax `WHERE id < last_seen_id` does not support `ORDER BY`.",
+        "wg": []
+      },
+      {
+        "t": "因為這會導致 N+1 查詢問題。",
+        "en": "Because this will lead to the N+1 query problem.",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "Keyset Pagination 的原理是利用索引的有序性，從「上一次看到的點」繼續往下讀取 (Seek)。它犧牲了「隨機存取」(Random Access) 的能力來換取效能，因此無法像 `OFFSET` 那樣直接跳到任意頁數。",
+      "en": "The principle of Keyset Pagination is to use the ordering of the index to continue reading from the 'last seen point' (Seek). It sacrifices 'Random Access' capability for performance, so it cannot jump directly to an arbitrary page like `OFFSET` can.",
+      "wg": [
+        {
+          "t": "隨機存取",
+          "en": "Random Access",
+          "ps": "noun"
+        },
+        {
+          "t": "犧牲",
+          "en": "sacrifice",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "11",
+    "level": "Medium",
+    "keywords": "LIKE, Wildcard, Full-Text Index, Elasticsearch",
+    "parentNo": null,
+    "images": "",
+    "codeSnippet": "SELECT * FROM products WHERE description LIKE '%keyword%';",
+    "question": [
+      {
+        "t": "上述查詢使用了前綴萬用字元 (`%keyword%`)，這會導致索引失效並觸發全表掃描。若業務需求必須支援此類「包含特定關鍵字」的搜尋，手冊建議的最佳架構解法為何？",
+        "en": "The above query uses a leading wildcard (`%keyword%`), which invalidates the index and triggers a full table scan. If the business requirement mandates supporting this kind of 'contains keyword' search, what is the best architectural solution recommended by the handbook?",
+        "wg": [
+          {
+            "t": "前綴萬用字元",
+            "en": "leading wildcard",
+            "ps": "noun"
+          },
+          {
+            "t": "架構解法",
+            "en": "architectural solution",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "choice",
+    "options": [
+      {
+        "t": "將 `LIKE` 改為 `REGEXP` 正則表達式搜尋。",
+        "en": "Change `LIKE` to `REGEXP` regular expression search.",
+        "wg": []
+      },
+      {
+        "t": "使用 MySQL 的 Full-Text Index 或引入外部搜尋引擎 (如 Elasticsearch)。",
+        "en": "Use MySQL's Full-Text Index or introduce an external search engine (e.g., Elasticsearch).",
+        "wg": [
+          {
+            "t": "外部搜尋引擎",
+            "en": "external search engine",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "強制使用 `FORCE INDEX` 指令。",
+        "en": "Force the use of the `FORCE INDEX` command.",
+        "wg": []
+      },
+      {
+        "t": "將欄位型別改為 `BLOB` 以加速比對。",
+        "en": "Change the column type to `BLOB` to speed up comparison.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "B-Tree 索引無法處理開頭是萬用字元的查詢。手冊明確指出，若必須進行全文檢索，應使用專門的 **Full-Text Index** 或外部引擎 (Elasticsearch)，而非依賴標準的 SQL `LIKE`。",
+      "en": "B-Tree indexes cannot handle queries starting with a wildcard. The handbook explicitly states that if full-text search is required, you should use a dedicated **Full-Text Index** or an external engine (Elasticsearch) instead of relying on standard SQL `LIKE`.",
+      "wg": [
+        {
+          "t": "全文檢索",
+          "en": "full-text search",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "12",
+    "level": "Medium",
+    "keywords": "Code Review, Anti-patterns, Checklist",
+    "parentNo": null,
+    "images": "",
+    "codeSnippet": "",
+    "question": [
+      {
+        "t": "在進行 Code Review 時，你需要根據手冊的「檢查清單」(Checklist) 審核 SQL。下列哪一個查詢**通過**了所有檢查，沒有包含常見的反模式？",
+        "en": "During a Code Review, you need to audit SQL based on the handbook's 'Checklist'. Which of the following queries **passes** all checks and contains no common anti-patterns?",
+        "wg": [
+          {
+            "t": "審核",
+            "en": "audit",
+            "ps": "verb"
+          },
+          {
+            "t": "反模式",
+            "en": "anti-patterns",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "choice",
+    "options": [
+      {
+        "t": "SELECT * FROM users WHERE phone = 987654321;",
+        "en": "SELECT * FROM users WHERE phone = 987654321;",
+        "wg": []
+      },
+      {
+        "t": "SELECT name FROM products WHERE name LIKE '%apple';",
+        "en": "SELECT name FROM products WHERE name LIKE '%apple';",
+        "wg": []
+      },
+      {
+        "t": "SELECT id, status FROM orders WHERE created_at >= '2023-01-01' AND created_at < '2023-02-01';",
+        "en": "SELECT id, status FROM orders WHERE created_at >= '2023-01-01' AND created_at < '2023-02-01';",
+        "wg": []
+      },
+      {
+        "t": "SELECT * FROM logs WHERE YEAR(created_at) = 2023;",
+        "en": "SELECT * FROM logs WHERE YEAR(created_at) = 2023;",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "選項 3 正確：明確指定欄位 (避免 `SELECT *`) 且使用範圍查詢 (Range Query) 代替函數運算。其他選項分別犯了：隱式型別轉換 (Phone 為字串卻傳入數字)、前綴模糊搜尋 (Leading Wildcard)、以及在索引欄位上使用函數 (Functions on Index)。",
+      "en": "Option 3 is correct: It explicitly selects columns (avoiding `SELECT *`) and uses a Range Query instead of function operations. The other options commit errors: Implicit Conversion (Phone is string but passed as number), Leading Wildcard search, and Functions on Indexed Columns respectively.",
+      "wg": [
+        {
+          "t": "範圍查詢",
+          "en": "Range Query",
+          "ps": "noun"
+        },
+        {
+          "t": "隱式型別轉換",
+          "en": "Implicit Conversion",
+          "ps": "noun"
+        }
+      ]
+    }
+  }
+]

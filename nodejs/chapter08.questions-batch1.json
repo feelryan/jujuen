@@ -1,0 +1,568 @@
+[
+  {
+    "no": "1",
+    "level": "intermediate",
+    "keywords": "Context Propagation, AsyncLocalStorage, OpenTelemetry, Node.js Internals",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在 Node.js 中，多個請求共享同一個執行緒，這與 Java 等使用 ThreadLocal 的語言不同。",
+        "en": "In Node.js, multiple requests share the same thread, unlike languages like Java that use ThreadLocal.",
+        "wg": [
+          {
+            "t": "共享",
+            "en": "share",
+            "ps": "V"
+          },
+          {
+            "t": "執行緒",
+            "en": "thread",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "OpenTelemetry 主要依賴哪種底層機制，來確保 Trace ID 等上下文資訊能正確跨越 Promise 與 Callback 等非同步邊界？",
+        "en": "Which underlying mechanism does OpenTelemetry primarily rely on to ensure context information, such as Trace IDs, correctly propagates across asynchronous boundaries like Promises and Callbacks?",
+        "wg": [
+          {
+            "t": "底層機制",
+            "en": "underlying mechanism",
+            "ps": "N"
+          },
+          {
+            "t": "非同步邊界",
+            "en": "asynchronous boundaries",
+            "ps": "N"
+          },
+          {
+            "t": "傳遞",
+            "en": "propagate",
+            "ps": "V"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) process.nextTick",
+        "en": "(A) process.nextTick",
+        "wg": []
+      },
+      {
+        "t": "(B) AsyncLocalStorage",
+        "en": "(B) AsyncLocalStorage",
+        "wg": []
+      },
+      {
+        "t": "(C) EventEmitter",
+        "en": "(C) EventEmitter",
+        "wg": []
+      },
+      {
+        "t": "(D) Global Variables",
+        "en": "(D) Global Variables",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "AsyncLocalStorage (ALS) 是 Node.js 專門設計用於在非同步資源鏈中儲存與檢索資料的 API。OpenTelemetry 使用 ALS 來維護當前的 Span Context，確保即使在非同步跳轉後，日誌與追蹤數據仍能正確關聯到原始請求。",
+      "en": "AsyncLocalStorage (ALS) is the Node.js API specifically designed to store and retrieve data across asynchronous resource chains. OpenTelemetry uses ALS to maintain the current Span Context, ensuring logs and trace data remain correctly correlated to the original request even after asynchronous jumps.",
+      "wg": [
+        {
+          "t": "檢索",
+          "en": "retrieve",
+          "ps": "V"
+        },
+        {
+          "t": "關聯",
+          "en": "correlate",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "2",
+    "level": "intermediate",
+    "keywords": "Metrics, High Cardinality, Anti-pattern, Time-series Database",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "const meter = opentelemetry.metrics.getMeter('order-service');\nconst requestCounter = meter.createCounter('http_requests_total');\n\n// 在請求處理器中\nrequestCounter.add(1, {\n  method: req.method,\n  user_id: req.user.id, // e.g., 'u-12345'\n  status: res.statusCode\n});",
+    "question": [
+      {
+        "t": "請檢視上方的程式碼片段，開發者試圖記錄 HTTP 請求的 Metrics。",
+        "en": "Please review the code snippet above, where a developer is attempting to record Metrics for HTTP requests.",
+        "wg": [
+          {
+            "t": "檢視",
+            "en": "review",
+            "ps": "V"
+          },
+          {
+            "t": "程式碼片段",
+            "en": "code snippet",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "這種實作方式存在嚴重的「可觀測性反模式（Anti-pattern）」，主要會導致什麼後果？",
+        "en": "This implementation contains a serious 'observability anti-pattern'. What is the primary consequence of this?",
+        "wg": [
+          {
+            "t": "反模式",
+            "en": "anti-pattern",
+            "ps": "N"
+          },
+          {
+            "t": "後果",
+            "en": "consequence",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) Event Loop 會因為頻繁寫入 Metrics 而被阻塞。",
+        "en": "(A) The Event Loop will be blocked due to frequent Metric writes.",
+        "wg": [
+          {
+            "t": "阻塞",
+            "en": "blocked",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(B) 造成高基數（High Cardinality）問題，導致時間序列資料庫索引爆炸與崩潰。",
+        "en": "(B) It causes a High Cardinality problem, leading to index explosion and potential crash of the time-series database.",
+        "wg": [
+          {
+            "t": "高基數",
+            "en": "High Cardinality",
+            "ps": "N"
+          },
+          {
+            "t": "索引爆炸",
+            "en": "index explosion",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) OpenTelemetry SDK 無法解析 user_id，會拋出執行期錯誤。",
+        "en": "(C) The OpenTelemetry SDK cannot parse the user_id and will throw a runtime error.",
+        "wg": []
+      },
+      {
+        "t": "(D) Metrics 數據會因為標籤過多而被自動丟棄。",
+        "en": "(D) Metric data will be automatically dropped due to having too many labels.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "將 `user_id` 這種具有極多唯一值（Unique Values）的數據作為 Metric 的標籤，會產生「高基數（High Cardinality）」問題。Prometheus 等時間序列資料庫會為每個標籤組合建立索引，數百萬個使用者會產生數百萬個時間序列，導致資料庫記憶體耗盡或崩潰。",
+      "en": "Using data with many unique values, like `user_id`, as a metric label creates a 'High Cardinality' problem. Time-series databases like Prometheus create an index for every label combination; millions of users result in millions of time series, causing the database to run out of memory or crash.",
+      "wg": [
+        {
+          "t": "唯一值",
+          "en": "unique values",
+          "ps": "N"
+        },
+        {
+          "t": "耗盡",
+          "en": "exhaust/run out of",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "3",
+    "level": "intermediate",
+    "keywords": "Event Loop Lag, Performance, CPU Profiling, Troubleshooting",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您的監控儀表板顯示某個 Node.js 服務的 CPU 使用率約為 40%，並未飽和。",
+        "en": "Your monitoring dashboard shows that the CPU usage of a Node.js service is around 40%, which is not saturated.",
+        "wg": [
+          {
+            "t": "飽和",
+            "en": "saturated",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "然而，API 回應時間大幅飆升，且出現大量請求超時（Timeout）。",
+        "en": "However, API response times are spiking significantly, and there are a large number of request timeouts.",
+        "wg": [
+          {
+            "t": "飆升",
+            "en": "spiking",
+            "ps": "V"
+          },
+          {
+            "t": "超時",
+            "en": "timeouts",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "同時，「Event Loop Lag」指標持續超過 200ms。這最可能的原因是什麼？",
+        "en": "At the same time, the 'Event Loop Lag' metric consistently exceeds 200ms. What is the most likely cause?",
+        "wg": [
+          {
+            "t": "指標",
+            "en": "metric",
+            "ps": "N"
+          },
+          {
+            "t": "持續",
+            "en": "consistently",
+            "ps": "Adv"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 記憶體洩漏導致 Garbage Collection 頻繁觸發。",
+        "en": "(A) Memory leak causing frequent Garbage Collection triggers.",
+        "wg": [
+          {
+            "t": "記憶體洩漏",
+            "en": "memory leak",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(B) 程式碼中存在同步阻塞操作（如同步加密或 JSON 解析大檔案），阻塞了主執行緒。",
+        "en": "(B) There are synchronous blocking operations (e.g., synchronous encryption or parsing large JSON files) in the code blocking the main thread.",
+        "wg": [
+          {
+            "t": "同步阻塞",
+            "en": "synchronous blocking",
+            "ps": "Adj"
+          },
+          {
+            "t": "主執行緒",
+            "en": "main thread",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) 資料庫連線池已滿，導致請求在等待連線。",
+        "en": "(C) The database connection pool is full, causing requests to wait for connections.",
+        "wg": [
+          {
+            "t": "連線池",
+            "en": "connection pool",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(D) 網路頻寬不足，導致封包遺失。",
+        "en": "(D) Insufficient network bandwidth causing packet loss.",
+        "wg": [
+          {
+            "t": "頻寬",
+            "en": "bandwidth",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "Event Loop Lag 測量的是「計畫執行的 callback」與「實際執行」之間的時間差。高 Lag 代表主執行緒正忙於處理其他任務（通常是同步程式碼），無法及時處理 I/O 事件。即使 CPU 總使用率不高（因為可能只有單核被佔滿，而多核機器上整體看起來低），單執行緒的阻塞仍會導致請求堆積與超時。",
+      "en": "Event Loop Lag measures the time difference between when a callback is scheduled and when it actually runs. High lag indicates the main thread is busy with other tasks (usually synchronous code) and cannot process I/O events in time. Even if total CPU usage is low (as only one core might be saturated), blocking the single thread causes request backlog and timeouts.",
+      "wg": [
+        {
+          "t": "時間差",
+          "en": "time difference/delta",
+          "ps": "N"
+        },
+        {
+          "t": "堆積",
+          "en": "backlog/pile up",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "4",
+    "level": "advanced",
+    "keywords": "Sampling Strategies, Distributed Tracing, System Design, Cost Optimization",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您正在為一個高流量（10k RPS）的服務設計可觀測性管線。",
+        "en": "You are designing an observability pipeline for a high-traffic (10k RPS) service.",
+        "wg": [
+          {
+            "t": "管線",
+            "en": "pipeline",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "為了節省儲存成本，您不能保留所有 Trace，但業務需求嚴格要求「必須保留 100% 的錯誤請求（HTTP 500）Trace」。",
+        "en": "To save storage costs, you cannot keep all traces, but business requirements strictly dictate that you 'must retain 100% of traces for error requests (HTTP 500)'.",
+        "wg": [
+          {
+            "t": "嚴格要求",
+            "en": "strictly dictate/require",
+            "ps": "V"
+          },
+          {
+            "t": "保留",
+            "en": "retain",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "下列哪種採樣策略最適合此需求？",
+        "en": "Which of the following sampling strategies is most suitable for this requirement?",
+        "wg": [
+          {
+            "t": "採樣策略",
+            "en": "sampling strategy",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) Head-based Sampling（頭部採樣）",
+        "en": "(A) Head-based Sampling",
+        "wg": []
+      },
+      {
+        "t": "(B) Tail-based Sampling（尾部採樣）",
+        "en": "(B) Tail-based Sampling",
+        "wg": []
+      },
+      {
+        "t": "(C) Probabilistic Sampling（機率採樣）",
+        "en": "(C) Probabilistic Sampling",
+        "wg": []
+      },
+      {
+        "t": "(D) Rate Limiting Sampling（速率限制採樣）",
+        "en": "(D) Rate Limiting Sampling",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "Head-based 採樣在請求開始時就決定是否保留，當時尚無法得知請求最終會成功或失敗，因此無法保證保留 100% 的錯誤。Tail-based 採樣會先暫存所有 Trace 數據，待請求結束後，根據結果（如狀態碼）決定是否保留，是唯一能滿足「只保留錯誤或慢速請求」的策略。",
+      "en": "Head-based sampling decides whether to keep a trace at the start of the request, when it is unknown if the request will succeed or fail, so it cannot guarantee 100% retention of errors. Tail-based sampling buffers all trace data and decides whether to retain it after the request finishes based on the outcome (e.g., status code), making it the only strategy that satisfies 'keep only errors or slow requests'.",
+      "wg": [
+        {
+          "t": "暫存",
+          "en": "buffer",
+          "ps": "V"
+        },
+        {
+          "t": "結果",
+          "en": "outcome",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "5",
+    "level": "intermediate",
+    "keywords": "Logging, Performance, Best Practices, Pino",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在生產環境的 Node.js 應用程式中，為什麼通常建議使用如 `pino` 這類支援非同步傳輸的日誌庫，而不是直接使用 `console.log`？",
+        "en": "In production Node.js applications, why is it generally recommended to use logging libraries like `pino` that support asynchronous transport, rather than using `console.log` directly?",
+        "wg": [
+          {
+            "t": "非同步傳輸",
+            "en": "asynchronous transport",
+            "ps": "N"
+          },
+          {
+            "t": "建議",
+            "en": "recommended",
+            "ps": "V"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) `console.log` 無法輸出 JSON 格式。",
+        "en": "(A) `console.log` cannot output in JSON format.",
+        "wg": []
+      },
+      {
+        "t": "(B) `console.log` 在許多環境下寫入 stdout 是同步阻塞的，會暫停 Event Loop。",
+        "en": "(B) `console.log` writes to stdout synchronously in many environments, blocking the Event Loop.",
+        "wg": [
+          {
+            "t": "同步阻塞",
+            "en": "synchronously blocking",
+            "ps": "Adj"
+          },
+          {
+            "t": "暫停",
+            "en": "pause",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(C) `console.log` 不支援多種日誌等級（Log Levels）。",
+        "en": "(C) `console.log` does not support multiple Log Levels.",
+        "wg": []
+      },
+      {
+        "t": "(D) `pino` 可以自動修復程式碼中的錯誤。",
+        "en": "(D) `pino` can automatically fix errors in the code.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "`console.log` 寫入標準輸出（stdout）。在許多容器化環境或當輸出被導向檔案/管道時，這個操作是同步的。這意味著在日誌寫入完成前，V8 執行緒無法處理其他請求，這會嚴重影響高併發下的吞吐量。`pino` 等庫使用非同步緩衝寫入來解決此問題。",
+      "en": "`console.log` writes to standard output (stdout). In many containerized environments or when output is piped to a file/pipe, this operation is synchronous. This means the V8 thread cannot process other requests until the log write completes, severely impacting throughput under high concurrency. Libraries like `pino` use asynchronous buffered writing to solve this.",
+      "wg": [
+        {
+          "t": "標準輸出",
+          "en": "standard output (stdout)",
+          "ps": "N"
+        },
+        {
+          "t": "吞吐量",
+          "en": "throughput",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "6",
+    "level": "advanced",
+    "keywords": "Debugging, Heap Snapshot, Operational Risk, Production",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您懷疑生產環境的某個 Node.js 實例發生記憶體洩漏（Memory Leak），決定使用 Inspector API 觸發 Heap Snapshot。",
+        "en": "You suspect a memory leak in a production Node.js instance and decide to trigger a Heap Snapshot using the Inspector API.",
+        "wg": [
+          {
+            "t": "懷疑",
+            "en": "suspect",
+            "ps": "V"
+          },
+          {
+            "t": "觸發",
+            "en": "trigger",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "在執行此操作時，必須考量並緩解哪項最直接的營運風險？",
+        "en": "When performing this operation, what is the most immediate operational risk that must be considered and mitigated?",
+        "wg": [
+          {
+            "t": "營運風險",
+            "en": "operational risk",
+            "ps": "N"
+          },
+          {
+            "t": "緩解",
+            "en": "mitigate",
+            "ps": "V"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 產生快照期間，主執行緒會完全暫停，導致服務無法處理任何請求。",
+        "en": "(A) During snapshot generation, the main thread pauses completely, causing the service to be unable to process any requests.",
+        "wg": [
+          {
+            "t": "完全暫停",
+            "en": "pause completely",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(B) 快照檔案會佔用大量硬碟空間導致伺服器崩潰。",
+        "en": "(B) The snapshot file will consume a large amount of disk space, causing the server to crash.",
+        "wg": []
+      },
+      {
+        "t": "(C) 所有的 Trace ID 會在快照過程中遺失。",
+        "en": "(C) All Trace IDs will be lost during the snapshot process.",
+        "wg": []
+      },
+      {
+        "t": "(D) 會導致所有的 Promise 被強制拒絕（Reject）。",
+        "en": "(D) It will cause all Promises to be forcibly rejected.",
+        "wg": []
+      }
+    ],
+    "answer": "(A)",
+    "why": {
+      "t": "Heap Snapshot 需要遍歷整個 V8 Heap 來序列化物件圖，這是一個同步且耗時的操作（視 Heap 大小而定，可能需數秒至數十秒）。在此期間，Node.js 的 Event Loop 是被阻塞的，無法回應任何健康檢查或使用者請求。因此通常建議先將該實例從負載平衡器移除，或在 Canary 實例上執行。",
+      "en": "A Heap Snapshot requires traversing the entire V8 Heap to serialize the object graph, which is a synchronous and time-consuming operation (taking seconds to tens of seconds depending on Heap size). During this time, the Node.js Event Loop is blocked and cannot respond to health checks or user requests. Therefore, it is usually recommended to remove the instance from the load balancer first or perform it on a Canary instance.",
+      "wg": [
+        {
+          "t": "遍歷",
+          "en": "traverse",
+          "ps": "V"
+        },
+        {
+          "t": "序列化",
+          "en": "serialize",
+          "ps": "V"
+        },
+        {
+          "t": "負載平衡器",
+          "en": "load balancer",
+          "ps": "N"
+        }
+      ]
+    }
+  }
+]

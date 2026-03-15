@@ -1,0 +1,841 @@
+[
+  {
+    "no": "1",
+    "level": "Easy",
+    "keywords": "Mental Model, Event Loop, Libuv, Single-threaded",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "根據手冊中的「餐廳經理模型」，下列關於 Node.js 架構的描述何者最為準確？",
+        "en": "According to the 'Restaurant Manager Model' in the handbook, which description of the Node.js architecture is the most accurate?",
+        "wg": [
+          {
+            "t": "餐廳經理模型",
+            "en": "Restaurant Manager Model",
+            "ps": "noun phrase"
+          },
+          {
+            "t": "架構",
+            "en": "architecture",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "Node.js 是完全單執行緒的，無論是接單還是廚房做菜都由同一個執行緒完成，因此無法處理繁重任務。",
+        "en": "Node.js is purely single-threaded; both taking orders and cooking are done by the same thread, so it cannot handle heavy tasks.",
+        "wg": []
+      },
+      {
+        "t": "Node.js 擁有一個負責協調的單執行緒（外場經理），但背後依賴多執行緒的 Libuv 與 OS Kernel（內場廚房）來處理繁重工作。",
+        "en": "Node.js has a single coordinating thread (Front-of-house Manager) but relies on multi-threaded Libuv and OS Kernel (Back-of-house Kitchen) for heavy lifting.",
+        "wg": [
+          {
+            "t": "協調",
+            "en": "coordinating",
+            "ps": "verb"
+          },
+          {
+            "t": "依賴",
+            "en": "relies on",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "Node.js 會為每一個進來的請求（Request）開啟一個全新的執行緒，類似於傳統的 Web Server。",
+        "en": "Node.js spawns a brand new thread for every incoming request, similar to traditional Web Servers.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "正確的心智模型是「單執行緒的指揮官，多執行緒的工廠」。Main Thread (經理) 負責協調，而 Libuv (廚房) 利用 Thread Pool 處理耗時任務。選項 0 忽略了 Libuv 的存在；選項 2 描述的是 Multi-threaded server 模型而非 Node.js。",
+      "en": "The correct mental model is 'A Single-Threaded Commander, Multi-Threaded Factory.' The Main Thread (Manager) orchestrates, while Libuv (Kitchen) uses a Thread Pool for time-consuming tasks. Option 0 ignores Libuv; Option 2 describes a Multi-threaded server model, not Node.js.",
+      "wg": [
+        {
+          "t": "心智模型",
+          "en": "mental model",
+          "ps": "noun"
+        },
+        {
+          "t": "忽略",
+          "en": "ignores",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "2",
+    "level": "Medium",
+    "keywords": "Execution Order, Microtask, Macrotask, process.nextTick, Promise",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "console.log('Start');\n\nsetTimeout(() => console.log('Timeout'), 0);\n\nPromise.resolve().then(() => console.log('Promise'));\n\nprocess.nextTick(() => console.log('NextTick'));\n\nconsole.log('End');",
+    "question": [
+      {
+        "t": "請分析上述程式碼，並選出正確的 Console 輸出順序。",
+        "en": "Analyze the code above and select the correct Console output order.",
+        "wg": [
+          {
+            "t": "輸出順序",
+            "en": "output order",
+            "ps": "noun phrase"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "Start -> End -> Timeout -> NextTick -> Promise",
+        "en": "Start -> End -> Timeout -> NextTick -> Promise",
+        "wg": []
+      },
+      {
+        "t": "Start -> End -> NextTick -> Promise -> Timeout",
+        "en": "Start -> End -> NextTick -> Promise -> Timeout",
+        "wg": []
+      },
+      {
+        "t": "Start -> End -> Promise -> NextTick -> Timeout",
+        "en": "Start -> End -> Promise -> NextTick -> Timeout",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "執行順序為：1. Call Stack (同步程式碼: Start, End) -> 2. Microtask Queue (VIP 通道) -> 3. Macrotask Queue (普通通道: Timeout)。在 Microtask 中，`process.nextTick` 優先級高於 `Promise`，故順序為 NextTick -> Promise。",
+      "en": "The execution order is: 1. Call Stack (Sync code: Start, End) -> 2. Microtask Queue (VIP Channel) -> 3. Macrotask Queue (Normal Channel: Timeout). Within Microtasks, `process.nextTick` has higher priority than `Promise`, so the order is NextTick -> Promise.",
+      "wg": [
+        {
+          "t": "優先級",
+          "en": "priority",
+          "ps": "noun"
+        },
+        {
+          "t": "同步程式碼",
+          "en": "synchronous code",
+          "ps": "noun phrase"
+        }
+      ]
+    }
+  },
+  {
+    "no": "3",
+    "level": "Hard",
+    "keywords": "Anti-pattern, Zalgo, Race Condition, Asynchronous",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "function getUser(id, callback) {\n  if (cache[id]) {\n    callback(cache[id]); // Sync return\n  } else {\n    db.find(id, callback); // Async return\n  } \n}",
+    "question": [
+      {
+        "t": "上述程式碼犯了「釋放 Zalgo (Releasing Zalgo)」的錯誤。請問這會導致什麼主要風險，以及應如何修正？",
+        "en": "The code above commits the 'Releasing Zalgo' error. What is the primary risk, and how should it be fixed?",
+        "wg": [
+          {
+            "t": "釋放 Zalgo",
+            "en": "Releasing Zalgo",
+            "ps": "noun phrase"
+          },
+          {
+            "t": "風險",
+            "en": "risk",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "風險：記憶體洩漏。修正：使用 Stream 來讀取資料。",
+        "en": "Risk: Memory Leak. Fix: Use Streams to read data.",
+        "wg": []
+      },
+      {
+        "t": "風險：競態條件 (Race Condition)，呼叫者無法確定 callback 是同步還是非同步執行。修正：使用 `process.nextTick` 包裹同步回應，確保永遠非同步。",
+        "en": "Risk: Race Condition; the caller cannot determine if the callback runs synchronously or asynchronously. Fix: Wrap the synchronous response with `process.nextTick` to ensure it is always asynchronous.",
+        "wg": [
+          {
+            "t": "競態條件",
+            "en": "Race Condition",
+            "ps": "noun"
+          },
+          {
+            "t": "包裹",
+            "en": "wrap",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "風險：阻塞 Event Loop。修正：將 callback 改為 Promise。",
+        "en": "Risk: Blocking the Event Loop. Fix: Change the callback to a Promise.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "Zalgo 指的是 API 有時同步、有時非同步回傳，這會導致呼叫者的邏輯執行順序不可預測。修正方法是強制將同步路徑也轉為非同步（如使用 `process.nextTick`），保持一致性。",
+      "en": "Zalgo refers to an API returning sometimes synchronously and sometimes asynchronously, making the execution order unpredictable for the caller. The fix is to force the synchronous path to be asynchronous (e.g., using `process.nextTick`) to maintain consistency.",
+      "wg": [
+        {
+          "t": "不可預測",
+          "en": "unpredictable",
+          "ps": "adjective"
+        },
+        {
+          "t": "一致性",
+          "en": "consistency",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "4",
+    "level": "Medium",
+    "keywords": "Performance, JSON.parse, Blocking, Event Loop",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "app.post('/data', (req, res) => {\n  // body is a 20MB JSON string\n  const data = JSON.parse(req.body);\n  res.send('ok');\n});",
+    "question": [
+      {
+        "t": "在 Code Review 中看到上述程式碼，根據手冊中的「JSON.parse 的陷阱」，這段程式碼最大的效能隱憂是什麼？",
+        "en": "During a Code Review, you see the code above. According to 'The JSON.parse Trap' in the handbook, what is the biggest performance concern?",
+        "wg": [
+          {
+            "t": "陷阱",
+            "en": "trap",
+            "ps": "noun"
+          },
+          {
+            "t": "效能隱憂",
+            "en": "performance concern",
+            "ps": "noun phrase"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "JSON.parse 是同步且阻塞的，解析 20MB 資料會卡住 Event Loop，導致伺服器暫時無法回應其他請求。",
+        "en": "JSON.parse is synchronous and blocking. Parsing 20MB of data will freeze the Event Loop, causing the server to temporarily fail to respond to other requests.",
+        "wg": [
+          {
+            "t": "阻塞",
+            "en": "blocking",
+            "ps": "adjective"
+          },
+          {
+            "t": "卡住",
+            "en": "freeze",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "JSON.parse 會消耗過多網路頻寬。",
+        "en": "JSON.parse will consume too much network bandwidth.",
+        "wg": []
+      },
+      {
+        "t": "JSON.parse 是非同步的，但會產生大量的 Promise 物件導致記憶體不足。",
+        "en": "JSON.parse is asynchronous, but it creates a large number of Promise objects leading to out-of-memory errors.",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "Node.js 的 `JSON.parse` 是同步方法 (Synchronous)。處理大型 Payload 時，Event Loop 會被迫停下來等待解析完成，這段時間內「餐廳經理」無法服務其他客人。",
+      "en": "Node.js's `JSON.parse` is a synchronous method. When handling large payloads, the Event Loop is forced to stop and wait for parsing to complete, during which the 'Restaurant Manager' cannot serve other customers.",
+      "wg": [
+        {
+          "t": "負載",
+          "en": "payload",
+          "ps": "noun"
+        },
+        {
+          "t": "被迫",
+          "en": "forced to",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "5",
+    "level": "Hard",
+    "keywords": "Microtask Starvation, process.nextTick, setImmediate, Debugging",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "function recursive() {\n  process.nextTick(recursive);\n}\nrecursive();",
+    "question": [
+      {
+        "t": "執行上述遞迴程式碼會發生什麼現象？這被稱為什麼問題？",
+        "en": "What happens when executing the recursive code above? What is this problem called?",
+        "wg": [
+          {
+            "t": "遞迴",
+            "en": "recursive",
+            "ps": "adjective"
+          },
+          {
+            "t": "現象",
+            "en": "phenomenon",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "會導致 Stack Overflow 錯誤，程式崩潰。",
+        "en": "It will cause a Stack Overflow error and the program will crash.",
+        "wg": []
+      },
+      {
+        "t": "會導致「Microtask Starvation (餓死 Event Loop)」。Event Loop 永遠無法進入 I/O 階段，伺服器看起來像當機，但 CPU 滿載。",
+        "en": "It will cause 'Microtask Starvation'. The Event Loop will never reach the I/O phase, making the server appear hung while CPU usage is high.",
+        "wg": [
+          {
+            "t": "餓死",
+            "en": "starvation",
+            "ps": "noun"
+          },
+          {
+            "t": "當機",
+            "en": "hung/crash",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "沒有問題，Node.js 會自動將其優化為 `setImmediate`。",
+        "en": "No problem; Node.js will automatically optimize it into `setImmediate`.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "Event Loop 必須清空 Microtask Queue 才能進入下一個階段。無限遞迴 `process.nextTick` 會不斷向佇列添加新任務，導致 Event Loop 被困在 Microtask 階段，無法處理 I/O 或 Timer。",
+      "en": "The Event Loop must drain the Microtask Queue before moving to the next phase. Recursively calling `process.nextTick` keeps adding new tasks to the queue, trapping the Event Loop in the Microtask phase and preventing it from handling I/O or Timers.",
+      "wg": [
+        {
+          "t": "清空",
+          "en": "drain/clear",
+          "ps": "verb"
+        },
+        {
+          "t": "困在",
+          "en": "trapped in",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "6",
+    "level": "Hard",
+    "keywords": "Partitioning, setImmediate, CPU Intensive, Optimization",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "function processLargeArray(items) {\n  if (items.length === 0) return;\n  const chunk = items.splice(0, 1000);\n  doHeavyStuff(chunk);\n  // Missing line here\n}",
+    "question": [
+      {
+        "t": "若要在主執行緒處理大量運算而不完全阻塞 I/O，我們可以使用「任務切分 (Partitioning)」模式。請問在註解處應填入什麼程式碼，以讓出執行權給 Event Loop？",
+        "en": "To handle heavy computations on the main thread without completely blocking I/O, we can use the 'Partitioning' pattern. What code should be filled in at the comment to yield execution control to the Event Loop?",
+        "wg": [
+          {
+            "t": "任務切分",
+            "en": "Partitioning",
+            "ps": "noun"
+          },
+          {
+            "t": "讓出執行權",
+            "en": "yield execution control",
+            "ps": "verb phrase"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "`process.nextTick(() => processLargeArray(items));`",
+        "en": "`process.nextTick(() => processLargeArray(items));`",
+        "wg": []
+      },
+      {
+        "t": "`setImmediate(() => processLargeArray(items));`",
+        "en": "`setImmediate(() => processLargeArray(items));`",
+        "wg": []
+      },
+      {
+        "t": "`Promise.resolve().then(() => processLargeArray(items));`",
+        "en": "`Promise.resolve().then(() => processLargeArray(items));`",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "`setImmediate` 會將任務排在 Check 階段，這允許 Event Loop 在兩次切分任務之間完成一次完整的循環（包含 Poll 階段處理 I/O）。若使用 `nextTick` 或 `Promise`，則會發生 Microtask Starvation，依然會阻塞 I/O。",
+      "en": "`setImmediate` schedules the task in the Check phase, allowing the Event Loop to complete a full cycle (including the Poll phase for I/O) between chunks. Using `nextTick` or `Promise` would cause Microtask Starvation, still blocking I/O.",
+      "wg": [
+        {
+          "t": "循環",
+          "en": "cycle",
+          "ps": "noun"
+        },
+        {
+          "t": "排在",
+          "en": "schedules",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "7",
+    "level": "Medium",
+    "keywords": "Worker Threads, CPU Intensive, Offloading, Performance",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "app.post('/resize', (req, res) => {\n  // 假設 resizeImageSync 是一個耗時 500ms 的同步 CPU 運算\n  const result = resizeImageSync(req.body.image);\n  res.send(result);\n});",
+    "question": [
+      {
+        "t": "你的團隊正在開發一個圖片處理服務，但在壓力測試時發現，只要有一個請求正在進行圖片縮放，其他所有請求（包含簡單的健康檢查）都會逾時。",
+        "en": "Your team is developing an image processing service, but during stress testing, you notice that while one request is resizing an image, all other requests (including simple health checks) time out.",
+        "wg": [
+          {
+            "t": "壓力測試",
+            "en": "stress testing",
+            "ps": "noun"
+          },
+          {
+            "t": "逾時",
+            "en": "time out",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "根據手冊中的「卸載重運算 (Offloading)」模式，下列哪一種修正方式最能有效解決此問題，且不阻塞 Event Loop？",
+        "en": "According to the 'Offloading' pattern in the handbook, which of the following fixes best resolves this issue without blocking the Event Loop?",
+        "wg": [
+          {
+            "t": "卸載",
+            "en": "offloading",
+            "ps": "verb"
+          },
+          {
+            "t": "阻塞",
+            "en": "blocking",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "將 resizeImageSync 包裹在 process.nextTick 中執行。",
+        "en": "Wrap resizeImageSync in process.nextTick.",
+        "wg": []
+      },
+      {
+        "t": "使用 Promise.resolve().then(() => resizeImageSync(...)) 將其轉為非同步。",
+        "en": "Convert it to async using Promise.resolve().then(() => resizeImageSync(...)).",
+        "wg": []
+      },
+      {
+        "t": "使用 Node.js 的 Worker Threads 將計算工作移至另一個執行緒。",
+        "en": "Use Node.js Worker Threads to move the computation to another thread.",
+        "wg": [
+          {
+            "t": "執行緒",
+            "en": "thread",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "改用 setImmediate 遞迴呼叫來切分這個單一的同步函數。",
+        "en": "Use recursive setImmediate calls to partition this single synchronous function.",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "圖片處理通常是單一且繁重的 CPU 任務，難以像陣列遍歷那樣進行「任務切分」。使用 `process.nextTick` 或 `Promise` 仍然會在主執行緒上執行同步代碼，無法解決阻塞問題。正確做法是使用 Worker Threads 將 CPU 密集任務移出 Event Loop。",
+      "en": "Image processing is typically a single, heavy CPU task that is difficult to 'partition' like array iteration. Using `process.nextTick` or `Promise` still executes synchronous code on the main thread, failing to solve the blocking issue. The correct approach is to use Worker Threads to move CPU-intensive tasks off the Event Loop.",
+      "wg": [
+        {
+          "t": "CPU 密集任務",
+          "en": "CPU-intensive task",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "8",
+    "level": "Hard",
+    "keywords": "setImmediate, setTimeout, I/O Callbacks, Event Loop Phases",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "const fs = require('fs');\n\nfs.readFile(__filename, () => {\n  setTimeout(() => {\n    console.log('timeout');\n  }, 0);\n  setImmediate(() => {\n    console.log('immediate');\n  });\n});",
+    "question": [
+      {
+        "t": "請分析上述程式碼。當 `fs.readFile` 的 callback 被執行時，`setTimeout` 與 `setImmediate` 的執行順序為何？",
+        "en": "Analyze the code above. When the callback for `fs.readFile` is executed, what is the execution order of `setTimeout` and `setImmediate`?",
+        "wg": [
+          {
+            "t": "執行順序",
+            "en": "execution order",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "請根據 Event Loop 的階段轉換機制選出正確答案。",
+        "en": "Please select the correct answer based on the phase transition mechanism of the Event Loop.",
+        "wg": [
+          {
+            "t": "階段轉換",
+            "en": "phase transition",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "順序不確定 (Non-deterministic)，取決於系統效能。",
+        "en": "The order is non-deterministic and depends on system performance.",
+        "wg": []
+      },
+      {
+        "t": "timeout 先執行，因為 0ms 幾乎是立即過期。",
+        "en": "timeout runs first because 0ms expires almost immediately.",
+        "wg": []
+      },
+      {
+        "t": "immediate 先執行，因為 I/O callback 處於 Poll 階段，下一個階段即是 Check 階段。",
+        "en": "immediate runs first because the I/O callback is in the Poll phase, and the very next phase is the Check phase.",
+        "wg": [
+          {
+            "t": "Poll 階段",
+            "en": "Poll phase",
+            "ps": "noun"
+          },
+          {
+            "t": "Check 階段",
+            "en": "Check phase",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "兩者會同時執行 (Parallel execution)。",
+        "en": "Both will execute simultaneously (Parallel execution).",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "根據手冊「正確選擇計時器」章節，`setImmediate` 設計用於 I/O callback 之後。當 I/O callback 執行時，Event Loop 正處於 Poll 階段，處理完後會直接進入 Check 階段執行 `setImmediate`。而 `setTimeout` 屬於 Timers 階段，必須等到下一次 Loop 循環。",
+      "en": "According to the 'Correct Timer Selection' section, `setImmediate` is designed to run after I/O callbacks. When an I/O callback executes, the Event Loop is in the Poll phase; once finished, it proceeds directly to the Check phase to execute `setImmediate`. `setTimeout` belongs to the Timers phase and must wait for the next loop iteration.",
+      "wg": [
+        {
+          "t": "循環",
+          "en": "iteration",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "9",
+    "level": "Medium",
+    "keywords": "Event Loop Lag, Monitoring, perf_hooks, Diagnostics",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在監控 Node.js 生產環境時，你發現 `eventLoopLag` 指標持續超過 200ms。",
+        "en": "While monitoring a Node.js production environment, you notice the `eventLoopLag` metric consistently exceeds 200ms.",
+        "wg": [
+          {
+            "t": "指標",
+            "en": "metric",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "根據手冊中的「Event Loop Lag Detection Workflow」，這最可能代表什麼問題？",
+        "en": "According to the 'Event Loop Lag Detection Workflow' in the handbook, what does this most likely indicate?",
+        "wg": []
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "記憶體洩漏 (Memory Leak)，導致垃圾回收頻繁。",
+        "en": "Memory leak causing frequent garbage collection.",
+        "wg": []
+      },
+      {
+        "t": "有同步任務 (Synchronous Task) 阻塞了 Event Loop，導致無法及時處理新事件。",
+        "en": "A synchronous task is blocking the Event Loop, preventing timely handling of new events.",
+        "wg": [
+          {
+            "t": "同步任務",
+            "en": "synchronous task",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "網路頻寬不足，導致請求堆積。",
+        "en": "Insufficient network bandwidth causing request backlog.",
+        "wg": []
+      },
+      {
+        "t": "資料庫連線池 (Connection Pool) 已滿，導致查詢等待。",
+        "en": "Database connection pool is full, causing query waits.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "Event Loop Lag 測量的是「預計執行時間」與「實際執行時間」的延遲。如果 Lag 高，代表主執行緒被某個同步操作（如複雜計算、JSON.parse）佔用，導致 Event Loop 轉不動。雖然 GC 也可能導致 Lag，但選項 B 是對 Lag 定義最直接的描述。",
+      "en": "Event Loop Lag measures the delay between 'scheduled execution time' and 'actual execution time'. High lag means the main thread is occupied by a synchronous operation (like complex math or JSON.parse), causing the Event Loop to stall. While GC can also cause lag, Option B is the most direct description of the definition of lag.",
+      "wg": [
+        {
+          "t": "佔用",
+          "en": "occupied",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "10",
+    "level": "Medium",
+    "keywords": "Streams, Reactor Pattern, Memory Usage, OOM",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "app.post('/upload', (req, res) => {\n  // Bad Practice\n  fs.readFile(req.file.path, (err, data) => {\n    const rows = data.toString().split('\\n');\n    // ... process rows\n  });\n});",
+    "question": [
+      {
+        "t": "參考手冊中的實戰案例「檔案上傳伺服器」，上述程式碼使用了 `fs.readFile` 來處理使用者上傳的 CSV 檔案。",
+        "en": "Referring to the 'File Upload Service' case in the handbook, the code above uses `fs.readFile` to handle a user-uploaded CSV file.",
+        "wg": []
+      },
+      {
+        "t": "請問這種寫法在多人同時上傳大檔案時，最容易引發什麼致命錯誤？",
+        "en": "What fatal error is this approach most likely to cause when multiple users upload large files simultaneously?",
+        "wg": [
+          {
+            "t": "致命錯誤",
+            "en": "fatal error",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "Stack Overflow (堆疊溢位)",
+        "en": "Stack Overflow",
+        "wg": []
+      },
+      {
+        "t": "Out of Memory (OOM) 與 Event Loop 卡頓",
+        "en": "Out of Memory (OOM) and Event Loop lag",
+        "wg": [
+          {
+            "t": "卡頓",
+            "en": "lag / stall",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "Database Connection Timeout (資料庫連線逾時)",
+        "en": "Database Connection Timeout",
+        "wg": []
+      },
+      {
+        "t": "File Permission Error (檔案權限錯誤)",
+        "en": "File Permission Error",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "`fs.readFile` 會將整個檔案內容載入記憶體。若檔案很大且併發請求多，會迅速耗盡 RAM (OOM)。此外，`toString()` 與 `split()` 也是同步的大型字串操作，會嚴重阻塞 Event Loop。應改用 Stream (Reactor Pattern) 逐行處理。",
+      "en": "`fs.readFile` loads the entire file content into memory. If files are large and concurrent requests are high, this quickly exhausts RAM (OOM). Additionally, `toString()` and `split()` are synchronous large string operations that severely block the Event Loop. Streams (Reactor Pattern) should be used to process line by line.",
+      "wg": [
+        {
+          "t": "耗盡",
+          "en": "exhaust",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "11",
+    "level": "Medium",
+    "keywords": "Code Review, Sync I/O, Hot Path, Scalability",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "app.get('/config', (req, res) => {\n  // 每次請求都讀取設定檔\n  const config = fs.readFileSync('./config.json', 'utf-8');\n  res.json(JSON.parse(config));\n});",
+    "question": [
+      {
+        "t": "在進行 Code Review 時，你發現了上述程式碼位於一個高流量的 API Endpoint (Hot Path) 中。",
+        "en": "During a Code Review, you find the above code in a high-traffic API Endpoint (Hot Path).",
+        "wg": [
+          {
+            "t": "高流量",
+            "en": "high-traffic",
+            "ps": "adjective"
+          }
+        ]
+      },
+      {
+        "t": "根據手冊的「Code Review Checklist」，這段程式碼違反了哪項原則，且會造成什麼後果？",
+        "en": "According to the 'Code Review Checklist' in the handbook, which principle does this code violate, and what is the consequence?",
+        "wg": []
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "違反 Zalgo 原則；會導致回傳順序不一致。",
+        "en": "Violates the Zalgo principle; leads to inconsistent return order.",
+        "wg": []
+      },
+      {
+        "t": "違反同步操作檢查；`readFileSync` 會暫停整個 Event Loop，導致此 API 的吞吐量極低。",
+        "en": "Violates synchronous operation check; `readFileSync` pauses the entire Event Loop, causing extremely low throughput for this API.",
+        "wg": [
+          {
+            "t": "吞吐量",
+            "en": "throughput",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "違反 Promise 錯誤處理原則；會導致 Process Crash。",
+        "en": "Violates Promise error handling principle; leads to Process Crash.",
+        "wg": []
+      },
+      {
+        "t": "違反記憶體管理原則；會導致設定檔被重複快取。",
+        "en": "Violates memory management principle; leads to duplicate caching of the config file.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "在 Hot Path 中使用 `fs.readFileSync` 是嚴重的效能殺手。這相當於「餐廳經理」每接一張單都要親自跑去倉庫查庫存，這段時間內無法服務其他客人。應在啟動時讀取一次並快取，或使用非同步版本。",
+      "en": "Using `fs.readFileSync` in a Hot Path is a severe performance killer. It's like the 'Restaurant Manager' personally going to the warehouse to check inventory for every order, unable to serve other customers during that time. It should be read once at startup and cached, or use the asynchronous version.",
+      "wg": [
+        {
+          "t": "庫存",
+          "en": "inventory",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "12",
+    "level": "Hard",
+    "keywords": "ReDoS, Regex, Security, Blocking",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "const emailRegex = /^([a-zA-Z0-9_\\.\\-])+@(([a-zA-Z0-9\\-])+\\.)+([a-zA-Z0-9]{2,4})+$/;\n// 使用者輸入惡意字串\nconst userInput = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa!';\nemailRegex.test(userInput);",
+    "question": [
+      {
+        "t": "手冊的 Checklist 提到需檢查 Regex 是否存在 ReDoS 風險。",
+        "en": "The handbook checklist mentions checking Regex for ReDoS risks.",
+        "wg": []
+      },
+      {
+        "t": "上述 Regex 雖然看起來正常，但在特定輸入下會觸發「指數級回溯 (Exponential Backtracking)」。這對 Node.js 伺服器會造成什麼具體影響？",
+        "en": "Although the Regex above looks normal, it triggers 'Exponential Backtracking' on specific inputs. What specific impact does this have on a Node.js server?",
+        "wg": [
+          {
+            "t": "指數級回溯",
+            "en": "exponential backtracking",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "僅該次請求會報錯，不影響其他使用者。",
+        "en": "Only that request will error out, not affecting other users.",
+        "wg": []
+      },
+      {
+        "t": "會導致記憶體洩漏，但伺服器仍能回應。",
+        "en": "Causes memory leaks, but the server can still respond.",
+        "wg": []
+      },
+      {
+        "t": "Regex 引擎在主執行緒上執行，計算量過大會直接卡死 Event Loop，導致伺服器對所有請求無回應。",
+        "en": "The Regex engine runs on the main thread; excessive computation will freeze the Event Loop, causing the server to be unresponsive to all requests.",
+        "wg": [
+          {
+            "t": "卡死",
+            "en": "freeze / hang",
+            "ps": "verb"
+          },
+          {
+            "t": "無回應",
+            "en": "unresponsive",
+            "ps": "adjective"
+          }
+        ]
+      },
+      {
+        "t": "Node.js 會自動將過久的 Regex 計算移至 Worker Thread。",
+        "en": "Node.js will automatically move long-running Regex computations to a Worker Thread.",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "Node.js 的 Regex 執行是同步且在主執行緒上的。ReDoS 攻擊會迫使 CPU 進行數百萬次的回溯計算，這段時間內 Event Loop 完全被阻塞，無法處理任何 I/O 或其他請求，造成拒絕服務 (DoS)。",
+      "en": "Regex execution in Node.js is synchronous and on the main thread. A ReDoS attack forces the CPU into millions of backtracking calculations, completely blocking the Event Loop during this time. No I/O or other requests can be handled, resulting in a Denial of Service (DoS).",
+      "wg": [
+        {
+          "t": "拒絕服務",
+          "en": "Denial of Service",
+          "ps": "noun"
+        }
+      ]
+    }
+  }
+]

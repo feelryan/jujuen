@@ -1,0 +1,526 @@
+[
+  {
+    "no": "chapter02-q07",
+    "level": "intermediate",
+    "keywords": "Anti-pattern, Asynchronous, Callbacks, Zalgo, Execution Order",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "const cache = new Map();\n\nfunction getUserData(userId, callback) {\n  if (cache.has(userId)) {\n    // Case A: Synchronous execution\n    callback(cache.get(userId));\n  } else {\n    // Case B: Asynchronous execution\n    db.findById(userId, (err, user) => {\n      cache.set(userId, user);\n      callback(user);\n    });\n  }\n}\n\nconsole.log('Start');\ngetUserData(1, (data) => console.log('Data received'));\nconsole.log('End');",
+    "question": [
+      {
+        "t": "在程式碼審查中，您發現上述函式存在「釋放 Zalgo (Releasing Zalgo)」的反模式風險。",
+        "en": "During a code review, you identify that the function above exhibits the 'Releasing Zalgo' anti-pattern.",
+        "wg": [
+          {
+            "t": "反模式",
+            "en": "anti-pattern",
+            "ps": "N"
+          },
+          {
+            "t": "程式碼審查",
+            "en": "code review",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "請問這種混合同步與非同步回呼的寫法，主要會造成什麼問題？",
+        "en": "What is the primary issue caused by mixing synchronous and asynchronous callbacks in this manner?",
+        "wg": [
+          {
+            "t": "混合",
+            "en": "mixing",
+            "ps": "V"
+          },
+          {
+            "t": "回呼",
+            "en": "callbacks",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "會導致記憶體洩漏 (Memory Leak)，因為快取永遠不會被清除。",
+        "en": "It causes a memory leak because the cache is never cleared.",
+        "wg": []
+      },
+      {
+        "t": "會導致呼叫堆疊溢位 (Stack Overflow)，因為遞迴呼叫過深。",
+        "en": "It causes a stack overflow due to excessive recursive calls.",
+        "wg": []
+      },
+      {
+        "t": "會導致執行順序不可預測，讓呼叫者難以判斷 callback 是在 'End' 之前還是之後執行。",
+        "en": "It leads to unpredictable execution order, making it difficult for the caller to know if the callback runs before or after 'End'.",
+        "wg": [
+          {
+            "t": "不可預測",
+            "en": "unpredictable",
+            "ps": "Adj"
+          },
+          {
+            "t": "執行順序",
+            "en": "execution order",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "會導致 Event Loop 阻塞，因為 `db.findById` 是 CPU 密集型操作。",
+        "en": "It blocks the Event Loop because `db.findById` is a CPU-intensive operation.",
+        "wg": []
+      }
+    ],
+    "answer": "會導致執行順序不可預測，讓呼叫者難以判斷 callback 是在 'End' 之前還是之後執行。",
+    "why": {
+      "t": "這種寫法導致 callback 有時同步執行（Cache Hit），有時非同步執行（Cache Miss）。這會讓依賴執行順序的程式碼產生難以除錯的 Race Condition。修正方法是使用 `process.nextTick()` 確保 callback 始終是非同步的。",
+      "en": "This approach causes the callback to execute synchronously sometimes (Cache Hit) and asynchronously others (Cache Miss). This creates race conditions that are hard to debug for code relying on execution order. The fix is to use `process.nextTick()` to ensure the callback is always asynchronous.",
+      "wg": [
+        {
+          "t": "競爭條件",
+          "en": "Race Condition",
+          "ps": "N"
+        },
+        {
+          "t": "除錯",
+          "en": "debug",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "chapter02-q08",
+    "level": "intermediate",
+    "keywords": "Promise.all, Promise.allSettled, Error Handling, Resilience",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "async function loadDashboard() {\n  try {\n    const [profile, orders, notifications] = await Promise.all([\n      userService.getProfile(),\n      orderService.getRecentOrders(), // This service is currently DOWN\n      notificationService.getUnread()\n    ]);\n    return { profile, orders, notifications };\n  } catch (err) {\n    console.error('Dashboard failed:', err);\n    throw err;\n  }\n}",
+    "question": [
+      {
+        "t": "您正在開發一個使用者儀表板，需要聚合三個獨立微服務的資料。",
+        "en": "You are developing a user dashboard that needs to aggregate data from three independent microservices.",
+        "wg": [
+          {
+            "t": "聚合",
+            "en": "aggregate",
+            "ps": "V"
+          },
+          {
+            "t": "儀表板",
+            "en": "dashboard",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "目前的實作如上所示。當 `orderService` 發生故障時，整個儀表板都會無法載入。",
+        "en": "The current implementation is shown above. When `orderService` fails, the entire dashboard fails to load.",
+        "wg": [
+          {
+            "t": "故障",
+            "en": "fails/down",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "為了提升系統韌性 (Resilience)，允許部分服務失敗仍能顯示其他資訊，您應該如何修改？",
+        "en": "To improve system resilience and allow showing other information even if some services fail, how should you modify it?",
+        "wg": [
+          {
+            "t": "韌性",
+            "en": "resilience",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "將 `Promise.all` 替換為 `Promise.race`。",
+        "en": "Replace `Promise.all` with `Promise.race`.",
+        "wg": []
+      },
+      {
+        "t": "將 `Promise.all` 替換為 `Promise.allSettled`，並在後續邏輯中檢查每個結果的 `status`。",
+        "en": "Replace `Promise.all` with `Promise.allSettled` and check the `status` of each result in the subsequent logic.",
+        "wg": [
+          {
+            "t": "後續邏輯",
+            "en": "subsequent logic",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "使用 `process.nextTick` 將請求分開執行。",
+        "en": "Use `process.nextTick` to execute requests separately.",
+        "wg": []
+      },
+      {
+        "t": "在每個 Service 呼叫前加上 `await`，依序執行而非並行執行。",
+        "en": "Add `await` before each Service call to execute them sequentially instead of in parallel.",
+        "wg": [
+          {
+            "t": "依序",
+            "en": "sequentially",
+            "ps": "Adv"
+          }
+        ]
+      }
+    ],
+    "answer": "將 `Promise.all` 替換為 `Promise.allSettled`，並在後續邏輯中檢查每個結果的 `status`。",
+    "why": {
+      "t": "`Promise.all` 採用「全有或全無 (All-or-nothing)」策略，任一失敗即全部 Reject。`Promise.allSettled` 則會等待所有 Promise 完成（無論成功或失敗），並回傳每個任務的狀態物件，適合處理互不依賴的並行任務。",
+      "en": "`Promise.all` uses an 'All-or-nothing' strategy; any failure rejects the whole promise. `Promise.allSettled` waits for all promises to complete (whether fulfilled or rejected) and returns a status object for each, making it suitable for independent parallel tasks.",
+      "wg": [
+        {
+          "t": "互不依賴",
+          "en": "independent",
+          "ps": "Adj"
+        },
+        {
+          "t": "策略",
+          "en": "strategy",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "chapter02-q09",
+    "level": "advanced",
+    "keywords": "Event Loop, Starvation, Microtasks, Recursion",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "// Implementation A\nfunction spinA() {\n  Promise.resolve().then(spinA);\n}\n\n// Implementation B\nfunction spinB() {\n  setImmediate(spinB);\n}",
+    "question": [
+      {
+        "t": "假設您不小心在程式碼中寫入了上述兩種無窮遞迴函式之一。",
+        "en": "Suppose you accidentally introduced one of the above infinite recursive functions into your code.",
+        "wg": [
+          {
+            "t": "遞迴",
+            "en": "recursive",
+            "ps": "Adj"
+          },
+          {
+            "t": "不小心",
+            "en": "accidentally",
+            "ps": "Adv"
+          }
+        ]
+      },
+      {
+        "t": "請問哪一種實作會導致 Event Loop 完全「飢餓 (Starvation)」，使伺服器無法處理任何新的 I/O 請求（如 HTTP Request）？",
+        "en": "Which implementation will cause complete Event Loop 'Starvation', rendering the server unable to handle any new I/O requests (like HTTP requests)?",
+        "wg": [
+          {
+            "t": "飢餓",
+            "en": "starvation",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "兩者都會導致 I/O 阻塞。",
+        "en": "Both will cause I/O blocking.",
+        "wg": []
+      },
+      {
+        "t": "只有實作 A (Promise) 會導致 I/O 阻塞。",
+        "en": "Only Implementation A (Promise) will cause I/O blocking.",
+        "wg": []
+      },
+      {
+        "t": "只有實作 B (setImmediate) 會導致 I/O 阻塞。",
+        "en": "Only Implementation B (setImmediate) will cause I/O blocking.",
+        "wg": []
+      },
+      {
+        "t": "兩者都不會阻塞 I/O，因為它們都是非同步的。",
+        "en": "Neither will block I/O because they are both asynchronous.",
+        "wg": []
+      }
+    ],
+    "answer": "只有實作 A (Promise) 會導致 I/O 阻塞。",
+    "why": {
+      "t": "Microtask Queue (Promise) 具有最高優先級，Event Loop 會持續處理 Microtasks 直到隊列清空才會進入下一個階段。無限遞迴的 Promise 會不斷向隊列添加新任務，導致 Event Loop 永遠無法進入 Poll 階段處理 I/O。而 `setImmediate` (Macrotask) 每個 Loop 週期只執行一次，允許 I/O 在週期之間被處理。",
+      "en": "The Microtask Queue (Promise) has the highest priority; the Event Loop processes Microtasks until the queue is empty before moving to the next phase. Infinite recursive Promises constantly add new tasks, preventing the Event Loop from ever reaching the Poll phase for I/O. `setImmediate` (Macrotask) runs once per loop tick, allowing I/O to be processed in between.",
+      "wg": [
+        {
+          "t": "優先級",
+          "en": "priority",
+          "ps": "N"
+        },
+        {
+          "t": "隊列",
+          "en": "queue",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "chapter02-q10",
+    "level": "advanced",
+    "keywords": "Worker Threads, Performance, Serialization, SharedArrayBuffer",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "// Main Thread\nconst worker = new Worker('./image-processor.js');\nconst hugeBuffer = fs.readFileSync('large-image.raw'); // 500MB\n\n// Performance bottleneck here:\nworker.postMessage(hugeBuffer);",
+    "question": [
+      {
+        "t": "您正在使用 Worker Thread 處理大型圖像數據 (500MB)。",
+        "en": "You are using a Worker Thread to process large image data (500MB).",
+        "wg": []
+      },
+      {
+        "t": "您發現每次呼叫 `postMessage` 時，Main Thread 的 CPU 使用率會瞬間飆升並導致短暫卡頓。",
+        "en": "You notice that every time `postMessage` is called, the Main Thread's CPU usage spikes and causes a momentary freeze.",
+        "wg": [
+          {
+            "t": "飆升",
+            "en": "spikes",
+            "ps": "V"
+          },
+          {
+            "t": "卡頓",
+            "en": "freeze/lag",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "這是因為資料複製 (Structured Clone) 的開銷。請問該如何優化以消除此開銷？",
+        "en": "This is due to the overhead of data copying (Structured Clone). How can you optimize this to eliminate the overhead?",
+        "wg": [
+          {
+            "t": "開銷",
+            "en": "overhead",
+            "ps": "N"
+          },
+          {
+            "t": "消除",
+            "en": "eliminate",
+            "ps": "V"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "改用 `JSON.stringify` 將 Buffer 轉為字串傳遞。",
+        "en": "Use `JSON.stringify` to convert the Buffer to a string for passing.",
+        "wg": []
+      },
+      {
+        "t": "使用 `Cluster` 模組代替 `Worker Threads`。",
+        "en": "Use the `Cluster` module instead of `Worker Threads`.",
+        "wg": []
+      },
+      {
+        "t": "在 `postMessage` 的第二個參數中使用 `transferList`，或改用 `SharedArrayBuffer`。",
+        "en": "Use `transferList` in the second argument of `postMessage`, or switch to `SharedArrayBuffer`.",
+        "wg": [
+          {
+            "t": "參數",
+            "en": "argument",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "將檔案路徑傳給 Worker，讓 Worker 自己讀取檔案。",
+        "en": "Pass the file path to the Worker and let the Worker read the file itself.",
+        "wg": []
+      }
+    ],
+    "answer": "在 `postMessage` 的第二個參數中使用 `transferList`，或改用 `SharedArrayBuffer`。",
+    "why": {
+      "t": "預設情況下，`postMessage` 會複製數據。對於大型二進位數據，使用 `transferList` 可以將記憶體所有權「移交」給 Worker (Zero-copy)，或者使用 `SharedArrayBuffer` 讓多個 Thread 共享同一塊記憶體，從而避免昂貴的複製操作。",
+      "en": "By default, `postMessage` copies data. For large binary data, using `transferList` can 'transfer' memory ownership to the Worker (Zero-copy), or using `SharedArrayBuffer` allows multiple threads to share the same memory block, avoiding expensive copy operations.",
+      "wg": [
+        {
+          "t": "所有權",
+          "en": "ownership",
+          "ps": "N"
+        },
+        {
+          "t": "移交",
+          "en": "transfer",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "chapter02-q11",
+    "level": "advanced",
+    "keywords": "Streams, Backpressure, Memory Management, Pipeline",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "const rStream = fs.createReadStream('huge-file.csv');\nconst wStream = net.connect(8080, 'example.com');\n\nrStream.on('data', (chunk) => {\n  wStream.write(chunk);\n});",
+    "question": [
+      {
+        "t": "上述程式碼試圖將一個巨大的本地檔案讀取並寫入到網路 Socket。",
+        "en": "The code above attempts to read a huge local file and write it to a network socket.",
+        "wg": [
+          {
+            "t": "巨大的",
+            "en": "huge",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "如果網路速度遠慢於磁碟讀取速度，這段程式碼會發生什麼問題？又該如何修正？",
+        "en": "If the network speed is much slower than the disk read speed, what problem will occur, and how should it be fixed?",
+        "wg": [
+          {
+            "t": "磁碟",
+            "en": "disk",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "會發生 CPU 滿載。應使用 `Worker Threads`。",
+        "en": "CPU usage will max out. Should use `Worker Threads`.",
+        "wg": []
+      },
+      {
+        "t": "會發生記憶體溢位 (OOM)，因為缺乏背壓 (Backpressure) 機制。應使用 `pipeline(rStream, wStream)`。",
+        "en": "Out of Memory (OOM) will occur due to lack of Backpressure. Should use `pipeline(rStream, wStream)`.",
+        "wg": [
+          {
+            "t": "記憶體溢位",
+            "en": "Out of Memory",
+            "ps": "N"
+          },
+          {
+            "t": "背壓",
+            "en": "Backpressure",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "會導致檔案讀取錯誤。應使用 `fs.readFileSync`。",
+        "en": "It will cause file read errors. Should use `fs.readFileSync`.",
+        "wg": []
+      },
+      {
+        "t": "不會有問題，Node.js 的 Event Loop 會自動調節速度。",
+        "en": "No issues will occur; Node.js Event Loop automatically adjusts the speed.",
+        "wg": [
+          {
+            "t": "調節",
+            "en": "adjust/regulate",
+            "ps": "V"
+          }
+        ]
+      }
+    ],
+    "answer": "會發生記憶體溢位 (OOM)，因為缺乏背壓 (Backpressure) 機制。應使用 `pipeline(rStream, wStream)`。",
+    "why": {
+      "t": "當生產者 (Disk) 快於消費者 (Network) 時，數據會堆積在記憶體中，直到耗盡 RAM。這就是 Backpressure 問題。使用 `stream.pipeline` 或 `rStream.pipe(wStream)` 可以自動處理 `drain` 事件，在緩衝區滿時暫停讀取。",
+      "en": "When the producer (Disk) is faster than the consumer (Network), data piles up in memory until RAM is exhausted. This is the Backpressure issue. Using `stream.pipeline` or `rStream.pipe(wStream)` automatically handles `drain` events, pausing reads when the buffer is full.",
+      "wg": [
+        {
+          "t": "耗盡",
+          "en": "exhausted",
+          "ps": "V"
+        },
+        {
+          "t": "緩衝區",
+          "en": "buffer",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "chapter02-q12",
+    "level": "advanced",
+    "keywords": "Event Loop, Optimization, setImmediate, process.nextTick",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "function processHugeArray(arr) {\n  if (arr.length === 0) return;\n  \n  // Process a small chunk\n  const chunk = arr.splice(0, 1000);\n  doHeavyWork(chunk);\n\n  // Schedule next chunk\n  // Option A: process.nextTick(() => processHugeArray(arr));\n  // Option B: setImmediate(() => processHugeArray(arr));\n}",
+    "question": [
+      {
+        "t": "您需要處理一個非常大的陣列，為了避免阻塞 Event Loop，您決定將任務切分成小塊 (Chunking)。",
+        "en": "You need to process a very large array. To avoid blocking the Event Loop, you decide to split the task into small chunks.",
+        "wg": [
+          {
+            "t": "切分",
+            "en": "split/chunking",
+            "ps": "V"
+          },
+          {
+            "t": "阻塞",
+            "en": "blocking",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "為了確保在處理每個 Chunk 之間，Node.js 仍有機會處理其他 I/O 事件（如 HTTP 請求），您應該選擇哪種調度方式？",
+        "en": "To ensure Node.js has a chance to handle other I/O events (like HTTP requests) between processing each chunk, which scheduling method should you choose?",
+        "wg": [
+          {
+            "t": "調度",
+            "en": "scheduling",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "Option A (`process.nextTick`)，因為它效率最高。",
+        "en": "Option A (`process.nextTick`), because it is the most efficient.",
+        "wg": []
+      },
+      {
+        "t": "Option B (`setImmediate`)，因為它允許 Event Loop 在兩次執行間處理 I/O。",
+        "en": "Option B (`setImmediate`), because it allows the Event Loop to process I/O between executions.",
+        "wg": []
+      },
+      {
+        "t": "兩者效果相同。",
+        "en": "Both have the same effect.",
+        "wg": []
+      },
+      {
+        "t": "應該使用 `setTimeout(..., 0)`，因為它比 `setImmediate` 更快。",
+        "en": "Should use `setTimeout(..., 0)` because it is faster than `setImmediate`.",
+        "wg": []
+      }
+    ],
+    "answer": "Option B (`setImmediate`)，因為它允許 Event Loop 在兩次執行間處理 I/O。",
+    "why": {
+      "t": "`process.nextTick` 會在當前階段結束後立即觸發，優先級高於 I/O 階段。如果遞迴使用它，會導致 I/O 飢餓（Starvation）。`setImmediate` 則是在 Check 階段執行，確保了每個 Chunk 處理完後，Event Loop 都有機會經過 Poll 階段來處理 I/O。",
+      "en": "`process.nextTick` fires immediately after the current operation, with higher priority than the I/O phase. Recursive usage causes I/O starvation. `setImmediate` runs in the Check phase, ensuring that after each chunk, the Event Loop has a chance to pass through the Poll phase to handle I/O.",
+      "wg": [
+        {
+          "t": "階段",
+          "en": "phase",
+          "ps": "N"
+        }
+      ]
+    }
+  }
+]

@@ -1,0 +1,808 @@
+[
+  {
+    "no": "1",
+    "level": "Intermediate",
+    "keywords": "Performance, Native Modules, Overhead, C++",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "for (let i = 0; i < 1000000; i++) {\n  nativeAdd(i, 1);\n}",
+    "question": [
+      {
+        "t": "你編寫了一個 C++ 原生模組來執行簡單的加法運算 `nativeAdd(a, b)`，並在 JavaScript 的迴圈中呼叫它一百萬次（如程式碼所示）。",
+        "en": "You wrote a C++ native module to perform a simple addition `nativeAdd(a, b)` and called it 1 million times inside a JavaScript loop (as shown in the code).",
+        "wg": []
+      },
+      {
+        "t": "結果發現，這段程式碼的執行速度比直接在 JS 中寫 `i + 1` 還要慢得多。請問主要原因為何？",
+        "en": "The result shows that this code runs much slower than writing `i + 1` directly in JS. What is the primary reason?",
+        "wg": []
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "C++ 的加法運算本質上比 V8 引擎的最佳化編譯器慢。",
+        "en": "C++ addition operations are inherently slower than the V8 engine's optimizing compiler.",
+        "wg": []
+      },
+      {
+        "t": "JavaScript 與 C++ 之間的邊界跨越開銷（Context Switch）遠大於簡單運算本身的時間。",
+        "en": "The overhead of boundary crossing (Context Switch) between JavaScript and C++ far exceeds the time taken by the simple computation itself.",
+        "wg": [
+          {
+            "t": "邊界跨越開銷",
+            "en": "boundary crossing overhead",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "Node.js 的事件迴圈無法處理同步的原生函式呼叫。",
+        "en": "The Node.js Event Loop cannot handle synchronous native function calls.",
+        "wg": []
+      },
+      {
+        "t": "原生模組沒有正確使用 `libuv` 的執行緒池。",
+        "en": "The native module did not correctly use the `libuv` thread pool.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "這是典型的「Chatty Interface」反模式。JS 與 C++ 之間的切換（序列化參數、切換 Stack 等）有固定的成本。當運算極小（如加法）時，這個成本會成為瓶頸。解決方案是使用 Batching（批次處理），將大量數據一次傳入 C++ 內部進行迴圈。",
+      "en": "This is a classic 'Chatty Interface' anti-pattern. Switching between JS and C++ (serializing arguments, switching stacks, etc.) incurs a fixed cost. When the computation is trivial (like addition), this overhead becomes the bottleneck. The solution is 'Batching'—passing a large amount of data to C++ at once and looping internally.",
+      "wg": [
+        {
+          "t": "反模式",
+          "en": "anti-pattern",
+          "ps": "noun"
+        },
+        {
+          "t": "批次處理",
+          "en": "Batching",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "2",
+    "level": "Hard",
+    "keywords": "Memory Safety, Buffer, Segfault, N-API",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你在開發一個非同步的 C++ Addon，它接收一個來自 JS 的 `Buffer`，並在背景執行緒處理完畢後將結果寫入該 Buffer。",
+        "en": "You are developing an asynchronous C++ Addon that receives a `Buffer` from JS and writes results into it after processing in a background thread.",
+        "wg": [
+          {
+            "t": "非同步",
+            "en": "asynchronous",
+            "ps": "adjective"
+          },
+          {
+            "t": "背景執行緒",
+            "en": "background thread",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "然而，在壓力測試時，應用程式偶爾會發生 Segmentation Fault (Segfault) 崩潰。經排查，C++ 邏輯本身無誤。最可能的原因是什麼？",
+        "en": "However, during stress testing, the application occasionally crashes with a Segmentation Fault (Segfault). After investigation, the C++ logic itself is correct. What is the most likely cause?",
+        "wg": [
+          {
+            "t": "區段錯誤",
+            "en": "Segmentation Fault",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "Buffer 的大小超過了 V8 的記憶體限制。",
+        "en": "The size of the Buffer exceeded V8's memory limit.",
+        "wg": []
+      },
+      {
+        "t": "JavaScript 的垃圾回收機制 (GC) 在 C++ 寫入前回收了該 Buffer，導致 Use-after-free。",
+        "en": "JavaScript's Garbage Collection (GC) reclaimed the Buffer before C++ wrote to it, causing a Use-after-free error.",
+        "wg": [
+          {
+            "t": "垃圾回收機制",
+            "en": "Garbage Collection",
+            "ps": "noun"
+          },
+          {
+            "t": "釋放後使用",
+            "en": "Use-after-free",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "C++ 執行緒與 JS 主執行緒同時寫入該 Buffer 造成 Race Condition。",
+        "en": "A Race Condition occurred because the C++ thread and JS main thread wrote to the Buffer simultaneously.",
+        "wg": []
+      },
+      {
+        "t": "沒有使用 `node-gyp rebuild` 重新編譯模組。",
+        "en": "The module was not recompiled using `node-gyp rebuild`.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "當 Buffer 的控制權交給 C++ 的非同步執行緒時，V8 並不知道 C++ 還在使用它。如果 JS 端沒有其他變數引用該 Buffer，GC 可能會將其回收。C++ 隨後嘗試寫入已被釋放的記憶體位置，導致 Segfault。解決方案是在 C++ 端建立一個 `Napi::Reference` 來防止 GC。",
+      "en": "When control of a Buffer is passed to an async C++ thread, V8 is unaware that C++ is still using it. If no other variables in JS reference that Buffer, the GC may reclaim it. C++ then attempts to write to a freed memory location, causing a Segfault. The solution is to create a `Napi::Reference` on the C++ side to prevent GC.",
+      "wg": [
+        {
+          "t": "引用",
+          "en": "reference",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "3",
+    "level": "Intermediate",
+    "keywords": "Node-API, NAN, ABI Stability, Maintenance",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "作為一個原生模組的維護者，你希望使用者在升級 Node.js 版本（例如從 v18 升級到 v20）時，不需要重新編譯你的模組即可直接使用。",
+        "en": "As a maintainer of a native module, you want users to be able to use your module directly without recompilation when they upgrade Node.js versions (e.g., from v18 to v20).",
+        "wg": [
+          {
+            "t": "重新編譯",
+            "en": "recompilation",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "你應該優先採用哪種技術？",
+        "en": "Which technology should you prioritize?",
+        "wg": []
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "NAN (Native Abstractions for Node.js)",
+        "en": "NAN (Native Abstractions for Node.js)",
+        "wg": []
+      },
+      {
+        "t": "Node-API (前稱 N-API)",
+        "en": "Node-API (formerly N-API)",
+        "wg": []
+      },
+      {
+        "t": "直接呼叫 V8 C++ API",
+        "en": "Directly calling V8 C++ APIs",
+        "wg": []
+      },
+      {
+        "t": "使用 `child_process` 執行外部二進位檔",
+        "en": "Using `child_process` to execute external binaries",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "Node-API 提供了應用程式二進位介面（ABI）的穩定性保證。這意味著為某個 Node.js 版本編譯的二進位檔（.node），可以在任何支援 Node-API 的新版本 Node.js 上執行，無需重新編譯。NAN 和直接 V8 呼叫則不具備此特性。",
+      "en": "Node-API provides Application Binary Interface (ABI) stability guarantees. This means a binary (.node) compiled for one Node.js version can run on any newer Node.js version that supports Node-API without recompilation. NAN and direct V8 calls do not have this feature.",
+      "wg": [
+        {
+          "t": "應用程式二進位介面",
+          "en": "Application Binary Interface (ABI)",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "4",
+    "level": "Intermediate",
+    "keywords": "Architecture, WebAssembly, Use Case",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你需要實作一個純數學運算的演算法（例如複雜的資料壓縮），該演算法不依賴任何作業系統特定的功能（如檔案系統或硬體驅動）。",
+        "en": "You need to implement a pure mathematical algorithm (e.g., complex data compression) that does not rely on any OS-specific features (like file systems or hardware drivers).",
+        "wg": []
+      },
+      {
+        "t": "如果目標是兼顧安全性、可攜性（甚至能在瀏覽器執行）與接近原生的效能，下列哪個選項是最佳選擇？",
+        "en": "If the goal is to balance security, portability (even running in browsers), and near-native performance, which of the following is the best choice?",
+        "wg": [
+          {
+            "t": "可攜性",
+            "en": "portability",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "Node-API (C++)",
+        "en": "Node-API (C++)",
+        "wg": []
+      },
+      {
+        "t": "WebAssembly (Wasm)",
+        "en": "WebAssembly (Wasm)",
+        "wg": []
+      },
+      {
+        "t": "FFI (Foreign Function Interface)",
+        "en": "FFI (Foreign Function Interface)",
+        "wg": []
+      },
+      {
+        "t": "Child Process (Python Script)",
+        "en": "Child Process (Python Script)",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "WebAssembly 是純運算邏輯的最佳選擇。它在沙盒中執行（安全），具有極高的可攜性（跨 OS、跨瀏覽器/Node），且效能接近原生。Node-API 雖然效能強，但缺乏瀏覽器相容性且安全性較低（可存取系統底層）。",
+      "en": "WebAssembly is the best choice for pure computational logic. It runs in a sandbox (secure), has high portability (cross-OS, cross-browser/Node), and offers near-native performance. While Node-API is powerful, it lacks browser compatibility and has lower security (access to low-level system).",
+      "wg": [
+        {
+          "t": "沙盒",
+          "en": "sandbox",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "5",
+    "level": "Intermediate",
+    "keywords": "Event Loop, Blocking, Scalability",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "void Method(const Napi::CallbackInfo& info) {\n  // Simulate heavy work\n  std::this_thread::sleep_for(std::chrono::seconds(5));\n}",
+    "question": [
+      {
+        "t": "某開發者在 C++ 原生模組中實作了一個同步函式（如程式碼所示），用來模擬耗時操作，並在 Express 的 API 路由中呼叫它。",
+        "en": "A developer implemented a synchronous function in a C++ native module (as shown in the code) to simulate a time-consuming operation and called it within an Express API route.",
+        "wg": []
+      },
+      {
+        "t": "當一個請求觸發此函式時，對於伺服器上其他並發的請求會有什麼影響？",
+        "en": "When a request triggers this function, what is the impact on other concurrent requests on the server?",
+        "wg": [
+          {
+            "t": "並發的",
+            "en": "concurrent",
+            "ps": "adjective"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "其他請求會由 `libuv` 的執行緒池平行處理，不受影響。",
+        "en": "Other requests will be handled in parallel by the `libuv` thread pool and remain unaffected.",
+        "wg": []
+      },
+      {
+        "t": "整個 Node.js Process 會被阻塞，所有其他請求（包含健康檢查、計時器）都會停擺，直到該函式結束。",
+        "en": "The entire Node.js process will be blocked; all other requests (including health checks, timers) will hang until the function completes.",
+        "wg": [
+          {
+            "t": "阻塞",
+            "en": "blocked",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "只有該使用者的請求被阻塞，其他使用者的請求正常執行。",
+        "en": "Only that user's request is blocked; other users' requests execute normally.",
+        "wg": []
+      },
+      {
+        "t": "Node.js 會自動開啟新的 Worker Thread 來處理這個阻塞操作。",
+        "en": "Node.js will automatically spawn a new Worker Thread to handle this blocking operation.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "Node.js 是單執行緒（Single Threaded）架構。如果在主執行緒（Main Thread）上執行同步的 C++ 耗時操作（如 sleep），整個 Event Loop 會停止轉動，無法處理任何 I/O 回呼或網路請求。必須使用 `Napi::AsyncWorker` 將工作移至 `libuv` 執行緒池。",
+      "en": "Node.js is single-threaded. If a synchronous, time-consuming C++ operation (like sleep) is executed on the Main Thread, the entire Event Loop stops spinning and cannot handle any I/O callbacks or network requests. `Napi::AsyncWorker` must be used to offload work to the `libuv` thread pool.",
+      "wg": [
+        {
+          "t": "單執行緒",
+          "en": "Single Threaded",
+          "ps": "adjective"
+        }
+      ]
+    }
+  },
+  {
+    "no": "6",
+    "level": "Easy",
+    "keywords": "Deployment, Tooling, DX",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "為了避免使用者在執行 `npm install` 時因為缺乏編譯環境（如 Python, GCC, MSVC）而安裝失敗，你應該在發布原生模組時採取什麼最佳實務？",
+        "en": "To prevent users from failing `npm install` due to a lack of compilation environment (e.g., Python, GCC, MSVC), what best practice should you adopt when publishing a native module?",
+        "wg": [
+          {
+            "t": "編譯環境",
+            "en": "compilation environment",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "在 `README.md` 中詳細列出所有使用者必須安裝的編譯工具。",
+        "en": "List all compilation tools users must install in detail in `README.md`.",
+        "wg": []
+      },
+      {
+        "t": "使用 `prebuildify` 或 `node-pre-gyp` 預先編譯二進位檔並隨套件發布。",
+        "en": "Use `prebuildify` or `node-pre-gyp` to precompile binaries and publish them with the package.",
+        "wg": [
+          {
+            "t": "預先編譯",
+            "en": "precompile",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "僅支援 Linux 環境，放棄 Windows 和 macOS 使用者。",
+        "en": "Only support Linux environments and drop support for Windows and macOS users.",
+        "wg": []
+      },
+      {
+        "t": "將所有 C++ 程式碼重寫為純 JavaScript。",
+        "en": "Rewrite all C++ code into pure JavaScript.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "預編譯（Prebuilds）是提升原生模組開發者體驗（DX）的關鍵。透過 CI/CD 預先為常見平台（Win/Mac/Linux）生成 `.node` 檔，使用者安裝時只需下載即可，無需本地編譯，大幅降低失敗率。",
+      "en": "Prebuilds are key to improving the Developer Experience (DX) for native modules. By generating `.node` files for common platforms (Win/Mac/Linux) via CI/CD, users only need to download them during installation, eliminating the need for local compilation and significantly reducing failure rates.",
+      "wg": [
+        {
+          "t": "開發者體驗",
+          "en": "Developer Experience (DX)",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "7",
+    "level": "Intermediate",
+    "keywords": "Design Pattern, Hybrid Module, Validation, Best Practices",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你正在設計一個原生模組，需要接收使用者傳入的參數並進行複雜運算。根據「混合模組模式 (Hybrid Module Pattern)」的最佳實務，你應該在哪一層處理參數型別檢查與預設值設定？",
+        "en": "You are designing a native module that accepts user arguments for complex computation. According to the best practices of the 'Hybrid Module Pattern', at which layer should you handle argument type checking and default value setting?",
+        "wg": [
+          {
+            "t": "混合模組模式",
+            "en": "Hybrid Module Pattern",
+            "ps": "noun phrase"
+          },
+          {
+            "t": "參數型別檢查",
+            "en": "argument type checking",
+            "ps": "noun phrase"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "全部在 C++ 層處理，以獲得最佳效能。",
+        "en": "Handle everything in the C++ layer for maximum performance.",
+        "wg": []
+      },
+      {
+        "t": "在 JavaScript 層處理，僅將處理乾淨的資料傳遞給 C++。",
+        "en": "Handle it in the JavaScript layer, passing only sanitized data to C++.",
+        "wg": [
+          {
+            "t": "處理乾淨的資料",
+            "en": "sanitized data",
+            "ps": "noun phrase"
+          }
+        ]
+      },
+      {
+        "t": "依賴 Node.js 執行環境自動處理型別轉換。",
+        "en": "Rely on the Node.js runtime to handle type conversion automatically.",
+        "wg": []
+      },
+      {
+        "t": "使用 WebAssembly 中介層來驗證資料。",
+        "en": "Use a WebAssembly intermediate layer to validate data.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "混合模組模式建議使用 JavaScript 處理介面邏輯（如參數驗證、錯誤訊息、Promise 包裝），因為 JS 寫起來更簡單且不易出錯（避免 C++ Segfault）。C++ 應僅專注於核心運算邏輯。",
+      "en": "The Hybrid Module Pattern suggests using JavaScript for interface logic (like argument validation, error messages, Promise wrapping) because it is simpler and less error-prone (avoiding C++ Segfaults). C++ should focus solely on core computational logic.",
+      "wg": [
+        {
+          "t": "核心運算邏輯",
+          "en": "core computational logic",
+          "ps": "noun phrase"
+        }
+      ]
+    }
+  },
+  {
+    "no": "8",
+    "level": "Intermediate",
+    "keywords": "Rust, napi-rs, Memory Safety, Tooling",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "根據手冊，在 2024 年後的專案中，為什麼推薦使用 Rust (`napi-rs`) 來開發 Node.js 原生模組，而非傳統的 C++？",
+        "en": "According to the handbook, why is Rust (`napi-rs`) recommended over traditional C++ for developing Node.js native modules in projects from 2024 onwards?",
+        "wg": [
+          {
+            "t": "原生模組",
+            "en": "native modules",
+            "ps": "noun phrase"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "因為 Rust 的執行速度總是比 C++ 快。",
+        "en": "Because Rust's execution speed is always faster than C++.",
+        "wg": []
+      },
+      {
+        "t": "因為 Rust 的 Borrow Checker 能在編譯期防止記憶體洩漏與緩衝區溢位。",
+        "en": "Because Rust's Borrow Checker prevents memory leaks and buffer overflows at compile time.",
+        "wg": [
+          {
+            "t": "編譯期",
+            "en": "compile time",
+            "ps": "noun phrase"
+          },
+          {
+            "t": "緩衝區溢位",
+            "en": "buffer overflows",
+            "ps": "noun phrase"
+          }
+        ]
+      },
+      {
+        "t": "因為 Node.js 核心已經改用 Rust 重寫。",
+        "en": "Because the Node.js core has been rewritten in Rust.",
+        "wg": []
+      },
+      {
+        "t": "因為 Rust 不需要編譯即可直接在 Node.js 中執行。",
+        "en": "Because Rust can be executed directly in Node.js without compilation.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "Rust 的主要優勢在於記憶體安全性（Memory Safety）。其 Borrow Checker 機制能在編譯階段就攔截常見的記憶體錯誤（如 Use-after-free 或 Buffer Overflow），這解決了開發 C++ Addons 最常見的崩潰原因。",
+      "en": "The main advantage of Rust is Memory Safety. Its Borrow Checker mechanism intercepts common memory errors (like Use-after-free or Buffer Overflow) at the compilation stage, solving the most common causes of crashes in C++ Addon development.",
+      "wg": [
+        {
+          "t": "記憶體安全性",
+          "en": "Memory Safety",
+          "ps": "noun phrase"
+        }
+      ]
+    }
+  },
+  {
+    "no": "9",
+    "level": "Hard",
+    "keywords": "Error Handling, C++, Crash, Exception",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "void Calculate(const Napi::CallbackInfo& info) {\n  // 呼叫一個會拋出 std::runtime_error 的第三方函式\n  // 且沒有使用 try-catch 包覆\n  thirdPartyLib.process(); \n}",
+    "question": [
+      {
+        "t": "你在 C++ 原生模組中呼叫了一個第三方函式庫，該函式庫拋出了一個 C++ Exception (`std::runtime_error`)，但你的綁定程式碼（Binding Code）沒有捕獲它。這會導致什麼後果？",
+        "en": "You call a third-party library in your C++ native module which throws a C++ Exception (`std::runtime_error`), but your binding code does not catch it. What will be the consequence?",
+        "wg": [
+          {
+            "t": "綁定程式碼",
+            "en": "Binding Code",
+            "ps": "noun phrase"
+          },
+          {
+            "t": "捕獲",
+            "en": "catch",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "Node.js 會自動將其轉換為 JavaScript 的 `Error` 物件並拋出。",
+        "en": "Node.js will automatically convert it into a JavaScript `Error` object and throw it.",
+        "wg": []
+      },
+      {
+        "t": "該錯誤會被忽略，程式繼續執行。",
+        "en": "The error will be ignored and the program will continue execution.",
+        "wg": []
+      },
+      {
+        "t": "整個 Node.js Process 會立即崩潰（Crash/Abort）。",
+        "en": "The entire Node.js Process will crash/abort immediately.",
+        "wg": [
+          {
+            "t": "崩潰",
+            "en": "crash",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "會觸發 `process.on('uncaughtException')` 事件。",
+        "en": "It will trigger the `process.on('uncaughtException')` event.",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "Node.js (V8) 無法自動處理 C++ 層的 Exception。如果 C++ Exception 傳播到 JS 邊界之外而未被捕獲，會導致程式直接終止（Abort）。必須在 C++ 端使用 `try-catch` 捕獲並透過 `Napi::Error::New(env, ...).ThrowAsJavaScriptException()` 轉換。",
+      "en": "Node.js (V8) cannot automatically handle C++ layer exceptions. If a C++ exception propagates beyond the JS boundary without being caught, it causes the program to abort immediately. You must use `try-catch` in C++ and convert it using `Napi::Error::New(env, ...).ThrowAsJavaScriptException()`.",
+      "wg": [
+        {
+          "t": "傳播",
+          "en": "propagate",
+          "ps": "verb"
+        },
+        {
+          "t": "邊界",
+          "en": "boundary",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "10",
+    "level": "Intermediate",
+    "keywords": "AsyncWorker, libuv, Thread Pool, Non-blocking",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你需要實作一個耗時的密碼雜湊（Hashing）原生模組。為了確保不阻塞 Node.js 的 Main Thread，你應該使用哪種機制來執行該 C++ 函式？",
+        "en": "You need to implement a time-consuming password hashing native module. To ensure you do not block the Node.js Main Thread, which mechanism should you use to execute the C++ function?",
+        "wg": [
+          {
+            "t": "密碼雜湊",
+            "en": "password hashing",
+            "ps": "noun phrase"
+          },
+          {
+            "t": "阻塞",
+            "en": "block",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "使用 `std::thread` 建立新執行緒，並直接呼叫 JS callback。",
+        "en": "Use `std::thread` to create a new thread and call the JS callback directly.",
+        "wg": []
+      },
+      {
+        "t": "使用 `Napi::AsyncWorker` 將任務提交給 `libuv` 的 Thread Pool。",
+        "en": "Use `Napi::AsyncWorker` to submit the task to the `libuv` Thread Pool.",
+        "wg": [
+          {
+            "t": "提交",
+            "en": "submit",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "在 JavaScript 端使用 `process.nextTick()` 包覆同步呼叫。",
+        "en": "Wrap the synchronous call with `process.nextTick()` on the JavaScript side.",
+        "wg": []
+      },
+      {
+        "t": "使用 `setTimeout` 將 C++ 呼叫延後執行。",
+        "en": "Use `setTimeout` to delay the C++ execution.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "`Napi::AsyncWorker` 是標準做法，它會將工作排入 `libuv` 的 Thread Pool，並在完成後安全地回到 Main Thread 執行 Callback。直接使用 `std::thread` 呼叫 JS 函式是不安全的（非 Thread-safe），而 `nextTick`/`setTimeout` 無法解決同步 C++ 函式阻塞執行緒的問題。",
+      "en": "`Napi::AsyncWorker` is the standard approach; it queues work into the `libuv` Thread Pool and safely returns to the Main Thread to execute the callback upon completion. Directly calling JS functions from `std::thread` is unsafe (not thread-safe), and `nextTick`/`setTimeout` cannot prevent a synchronous C++ function from blocking the thread.",
+      "wg": [
+        {
+          "t": "標準做法",
+          "en": "standard approach",
+          "ps": "noun phrase"
+        }
+      ]
+    }
+  },
+  {
+    "no": "11",
+    "level": "Intermediate",
+    "keywords": "FFI, Use Case, Trade-off, Integration",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你的專案需要呼叫一個現有的 C 動態連結庫（.dll 或 .so）中的簡單函式。你希望開發速度最快，且不想編寫任何 C++ 膠水程式碼（Glue Code）。根據手冊，哪種整合方式最適合？",
+        "en": "Your project needs to call a simple function from an existing C dynamic library (.dll or .so). You want the fastest development speed and do not want to write any C++ glue code. According to the handbook, which integration method is most suitable?",
+        "wg": [
+          {
+            "t": "動態連結庫",
+            "en": "dynamic library",
+            "ps": "noun phrase"
+          },
+          {
+            "t": "膠水程式碼",
+            "en": "glue code",
+            "ps": "noun phrase"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "Node-API (N-API)",
+        "en": "Node-API (N-API)",
+        "wg": []
+      },
+      {
+        "t": "WebAssembly (Wasm)",
+        "en": "WebAssembly (Wasm)",
+        "wg": []
+      },
+      {
+        "t": "FFI (Foreign Function Interface)",
+        "en": "FFI (Foreign Function Interface)",
+        "wg": []
+      },
+      {
+        "t": "Child Process",
+        "en": "Child Process",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "FFI (如 `node-ffi-napi`) 允許直接在 JavaScript 中定義 C 函式的簽章並載入 Library，無需編寫 C++ 編譯檔。雖然執行效能稍差，但開發速度最快，適合簡單調用。",
+      "en": "FFI (like `node-ffi-napi`) allows you to define C function signatures and load libraries directly in JavaScript without writing C++ compilation files. Although execution performance is slightly worse, it offers the fastest development speed, suitable for simple invocations.",
+      "wg": [
+        {
+          "t": "簽章",
+          "en": "signature",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "12",
+    "level": "Intermediate",
+    "keywords": "Memory Leak, C++, Manual Management, Debugging",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你在監控伺服器時發現，每次呼叫某個 C++ 原生模組的 API，Node.js 的記憶體使用量（RSS）就會些微上升且永不下降。這最可能是什麼原因造成的？",
+        "en": "While monitoring the server, you notice that every time a specific C++ native module API is called, the Node.js memory usage (RSS) increases slightly and never decreases. What is the most likely cause?",
+        "wg": [
+          {
+            "t": "記憶體使用量",
+            "en": "memory usage",
+            "ps": "noun phrase"
+          },
+          {
+            "t": "永不下降",
+            "en": "never decreases",
+            "ps": "phrase"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "JavaScript 的 Garbage Collector (GC) 尚未觸發。",
+        "en": "The JavaScript Garbage Collector (GC) has not been triggered yet.",
+        "wg": []
+      },
+      {
+        "t": "C++ 程式碼中使用了 `new` 分配記憶體，但忘記執行對應的 `delete`。",
+        "en": "The C++ code used `new` to allocate memory but forgot to execute the corresponding `delete`.",
+        "wg": [
+          {
+            "t": "分配記憶體",
+            "en": "allocate memory",
+            "ps": "verb phrase"
+          }
+        ]
+      },
+      {
+        "t": "V8 引擎對原生模組的記憶體限制較嚴格。",
+        "en": "The V8 engine has stricter memory limits for native modules.",
+        "wg": []
+      },
+      {
+        "t": "這是正常的，原生模組會快取所有執行結果。",
+        "en": "This is normal; native modules cache all execution results.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "這是典型的 C++ 記憶體洩漏（Memory Leak）。與 JS 不同，C++ 中透過 `new` 或 `malloc` 分配的記憶體不受 V8 GC 管理，必須手動釋放。若忘記釋放，記憶體將被永久佔用直到 Process 結束。",
+      "en": "This is a typical C++ Memory Leak. Unlike JS, memory allocated via `new` or `malloc` in C++ is not managed by the V8 GC and must be manually released. If forgotten, the memory remains occupied permanently until the process ends.",
+      "wg": [
+        {
+          "t": "手動釋放",
+          "en": "manually release",
+          "ps": "verb phrase"
+        },
+        {
+          "t": "永久佔用",
+          "en": "permanently occupied",
+          "ps": "verb phrase"
+        }
+      ]
+    }
+  }
+]

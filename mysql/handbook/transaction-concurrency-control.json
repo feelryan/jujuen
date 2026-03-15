@@ -1,0 +1,839 @@
+[
+  {
+    "no": "1",
+    "level": "Medium",
+    "keywords": "MVCC, Repeatable Read, Snapshot Read, Transaction Isolation",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "Session A:\nSTART TRANSACTION;\nSELECT balance FROM accounts WHERE id = 1; -- Returns 100\n\nSession B:\nSTART TRANSACTION;\nUPDATE accounts SET balance = 200 WHERE id = 1;\nCOMMIT;\n\nSession A:\nSELECT balance FROM accounts WHERE id = 1; -- ?\nSELECT balance FROM accounts WHERE id = 1 FOR UPDATE; -- ?",
+    "question": [
+      {
+        "t": "在 MySQL 預設的 Repeatable Read (RR) 隔離級別下，請依序判斷 Session A 中最後兩次查詢的結果為何？",
+        "en": "Under MySQL's default Repeatable Read (RR) isolation level, determine the results of the last two queries in Session A sequentially.",
+        "wg": [
+          {
+            "t": "隔離級別",
+            "en": "Isolation Level",
+            "ps": "noun"
+          },
+          {
+            "t": "快照讀",
+            "en": "Snapshot Read",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "100, 100",
+        "en": "100, 100",
+        "wg": []
+      },
+      {
+        "t": "200, 200",
+        "en": "200, 200",
+        "wg": []
+      },
+      {
+        "t": "100, 200",
+        "en": "100, 200",
+        "wg": []
+      },
+      {
+        "t": "200, 100",
+        "en": "200, 100",
+        "wg": []
+      }
+    ],
+    "answer": "100, 200",
+    "why": {
+      "t": "第一次 SELECT 是「快照讀」(Snapshot Read)，在 RR 級別下會讀取交易開始時的版本 (Undo Log)，因此看到 100；第二次 SELECT ... FOR UPDATE 是「當前讀」(Current Read)，會強制讀取最新已提交的版本並加鎖，因此看到 200。",
+      "en": "The first SELECT is a 'Snapshot Read'. Under RR, it reads the version from the start of the transaction (via Undo Log), so it sees 100. The second SELECT ... FOR UPDATE is a 'Current Read', which forces reading the latest committed version and acquiring a lock, so it sees 200.",
+      "wg": [
+        {
+          "t": "當前讀",
+          "en": "Current Read",
+          "ps": "noun"
+        },
+        {
+          "t": "版本控制",
+          "en": "Versioning",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "2",
+    "level": "Hard",
+    "keywords": "Locking, Index, Table Scan, Performance",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "UPDATE users SET active = 0 WHERE name = 'Alice';",
+    "question": [
+      {
+        "t": "假設 `users` 表中有 100 萬筆資料，且 `name` 欄位**沒有建立索引**。執行上述 SQL 時，InnoDB 的鎖定行為會是如何？",
+        "en": "Assume the `users` table has 1 million records and the `name` column has **no index**. How will InnoDB behave regarding locking when executing the SQL above?",
+        "wg": [
+          {
+            "t": "鎖定行為",
+            "en": "Locking Behavior",
+            "ps": "noun"
+          },
+          {
+            "t": "全表掃描",
+            "en": "Table Scan",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "只鎖定 `name = 'Alice'` 的那幾行資料。",
+        "en": "Locks only the rows where `name = 'Alice'`.",
+        "wg": []
+      },
+      {
+        "t": "鎖定全表的所有紀錄（包含間隙），導致整張表無法寫入。",
+        "en": "Locks all records in the table (including gaps), preventing any writes to the table.",
+        "wg": []
+      },
+      {
+        "t": "不會加鎖，因為沒有索引，會使用樂觀鎖機制。",
+        "en": "No locks are applied because there is no index; it uses optimistic locking.",
+        "wg": []
+      },
+      {
+        "t": "會自動建立臨時索引並鎖定相關行。",
+        "en": "Automatically creates a temporary index and locks the relevant rows.",
+        "wg": []
+      }
+    ],
+    "answer": "鎖定全表的所有紀錄（包含間隙），導致整張表無法寫入。",
+    "why": {
+      "t": "InnoDB 的鎖是加在「索引」上的。如果 WHERE 條件無法使用索引，MySQL 會被迫進行全表掃描 (Clustered Index Scan)，並對掃描過的每一行（甚至間隙）加鎖，導致嚴重的鎖升級效應。",
+      "en": "InnoDB locks are applied to 'indexes'. If the WHERE clause cannot use an index, MySQL is forced to perform a full table scan (Clustered Index Scan) and locks every row scanned (and potentially gaps), leading to severe lock escalation.",
+      "wg": [
+        {
+          "t": "鎖升級",
+          "en": "Lock Escalation",
+          "ps": "noun"
+        },
+        {
+          "t": "聚簇索引",
+          "en": "Clustered Index",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "3",
+    "level": "Hard",
+    "keywords": "Deadlock, Gap Lock, Insert, Anti-pattern",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "-- T1 & T2 concurrently:\nSTART TRANSACTION;\nSELECT * FROM users WHERE email = 'new@example.com' FOR UPDATE; \n-- (Assume record does not exist)\nINSERT INTO users (email) VALUES ('new@example.com');\nCOMMIT;",
+    "question": [
+      {
+        "t": "在 Repeatable Read (RR) 隔離級別下，上述的「先檢查不存在則插入」(Check-then-Insert) 模式為何極易導致 Deadlock？",
+        "en": "Under Repeatable Read (RR) isolation level, why is the above 'Check-then-Insert' pattern highly prone to Deadlocks?",
+        "wg": [
+          {
+            "t": "死鎖",
+            "en": "Deadlock",
+            "ps": "noun"
+          },
+          {
+            "t": "間隙鎖",
+            "en": "Gap Lock",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "SELECT FOR UPDATE 不會加鎖，只有 INSERT 會加鎖，導致競爭條件。",
+        "en": "SELECT FOR UPDATE does not lock; only INSERT locks, causing a race condition.",
+        "wg": []
+      },
+      {
+        "t": "T1 和 T2 都獲取了 Gap S-Lock（共享鎖），當它們嘗試 INSERT 時都需要升級為 X-Lock（排他鎖），但都被對方的 S-Lock 卡住。",
+        "en": "Both T1 and T2 acquire a Gap S-Lock (Shared Lock). When they try to INSERT, both need to upgrade to an X-Lock (Exclusive Lock) but are blocked by each other's S-Lock.",
+        "wg": []
+      },
+      {
+        "t": "INSERT 操作總是會鎖住整張表，導致 T2 必須等待 T1 完成。",
+        "en": "INSERT operations always lock the entire table, causing T2 to wait for T1 to complete.",
+        "wg": []
+      },
+      {
+        "t": "這是因為 Auto-increment 主鍵衝突造成的，與 Gap Lock 無關。",
+        "en": "This is caused by Auto-increment primary key conflicts, not Gap Locks.",
+        "wg": []
+      }
+    ],
+    "answer": "T1 和 T2 都獲取了 Gap S-Lock（共享鎖），當它們嘗試 INSERT 時都需要升級為 X-Lock（排他鎖），但都被對方的 S-Lock 卡住。",
+    "why": {
+      "t": "查詢不存在的紀錄會產生 Gap Lock (S-Lock)。S-Lock 是共享的，允許 T1 和 T2 同時持有。但 INSERT 需要 X-Lock（排他）。當 T1 想拿 X-Lock 時被 T2 的 S-Lock 擋住，反之亦然，形成循環等待。",
+      "en": "Querying a non-existent record creates a Gap Lock (S-Lock). S-Locks are shared, allowing both T1 and T2 to hold them simultaneously. However, INSERT requires an X-Lock (Exclusive). When T1 tries to acquire the X-Lock, it is blocked by T2's S-Lock, and vice versa, creating a circular wait.",
+      "wg": [
+        {
+          "t": "共享鎖",
+          "en": "Shared Lock (S-Lock)",
+          "ps": "noun"
+        },
+        {
+          "t": "排他鎖",
+          "en": "Exclusive Lock (X-Lock)",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "4",
+    "level": "Medium",
+    "keywords": "Transaction Scope, Anti-pattern, Performance",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "with db.transaction():\n    user = User.create(name='Bob')\n    # External API call (e.g., 2 seconds latency)\n    email_service.send_welcome_email(user.email)\n    user.status = 'active'\n    user.save()",
+    "question": [
+      {
+        "t": "這段程式碼犯了一個常見的 Transaction Anti-pattern。請問其主要風險為何？",
+        "en": "This code commits a common Transaction Anti-pattern. What is the primary risk?",
+        "wg": [
+          {
+            "t": "反模式",
+            "en": "Anti-pattern",
+            "ps": "noun"
+          },
+          {
+            "t": "延遲",
+            "en": "Latency",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "Email 發送失敗會導致資料庫回滾，使用者資料遺失。",
+        "en": "Email failure will cause database rollback, resulting in lost user data.",
+        "wg": []
+      },
+      {
+        "t": "在交易中進行網路 I/O 會長時間佔用資料庫連線與鎖資源，導致並發能力驟降。",
+        "en": "Performing network I/O inside a transaction holds database connections and locks for a long time, drastically reducing concurrency.",
+        "wg": []
+      },
+      {
+        "t": "Python 的 `with` 語法不支援巢狀交易。",
+        "en": "Python's `with` syntax does not support nested transactions.",
+        "wg": []
+      },
+      {
+        "t": "User create 操作應該放在交易的最後面。",
+        "en": "The User create operation should be placed at the very end of the transaction.",
+        "wg": []
+      }
+    ],
+    "answer": "在交易中進行網路 I/O 會長時間佔用資料庫連線與鎖資源，導致並發能力驟降。",
+    "why": {
+      "t": "交易持有的鎖只有在 Commit 時才會釋放。如果在交易內呼叫慢速的外部服務（如 Email），資料庫連線和鎖就會被無意義地佔用數秒，高並發下會迅速耗盡連線池 (Connection Pool Exhaustion)。",
+      "en": "Locks held by a transaction are only released upon Commit. If a slow external service (like Email) is called within the transaction, database connections and locks are held meaninglessly for seconds, which can quickly exhaust the connection pool under high concurrency.",
+      "wg": [
+        {
+          "t": "連線池耗盡",
+          "en": "Connection Pool Exhaustion",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "5",
+    "level": "Medium",
+    "keywords": "Batch Processing, Undo Log, Performance",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "DELETE FROM logs WHERE created_at < '2023-01-01'; -- Matches 1 million rows",
+    "question": [
+      {
+        "t": "執行上述單條 SQL 刪除大量資料時，下列哪項**不是**潛在的風險？",
+        "en": "When executing the above single SQL to delete a large amount of data, which of the following is **NOT** a potential risk?",
+        "wg": [
+          {
+            "t": "批次處理",
+            "en": "Batch Processing",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "產生巨大的 Undo Log，佔用大量磁碟空間與 I/O。",
+        "en": "Generates a huge Undo Log, consuming significant disk space and I/O.",
+        "wg": []
+      },
+      {
+        "t": "長時間持有鎖，可能導致其他交易發生 Lock Wait Timeout。",
+        "en": "Holds locks for a long time, potentially causing Lock Wait Timeouts in other transactions.",
+        "wg": []
+      },
+      {
+        "t": "會導致 SQL 語法錯誤，因為 DELETE 不支援範圍條件。",
+        "en": "Causes a SQL syntax error because DELETE does not support range conditions.",
+        "wg": []
+      },
+      {
+        "t": "可能觸發鎖表 (Table Lock) 或耗盡 Buffer Pool。",
+        "en": "May trigger a Table Lock or exhaust the Buffer Pool.",
+        "wg": []
+      }
+    ],
+    "answer": "會導致 SQL 語法錯誤，因為 DELETE 不支援範圍條件。",
+    "why": {
+      "t": "DELETE 完全支援範圍條件，這不是風險。真正的風險在於大交易帶來的 Undo Log 暴增、鎖資源佔用過久以及對系統穩定性的影響。應使用分批刪除 (Chunking) 來解決。",
+      "en": "DELETE fully supports range conditions, so this is not a risk. The real risks are the explosion of Undo Logs, prolonged lock holding, and impact on system stability caused by large transactions. Chunking should be used to resolve this.",
+      "wg": [
+        {
+          "t": "分批處理",
+          "en": "Chunking",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "6",
+    "level": "Medium",
+    "keywords": "Troubleshooting, MySQL 8.0, Monitoring",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "當生產環境發生鎖死 (Lock Wait) 狀況時，在 MySQL 8.0+ 中，哪張系統表最適合用來查看「當前持有鎖」與「正在等待鎖」的詳細資訊？",
+        "en": "When a Lock Wait situation occurs in production, which system table in MySQL 8.0+ is most suitable for viewing detailed information about 'currently held locks' and 'locks being waited for'?",
+        "wg": [
+          {
+            "t": "系統表",
+            "en": "System Table",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "performance_schema.data_locks",
+        "en": "performance_schema.data_locks",
+        "wg": []
+      },
+      {
+        "t": "information_schema.tables",
+        "en": "information_schema.tables",
+        "wg": []
+      },
+      {
+        "t": "mysql.user",
+        "en": "mysql.user",
+        "wg": []
+      },
+      {
+        "t": "performance_schema.threads",
+        "en": "performance_schema.threads",
+        "wg": []
+      }
+    ],
+    "answer": "performance_schema.data_locks",
+    "why": {
+      "t": "在 MySQL 8.0 中，`performance_schema.data_locks` 和 `data_lock_waits` 提供了最即時且詳細的鎖定資訊（包含 Record Lock, Gap Lock 等細節）。舊版的 `information_schema.innodb_locks` 已被棄用。",
+      "en": "In MySQL 8.0, `performance_schema.data_locks` and `data_lock_waits` provide the most real-time and detailed locking information (including Record Lock, Gap Lock details). The older `information_schema.innodb_locks` has been deprecated.",
+      "wg": [
+        {
+          "t": "棄用",
+          "en": "Deprecated",
+          "ps": "adj"
+        }
+      ]
+    }
+  },
+  {
+    "no": "7",
+    "level": "Medium",
+    "keywords": "Isolation Level, Read Committed, Gap Lock, Deadlock",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在處理高並發寫入的系統時，若頻繁遭遇 Deadlock，將隔離級別從預設的 Repeatable Read (RR) 調整為 Read Committed (RC) 是一種常見的優化手段。",
+        "en": "When dealing with high-concurrency write systems that frequently encounter deadlocks, switching the isolation level from the default Repeatable Read (RR) to Read Committed (RC) is a common optimization strategy.",
+        "wg": []
+      },
+      {
+        "t": "請問為什麼切換到 RC 級別能顯著減少 Deadlock 的發生？",
+        "en": "Why does switching to the RC level significantly reduce the occurrence of deadlocks?",
+        "wg": [
+          {
+            "t": "隔離級別",
+            "en": "Isolation Level",
+            "ps": "noun"
+          },
+          {
+            "t": "優化手段",
+            "en": "optimization strategy",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "RC 級別完全不需要使用鎖，因此不會發生 Deadlock。",
+        "en": "The RC level does not require locks at all, so deadlocks do not occur.",
+        "wg": []
+      },
+      {
+        "t": "RC 級別會自動將所有寫入操作序列化執行。",
+        "en": "The RC level automatically serializes all write operations.",
+        "wg": []
+      },
+      {
+        "t": "RC 級別去除了 Gap Lock（間隙鎖），只鎖定實際命中的索引紀錄。",
+        "en": "The RC level removes Gap Locks and only locks the actual index records matched.",
+        "wg": [
+          {
+            "t": "間隙鎖",
+            "en": "Gap Lock",
+            "ps": "noun"
+          },
+          {
+            "t": "索引紀錄",
+            "en": "index records",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "RC 級別使用樂觀鎖機制，失敗時會自動重試。",
+        "en": "The RC level uses an optimistic locking mechanism and retries automatically upon failure.",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "在 RR 級別下，為了防止幻讀 (Phantom Read)，InnoDB 會使用 Gap Lock 鎖定索引之間的間隙，這常是導致 Deadlock 的主因。RC 級別不使用 Gap Lock，僅鎖定被選中的紀錄 (Record Lock)，從而大幅降低鎖衝突機率。",
+      "en": "In the RR level, to prevent Phantom Reads, InnoDB uses Gap Locks to lock the gaps between indexes, which is a common cause of deadlocks. The RC level does not use Gap Locks; it only locks the selected records (Record Lock), thereby significantly reducing the probability of lock conflicts.",
+      "wg": [
+        {
+          "t": "幻讀",
+          "en": "Phantom Read",
+          "ps": "noun"
+        },
+        {
+          "t": "鎖衝突",
+          "en": "lock conflict",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "8",
+    "level": "Medium",
+    "keywords": "Deadlock, Canonical Ordering, Resource Access",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "Transaction A:\nLOCK User(1);\nLOCK User(2);\n\nTransaction B:\nLOCK User(2);\nLOCK User(1);",
+    "question": [
+      {
+        "t": "觀察上述兩個交易的資源獲取順序，這是導致 Deadlock 的典型模式。",
+        "en": "Observing the resource acquisition order of the two transactions above, this is a typical pattern that leads to a deadlock.",
+        "wg": [
+          {
+            "t": "資源獲取順序",
+            "en": "resource acquisition order",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "為了徹底解決此類 Deadlock，最佳的實務做法是什麼？",
+        "en": "What is the best practice to completely resolve this type of deadlock?",
+        "wg": []
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "在交易開始前，強制所有資源存取都按照 ID 排序 (Canonical Ordering)。",
+        "en": "Enforce all resource access to be sorted by ID (Canonical Ordering) before the transaction starts.",
+        "wg": [
+          {
+            "t": "強制",
+            "en": "enforce",
+            "ps": "verb"
+          },
+          {
+            "t": "排序",
+            "en": "sorted",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "將隔離級別提升至 SERIALIZABLE。",
+        "en": "Raise the isolation level to SERIALIZABLE.",
+        "wg": []
+      },
+      {
+        "t": "為每個交易增加隨機延遲 (Random Sleep)。",
+        "en": "Add a random delay (Random Sleep) to each transaction.",
+        "wg": []
+      },
+      {
+        "t": "使用 `LOCK TABLES` 鎖定整張表。",
+        "en": "Use `LOCK TABLES` to lock the entire table.",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "Deadlock 最常見的原因是「循環等待」(Circular Wait)。透過強制固定順序（例如總是先鎖 ID 小的，再鎖 ID 大的），可以破壞循環等待的條件，從根本上避免此類 Deadlock。",
+      "en": "The most common cause of deadlocks is 'Circular Wait'. By enforcing a fixed order (e.g., always locking the smaller ID first, then the larger ID), you break the condition for circular wait, fundamentally preventing this type of deadlock.",
+      "wg": [
+        {
+          "t": "循環等待",
+          "en": "Circular Wait",
+          "ps": "noun"
+        },
+        {
+          "t": "根本上",
+          "en": "fundamentally",
+          "ps": "adverb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "9",
+    "level": "Medium",
+    "keywords": "Optimistic Locking, Version Control, SQL Pattern",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在讀多寫少且衝突機率低的情境下，使用「樂觀鎖」(Optimistic Locking) 可以避免長時間持有資料庫鎖。",
+        "en": "In scenarios with high reads, low writes, and low conflict probability, using 'Optimistic Locking' can avoid holding database locks for a long time.",
+        "wg": [
+          {
+            "t": "樂觀鎖",
+            "en": "Optimistic Locking",
+            "ps": "noun"
+          },
+          {
+            "t": "衝突機率",
+            "en": "conflict probability",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "下列哪一段 SQL 正確實作了基於版本號 (version) 的樂觀鎖更新？",
+        "en": "Which of the following SQL snippets correctly implements version-based optimistic locking updates?",
+        "wg": []
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "UPDATE table SET val = 'new', ver = ver + 1 WHERE id = 1",
+        "en": "UPDATE table SET val = 'new', ver = ver + 1 WHERE id = 1",
+        "wg": []
+      },
+      {
+        "t": "UPDATE table SET val = 'new', ver = ver + 1 WHERE id = 1 AND ver = 5",
+        "en": "UPDATE table SET val = 'new', ver = ver + 1 WHERE id = 1 AND ver = 5",
+        "wg": []
+      },
+      {
+        "t": "SELECT * FROM table WHERE id = 1 FOR UPDATE; UPDATE ...",
+        "en": "SELECT * FROM table WHERE id = 1 FOR UPDATE; UPDATE ...",
+        "wg": []
+      },
+      {
+        "t": "UPDATE table SET val = 'new' WHERE id = 1; -- 依賴 Trigger 更新版本號",
+        "en": "UPDATE table SET val = 'new' WHERE id = 1; -- Rely on Trigger to update version number",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "樂觀鎖的核心在於更新時檢查「版本號是否未被修改」。正確寫法是在 `WHERE` 條件中加入 `ver = old_ver`，若更新筆數為 0，代表資料在讀取後已被他人修改，此時應重試或報錯。",
+      "en": "The core of optimistic locking is to check if the 'version number has not been modified' during the update. The correct approach is to add `ver = old_ver` in the `WHERE` clause. If the number of updated rows is 0, it means the data has been modified by others since it was read, and one should retry or report an error.",
+      "wg": [
+        {
+          "t": "版本號",
+          "en": "version number",
+          "ps": "noun"
+        },
+        {
+          "t": "重試",
+          "en": "retry",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "10",
+    "level": "Hard",
+    "keywords": "MVCC, Current Read, Snapshot Read, Repeatable Read",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "Session A (RR Isolation):\n1. BEGIN;\n2. SELECT val FROM t WHERE id = 1; -- Result: 10\n\nSession B:\n3. UPDATE t SET val = 20 WHERE id = 1;\n4. COMMIT;\n\nSession A:\n5. SELECT val FROM t WHERE id = 1 FOR UPDATE; -- Result: ?",
+    "question": [
+      {
+        "t": "在 Repeatable Read (RR) 隔離級別下，Session A 執行了上述操作。",
+        "en": "Under the Repeatable Read (RR) isolation level, Session A executes the operations above.",
+        "wg": []
+      },
+      {
+        "t": "請問第 5 步 `SELECT ... FOR UPDATE` 的查詢結果為何？",
+        "en": "What is the result of the query in step 5 `SELECT ... FOR UPDATE`?",
+        "wg": []
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "10 (因為 RR 保證可重複讀，讀取的是快照)",
+        "en": "10 (Because RR guarantees repeatable reads, reading from the snapshot)",
+        "wg": [
+          {
+            "t": "可重複讀",
+            "en": "repeatable reads",
+            "ps": "noun"
+          },
+          {
+            "t": "快照",
+            "en": "snapshot",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "20 (因為 FOR UPDATE 觸發了當前讀)",
+        "en": "20 (Because FOR UPDATE triggers a Current Read)",
+        "wg": [
+          {
+            "t": "當前讀",
+            "en": "Current Read",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "Transaction 會因為版本衝突而報錯",
+        "en": "The transaction will report an error due to version conflict",
+        "wg": []
+      },
+      {
+        "t": "查詢會被阻塞直到 Session A 提交",
+        "en": "The query will be blocked until Session A commits",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "這是 MVCC 的重要特性。普通的 `SELECT` 是「快照讀」(Snapshot Read)，讀取交易開始時的版本；但 `SELECT ... FOR UPDATE` 是「當前讀」(Current Read)，它必須讀取（並鎖定）資料庫中最新的已提交版本。因此 Session A 會讀到 Session B 修改後的 20。",
+      "en": "This is a key feature of MVCC. A plain `SELECT` is a 'Snapshot Read', reading the version from the start of the transaction; however, `SELECT ... FOR UPDATE` is a 'Current Read', which must read (and lock) the latest committed version in the database. Therefore, Session A will read the value 20 modified by Session B.",
+      "wg": [
+        {
+          "t": "快照讀",
+          "en": "Snapshot Read",
+          "ps": "noun"
+        },
+        {
+          "t": "當前讀",
+          "en": "Current Read",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "11",
+    "level": "Hard",
+    "keywords": "Index Scan, Locking, Performance, Composite Index",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "UPDATE orders \nSET status = 'archived' \nWHERE status = 'closed' AND order_date < '2023-01-01';",
+    "question": [
+      {
+        "t": "假設 `orders` 表中 `status` 欄位有索引，但 `order_date` 沒有索引。若 `status = 'closed'` 的資料量佔全表 50% 以上。",
+        "en": "Assume the `status` column in the `orders` table is indexed, but `order_date` is not. If the data with `status = 'closed'` accounts for more than 50% of the table.",
+        "wg": [
+          {
+            "t": "佔全表",
+            "en": "accounts for the whole table",
+            "ps": "verb phrase"
+          }
+        ]
+      },
+      {
+        "t": "執行上述 SQL 時，最可能發生什麼嚴重的鎖定問題？",
+        "en": "What serious locking issue is most likely to occur when executing the above SQL?",
+        "wg": []
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "只會鎖定符合日期條件的少數幾行，效能良好。",
+        "en": "It will only lock the few rows that match the date condition, with good performance.",
+        "wg": []
+      },
+      {
+        "t": "MySQL 優化器可能放棄使用 `status` 索引，轉而全表掃描，導致整張表被鎖死。",
+        "en": "The MySQL optimizer might abandon the `status` index and switch to a full table scan, causing the entire table to be locked.",
+        "wg": [
+          {
+            "t": "放棄使用",
+            "en": "abandon using",
+            "ps": "verb phrase"
+          },
+          {
+            "t": "全表掃描",
+            "en": "full table scan",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "會發生 Deadlock，因為 `order_date` 沒有索引。",
+        "en": "A deadlock will occur because `order_date` is not indexed.",
+        "wg": []
+      },
+      {
+        "t": "只會鎖定 `status` 索引上的節點，不會鎖定實際資料行。",
+        "en": "It will only lock the nodes on the `status` index, not the actual data rows.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "當索引的區分度不高（如佔 50% 資料）時，MySQL 認為回表 (Lookups) 的成本高於全表掃描，因此可能選擇 Clustered Index Scan。這會導致掃描過的所有行（即整張表）都被加上 X-Lock，造成系統假死。",
+      "en": "When the index selectivity is low (e.g., covering 50% of the data), MySQL considers the cost of lookups higher than a full table scan, so it may choose a Clustered Index Scan. This results in X-Locks being applied to all scanned rows (i.e., the entire table), causing the system to stall.",
+      "wg": [
+        {
+          "t": "區分度",
+          "en": "selectivity",
+          "ps": "noun"
+        },
+        {
+          "t": "回表",
+          "en": "Lookups",
+          "ps": "noun"
+        },
+        {
+          "t": "假死",
+          "en": "stall / freeze",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "12",
+    "level": "Medium",
+    "keywords": "Upsert, Deadlock Prevention, Atomic Operation, Best Practice",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "START TRANSACTION;\nSELECT * FROM users WHERE email = ? FOR UPDATE;\n-- If empty, then:\nINSERT INTO users ...;\nCOMMIT;",
+    "question": [
+      {
+        "t": "上述的「先檢查不存在則插入」(Check-then-Insert) 模式在並發下極易導致 Deadlock（因為 Gap Lock 升級衝突）。",
+        "en": "The 'Check-then-Insert' pattern above is highly prone to deadlocks under concurrency (due to Gap Lock upgrade conflicts).",
+        "wg": [
+          {
+            "t": "升級衝突",
+            "en": "upgrade conflicts",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "為了避免此問題，建議使用哪種原子操作 (Atomic Operation) 來替代？",
+        "en": "To avoid this issue, which atomic operation is recommended as a replacement?",
+        "wg": [
+          {
+            "t": "原子操作",
+            "en": "Atomic Operation",
+            "ps": "noun"
+          },
+          {
+            "t": "替代",
+            "en": "replacement",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "使用 `INSERT ... ON DUPLICATE KEY UPDATE`。",
+        "en": "Use `INSERT ... ON DUPLICATE KEY UPDATE`.",
+        "wg": []
+      },
+      {
+        "t": "將交易隔離級別改為 SERIALIZABLE。",
+        "en": "Change the transaction isolation level to SERIALIZABLE.",
+        "wg": []
+      },
+      {
+        "t": "在 SELECT 語句後加上 `LOCK IN SHARE MODE`。",
+        "en": "Add `LOCK IN SHARE MODE` after the SELECT statement.",
+        "wg": []
+      },
+      {
+        "t": "使用 `INSERT DELAYED`。",
+        "en": "Use `INSERT DELAYED`.",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "`INSERT ... ON DUPLICATE KEY UPDATE` 是一個原子操作，MySQL 內部會自動處理鎖的升級與衝突，避免了應用層手動分兩步操作（先讀後寫）所造成的 Gap Lock 升級死鎖問題。",
+      "en": "`INSERT ... ON DUPLICATE KEY UPDATE` is an atomic operation. MySQL internally handles lock upgrades and conflicts automatically, avoiding the Gap Lock upgrade deadlock caused by manual two-step operations (read then write) at the application layer.",
+      "wg": [
+        {
+          "t": "原子操作",
+          "en": "atomic operation",
+          "ps": "noun"
+        },
+        {
+          "t": "手動",
+          "en": "manual",
+          "ps": "adjective"
+        }
+      ]
+    }
+  }
+]

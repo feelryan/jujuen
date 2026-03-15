@@ -1,0 +1,536 @@
+[
+  {
+    "no": "7",
+    "level": "advanced",
+    "keywords": "Distributed Transactions, Data Consistency, Dual Write, Transactional Outbox",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您正在設計一個使用者註冊服務，需要在將使用者資料寫入 PostgreSQL 資料庫後，發送一個「歡迎事件」到 Kafka。",
+        "en": "You are designing a user registration service that needs to send a 'Welcome Event' to Kafka after writing user data to a PostgreSQL database.",
+        "wg": [
+          {
+            "t": "註冊服務",
+            "en": "registration service",
+            "ps": "N"
+          },
+          {
+            "t": "歡迎事件",
+            "en": "Welcome Event",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "為了確保資料庫寫入與訊息發送的最終一致性（Eventual Consistency），避免發生「資料庫寫入成功但訊息發送失敗」的雙寫問題（Dual Write Problem），下列哪種模式是最佳實務？",
+        "en": "To ensure eventual consistency between the database write and message sending, and to avoid the 'Dual Write Problem' where the database write succeeds but the message sending fails, which of the following patterns is the best practice?",
+        "wg": [
+          {
+            "t": "最終一致性",
+            "en": "Eventual Consistency",
+            "ps": "N"
+          },
+          {
+            "t": "雙寫問題",
+            "en": "Dual Write Problem",
+            "ps": "N"
+          },
+          {
+            "t": "最佳實務",
+            "en": "best practice",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 在同一個資料庫交易（Transaction）中，先寫入使用者資料，再寫入一個「事件紀錄表（Outbox Table）」，隨後由獨立的 Relay Process 讀取該表並發送至 Kafka。",
+        "en": "(A) Within the same database transaction, write the user data first, then write to an 'Outbox Table', and subsequently have a separate Relay Process read from that table and send to Kafka.",
+        "wg": [
+          {
+            "t": "事件紀錄表",
+            "en": "Outbox Table",
+            "ps": "N"
+          },
+          {
+            "t": "獨立的",
+            "en": "separate",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "(B) 先發送訊息至 Kafka，收到確認（Ack）後再開啟資料庫交易寫入使用者資料。",
+        "en": "(B) Send the message to Kafka first, and upon receiving an acknowledgment (Ack), open a database transaction to write the user data.",
+        "wg": []
+      },
+      {
+        "t": "(C) 使用兩階段提交（2PC, Two-Phase Commit）協定來協調 PostgreSQL 與 Kafka 之間的交易。",
+        "en": "(C) Use the Two-Phase Commit (2PC) protocol to coordinate the transaction between PostgreSQL and Kafka.",
+        "wg": [
+          {
+            "t": "兩階段提交",
+            "en": "Two-Phase Commit",
+            "ps": "N"
+          },
+          {
+            "t": "協調",
+            "en": "coordinate",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(D) 在應用程式中先寫入資料庫，若成功則立即發送 Kafka 訊息；若發送失敗則記錄 Error Log 並由人工介入。",
+        "en": "(D) Write to the database first in the application; if successful, immediately send the Kafka message; if sending fails, log an error for manual intervention.",
+        "wg": [
+          {
+            "t": "人工介入",
+            "en": "manual intervention",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "answer": "(A)",
+    "why": {
+      "t": "這是 Transactional Outbox Pattern。透過將業務數據與訊息事件在同一個 ACID 交易中寫入，保證了原子性。若交易失敗則兩者皆不寫入；若成功則兩者皆存在，再由 Relay Process 確保訊息至少被發送一次（At-least-once delivery）。(B) 可能導致訊息發送了但資料庫寫入失敗（幽靈訊息）；(C) Kafka 不支援標準 XA/2PC 且此方案效能極差；(D) 在高併發下依賴 Log 與人工修復並不可靠。",
+      "en": "This is the Transactional Outbox Pattern. By writing business data and message events within the same ACID transaction, atomicity is guaranteed. If the transaction fails, neither is written; if it succeeds, both exist, and a Relay Process ensures the message is delivered at least once. (B) can lead to 'ghost messages' where the message is sent but the DB write fails; (C) Kafka does not support standard XA/2PC and this approach has poor performance; (D) relying on logs and manual fixes is unreliable under high concurrency.",
+      "wg": [
+        {
+          "t": "原子性",
+          "en": "atomicity",
+          "ps": "N"
+        },
+        {
+          "t": "幽靈訊息",
+          "en": "ghost messages",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "8",
+    "level": "intermediate",
+    "keywords": "Sharding, Sharding Key, Hotspot, Anti-pattern",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您正在維護一個高流量的日誌記錄系統（Logging System），資料庫採用 Sharding 架構以處理大量的寫入請求。",
+        "en": "You are maintaining a high-traffic Logging System where the database uses a Sharding architecture to handle massive write requests.",
+        "wg": [
+          {
+            "t": "日誌記錄系統",
+            "en": "Logging System",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "您選擇了 `created_at`（時間戳）作為 Sharding Key，但發現系統的寫入效能並未如預期般線性擴展，反而出現了嚴重的效能瓶頸。",
+        "en": "You chose `created_at` (timestamp) as the Sharding Key, but noticed that the system's write performance did not scale linearly as expected, and instead, severe performance bottlenecks appeared.",
+        "wg": [
+          {
+            "t": "線性擴展",
+            "en": "scale linearly",
+            "ps": "V"
+          },
+          {
+            "t": "效能瓶頸",
+            "en": "performance bottlenecks",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "請問最可能的原因是什麼？",
+        "en": "What is the most likely reason?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 產生了「熱點分片（Hot Shard）」，因為所有最新的寫入請求都集中在同一個時間區段的分片上，導致其他分片閒置。",
+        "en": "(A) A 'Hot Shard' was created because all the latest write requests are concentrated on the shard corresponding to the current time period, leaving other shards idle.",
+        "wg": [
+          {
+            "t": "熱點分片",
+            "en": "Hot Shard",
+            "ps": "N"
+          },
+          {
+            "t": "閒置",
+            "en": "idle",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "(B) `created_at` 欄位的基數（Cardinality）太低，導致雜湊碰撞（Hash Collision）過多。",
+        "en": "(B) The cardinality of the `created_at` field is too low, causing excessive Hash Collisions.",
+        "wg": [
+          {
+            "t": "基數",
+            "en": "Cardinality",
+            "ps": "N"
+          },
+          {
+            "t": "雜湊碰撞",
+            "en": "Hash Collision",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) 時間戳導致索引過大，記憶體無法容納。",
+        "en": "(C) The timestamp causes the index to become too large for memory to hold.",
+        "wg": []
+      },
+      {
+        "t": "(D) Sharding 架構本身不支援循序寫入（Sequential Write）。",
+        "en": "(D) The Sharding architecture itself does not support Sequential Writes.",
+        "wg": [
+          {
+            "t": "循序寫入",
+            "en": "Sequential Write",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "answer": "(A)",
+    "why": {
+      "t": "使用時間戳作為 Sharding Key 是常見的反模式（Anti-pattern）。因為時間是單調遞增的，當下的寫入流量永遠只會落在對應「現在時間」的那一個 Shard 上，導致該 Shard 過載（Hot Spot），而舊資料的 Shards 則完全沒有寫入負載，失去了水平擴展分擔寫入壓力的意義。",
+      "en": "Using a timestamp as a Sharding Key is a common Anti-pattern. Since time is monotonically increasing, current write traffic will always hit the single Shard corresponding to the 'current time', causing that Shard to overload (Hot Spot), while Shards for older data have zero write load. This defeats the purpose of horizontal scaling to distribute write pressure.",
+      "wg": [
+        {
+          "t": "反模式",
+          "en": "Anti-pattern",
+          "ps": "N"
+        },
+        {
+          "t": "單調遞增",
+          "en": "monotonically increasing",
+          "ps": "Adj"
+        }
+      ]
+    }
+  },
+  {
+    "no": "9",
+    "level": "advanced",
+    "keywords": "Data Skew, Hot Key, Caching, Sharding Strategy",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在一個以 `user_id` 進行分片的社群平台資料庫中，您發現某個特定的 Shard CPU 使用率長期維持在 100%，而其他 Shards 負載很低。",
+        "en": "In a social platform database sharded by `user_id`, you notice that a specific Shard's CPU usage remains at 100% for long periods, while other Shards have low load.",
+        "wg": [
+          {
+            "t": "社群平台",
+            "en": "social platform",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "經調查，這是因為某位「名人（Celebrity）」使用者的資料剛好落在該 Shard，且其互動量是普通用戶的 1000 倍。",
+        "en": "Investigation reveals this is because a 'Celebrity' user's data resides on that Shard, and their interaction volume is 1000 times that of a normal user.",
+        "wg": [
+          {
+            "t": "名人",
+            "en": "Celebrity",
+            "ps": "N"
+          },
+          {
+            "t": "互動量",
+            "en": "interaction volume",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "為了緩解此「資料傾斜（Data Skew）」問題，下列哪項策略最為有效且可行？",
+        "en": "To alleviate this 'Data Skew' problem, which of the following strategies is the most effective and feasible?",
+        "wg": [
+          {
+            "t": "資料傾斜",
+            "en": "Data Skew",
+            "ps": "N"
+          },
+          {
+            "t": "緩解",
+            "en": "alleviate",
+            "ps": "V"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 針對該熱點 Key 實施激進的快取策略（Aggressive Caching），並考慮將該 Key 的資料隔離至獨立的高規格節點。",
+        "en": "(A) Implement aggressive caching for that hot Key and consider isolating that Key's data to a dedicated high-spec node.",
+        "wg": [
+          {
+            "t": "激進的",
+            "en": "aggressive",
+            "ps": "Adj"
+          },
+          {
+            "t": "隔離",
+            "en": "isolating",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(B) 立即更改全域 Sharding Key 為 `message_id` 並重新平衡（Rebalance）所有資料。",
+        "en": "(B) Immediately change the global Sharding Key to `message_id` and rebalance all data.",
+        "wg": [
+          {
+            "t": "全域",
+            "en": "global",
+            "ps": "Adj"
+          },
+          {
+            "t": "重新平衡",
+            "en": "rebalance",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(C) 限制該名人的發文頻率，直到系統負載降低。",
+        "en": "(C) Rate limit the celebrity's posting frequency until system load decreases.",
+        "wg": []
+      },
+      {
+        "t": "(D) 將該 Shard 的資料庫複寫（Replication）數量增加一倍。",
+        "en": "(D) Double the number of database replicas for that Shard.",
+        "wg": []
+      }
+    ],
+    "answer": "(A)",
+    "why": {
+      "t": "這是典型的 Hot Key 問題。(A) 是標準解法：透過快取吸收讀取流量，並透過隔離（Isolation）防止單一用戶影響其他用戶。若寫入量過大，還可考慮將 Key 加上後綴拆分。(B) 更改全域 Sharding Key 成本極高且風險大；(C) 影響用戶體驗不可取；(D) 增加 Read Replicas 只能解決讀取問題，無法解決 Master DB 的寫入熱點。",
+      "en": "This is a classic Hot Key problem. (A) is the standard solution: absorb read traffic via caching and prevent a single user from affecting others via Isolation. If write volume is too high, splitting the Key with suffixes is also an option. (B) Changing the global Sharding Key is extremely costly and risky; (C) degrading user experience is undesirable; (D) adding Read Replicas only solves read issues, not the write hotspot on the Master DB.",
+      "wg": [
+        {
+          "t": "標準解法",
+          "en": "standard solution",
+          "ps": "N"
+        },
+        {
+          "t": "吸收",
+          "en": "absorb",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "10",
+    "level": "intermediate",
+    "keywords": "Message Queue, Dead Letter Queue, Poison Pill, Reliability",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您的訂單處理 Consumer 服務在處理某一則特定格式錯誤的訊息時會拋出未捕獲的例外（Uncaught Exception）並崩潰。",
+        "en": "Your order processing Consumer service throws an Uncaught Exception and crashes when processing a specific malformed message.",
+        "wg": [
+          {
+            "t": "未捕獲的例外",
+            "en": "Uncaught Exception",
+            "ps": "N"
+          },
+          {
+            "t": "崩潰",
+            "en": "crashes",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "由於 Message Queue 設定了自動重試機制，該訊息被反覆投遞，導致 Consumer 不斷重啟且無法處理後續的正常訂單。",
+        "en": "Since the Message Queue is configured with an automatic retry mechanism, the message is repeatedly redelivered, causing the Consumer to continuously restart and fail to process subsequent valid orders.",
+        "wg": [
+          {
+            "t": "反覆投遞",
+            "en": "repeatedly redelivered",
+            "ps": "V"
+          },
+          {
+            "t": "後續的",
+            "en": "subsequent",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "這種現象稱為什麼？應如何解決？",
+        "en": "What is this phenomenon called, and how should it be resolved?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 這是「毒藥訊息（Poison Pill）」；應設定最大重試次數，超過後將訊息移至 Dead Letter Queue (DLQ)。",
+        "en": "(A) This is a 'Poison Pill'; configure a maximum retry count, and move the message to a Dead Letter Queue (DLQ) after exceeding it.",
+        "wg": [
+          {
+            "t": "毒藥訊息",
+            "en": "Poison Pill",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(B) 這是「競爭條件（Race Condition）」；應增加 Consumer 的 Thread 數量。",
+        "en": "(B) This is a 'Race Condition'; increase the number of Consumer threads.",
+        "wg": [
+          {
+            "t": "競爭條件",
+            "en": "Race Condition",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) 這是「腦裂（Split Brain）」；應使用 Paxos 演算法協調。",
+        "en": "(C) This is 'Split Brain'; use the Paxos algorithm for coordination.",
+        "wg": [
+          {
+            "t": "腦裂",
+            "en": "Split Brain",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(D) 這是「快取雪崩（Cache Avalanche）」；應對訊息加入隨機延遲（Jitter）。",
+        "en": "(D) This is 'Cache Avalanche'; add random jitter to the messages.",
+        "wg": [
+          {
+            "t": "快取雪崩",
+            "en": "Cache Avalanche",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "answer": "(A)",
+    "why": {
+      "t": "當一則訊息導致 Consumer 崩潰且因重試機制而無限循環時，稱為 Poison Pill 或 Poison Message。最佳解法是設定重試上限（Max Retries），一旦超過上限，將該訊息轉移至死信佇列（DLQ）供後續人工分析或修復，以避免阻塞正常流量。",
+      "en": "When a message causes a Consumer to crash and loops infinitely due to retries, it is called a Poison Pill or Poison Message. The best solution is to set a Max Retry limit; once exceeded, move the message to a Dead Letter Queue (DLQ) for later manual analysis or repair, preventing blockage of normal traffic.",
+      "wg": [
+        {
+          "t": "無限循環",
+          "en": "loops infinitely",
+          "ps": "V"
+        },
+        {
+          "t": "阻塞",
+          "en": "blockage",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "11",
+    "level": "intermediate",
+    "keywords": "Load Balancing, L7, Sticky Session, Caching",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您的應用程式依賴本地記憶體（Local Memory）來快取使用者的 Session 資料以提升效能。",
+        "en": "Your application relies on Local Memory to cache user Session data for performance improvements.",
+        "wg": [
+          {
+            "t": "本地記憶體",
+            "en": "Local Memory",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "在導入 Load Balancer 後，使用者頻繁回報被登出或購物車內容消失。",
+        "en": "After introducing a Load Balancer, users frequently report being logged out or losing shopping cart items.",
+        "wg": []
+      },
+      {
+        "t": "若不修改應用程式架構（例如改用 Redis），您應在 Load Balancer 層啟用什麼功能？",
+        "en": "If you cannot modify the application architecture (e.g., switching to Redis), what feature should you enable at the Load Balancer layer?",
+        "wg": [
+          {
+            "t": "修改",
+            "en": "modify",
+            "ps": "V"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) L7 Sticky Session (Session Affinity)",
+        "en": "(A) L7 Sticky Session (Session Affinity)",
+        "wg": [
+          {
+            "t": "會話親和性",
+            "en": "Session Affinity",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(B) L4 Round Robin",
+        "en": "(B) L4 Round Robin",
+        "wg": []
+      },
+      {
+        "t": "(C) TLS Termination",
+        "en": "(C) TLS Termination",
+        "wg": []
+      },
+      {
+        "t": "(D) Connection Draining",
+        "en": "(D) Connection Draining",
+        "wg": []
+      }
+    ],
+    "answer": "(A)",
+    "why": {
+      "t": "當應用程式是有狀態（Stateful）或依賴本地快取時，必須確保同一位使用者的請求總是導向同一台伺服器。L7 Load Balancer 的 Sticky Session（通常透過 Cookie 實作）可以達成此目的。Round Robin 會隨機分發請求，導致快取未命中（Cache Miss）。",
+      "en": "When an application is Stateful or relies on local caching, it is essential to ensure that requests from the same user are always routed to the same server. L7 Load Balancer's Sticky Session (usually implemented via Cookies) achieves this. Round Robin distributes requests randomly, leading to Cache Misses.",
+      "wg": [
+        {
+          "t": "有狀態",
+          "en": "Stateful",
+          "ps": "Adj"
+        },
+        {
+          "t": "快取未命中",
+          "en": "Cache Miss",
+          "ps": "N"
+        }
+      ]
+    }
+  }
+]

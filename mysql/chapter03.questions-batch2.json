@@ -1,0 +1,392 @@
+[
+  {
+    "no": "chapter03-q06",
+    "level": "intermediate",
+    "keywords": "Performance, Undo Log, Long Transaction, MVCC",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在監控儀表板上，您發現資料庫磁碟空間使用率異常飆升，且許多簡單的查詢（Query）回應時間變慢。",
+        "en": "On the monitoring dashboard, you notice an abnormal spike in database disk usage, and the response time for many simple queries has slowed down.",
+        "wg": [
+          {
+            "t": "監控儀表板",
+            "en": "monitoring dashboard",
+            "ps": "N"
+          },
+          {
+            "t": "飆升",
+            "en": "spike",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "經排查，發現有一個連線開啟了交易（Transaction）但已經閒置了 6 小時未提交。",
+        "en": "Upon investigation, you find a connection that opened a transaction but has remained idle for 6 hours without committing.",
+        "wg": [
+          {
+            "t": "閒置",
+            "en": "idle",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "請問這個長交易（Long Transaction）最直接導致上述效能問題的根本原因是什麼？",
+        "en": "What is the root cause directly linking this long transaction to the aforementioned performance issues?",
+        "wg": [
+          {
+            "t": "根本原因",
+            "en": "root cause",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 長交易佔用了過多的記憶體 Buffer Pool，導致其他查詢必須頻繁讀取磁碟。",
+        "en": "(A) The long transaction occupied too much memory in the Buffer Pool, causing other queries to frequently read from disk.",
+        "wg": []
+      },
+      {
+        "t": "(B) 長交易導致 Undo Log 無法被清理（Purge），使得 Undo Log 歷史鏈過長，查詢需遍歷大量舊版本。",
+        "en": "(B) The long transaction prevented the Undo Log from being purged, resulting in an excessively long Undo Log history chain, forcing queries to traverse many old versions.",
+        "wg": [
+          {
+            "t": "清理",
+            "en": "purge",
+            "ps": "V"
+          },
+          {
+            "t": "遍歷",
+            "en": "traverse",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(C) 長交易持有了全域的 Table Lock，阻止了其他所有讀寫操作。",
+        "en": "(C) The long transaction held a global Table Lock, blocking all other read and write operations.",
+        "wg": []
+      },
+      {
+        "t": "(D) 長交易導致 Redo Log 寫滿，觸發了頻繁的 Checkpoint 刷盤操作。",
+        "en": "(D) The long transaction caused the Redo Log to fill up, triggering frequent Checkpoint flushing operations.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "InnoDB 的 MVCC 機制依賴 Undo Log 來重建舊版本資料。若有一個極老的交易未提交，系統必須保留從該交易開始以來的所有 Undo Log 版本（因為該交易可能需要讀取這些版本），導致 Undo Log 空間膨脹（磁碟飆升）且查詢時需遍歷很長的鏈結（查詢變慢）。",
+      "en": "InnoDB's MVCC mechanism relies on Undo Logs to reconstruct old data versions. If a very old transaction remains uncommitted, the system must retain all Undo Log versions since that transaction started (as it might need to read them), leading to Undo Log bloat (disk spike) and slower queries due to traversing long chains.",
+      "wg": [
+        {
+          "t": "膨脹",
+          "en": "bloat",
+          "ps": "V"
+        },
+        {
+          "t": "重建",
+          "en": "reconstruct",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "chapter03-q07",
+    "level": "advanced",
+    "keywords": "MVCC, Current Read, Snapshot Read, Consistency",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "Initial Data: table `products`, id=1, stock=10\nIsolation Level: Repeatable Read (RR)\n\n-- Time 1 (Tx A)\nSTART TRANSACTION;\nSELECT stock FROM products WHERE id=1; -- Returns 10\n\n-- Time 2 (Tx B)\nSTART TRANSACTION;\nUPDATE products SET stock = 20 WHERE id=1;\nCOMMIT;\n\n-- Time 3 (Tx A)\nUPDATE products SET stock = stock - 1 WHERE id=1;\nSELECT stock FROM products WHERE id=1;",
+    "question": [
+      {
+        "t": "請分析上述 SQL 執行序列。",
+        "en": "Please analyze the SQL execution sequence above.",
+        "wg": []
+      },
+      {
+        "t": "在 Time 3 執行完畢後，Tx A 最後一次 `SELECT` 查詢到的 `stock` 值會是多少？",
+        "en": "After Time 3 execution is complete, what will be the `stock` value returned by the last `SELECT` in Tx A?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 9 (基於 Time 1 的快照 10 減 1)",
+        "en": "(A) 9 (Based on the snapshot of 10 from Time 1 minus 1)",
+        "wg": []
+      },
+      {
+        "t": "(B) 19 (基於 Tx B 提交的最新值 20 減 1)",
+        "en": "(B) 19 (Based on the latest committed value 20 from Tx B minus 1)",
+        "wg": []
+      },
+      {
+        "t": "(C) 交易會因偵測到衝突而回滾 (Rollback)",
+        "en": "(C) The transaction will rollback due to conflict detection",
+        "wg": []
+      },
+      {
+        "t": "(D) 查詢會被阻塞 (Blocked) 直到 Tx A 提交",
+        "en": "(D) The query will be blocked until Tx A commits",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "雖然 Tx A 的第一次 SELECT 是「快照讀」，但 `UPDATE` 語句在 InnoDB 中屬於「當前讀 (Current Read)」。它會強制讀取最新的已提交版本（即 Tx B 的 20）來進行修改，因此結果為 20 - 1 = 19。修改後，Tx A 的後續 SELECT 會看到自己剛修改的最新值。",
+      "en": "Although Tx A's first SELECT is a 'Snapshot Read', the `UPDATE` statement is a 'Current Read' in InnoDB. It forces reading the latest committed version (which is 20 from Tx B) to perform the modification, resulting in 20 - 1 = 19. After modification, subsequent SELECTs in Tx A will see the latest value it just modified.",
+      "wg": [
+        {
+          "t": "強制",
+          "en": "force",
+          "ps": "V"
+        },
+        {
+          "t": "當前讀",
+          "en": "Current Read",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "chapter03-q08",
+    "level": "senior",
+    "keywords": "Metadata Lock, DDL, Production Outage, Troubleshooting",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您的團隊正在排查一起生產環境事故：資料庫突然拒絕所有對 `orders` 表的寫入操作，導致應用程式逾時。",
+        "en": "Your team is investigating a production incident: the database suddenly refused all write operations to the `orders` table, causing application timeouts.",
+        "wg": [
+          {
+            "t": "排查",
+            "en": "investigate",
+            "ps": "V"
+          },
+          {
+            "t": "逾時",
+            "en": "timeout",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "檢查 Process List 發現：有一個執行了 30 分鐘的報表查詢（SELECT），隨後有一個被阻塞的 `ALTER TABLE orders ADD COLUMN ...` 操作，而後方排滿了大量 `INSERT` 請求。",
+        "en": "Checking the Process List reveals: a reporting query (SELECT) running for 30 minutes, followed by a blocked `ALTER TABLE orders ADD COLUMN ...` operation, followed by a large queue of `INSERT` requests.",
+        "wg": [
+          {
+            "t": "阻塞",
+            "en": "blocked",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "請問造成此連鎖阻塞的機制是什麼？",
+        "en": "What is the mechanism causing this chain reaction of blocking?",
+        "wg": [
+          {
+            "t": "連鎖阻塞",
+            "en": "chain reaction of blocking",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) Row Lock (行鎖) 升級為 Table Lock (表鎖)",
+        "en": "(A) Row Lock escalating to Table Lock",
+        "wg": []
+      },
+      {
+        "t": "(B) Metadata Lock (MDL)",
+        "en": "(B) Metadata Lock (MDL)",
+        "wg": []
+      },
+      {
+        "t": "(C) Deadlock Detection (死鎖偵測)",
+        "en": "(C) Deadlock Detection",
+        "wg": []
+      },
+      {
+        "t": "(D) Buffer Pool 記憶體耗盡",
+        "en": "(D) Buffer Pool memory exhaustion",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "長執行的 SELECT 會持有 Shared MDL。`ALTER TABLE` 需要 Exclusive MDL，因此被阻塞。MySQL 的 MDL 機制中，寫鎖請求（如 ALTER）優先級高於後續的讀寫請求，導致 ALTER 之後的所有 DML 操作（如 INSERT）全部被阻塞在隊列中，造成系統停擺。",
+      "en": "The long-running SELECT holds a Shared MDL. `ALTER TABLE` requires an Exclusive MDL and is therefore blocked. In MySQL's MDL mechanism, write lock requests (like ALTER) have higher priority than subsequent read/write requests, causing all DML operations (like INSERT) arriving after the ALTER to be blocked in the queue, halting the system.",
+      "wg": [
+        {
+          "t": "優先級",
+          "en": "priority",
+          "ps": "N"
+        },
+        {
+          "t": "停擺",
+          "en": "halt",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "chapter03-q09",
+    "level": "senior",
+    "keywords": "Lost Update, Concurrency, Anti-pattern, Locking",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "// Pseudo-code in Application Layer\n\nfunction withdraw(userId, amount) {\n  // 1. Check balance\n  currentBalance = db.query(\"SELECT balance FROM accounts WHERE id = ?\", userId);\n  \n  if (currentBalance >= amount) {\n    newBalance = currentBalance - amount;\n    // 2. Update balance\n    db.execute(\"UPDATE accounts SET balance = ? WHERE id = ?\", newBalance, userId);\n    return true;\n  }\n  return false;\n}",
+    "question": [
+      {
+        "t": "上述程式碼在高併發環境下存在嚴重的邏輯缺陷，即使資料庫隔離層級設為 Repeatable Read (RR)。",
+        "en": "The pseudo-code above has a serious logic flaw in a high-concurrency environment, even if the database isolation level is set to Repeatable Read (RR).",
+        "wg": [
+          {
+            "t": "缺陷",
+            "en": "flaw",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "請問這個缺陷的名稱是什麼，以及最佳的修正方式為何？",
+        "en": "What is the name of this flaw, and what is the best way to fix it?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 髒讀 (Dirty Read)；修正方式是將隔離層級提升為 Serializable。",
+        "en": "(A) Dirty Read; fix by raising isolation level to Serializable.",
+        "wg": []
+      },
+      {
+        "t": "(B) 幻讀 (Phantom Read)；修正方式是為 id 欄位建立 Unique Index。",
+        "en": "(B) Phantom Read; fix by creating a Unique Index on the id column.",
+        "wg": []
+      },
+      {
+        "t": "(C) 更新遺失 (Lost Update)；修正方式是使用 `SELECT ... FOR UPDATE` 或單條原子化 UPDATE 語句。",
+        "en": "(C) Lost Update; fix by using `SELECT ... FOR UPDATE` or a single atomic UPDATE statement.",
+        "wg": [
+          {
+            "t": "更新遺失",
+            "en": "Lost Update",
+            "ps": "N"
+          },
+          {
+            "t": "原子化",
+            "en": "atomic",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "(D) 死鎖 (Deadlock)；修正方式是加入重試機制 (Retry Logic)。",
+        "en": "(D) Deadlock; fix by adding retry logic.",
+        "wg": []
+      }
+    ],
+    "answer": "(C)",
+    "why": {
+      "t": "這是典型的「讀取-修改-寫入」模式。兩個併發交易可能同時讀到相同的 `currentBalance`，然後分別寫入，導致其中一筆扣款被覆蓋（遺失）。普通的 `SELECT` 在 RR 下是快照讀，不加鎖。應使用鎖定讀 (`FOR UPDATE`) 或將邏輯改為 `UPDATE accounts SET balance = balance - ?` 利用資料庫的原子性。",
+      "en": "This is a classic 'Read-Modify-Write' pattern. Two concurrent transactions might read the same `currentBalance` and then write separately, causing one withdrawal to be overwritten (lost). A standard `SELECT` under RR is a Snapshot Read and does not lock. You should use a locking read (`FOR UPDATE`) or change the logic to `UPDATE accounts SET balance = balance - ?` to leverage database atomicity.",
+      "wg": [
+        {
+          "t": "覆蓋",
+          "en": "overwrite",
+          "ps": "V"
+        },
+        {
+          "t": "併發",
+          "en": "concurrent",
+          "ps": "Adj"
+        }
+      ]
+    }
+  },
+  {
+    "no": "chapter03-q10",
+    "level": "advanced",
+    "keywords": "Next-Key Lock, Gap Lock, Locking Scope",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "Table `t` (id INT PRIMARY KEY)\nExisting records: 10, 20, 30\n\nTransaction A:\nSELECT * FROM t WHERE id > 20 FOR UPDATE;",
+    "question": [
+      {
+        "t": "在 Repeatable Read (RR) 隔離層級下，Transaction A 執行上述語句後，InnoDB 會鎖定哪些範圍？",
+        "en": "Under Repeatable Read (RR) isolation level, what ranges will InnoDB lock after Transaction A executes the above statement?",
+        "wg": [
+          {
+            "t": "範圍",
+            "en": "range",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "請選擇最精確的鎖定區間描述（包含 Record Lock 與 Gap Lock）。",
+        "en": "Please select the most accurate description of the locking intervals (including Record Lock and Gap Lock).",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 僅鎖定 Record 30。",
+        "en": "(A) Locks Record 30 only.",
+        "wg": []
+      },
+      {
+        "t": "(B) 鎖定 (20, 30] 以及 (30, +∞)。",
+        "en": "(B) Locks (20, 30] and (30, +∞).",
+        "wg": []
+      },
+      {
+        "t": "(C) 鎖定 (20, +∞)。",
+        "en": "(C) Locks (20, +∞).",
+        "wg": []
+      },
+      {
+        "t": "(D) 鎖定全表 (Table Lock)。",
+        "en": "(D) Locks the entire table (Table Lock).",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "Next-Key Lock 是左開右閉區間。查詢條件是 `id > 20`，因此會命中第一個記錄 30。InnoDB 會加上 `(20, 30]` 的 Next-Key Lock。同時，為了防止在 30 之後插入新資料（幻讀），也會加上 `(30, +∞)` 的 Gap Lock（或視為最後一個 Next-Key Lock 的延伸）。",
+      "en": "Next-Key Lock is a left-open, right-closed interval. The query condition is `id > 20`, so it hits the first record 30. InnoDB applies a Next-Key Lock on `(20, 30]`. Additionally, to prevent inserting new data after 30 (Phantom Read), it also applies a Gap Lock on `(30, +∞)` (or viewed as an extension of the last Next-Key Lock).",
+      "wg": [
+        {
+          "t": "區間",
+          "en": "interval",
+          "ps": "N"
+        },
+        {
+          "t": "命中",
+          "en": "hit/match",
+          "ps": "V"
+        }
+      ]
+    }
+  }
+]

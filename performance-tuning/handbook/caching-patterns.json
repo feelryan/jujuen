@@ -1,0 +1,898 @@
+[
+  {
+    "no": "1",
+    "level": "Medium",
+    "keywords": "latency, hit rate, serialization, performance",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "某工程團隊為了優化一個讀取頻繁的 API，引入了 Redis 作為快取層，但上線後發現平均延遲（Average Latency）不降反升。根據「快取命中率公式」與常見陷阱，下列哪一個原因最**不可能**是造成此現象的主因？",
+        "en": "An engineering team introduced Redis as a caching layer to optimize a read-heavy API, but found that the average latency increased instead of decreased after deployment. Based on the 'Hit Rate Equation' and common pitfalls, which of the following is the LEAST likely cause of this phenomenon?",
+        "wg": [
+          {
+            "t": "平均延遲",
+            "en": "Average Latency",
+            "ps": "noun"
+          },
+          {
+            "t": "快取命中率",
+            "en": "Cache Hit Rate",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "快取命中率（Hit Rate）過低，導致大部分請求多了一次無效的網路來回。",
+        "en": "The cache hit rate is too low, causing most requests to incur an extra ineffective network round-trip.",
+        "wg": []
+      },
+      {
+        "t": "儲存的物件過於龐大且使用了未經壓縮的序列化格式（如 Java Serialization），導致網路傳輸與序列化耗時超過了 DB 查詢節省的時間。",
+        "en": "The stored objects are too large and use uncompressed serialization formats (e.g., Java Serialization), causing network transfer and serialization overhead to exceed the time saved from DB queries.",
+        "wg": [
+          {
+            "t": "序列化",
+            "en": "Serialization",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "資料庫的讀取效能本身極高（例如小於 1ms），引入分散式快取的網路 I/O 開銷反而成為瓶頸。",
+        "en": "The database read performance is inherently extremely high (e.g., < 1ms), so the network I/O overhead of introducing a distributed cache becomes a bottleneck.",
+        "wg": []
+      },
+      {
+        "t": "快取層設定了過長的 TTL（Time-To-Live），導致記憶體空間不足而頻繁發生 Eviction。",
+        "en": "The cache layer has an excessively long TTL (Time-To-Live), causing frequent evictions due to insufficient memory space.",
+        "wg": [
+          {
+            "t": "驅逐",
+            "en": "Eviction",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "answer": "3",
+    "why": {
+      "t": "選項 3 是最不可能的主因。雖然 TTL 設定過長可能導致記憶體滿載，但這通常會導致快取寫入失敗或舊資料被驅逐（Eviction），這會降低 Hit Rate（回到選項 1 的情況），但單純的「設定長 TTL」本身不會直接導致單次請求的 Latency 飆升，除非它間接導致了極低的命中率或 Swap。相比之下，選項 1（低命中率）、選項 2（序列化膨脹）與選項 3（DB 其實夠快，Cache 變累贅）都是直接導致 Latency 增加的常見數學原因。",
+      "en": "Option 3 is the least likely primary cause directly. While setting a TTL that is too long can lead to memory fullness and evictions, this typically results in a lower Hit Rate (which is Option 1). The act of setting a long TTL itself does not directly spike latency for a single request unless it indirectly causes thrashing. In contrast, Option 1 (Low Hit Rate), Option 2 (Serialization Bloat), and Option 3 (DB is already fast, making Cache overhead noticeable) are direct mathematical reasons for increased latency according to the latency equation.",
+      "wg": []
+    }
+  },
+  {
+    "no": "2",
+    "level": "Hard",
+    "keywords": "cache-aside, consistency, race condition, database",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在實作 Cache-Aside 模式時，當資料發生變更，為了保持資料庫與快取的最終一致性並盡可能避免 Race Condition，下列哪一種操作順序是業界公認的**最佳實務**？",
+        "en": "When implementing the Cache-Aside pattern, which of the following operation sequences is considered the industry BEST PRACTICE for handling data updates to maintain eventual consistency and minimize race conditions?",
+        "wg": [
+          {
+            "t": "最終一致性",
+            "en": "Eventual Consistency",
+            "ps": "noun"
+          },
+          {
+            "t": "競態條件",
+            "en": "Race Condition",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "先更新快取 (Update Cache)，再更新資料庫 (Update DB)。",
+        "en": "Update the Cache first, then Update the DB.",
+        "wg": []
+      },
+      {
+        "t": "先更新資料庫 (Update DB)，再更新快取 (Update Cache)。",
+        "en": "Update the DB first, then Update the Cache.",
+        "wg": []
+      },
+      {
+        "t": "先刪除快取 (Delete Cache)，再更新資料庫 (Update DB)。",
+        "en": "Delete the Cache first, then Update the DB.",
+        "wg": []
+      },
+      {
+        "t": "先更新資料庫 (Update DB)，再刪除快取 (Delete Cache)。",
+        "en": "Update the DB first, then Delete the Cache.",
+        "wg": []
+      }
+    ],
+    "answer": "3",
+    "why": {
+      "t": "最佳實務是「先更新 DB，再刪除 Cache」。\n選項 0 與 1 (Update Cache) 容易發生 Race Condition，導致快取內存留髒資料。\n選項 2 (先刪 Cache 再寫 DB) 有風險：在刪除 Cache 後、DB 寫入完成前，若有另一個讀取請求進來，會讀到舊的 DB 資料並重新寫入 Cache，導致 Cache 內長期存有舊值。\n選項 3 雖然在極端情況下（讀取比寫入慢非常多）仍可能有 Race Condition，但機率最低，且可配合 Delayed Double Deletion 解決。",
+      "en": "The best practice is 'Update DB first, then Delete Cache'.\nOptions 0 and 1 (Update Cache) are prone to Race Conditions, leaving dirty data in the cache.\nOption 2 (Delete Cache then Write DB) carries a risk: if a read request arrives after the cache deletion but before the DB write completes, it will read the old value from the DB and write it back to the cache, causing long-term inconsistency.\nOption 3 has the lowest probability of race conditions (though still possible in extreme cases) and is the standard recommendation.",
+      "wg": []
+    }
+  },
+  {
+    "no": "3",
+    "level": "Medium",
+    "keywords": "write-behind, write pattern, throughput, data loss",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你需要設計一個「文章按讚數」的計數器功能，該功能寫入頻率極高（High Write Throughput），但對資料的即時一致性要求不高（容許當機時遺失少量按讚數據）。下列哪一種寫入模式（Write Pattern）最適合此場景？",
+        "en": "You need to design a 'Like Counter' for articles. The write throughput is extremely high, but strict real-time consistency is not required (losing a small amount of like data during a crash is acceptable). Which Write Pattern is MOST suitable for this scenario?",
+        "wg": [
+          {
+            "t": "寫入吞吐量",
+            "en": "Write Throughput",
+            "ps": "noun"
+          },
+          {
+            "t": "寫入模式",
+            "en": "Write Pattern",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "Write-Through",
+        "en": "Write-Through",
+        "wg": []
+      },
+      {
+        "t": "Cache-Aside",
+        "en": "Cache-Aside",
+        "wg": []
+      },
+      {
+        "t": "Write-Behind (Write-Back)",
+        "en": "Write-Behind (Write-Back)",
+        "wg": []
+      },
+      {
+        "t": "Write-Around",
+        "en": "Write-Around",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "Write-Behind (Write-Back) 模式是先將資料寫入快取，再非同步（Asynchronous）批次寫入資料庫。這能提供最高的寫入效能，非常適合高頻計數器。其缺點是若快取節點當機，尚未同步到 DB 的資料會遺失，但題目情境已說明此風險是可接受的。",
+      "en": "Write-Behind (Write-Back) writes data to the cache first and then asynchronously updates the database in batches. This offers the highest write performance, making it ideal for high-frequency counters. The downside is potential data loss if the cache node crashes before syncing to the DB, but the scenario explicitly states this risk is acceptable.",
+      "wg": [
+        {
+          "t": "非同步",
+          "en": "Asynchronous",
+          "ps": "adj"
+        }
+      ]
+    }
+  },
+  {
+    "no": "4",
+    "level": "Medium",
+    "keywords": "cache penetration, bloom filter, security",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你的系統遭受了惡意爬蟲攻擊，攻擊者大量發送查詢「不存在的 Product ID」（如 id=-1, id=9999999）。這導致每次查詢都穿透快取直接打擊資料庫（Cache Penetration），造成資料庫 CPU 飆高。下列哪項解決方案最能有效防禦此類攻擊？",
+        "en": "Your system is under attack by a malicious crawler sending a massive number of queries for 'non-existent Product IDs' (e.g., id=-1, id=9999999). This causes every query to bypass the cache and hit the database directly (Cache Penetration), spiking the database CPU. Which of the following solutions is MOST effective in defending against this?",
+        "wg": [
+          {
+            "t": "快取穿透",
+            "en": "Cache Penetration",
+            "ps": "noun"
+          },
+          {
+            "t": "布隆過濾器",
+            "en": "Bloom Filter",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "使用 Mutex Lock 限制同時查詢 DB 的執行緒數量。",
+        "en": "Use a Mutex Lock to limit the number of threads querying the DB simultaneously.",
+        "wg": []
+      },
+      {
+        "t": "在快取層前部署 Bloom Filter，過濾掉絕大多數不存在的 Key，或將查詢結果為空的 Key 也寫入快取（Cache Null）。",
+        "en": "Deploy a Bloom Filter before the cache layer to filter out most non-existent keys, or cache the null results (Cache Null) for these keys.",
+        "wg": []
+      },
+      {
+        "t": "為所有快取 Key 設定隨機的 TTL (Random Jitter)。",
+        "en": "Set a random TTL (Random Jitter) for all cache keys.",
+        "wg": []
+      },
+      {
+        "t": "改用 Write-Through 模式，確保所有資料都在快取中。",
+        "en": "Switch to Write-Through mode to ensure all data is in the cache.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "這是典型的「快取穿透 (Cache Penetration)」問題。Mutex Lock 是解決快取擊穿 (Stampede) 的方法；Random Jitter 是解決快取雪崩 (Avalanche) 的方法。針對查詢不存在資料的攻擊，最佳解法是使用 Bloom Filter 快速判斷 Key 是否可能存在，或者將 `null` 值寫入快取（Cache Null）以攔截後續請求。",
+      "en": "This is a classic 'Cache Penetration' problem. Mutex Locks are for Cache Stampede; Random Jitter is for Cache Avalanche. For attacks querying non-existent data, the best solutions are using a Bloom Filter to quickly rule out non-existent keys, or caching the `null` value (Cache Null) to intercept subsequent requests.",
+      "wg": []
+    }
+  },
+  {
+    "no": "5",
+    "level": "Hard",
+    "keywords": "cache stampede, hot key, mutex, logical expiration",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在「秒殺活動」中，某個熱門商品的快取 Key 在過期的瞬間（Cache Stampede / Breakdown），成千上萬的併發請求同時發現快取失效並試圖讀取資料庫，可能瞬間壓垮 DB。下列哪一種策略**不適合**用來解決此特定問題？",
+        "en": "During a 'Flash Sale', a popular product's cache key expires (Cache Stampede / Breakdown). Thousands of concurrent requests simultaneously find the cache missing and attempt to read from the database, potentially crashing it. Which of the following strategies is NOT suitable for solving this specific problem?",
+        "wg": [
+          {
+            "t": "快取擊穿",
+            "en": "Cache Stampede / Breakdown",
+            "ps": "noun"
+          },
+          {
+            "t": "互斥鎖",
+            "en": "Mutex Lock",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "使用互斥鎖 (Mutex Lock)，確保同一時間只有一個執行緒能去 DB 撈資料。",
+        "en": "Use a Mutex Lock to ensure only one thread can fetch data from the DB at a time.",
+        "wg": []
+      },
+      {
+        "t": "使用邏輯過期 (Logical Expiration)，在 Value 內標記過期時間，若邏輯過期則回傳舊值並非同步更新。",
+        "en": "Use Logical Expiration by marking an expiry time inside the value. If logically expired, return the stale value and trigger an asynchronous update.",
+        "wg": []
+      },
+      {
+        "t": "在設定 TTL 時加入隨機值 (Random Jitter)。",
+        "en": "Add a random value (Random Jitter) when setting the TTL.",
+        "wg": []
+      },
+      {
+        "t": "提前預熱快取 (Cache Pre-warming)，並設定該熱點 Key 永不過期（直到活動結束）。",
+        "en": "Pre-warm the cache and set the hot key to never expire (until the event ends).",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "Random Jitter (隨機 TTL) 主要用於解決「快取雪崩 (Cache Avalanche)」，即大量 Key 同時過期的問題。對於「單一熱點 Key」的過期擊穿 (Stampede)，加隨機值沒有幫助（因為它終究會過期，一過期還是會面臨併發衝擊）。解決 Stampede 應使用 Mutex Lock、邏輯過期或永不過期策略。",
+      "en": "Random Jitter is primarily used to solve 'Cache Avalanche' (many keys expiring at once). For a 'Single Hot Key' expiration (Stampede), adding randomness doesn't help because once it expires, the concurrent spike still occurs. Stampede should be solved using Mutex Locks, Logical Expiration, or Never Expire strategies.",
+      "wg": []
+    }
+  },
+  {
+    "no": "6",
+    "level": "Medium",
+    "keywords": "cache avalanche, ttl, jitter, reliability",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你的系統在每次部署後會重新啟動並載入大量設定檔到 Redis，且這些 Key 的 TTL 都統一設為 1 小時。這造成每隔一小時，資料庫就會出現一次短暫但劇烈的 CPU 峰值。這種現象稱為什麼？應如何解決？",
+        "en": "Your system reloads a large number of configuration files into Redis after every deployment, with all keys having a fixed TTL of 1 hour. This causes a short but severe CPU spike on the database every hour. What is this phenomenon called, and how should it be resolved?",
+        "wg": [
+          {
+            "t": "快取雪崩",
+            "en": "Cache Avalanche",
+            "ps": "noun"
+          },
+          {
+            "t": "隨機抖動",
+            "en": "Random Jitter",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "這是快取穿透 (Cache Penetration)；應使用 Bloom Filter。",
+        "en": "This is Cache Penetration; use a Bloom Filter.",
+        "wg": []
+      },
+      {
+        "t": "這是快取擊穿 (Cache Stampede)；應使用 Mutex Lock。",
+        "en": "This is Cache Stampede; use a Mutex Lock.",
+        "wg": []
+      },
+      {
+        "t": "這是快取雪崩 (Cache Avalanche)；應在 TTL 上加上隨機抖動 (Random Jitter)。",
+        "en": "This is Cache Avalanche; add Random Jitter to the TTL.",
+        "wg": []
+      },
+      {
+        "t": "這是序列化膨脹 (Serialization Bloat)；應改用 Protobuf。",
+        "en": "This is Serialization Bloat; switch to Protobuf.",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "大量 Key 在同一時間集體過期，導致請求同時打向 DB，稱為「快取雪崩 (Cache Avalanche)」。最簡單有效的解法是在設定 TTL 時加上一個隨機值（例如 1 小時 + 0~5 分鐘隨機），將過期時間分散開來。",
+      "en": "When a large number of keys expire at the same time, causing requests to hit the DB simultaneously, it is called 'Cache Avalanche'. The simplest and most effective solution is to add a random value (Jitter) to the TTL (e.g., 1 hour + 0-5 mins random) to spread out the expiration times.",
+      "wg": []
+    }
+  },
+  {
+    "no": "7",
+    "level": "Medium",
+    "keywords": "serialization, network bandwidth, cpu usage, performance",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你的團隊發現 Redis 伺服器的 CPU 使用率異常飆高，同時網路頻寬（Network Bandwidth）也接近飽和，但 Request per Second (RPS) 並沒有顯著增加。",
+        "en": "Your team notices that the Redis server's CPU usage is abnormally high, and the network bandwidth is nearing saturation, yet the Request per Second (RPS) has not increased significantly.",
+        "wg": [
+          {
+            "t": "網路頻寬",
+            "en": "Network Bandwidth",
+            "ps": "noun"
+          },
+          {
+            "t": "飽和",
+            "en": "saturation",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "經排查發現，應用程式直接將龐大的 Java 物件序列化（Serialization）後存入 Redis。",
+        "en": "Investigation reveals that the application is directly serializing huge Java objects and storing them in Redis.",
+        "wg": [
+          {
+            "t": "排查",
+            "en": "investigation",
+            "ps": "verb"
+          },
+          {
+            "t": "序列化",
+            "en": "serialization",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "根據 Handbook 中的「序列化膨脹」章節，下列哪項優化措施最能有效解決此問題？",
+        "en": "According to the 'Serialization Bloat' section in the Handbook, which of the following optimization measures would most effectively resolve this issue?",
+        "wg": []
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "將 Redis 的驅逐策略（Eviction Policy）改為 `allkeys-lru` 以騰出更多空間。",
+        "en": "Change the Redis eviction policy to `allkeys-lru` to free up more space.",
+        "wg": [
+          {
+            "t": "驅逐策略",
+            "en": "Eviction Policy",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "改用 Protobuf、MsgPack 等二進位格式，或使用 Snappy/LZ4 進行壓縮後再儲存。",
+        "en": "Switch to binary formats like Protobuf or MsgPack, or use Snappy/LZ4 compression before storage.",
+        "wg": [
+          {
+            "t": "二進位格式",
+            "en": "binary formats",
+            "ps": "noun"
+          },
+          {
+            "t": "壓縮",
+            "en": "compression",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "增加 Redis 實例的記憶體大小（Scale Up Memory）。",
+        "en": "Scale up the memory of the Redis instance.",
+        "wg": []
+      },
+      {
+        "t": "將寫入模式改為 Write-Behind 以減少寫入延遲。",
+        "en": "Change the write pattern to Write-Behind to reduce write latency.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "問題根源在於「序列化膨脹」導致的物件體積過大，這會同時消耗網路頻寬與 Redis 處理序列化資料的 CPU 資源。改用高效的二進位格式（如 Protobuf）或壓縮演算法能顯著減少 Payload 大小，直接緩解頻寬與 CPU 壓力。調整 Eviction Policy 或增加記憶體無法解決頻寬與 CPU 瓶頸。",
+      "en": "The root cause is 'Serialization Bloat' resulting in excessively large objects, which consumes both network bandwidth and Redis CPU resources for handling data. Switching to efficient binary formats (like Protobuf) or compression algorithms significantly reduces payload size, directly alleviating bandwidth and CPU pressure. Adjusting eviction policies or adding memory does not solve bandwidth and CPU bottlenecks.",
+      "wg": [
+        {
+          "t": "序列化膨脹",
+          "en": "Serialization Bloat",
+          "ps": "noun"
+        },
+        {
+          "t": "瓶頸",
+          "en": "bottlenecks",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "8",
+    "level": "Medium",
+    "keywords": "big key, time complexity, blocking, single-threaded",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你在 Redis 中設計了一個 Key 來儲存「某位百萬網紅的所有粉絲 ID」，使用了 Hash 結構，並經常對該 Key 執行 `HGETALL` 指令。",
+        "en": "You designed a Key in Redis to store 'all follower IDs of a mega-influencer' using a Hash structure, and frequently execute the `HGETALL` command on this Key.",
+        "wg": [
+          {
+            "t": "網紅",
+            "en": "influencer",
+            "ps": "noun"
+          },
+          {
+            "t": "結構",
+            "en": "structure",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "最近發現整個 Redis 實例偶爾會出現短暫的「卡頓」，導致其他無關的請求也逾時。",
+        "en": "Recently, it was observed that the entire Redis instance occasionally experiences brief 'stalls', causing other unrelated requests to timeout.",
+        "wg": [
+          {
+            "t": "卡頓",
+            "en": "stalls",
+            "ps": "noun"
+          },
+          {
+            "t": "逾時",
+            "en": "timeout",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "這是觸犯了哪一個常見陷阱？",
+        "en": "Which common pitfall does this violate?",
+        "wg": []
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "Cache Penetration（快取穿透）：因為粉絲 ID 列表太大，導致快取無法命中。",
+        "en": "Cache Penetration: The follower ID list is too large, causing cache misses.",
+        "wg": []
+      },
+      {
+        "t": "Storing Huge Collections（儲存超大集合）：Redis 是單執行緒的，操作大 Key 會阻塞整個執行緒。",
+        "en": "Storing Huge Collections: Redis is single-threaded, and operating on large keys blocks the entire thread.",
+        "wg": [
+          {
+            "t": "單執行緒",
+            "en": "single-threaded",
+            "ps": "adjective"
+          },
+          {
+            "t": "阻塞",
+            "en": "blocks",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "Race Condition（競態條件）：多個請求同時讀取導致鎖死。",
+        "en": "Race Condition: Multiple concurrent requests reading simultaneously cause a deadlock.",
+        "wg": []
+      },
+      {
+        "t": "Cache Avalanche（快取雪崩）：該 Key 過期導致資料庫壓力過大。",
+        "en": "Cache Avalanche: The expiration of this Key causes excessive pressure on the database.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "Redis 是單執行緒模型（Single-threaded）。對一個包含數萬個欄位的 Huge Key 執行 O(N) 複雜度的指令（如 `HGETALL`）會長時間佔用 CPU，導致後續所有指令被阻塞。解決方案是進行 Sharding（拆分 Key）或只存取部分資料。",
+      "en": "Redis operates on a single-threaded model. Executing O(N) complexity commands (like `HGETALL`) on a Huge Key with tens of thousands of fields occupies the CPU for a long time, blocking all subsequent commands. The solution is to shard the key or access only partial data.",
+      "wg": [
+        {
+          "t": "單執行緒模型",
+          "en": "Single-threaded model",
+          "ps": "noun"
+        },
+        {
+          "t": "拆分",
+          "en": "shard",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "9",
+    "level": "Hard",
+    "keywords": "multi-level cache, consistency, local cache, distributed system",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "為了追求極致效能，你的系統採用了「多層級防禦（Defense in Depth）」架構：L1 使用本地快取（Local Cache, 如 Caffeine），L2 使用 Redis。",
+        "en": "To achieve extreme performance, your system adopts a 'Defense in Depth' architecture: L1 uses Local Cache (e.g., Caffeine), and L2 uses Redis.",
+        "wg": [
+          {
+            "t": "多層級防禦",
+            "en": "Defense in Depth",
+            "ps": "noun"
+          },
+          {
+            "t": "本地快取",
+            "en": "Local Cache",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "然而你發現一個問題：當使用者在 Server A 修改了個人資料後，被 Load Balancer 導向 Server B 的請求卻仍然顯示舊資料。",
+        "en": "However, you notice an issue: after a user updates their profile on Server A, requests routed to Server B by the Load Balancer still show the old data.",
+        "wg": []
+      },
+      {
+        "t": "這是因為 L1 快取與實例綁定導致的不一致。根據 Handbook，下列哪種解法最適合處理此場景？",
+        "en": "This is due to inconsistency caused by L1 caches being bound to instances. According to the Handbook, which solution is best suited for this scenario?",
+        "wg": [
+          {
+            "t": "綁定",
+            "en": "bound",
+            "ps": "verb"
+          },
+          {
+            "t": "不一致",
+            "en": "inconsistency",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "移除 L2 Redis，只使用 L1 快取並開啟 Sticky Session。",
+        "en": "Remove L2 Redis, use only L1 cache, and enable Sticky Session.",
+        "wg": []
+      },
+      {
+        "t": "在寫入資料時，利用 Pub/Sub 機制通知所有應用程式實例清除對應的 L1 快取。",
+        "en": "When writing data, use a Pub/Sub mechanism to notify all application instances to invalidate the corresponding L1 cache.",
+        "wg": [
+          {
+            "t": "清除",
+            "en": "invalidate",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "將 L1 快取的 TTL 設定得比 L2 更長，以確保命中率。",
+        "en": "Set the TTL of the L1 cache longer than L2 to ensure hit rate.",
+        "wg": []
+      },
+      {
+        "t": "改用 Write-Behind 模式，先寫入 L1 再非同步寫入 DB。",
+        "en": "Switch to Write-Behind pattern, writing to L1 first and then asynchronously to the DB.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "Local Cache 的最大缺點是各實例狀態不共享。解決此問題的標準做法是引入「通知機制」：當資料變更時，透過 Redis Pub/Sub 或 Message Queue 發送廣播，讓所有訂閱該頻道的實例清除自己記憶體中的舊資料（Invalidation）。",
+      "en": "The main drawback of Local Cache is that state is not shared across instances. The standard solution is to introduce a 'notification mechanism': when data changes, broadcast a message via Redis Pub/Sub or Message Queue, prompting all subscribed instances to invalidate the stale data in their memory.",
+      "wg": [
+        {
+          "t": "廣播",
+          "en": "broadcast",
+          "ps": "verb"
+        },
+        {
+          "t": "訂閱",
+          "en": "subscribed",
+          "ps": "adjective"
+        }
+      ]
+    }
+  },
+  {
+    "no": "10",
+    "level": "Medium",
+    "keywords": "write-around, cache pollution, write pattern",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你的系統有一個功能是「封存日誌上傳」，使用者會上傳大量的歷史 Log 資料到資料庫，這些資料寫入後極少會被立即讀取。",
+        "en": "Your system has a feature called 'Archival Log Upload', where users upload large amounts of historical log data to the database. This data is rarely read immediately after being written.",
+        "wg": [
+          {
+            "t": "封存",
+            "en": "archival",
+            "ps": "adjective"
+          },
+          {
+            "t": "極少",
+            "en": "rarely",
+            "ps": "adverb"
+          }
+        ]
+      },
+      {
+        "t": "目前系統採用 Write-Through 模式，導致每次上傳都會把這些冷資料寫入 Redis，擠壓了原本熱門資料的空間（Cache Pollution）。",
+        "en": "Currently, the system uses the Write-Through pattern, causing this cold data to be written to Redis every time, pushing out hot data (Cache Pollution).",
+        "wg": [
+          {
+            "t": "冷資料",
+            "en": "cold data",
+            "ps": "noun"
+          },
+          {
+            "t": "擠壓",
+            "en": "pushing out",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "為了避免此問題，你應該改用哪種寫入模式？",
+        "en": "To avoid this issue, which write pattern should you switch to?",
+        "wg": []
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "Write-Behind (Write-Back)",
+        "en": "Write-Behind (Write-Back)",
+        "wg": []
+      },
+      {
+        "t": "Cache-Aside",
+        "en": "Cache-Aside",
+        "wg": []
+      },
+      {
+        "t": "Write-Around",
+        "en": "Write-Around",
+        "wg": []
+      },
+      {
+        "t": "Read-Through",
+        "en": "Read-Through",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "Write-Around 模式是指寫入時直接操作 DB，繞過（不更新）快取。這非常適合「寫入後不常立即讀取」的場景，能避免冷資料佔用寶貴的快取空間（防止 Cache Pollution）。",
+      "en": "The Write-Around pattern involves writing directly to the DB, bypassing (not updating) the cache. This is ideal for scenarios where data is 'written but rarely read immediately', preventing cold data from occupying valuable cache space (preventing Cache Pollution).",
+      "wg": [
+        {
+          "t": "繞過",
+          "en": "bypassing",
+          "ps": "verb"
+        },
+        {
+          "t": "佔用",
+          "en": "occupying",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "11",
+    "level": "Hard",
+    "keywords": "consistency, double deletion, race condition, cache-aside",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在實作 Cache-Aside 時，你選擇了「先寫入 DB，再刪除 Cache」的策略。",
+        "en": "When implementing Cache-Aside, you chose the strategy of 'Write to DB first, then Delete Cache'.",
+        "wg": []
+      },
+      {
+        "t": "但在極端高併發或資料庫主從延遲（Replication Lag）的場景下，仍可能發生「刪除 Cache 後，舊資料又被讀取並寫回 Cache」的情況。",
+        "en": "However, in scenarios with extreme concurrency or database replication lag, it is still possible that 'after deleting the cache, stale data is read and written back to the cache'.",
+        "wg": [
+          {
+            "t": "主從延遲",
+            "en": "replication lag",
+            "ps": "noun"
+          },
+          {
+            "t": "舊資料",
+            "en": "stale data",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "為了達成更嚴謹的最終一致性，Handbook 提到的進階解法是什麼？",
+        "en": "To achieve stricter eventual consistency, what is the advanced solution mentioned in the Handbook?",
+        "wg": [
+          {
+            "t": "嚴謹",
+            "en": "stricter",
+            "ps": "adjective"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "Cache Double Deletion（延遲雙刪）：刪除快取 -> 寫 DB -> 等待一段時間 -> 再次刪除快取。",
+        "en": "Cache Double Deletion: Delete Cache -> Write DB -> Wait for a while -> Delete Cache again.",
+        "wg": [
+          {
+            "t": "延遲雙刪",
+            "en": "Cache Double Deletion",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "Write-Through：強迫每次寫入都同步更新快取。",
+        "en": "Write-Through: Force synchronous cache updates on every write.",
+        "wg": []
+      },
+      {
+        "t": "使用 Bloom Filter 阻擋舊資料的讀取。",
+        "en": "Use a Bloom Filter to block reads of stale data.",
+        "wg": []
+      },
+      {
+        "t": "無限延長 TTL，確保資料永遠存在。",
+        "en": "Extend TTL indefinitely to ensure data always exists.",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "Cache Double Deletion（或稱 Delayed Double Deletion）是為了解決在「寫 DB」與「刪除 Cache」之間，或者 DB 主從同步期間，舊資料被其他執行緒讀取並快取的 Race Condition。透過在短暫延遲後進行第二次刪除，可以確保這些「漏網之魚」的舊快取被清除。",
+      "en": "Cache Double Deletion (or Delayed Double Deletion) is designed to resolve race conditions where stale data is read and cached by other threads between the 'Write DB' and 'Delete Cache' steps, or during DB replication. By performing a second deletion after a short delay, it ensures that any 'slipped through' stale cache is cleared.",
+      "wg": [
+        {
+          "t": "漏網之魚",
+          "en": "slipped through",
+          "ps": "idiom/phrase"
+        },
+        {
+          "t": "清除",
+          "en": "cleared",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "12",
+    "level": "Hard",
+    "keywords": "troubleshooting, network bandwidth, latency, observability",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你的應用程式回應變慢，監控儀表板顯示 Redis 的 Hit Rate 高達 95%，CPU 使用率正常，也沒有發生 Swap。",
+        "en": "Your application response is slowing down. The monitoring dashboard shows a Redis Hit Rate of 95%, normal CPU usage, and no Swap usage.",
+        "wg": [
+          {
+            "t": "監控儀表板",
+            "en": "monitoring dashboard",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "但是 `Latency_cache`（讀取快取的延遲）卻異常地高。根據 Troubleshooting Workflow，下一步最應該檢查什麼指標？",
+        "en": "However, `Latency_cache` (cache read latency) is abnormally high. According to the Troubleshooting Workflow, what metric should you check next?",
+        "wg": [
+          {
+            "t": "指標",
+            "en": "metric",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "檢查 Network Bandwidth（網路頻寬）是否飽和，可能是因為 Value 過大。",
+        "en": "Check if Network Bandwidth is saturated, possibly due to excessively large Values.",
+        "wg": [
+          {
+            "t": "飽和",
+            "en": "saturated",
+            "ps": "adjective"
+          }
+        ]
+      },
+      {
+        "t": "檢查是否發生 Cache Penetration（快取穿透）。",
+        "en": "Check if Cache Penetration is occurring.",
+        "wg": []
+      },
+      {
+        "t": "檢查 DB 的連線數是否已滿。",
+        "en": "Check if the DB connection pool is full.",
+        "wg": []
+      },
+      {
+        "t": "檢查是否設定了 Random Jitter。",
+        "en": "Check if Random Jitter is configured.",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "當 Hit Rate 高且 CPU 正常，但 Latency 卻很高時，通常意味著瓶頸在「I/O 傳輸」。如果快取中儲存的 Value 很大（例如數百 KB 的 JSON），網路頻寬很容易被塞滿，導致傳輸時間變長。這是 Troubleshooting 中常見但容易被忽略的一點。",
+      "en": "When Hit Rate is high and CPU is normal, but Latency is high, it usually implies the bottleneck is in 'I/O transmission'. If the Values stored in the cache are large (e.g., hundreds of KB of JSON), network bandwidth can easily become saturated, increasing transmission time. This is a common but often overlooked point in troubleshooting.",
+      "wg": [
+        {
+          "t": "傳輸",
+          "en": "transmission",
+          "ps": "noun"
+        },
+        {
+          "t": "忽略",
+          "en": "overlooked",
+          "ps": "verb"
+        }
+      ]
+    }
+  }
+]

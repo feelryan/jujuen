@@ -1,0 +1,776 @@
+[
+  {
+    "no": "1",
+    "level": "Easy",
+    "keywords": "Backpressure, Memory Management, Streams",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在 Node.js 的 Stream 機制中，如果讀取速度（Reading）持續快於寫入速度（Writing），且沒有適當的背壓（Backpressure）控制，最可能導致什麼後果？",
+        "en": "In Node.js Streams, if the reading speed consistently exceeds the writing speed without proper backpressure control, what is the most likely consequence?",
+        "wg": [
+          {
+            "t": "背壓",
+            "en": "Backpressure",
+            "ps": "noun"
+          },
+          {
+            "t": "讀取速度",
+            "en": "Reading speed",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "single",
+    "options": [
+      {
+        "t": "寫入端會自動丟棄多餘的資料以維持效能。",
+        "en": "The writable side will automatically drop excess data to maintain performance.",
+        "wg": []
+      },
+      {
+        "t": "資料會堆積在內部的 Buffer 中，最終導致記憶體耗盡（OOM）。",
+        "en": "Data will accumulate in the internal buffer, eventually leading to Out of Memory (OOM).",
+        "wg": [
+          {
+            "t": "記憶體耗盡",
+            "en": "Out of Memory",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "Node.js 的 Event Loop 會自動暫停讀取，直到寫入端跟上。",
+        "en": "The Node.js Event Loop will automatically pause reading until the writing side catches up.",
+        "wg": []
+      },
+      {
+        "t": "CPU 使用率會下降，因為寫入端處於閒置狀態。",
+        "en": "CPU usage will drop because the writing side is idle.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "當寫入端來不及處理時，資料會被暫存在記憶體（Internal Buffer）中。如果沒有背壓機制通知讀取端暫停，Buffer 會無限膨脹直到記憶體崩潰。Node.js 不會自動丟棄資料，也不會自動暫停（除非實作了背壓邏輯）。",
+      "en": "When the writable side cannot keep up, data is buffered in memory (Internal Buffer). Without backpressure to signal the readable side to pause, the buffer will grow indefinitely until the process crashes. Node.js does not automatically drop data or pause without implemented backpressure logic.",
+      "wg": [
+        {
+          "t": "內部緩衝區",
+          "en": "Internal Buffer",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "2",
+    "level": "Medium",
+    "keywords": "pipeline, pipe, Error Handling, Memory Leak",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "const fs = require('fs');\nconst zlib = require('zlib');\n\n// Legacy style\nfs.createReadStream('input.txt')\n  .pipe(zlib.createGzip())\n  .pipe(fs.createWriteStream('input.txt.gz'));",
+    "question": [
+      {
+        "t": "觀察上方的程式碼片段。為什麼在現代 Node.js 開發中，建議使用 `stream.pipeline` 來取代這種傳統的 `.pipe()` 鏈式寫法？",
+        "en": "Observe the code snippet above. Why is it recommended to use `stream.pipeline` instead of this traditional `.pipe()` chaining in modern Node.js development?",
+        "wg": [
+          {
+            "t": "鏈式寫法",
+            "en": "chaining",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "single",
+    "options": [
+      {
+        "t": "`.pipe()` 無法處理二進位資料（Binary Data）。",
+        "en": "`.pipe()` cannot handle binary data.",
+        "wg": []
+      },
+      {
+        "t": "`.pipe()` 的效能比 `stream.pipeline` 差很多。",
+        "en": "`.pipe()` has significantly worse performance than `stream.pipeline`.",
+        "wg": []
+      },
+      {
+        "t": "當管線中後段的 Stream 發生錯誤時，`.pipe()` 不會自動銷毀前段的 Stream，容易導致記憶體洩漏。",
+        "en": "When an error occurs in a downstream stream, `.pipe()` does not automatically destroy upstream streams, which can lead to memory leaks.",
+        "wg": [
+          {
+            "t": "記憶體洩漏",
+            "en": "memory leaks",
+            "ps": "noun"
+          },
+          {
+            "t": "銷毀",
+            "en": "destroy",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "`stream.pipeline` 支援同步操作，而 `.pipe()` 只能非同步。",
+        "en": "`stream.pipeline` supports synchronous operations, whereas `.pipe()` is only asynchronous.",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "`.pipe()` 的主要缺陷在於錯誤處理不完整。如果目標 Stream 報錯或過早關閉，來源 Stream 往往不會被自動銷毀，導致資源（如 File Descriptor）殘留。`stream.pipeline` 會確保管線中任何錯誤發生時，所有相關 Stream 都被正確關閉。",
+      "en": "The main flaw of `.pipe()` is incomplete error handling. If a destination stream errors or closes prematurely, the source stream is often not automatically destroyed, leaving resources (like File Descriptors) dangling. `stream.pipeline` ensures all streams are properly closed if any error occurs.",
+      "wg": [
+        {
+          "t": "檔案描述符",
+          "en": "File Descriptor",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "3",
+    "level": "Hard",
+    "keywords": "Async Iterator, Concurrency, Event Loop, Anti-pattern",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "readable.on('data', async (chunk) => {\n  await processChunk(chunk);\n});",
+    "question": [
+      {
+        "t": "這段程式碼試圖對 Stream 中的每個 chunk 進行非同步處理。請問這種寫法有什麼潛在的嚴重問題？",
+        "en": "This code attempts to process each chunk from a stream asynchronously. What is the potential severe issue with this approach?",
+        "wg": [
+          {
+            "t": "非同步處理",
+            "en": "asynchronous processing",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "single",
+    "options": [
+      {
+        "t": "語法錯誤，Event Emitter 的 callback 不支援 `async` 關鍵字。",
+        "en": "Syntax error; Event Emitter callbacks do not support the `async` keyword.",
+        "wg": []
+      },
+      {
+        "t": "它會導致順序錯亂，但不會影響效能。",
+        "en": "It will cause order mismatch but won't affect performance.",
+        "wg": []
+      },
+      {
+        "t": "Event Emitter 不會等待 Promise 完成就發送下一個事件，導致大量 Promise 同時並發，可能瞬間耗盡系統資源。",
+        "en": "The Event Emitter does not wait for the Promise to resolve before emitting the next event, causing massive concurrency of Promises that can instantly exhaust system resources.",
+        "wg": [
+          {
+            "t": "並發",
+            "en": "concurrency",
+            "ps": "noun"
+          },
+          {
+            "t": "耗盡",
+            "en": "exhaust",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "這樣寫會導致 Stream 自動暫停，直到 `processChunk` 完成。",
+        "en": "Writing it this way will cause the Stream to automatically pause until `processChunk` completes.",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "在 `.on('data')` 中使用 `async/await` 是無效的背壓控制。Stream 會持續觸發 data 事件，不管你的 `await` 是否完成。這會導致成千上萬個 `processChunk` 同時執行，失去流式處理的意義。應改用 `for await (const chunk of readable)`。",
+      "en": "Using `async/await` inside `.on('data')` fails to provide backpressure. The stream keeps emitting data events regardless of your `await`. This results in thousands of `processChunk` calls running concurrently, defeating the purpose of streaming. Use `for await (const chunk of readable)` instead.",
+      "wg": [
+        {
+          "t": "流式處理",
+          "en": "streaming",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "4",
+    "level": "Medium",
+    "keywords": "Buffer, Security, allocUnsafe, Performance",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "關於 `Buffer.alloc(size)` 與 `Buffer.allocUnsafe(size)` 的比較，以下敘述何者正確？",
+        "en": "Regarding the comparison between `Buffer.alloc(size)` and `Buffer.allocUnsafe(size)`, which of the following statements is true?",
+        "wg": []
+      }
+    ],
+    "type": "single",
+    "options": [
+      {
+        "t": "`Buffer.allocUnsafe` 比較慢，因為它會進行額外的安全檢查。",
+        "en": "`Buffer.allocUnsafe` is slower because it performs extra security checks.",
+        "wg": []
+      },
+      {
+        "t": "`Buffer.alloc` 會將記憶體初始化為 0，較安全但速度稍慢；`Buffer.allocUnsafe` 則不清除舊資料，速度快但有資安風險。",
+        "en": "`Buffer.alloc` initializes memory to zero, which is safer but slightly slower; `Buffer.allocUnsafe` does not clear old data, making it faster but posing a security risk.",
+        "wg": [
+          {
+            "t": "初始化",
+            "en": "initializes",
+            "ps": "verb"
+          },
+          {
+            "t": "資安風險",
+            "en": "security risk",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "兩者功能完全相同，只是命名習慣不同。",
+        "en": "They function exactly the same; it's just a naming convention difference.",
+        "wg": []
+      },
+      {
+        "t": "在處理敏感資料（如密碼）時，應優先使用 `Buffer.allocUnsafe` 以避免資料殘留。",
+        "en": "When handling sensitive data (like passwords), `Buffer.allocUnsafe` should be preferred to avoid data persistence.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "`Buffer.allocUnsafe` 直接分配記憶體而不歸零，這意味著它可能包含先前分配給其他變數的敏感數據（如私鑰或密碼片段）。除非你能保證立即完全覆寫該區塊，否則應預設使用 `Buffer.alloc`。",
+      "en": "`Buffer.allocUnsafe` allocates memory without zeroing it out, meaning it might contain sensitive data (like private keys or password fragments) from previous allocations. Unless you guarantee immediate and full overwrite, you should default to `Buffer.alloc`.",
+      "wg": [
+        {
+          "t": "覆寫",
+          "en": "overwrite",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "5",
+    "level": "Hard",
+    "keywords": "Writable Stream, drain, flow control, write()",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "const canWrite = writable.write(chunk);\nif (!canWrite) {\n  // What should happen here?\n}",
+    "question": [
+      {
+        "t": "當你手動呼叫 `writable.write(chunk)` 且回傳值為 `false` 時，代表內部 Buffer 已滿。為了正確實作背壓（Backpressure），接下來應該採取什麼行動？",
+        "en": "When you manually call `writable.write(chunk)` and it returns `false`, it means the internal buffer is full. To correctly implement backpressure, what action should be taken next?",
+        "wg": [
+          {
+            "t": "手動呼叫",
+            "en": "manually call",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "type": "single",
+    "options": [
+      {
+        "t": "立即拋出錯誤並終止連線。",
+        "en": "Immediately throw an error and terminate the connection.",
+        "wg": []
+      },
+      {
+        "t": "使用 `setTimeout` 等待 1 秒後再試著寫入。",
+        "en": "Use `setTimeout` to wait for 1 second before trying to write again.",
+        "wg": []
+      },
+      {
+        "t": "忽略它，繼續呼叫 `write()`，Node.js 會自動處理。",
+        "en": "Ignore it and continue calling `write()`; Node.js handles it automatically.",
+        "wg": []
+      },
+      {
+        "t": "暫停寫入，並監聽 `drain` 事件；當該事件觸發時再恢復寫入。",
+        "en": "Pause writing and listen for the `drain` event; resume writing only when that event fires.",
+        "wg": [
+          {
+            "t": "監聽",
+            "en": "listen for",
+            "ps": "verb"
+          },
+          {
+            "t": "恢復",
+            "en": "resume",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "answer": "3",
+    "why": {
+      "t": "回傳 `false` 是 Stream 告訴你「我滿了」的訊號。若繼續寫入，資料會無限堆積在記憶體中。正確做法是暫停生產資料，等待 `drain` 事件，該事件表示 Buffer 已清空，可以繼續寫入。",
+      "en": "Returning `false` is the Stream's signal saying \"I'm full\". If you continue writing, data piles up in memory. The correct approach is to pause data production and wait for the `drain` event, which indicates the buffer has drained and writing can resume.",
+      "wg": [
+        {
+          "t": "訊號",
+          "en": "signal",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "6",
+    "level": "Medium",
+    "keywords": "JSON, Large File, Anti-pattern, Performance",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你需要開發一個功能來處理使用者上傳的 500MB JSON 檔案並匯入資料庫。以下哪種實作方式是**最不推薦**的（Anti-pattern）？",
+        "en": "You need to develop a feature to process a 500MB JSON file uploaded by users and import it into a database. Which of the following implementations is the **least recommended** (Anti-pattern)?",
+        "wg": [
+          {
+            "t": "最不推薦",
+            "en": "least recommended",
+            "ps": "adjective"
+          }
+        ]
+      }
+    ],
+    "type": "single",
+    "options": [
+      {
+        "t": "使用 `fs.readFile` 將整個檔案讀入記憶體，然後用 `JSON.parse` 解析。",
+        "en": "Use `fs.readFile` to read the entire file into memory, then parse it with `JSON.parse`.",
+        "wg": []
+      },
+      {
+        "t": "使用串流式 JSON Parser（如 `bfj` 或 `stream-json`）逐個物件讀取。",
+        "en": "Use a streaming JSON parser (like `bfj` or `stream-json`) to read objects one by one.",
+        "wg": [
+          {
+            "t": "串流式",
+            "en": "streaming",
+            "ps": "adjective"
+          }
+        ]
+      },
+      {
+        "t": "使用 `stream.pipeline` 配合 Async Generator 進行分批處理（Batch Processing）。",
+        "en": "Use `stream.pipeline` with Async Generators for batch processing.",
+        "wg": [
+          {
+            "t": "分批處理",
+            "en": "Batch Processing",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "在讀取 Stream 時監控記憶體用量，若過高則暫停讀取。",
+        "en": "Monitor memory usage while reading the stream and pause reading if it gets too high.",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "將 500MB 的檔案完整讀入記憶體極易導致 Out of Memory (OOM)。此外，V8 引擎對 `JSON.parse` 的字串長度與物件大小有限制，解析巨大單一 JSON 物件非常慢且阻塞 Event Loop。應始終使用 Streaming 方式處理大檔案。",
+      "en": "Reading a 500MB file entirely into memory easily leads to Out of Memory (OOM). Furthermore, the V8 engine has limits on string length and object size for `JSON.parse`, and parsing a huge single JSON object is very slow and blocks the Event Loop. You should always use streaming for large files.",
+      "wg": [
+        {
+          "t": "阻塞",
+          "en": "blocks",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "7",
+    "level": "Medium",
+    "keywords": "Transform Stream, Generator, Syntax",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "async function* upperCaseMapper(source) {\n  for await (const chunk of source) {\n    yield chunk.toString().toUpperCase();\n  }\n}",
+    "question": [
+      {
+        "t": "在現代 Node.js 中，我們可以使用 Async Generator 來作為 Transform Stream（如上方程式碼）。這種寫法的主要優勢是什麼？",
+        "en": "In modern Node.js, we can use Async Generators as Transform Streams (as shown in the code above). What is the main advantage of this approach?",
+        "wg": [
+          {
+            "t": "優勢",
+            "en": "advantage",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "single",
+    "options": [
+      {
+        "t": "它的執行速度比原生的 `Transform` 類別快 10 倍以上。",
+        "en": "It executes more than 10 times faster than the native `Transform` class.",
+        "wg": []
+      },
+      {
+        "t": "它不需要繼承 `Transform` 類別，語法更簡潔且邏輯線性，易於維護。",
+        "en": "It does not require extending the `Transform` class, offering cleaner syntax and linear logic that is easier to maintain.",
+        "wg": [
+          {
+            "t": "繼承",
+            "en": "extending",
+            "ps": "verb"
+          },
+          {
+            "t": "簡潔",
+            "en": "cleaner",
+            "ps": "adjective"
+          }
+        ]
+      },
+      {
+        "t": "它允許在瀏覽器端直接執行 Node.js 程式碼。",
+        "en": "It allows Node.js code to run directly in the browser.",
+        "wg": []
+      },
+      {
+        "t": "它可以自動將 Buffer 轉換為 JSON 物件。",
+        "en": "It automatically converts Buffers into JSON objects.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "使用 Async Generator 寫 Transform 邏輯是現代 Node.js 的最佳實務之一。它避免了樣板程式碼（Boilerplate code），讓資料轉換邏輯看起來像普通的迴圈，同時自動處理了 Stream 的背壓與狀態管理。",
+      "en": "Using Async Generators for Transform logic is a modern Node.js best practice. It avoids boilerplate code, making data transformation logic look like a normal loop, while automatically handling stream backpressure and state management.",
+      "wg": [
+        {
+          "t": "樣板程式碼",
+          "en": "Boilerplate code",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "8",
+    "level": "Medium",
+    "keywords": "HTTP, Memory Footprint, Assembly Line, Performance",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "http.createServer((req, res) => {\n  // Option A: fs.readFile\n  // Option B: fs.createReadStream + pipeline\n});",
+    "question": [
+      {
+        "t": "在開發高效能 HTTP 檔案伺服器時，手冊建議採用「生產線模型（Assembly Line）」而非「倉庫模型（Warehouse）」。",
+        "en": "When developing a high-performance HTTP file server, the handbook suggests adopting the 'Assembly Line' model instead of the 'Warehouse' model.",
+        "wg": [
+          {
+            "t": "生產線模型",
+            "en": "Assembly Line model",
+            "ps": "noun phrase"
+          },
+          {
+            "t": "倉庫模型",
+            "en": "Warehouse model",
+            "ps": "noun phrase"
+          }
+        ]
+      },
+      {
+        "t": "若使用 Stream（Option B）來處理 2GB 的影片檔，相較於 `fs.readFile`（Option A），其主要的記憶體優勢為何？",
+        "en": "If using Streams (Option B) to handle a 2GB video file, compared to `fs.readFile` (Option A), what is the primary memory advantage?",
+        "wg": [
+          {
+            "t": "記憶體優勢",
+            "en": "memory advantage",
+            "ps": "noun phrase"
+          }
+        ]
+      }
+    ],
+    "type": "single",
+    "options": [
+      {
+        "t": "Stream 會將檔案壓縮後再載入記憶體，因此佔用空間較小。",
+        "en": "Streams compress the file before loading it into memory, thus taking up less space.",
+        "wg": []
+      },
+      {
+        "t": "Stream 僅需佔用足以容納「當下單一區塊（Chunk）」的記憶體空間，與檔案總大小無關。",
+        "en": "Streams only need to occupy enough memory to hold the 'current single chunk', regardless of the total file size.",
+        "wg": [
+          {
+            "t": "區塊",
+            "en": "chunk",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "Stream 會利用硬碟作為虛擬記憶體，完全不消耗 RAM。",
+        "en": "Streams use the hard drive as virtual memory and consume no RAM at all.",
+        "wg": []
+      },
+      {
+        "t": "Stream 會自動增加 Node.js 的 Heap Size 上限以容納大檔案。",
+        "en": "Streams automatically increase the Node.js Heap Size limit to accommodate large files.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "Stream 的核心優勢在於它不需要將整個檔案載入記憶體（Warehouse 模型），而是像輸送帶一樣一次只處理一小塊資料（Assembly Line 模型），這使得記憶體佔用極低且固定。",
+      "en": "The core advantage of Streams is that they do not require loading the entire file into memory (Warehouse model). Instead, like a conveyor belt, they process only a small piece of data at a time (Assembly Line model), keeping memory usage very low and constant.",
+      "wg": []
+    }
+  },
+  {
+    "no": "9",
+    "level": "Hard",
+    "keywords": "highWaterMark, Backpressure, Buffer, Writable",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在 Node.js Stream 的設定中，`highWaterMark` 控制了內部 Buffer 的閾值。",
+        "en": "In Node.js Stream configuration, `highWaterMark` controls the threshold of the internal buffer.",
+        "wg": [
+          {
+            "t": "閾值",
+            "en": "threshold",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "當一個 **Writable Stream** 的內部 Buffer 累積資料量達到此數值時，會發生什麼事？",
+        "en": "What happens when the accumulated data in the internal buffer of a **Writable Stream** reaches this value?",
+        "wg": []
+      }
+    ],
+    "type": "single",
+    "options": [
+      {
+        "t": "Stream 會自動拋出 'Buffer Overflow' 錯誤並終止程式。",
+        "en": "The stream will automatically throw a 'Buffer Overflow' error and terminate the program.",
+        "wg": []
+      },
+      {
+        "t": "呼叫 `write()` 方法會回傳 `false`，通知寫入者應該暫停寫入（背壓機制啟動）。",
+        "en": "Calling the `write()` method returns `false`, signaling the writer to pause writing (backpressure mechanism activates).",
+        "wg": [
+          {
+            "t": "背壓機制",
+            "en": "backpressure mechanism",
+            "ps": "noun phrase"
+          }
+        ]
+      },
+      {
+        "t": "Stream 會自動將舊資料寫入硬碟的暫存區以清空 Buffer。",
+        "en": "The stream will automatically write old data to a temporary area on the disk to clear the buffer.",
+        "wg": []
+      },
+      {
+        "t": "Readable Stream 會強制斷開連線。",
+        "en": "The Readable Stream will forcibly disconnect.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "當內部 Buffer 達到 `highWaterMark` 時，`writable.write()` 會回傳 `false`。這是 Node.js 實作背壓（Backpressure）的標準訊號，告知生產者「我滿了，請稍後再送」。",
+      "en": "When the internal buffer reaches the `highWaterMark`, `writable.write()` returns `false`. This is the standard signal for implementing Backpressure in Node.js, telling the producer 'I'm full, please send more later'.",
+      "wg": []
+    }
+  },
+  {
+    "no": "10",
+    "level": "Medium",
+    "keywords": "Async Iterator, Flow Control, Pausing, for await",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "async function processStream(readable) {\n  for await (const chunk of readable) {\n    // 假設這行程式碼需要執行 5 秒鐘\n    await heavyProcessing(chunk);\n  }\n}",
+    "question": [
+      {
+        "t": "使用 `for await...of` 語法來消費 Stream 時（如上方程式碼），如果迴圈內的處理邏輯（`heavyProcessing`）執行緩慢，Stream 的讀取行為會如何變化？",
+        "en": "When using the `for await...of` syntax to consume a Stream (as in the code above), how does the Stream's reading behavior change if the processing logic inside the loop (`heavyProcessing`) executes slowly?",
+        "wg": [
+          {
+            "t": "消費",
+            "en": "consume",
+            "ps": "verb"
+          },
+          {
+            "t": "執行緩慢",
+            "en": "executes slowly",
+            "ps": "verb phrase"
+          }
+        ]
+      }
+    ],
+    "type": "single",
+    "options": [
+      {
+        "t": "Stream 會繼續讀取資料並堆積在記憶體中，直到 OOM (Out of Memory)。",
+        "en": "The Stream will continue reading data and piling it up in memory until OOM (Out of Memory).",
+        "wg": []
+      },
+      {
+        "t": "Stream 會自動暫停讀取（Pause），直到當次迴圈的 `await` 完成後才請求下一個 Chunk。",
+        "en": "The Stream will automatically pause reading, waiting until the `await` in the current loop iteration completes before requesting the next chunk.",
+        "wg": [
+          {
+            "t": "暫停讀取",
+            "en": "pause reading",
+            "ps": "verb phrase"
+          }
+        ]
+      },
+      {
+        "t": "迴圈會略過中間的 Chunk，只處理最新的資料。",
+        "en": "The loop will skip intermediate chunks and only process the latest data.",
+        "wg": []
+      },
+      {
+        "t": "Node.js 會自動開啟新的 Thread 來並行處理後續的 Chunk。",
+        "en": "Node.js will automatically spawn new threads to process subsequent chunks in parallel.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "Async Iterator 與 Stream 的整合是為了簡化背壓控制。當迴圈 `await` 時，Stream 不會推送新資料（處於 Paused 狀態），這確保了讀取速度會自動配合處理速度。",
+      "en": "The integration of Async Iterator and Streams is designed to simplify backpressure control. When the loop `await`s, the Stream does not push new data (it remains in a Paused state), ensuring that the reading speed automatically matches the processing speed.",
+      "wg": []
+    }
+  },
+  {
+    "no": "11",
+    "level": "Hard",
+    "keywords": "HTTP, Error Handling, headersSent, Pipeline",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "pipeline(fileStream, res, (err) => {\n  if (err) {\n    console.error('Stream error:', err);\n    // [Check Point]\n    res.statusCode = 500;\n    res.end();\n  }\n});",
+    "question": [
+      {
+        "t": "在 HTTP Server 中使用 `pipeline` 串流檔案給客戶端時，若發生錯誤（如讀取失敗），我們通常希望回傳 500 狀態碼。",
+        "en": "When using `pipeline` to stream a file to a client in an HTTP Server, if an error occurs (e.g., read failure), we usually want to return a 500 status code.",
+        "wg": []
+      },
+      {
+        "t": "但在執行 `res.statusCode = 500` 之前，必須先檢查什麼條件，以避免發生「Headers already sent」錯誤？",
+        "en": "However, before executing `res.statusCode = 500`, what condition must be checked to avoid the 'Headers already sent' error?",
+        "wg": [
+          {
+            "t": "狀態碼",
+            "en": "status code",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "single",
+    "options": [
+      {
+        "t": "檢查 `res.writableEnded` 是否為 true。",
+        "en": "Check if `res.writableEnded` is true.",
+        "wg": []
+      },
+      {
+        "t": "檢查 `!res.headersSent`（確保標頭尚未發送）。",
+        "en": "Check `!res.headersSent` (ensure headers have not been sent yet).",
+        "wg": []
+      },
+      {
+        "t": "檢查 `fileStream.destroyed` 是否為 false。",
+        "en": "Check if `fileStream.destroyed` is false.",
+        "wg": []
+      },
+      {
+        "t": "不需要檢查，直接設定即可，Node.js 會自動覆蓋。",
+        "en": "No check is needed; set it directly, and Node.js will automatically overwrite it.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "一旦 Stream 開始傳輸資料（哪怕只是一個 Chunk），HTTP Headers 就已經發送給客戶端了。此時無法再修改 Status Code，只能中斷連線。因此必須檢查 `res.headersSent`。",
+      "en": "Once the Stream starts transmitting data (even just a single chunk), the HTTP Headers have already been sent to the client. At this point, the Status Code cannot be modified, and the connection can only be terminated. Therefore, `res.headersSent` must be checked.",
+      "wg": [
+        {
+          "t": "中斷連線",
+          "en": "terminate the connection",
+          "ps": "verb phrase"
+        }
+      ]
+    }
+  },
+  {
+    "no": "12",
+    "level": "Medium",
+    "keywords": "Object Mode, ETL, Configuration, Syntax",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "const dbWriter = new Writable({\n  // [Missing Config]\n  write(row, encoding, callback) {\n    console.log('Saving user:', row.name);\n    callback();\n  }\n});\n\ndbWriter.write({ name: 'Alice' });",
+    "question": [
+      {
+        "t": "預設情況下，Node.js Stream 預期接收 Buffer 或 String。",
+        "en": "By default, Node.js Streams expect to receive Buffers or Strings.",
+        "wg": []
+      },
+      {
+        "t": "若你想如上方程式碼所示，直接在 Stream 中傳遞 JavaScript 物件（如 `{ name: 'Alice' }`），必須在建立 Stream 時開啟哪個設定？",
+        "en": "If you want to pass JavaScript objects (like `{ name: 'Alice' }`) directly in the Stream as shown in the code above, which setting must be enabled when creating the Stream?",
+        "wg": []
+      }
+    ],
+    "type": "single",
+    "options": [
+      {
+        "t": "`json: true`",
+        "en": "`json: true`",
+        "wg": []
+      },
+      {
+        "t": "`objectMode: true`",
+        "en": "`objectMode: true`",
+        "wg": []
+      },
+      {
+        "t": "`raw: true`",
+        "en": "`raw: true`",
+        "wg": []
+      },
+      {
+        "t": "`encoding: 'object'`",
+        "en": "`encoding: 'object'`",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "Node.js Stream 預設只處理二進位資料。若要處理一般物件（如 ETL 流程中的資料列），必須明確設定 `objectMode: true`，否則會拋出 `Invalid non-string/buffer chunk` 錯誤。",
+      "en": "Node.js Streams handle binary data by default. To handle general objects (like data rows in an ETL process), you must explicitly set `objectMode: true`, otherwise an `Invalid non-string/buffer chunk` error will be thrown.",
+      "wg": [
+        {
+          "t": "二進位資料",
+          "en": "binary data",
+          "ps": "noun phrase"
+        }
+      ]
+    }
+  }
+]
