@@ -1,0 +1,871 @@
+[
+  {
+    "no": "1",
+    "level": "3",
+    "keywords": "Pagination, Performance, Offset, Database",
+    "parentNo": null,
+    "images": "",
+    "codeSnippet": "SELECT * FROM items LIMIT 20 OFFSET 200000;",
+    "question": [
+      {
+        "t": "在處理大量資料的分頁時，使用上述 SQL (Offset-based) 進行「深分頁」查詢會導致嚴重的效能問題。請問主要原因為何？",
+        "en": "When handling pagination for large datasets, using the above SQL (Offset-based) for 'deep pagination' causes severe performance issues. What is the primary reason?",
+        "wg": [
+          {
+            "t": "深分頁",
+            "en": "Deep Pagination",
+            "ps": "noun"
+          },
+          {
+            "t": "效能問題",
+            "en": "Performance issues",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "資料庫無法快取 (Cache) 包含 OFFSET 的查詢結果。",
+        "en": "The database cannot cache query results containing OFFSET.",
+        "wg": []
+      },
+      {
+        "t": "資料庫必須讀取並丟棄前 200,000 筆資料後，才能回傳需要的 20 筆。",
+        "en": "The database must read and discard the first 200,000 rows before returning the required 20 rows.",
+        "wg": [
+          {
+            "t": "丟棄",
+            "en": "Discard",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "OFFSET 語法會導致資料庫鎖定整張資料表 (Table Lock)。",
+        "en": "The OFFSET syntax causes the database to lock the entire table.",
+        "wg": []
+      },
+      {
+        "t": "OFFSET 數值過大會導致整數溢位 (Integer Overflow)。",
+        "en": "A large OFFSET value causes integer overflow.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "Offset 分頁的複雜度是 O(N)，其中 N 是 Offset 的大小。資料庫必須掃描並計算前 200,000 行資料才能找到起始點，這消耗了大量的 CPU 與 I/O 資源。Cursor-based 分頁則能利用索引直接定位，複雜度接近 O(1) 或 O(log N)。",
+      "en": "The complexity of Offset pagination is O(N), where N is the size of the offset. The database must scan and count the first 200,000 rows to find the starting point, consuming significant CPU and I/O resources. Cursor-based pagination leverages indexes to seek directly, with complexity closer to O(1) or O(log N).",
+      "wg": [
+        {
+          "t": "掃描",
+          "en": "Scan",
+          "ps": "verb"
+        },
+        {
+          "t": "索引",
+          "en": "Index",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "2",
+    "level": "2",
+    "keywords": "N+1 Problem, ORM, Anti-pattern",
+    "parentNo": null,
+    "images": "",
+    "codeSnippet": "users = db.get_users()\nfor user in users:\n    profile = db.get_profile(user.id)\n    print(user.name, profile.bio)",
+    "question": [
+      {
+        "t": "請檢視上述程式碼片段。這是一個經典的資料庫存取反模式 (Anti-pattern)，我們稱之為什麼？",
+        "en": "Review the code snippet above. This is a classic database access anti-pattern. What is it called?",
+        "wg": [
+          {
+            "t": "反模式",
+            "en": "Anti-pattern",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "SQL Injection (SQL 注入)",
+        "en": "SQL Injection",
+        "wg": []
+      },
+      {
+        "t": "Deadlock (死鎖)",
+        "en": "Deadlock",
+        "wg": []
+      },
+      {
+        "t": "The N+1 Problem (N+1 問題)",
+        "en": "The N+1 Problem",
+        "wg": []
+      },
+      {
+        "t": "Race Condition (競態條件)",
+        "en": "Race Condition",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "這段程式碼首先執行 1 次查詢取得使用者列表，然後在迴圈中為每位使用者執行 1 次額外查詢。若有 N 位使用者，總共會執行 N+1 次資料庫查詢，造成巨大的網路往返延遲 (Round-Trip Latency)。應使用 Eager Loading 或 Batching 技術解決。",
+      "en": "The code executes 1 query to get the user list, and then 1 additional query for each user inside the loop. If there are N users, it results in N+1 database queries, causing massive network round-trip latency. This should be solved using Eager Loading or Batching.",
+      "wg": [
+        {
+          "t": "網路往返延遲",
+          "en": "Round-Trip Latency",
+          "ps": "noun"
+        },
+        {
+          "t": "預先載入",
+          "en": "Eager Loading",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "3",
+    "level": "4",
+    "keywords": "Cursor Pagination, SQL, Implementation",
+    "parentNo": null,
+    "images": "",
+    "codeSnippet": "",
+    "question": [
+      {
+        "t": "假設你正在為一個類似 Instagram 的動態牆實作「無限捲動 (Infinite Scroll)」，資料按 `created_at` 降序排列 (最新的在前)。前端傳來上一頁最後一筆資料的 `cursor` (即該筆資料的 `created_at`)。下列哪一段 SQL `WHERE` 子句是正確的 Cursor 實作？",
+        "en": "Suppose you are implementing 'Infinite Scroll' for an Instagram-like feed, sorted by `created_at` descending (newest first). The frontend sends the `cursor` of the last item from the previous page (i.e., its `created_at`). Which SQL `WHERE` clause correctly implements the Cursor pattern?",
+        "wg": [
+          {
+            "t": "無限捲動",
+            "en": "Infinite Scroll",
+            "ps": "noun"
+          },
+          {
+            "t": "降序",
+            "en": "Descending",
+            "ps": "adjective"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "`WHERE created_at > cursor`",
+        "en": "`WHERE created_at > cursor`",
+        "wg": []
+      },
+      {
+        "t": "`WHERE created_at < cursor`",
+        "en": "`WHERE created_at < cursor`",
+        "wg": []
+      },
+      {
+        "t": "`WHERE created_at = cursor`",
+        "en": "`WHERE created_at = cursor`",
+        "wg": []
+      },
+      {
+        "t": "`WHERE id > cursor`",
+        "en": "`WHERE id > cursor`",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "因為列表是按時間「降序」排列 (DESC)，最新的資料在最上面。當我們要獲取「下一頁」時，意味著要獲取比當前 cursor (上一頁最後一筆的時間) 「更早/更舊」的資料，因此時間戳記應該「小於」 cursor。",
+      "en": "Since the list is sorted by time in 'descending' order (DESC), the newest data is at the top. To fetch the 'next page', we need data that is 'older' than the current cursor (the timestamp of the last item on the previous page), so the timestamp should be 'less than' the cursor.",
+      "wg": [
+        {
+          "t": "時間戳記",
+          "en": "Timestamp",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "4",
+    "level": "3",
+    "keywords": "Indexing, Performance, Database Design",
+    "parentNo": null,
+    "images": "",
+    "codeSnippet": "SELECT * FROM orders \nWHERE status = 'shipped' \nORDER BY created_at DESC;",
+    "question": [
+      {
+        "t": "為了優化上述查詢，下列哪一種索引策略 (Indexing Strategy) 最能有效提升效能？",
+        "en": "To optimize the query above, which Indexing Strategy would most effectively improve performance?",
+        "wg": [
+          {
+            "t": "索引策略",
+            "en": "Indexing Strategy",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "僅在 `status` 欄位建立索引。",
+        "en": "Create an index on the `status` column only.",
+        "wg": []
+      },
+      {
+        "t": "僅在 `created_at` 欄位建立索引。",
+        "en": "Create an index on the `created_at` column only.",
+        "wg": []
+      },
+      {
+        "t": "建立複合索引 `(status, created_at)`。",
+        "en": "Create a composite index `(status, created_at)`.",
+        "wg": [
+          {
+            "t": "複合索引",
+            "en": "Composite Index",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "建立複合索引 `(created_at, status)`。",
+        "en": "Create a composite index `(created_at, status)`.",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "資料庫通常遵循「最左前綴」原則。針對 `WHERE A = constant ORDER BY B` 的模式，最佳索引是 `(A, B)`。這樣資料庫可以先快速定位到 `status='shipped'` 的區塊，而該區塊內的資料已經按 `created_at` 排序好了，無需額外的排序操作 (File Sort)。",
+      "en": "Databases typically follow the 'leftmost prefix' rule. For the pattern `WHERE A = constant ORDER BY B`, the optimal index is `(A, B)`. This allows the database to quickly locate the block where `status='shipped'`, and the data within that block is already sorted by `created_at`, eliminating the need for an additional sort operation (File Sort).",
+      "wg": [
+        {
+          "t": "最左前綴",
+          "en": "Leftmost Prefix",
+          "ps": "noun"
+        },
+        {
+          "t": "排序操作",
+          "en": "Sort Operation",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "5",
+    "level": "2",
+    "keywords": "Anti-pattern, Scalability, Filtering",
+    "parentNo": null,
+    "images": "",
+    "codeSnippet": "const allUsers = await db.User.findAll(); \nconst activeUsers = allUsers.filter(u => u.isActive);",
+    "question": [
+      {
+        "t": "一位初階工程師寫了上述程式碼來獲取活躍用戶。請問這種「客戶端過濾 (Client-side Filtering)」的做法主要面臨什麼風險？",
+        "en": "A junior engineer wrote the above code to fetch active users. What is the primary risk of this 'Client-side Filtering' approach?",
+        "wg": [
+          {
+            "t": "客戶端過濾",
+            "en": "Client-side Filtering",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "程式碼邏輯難以閱讀。",
+        "en": "The code logic is hard to read.",
+        "wg": []
+      },
+      {
+        "t": "隨著資料量增長，會導致應用程式記憶體溢出 (OOM) 與不必要的資料庫 I/O。",
+        "en": "As data grows, it will lead to application Out of Memory (OOM) errors and unnecessary Database I/O.",
+        "wg": [
+          {
+            "t": "記憶體溢出",
+            "en": "Out of Memory",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "JavaScript 的 `filter` 函式比 SQL 的 `WHERE` 慢。",
+        "en": "JavaScript's `filter` function is slower than SQL's `WHERE`.",
+        "wg": []
+      },
+      {
+        "t": "這會導致資料庫出現 N+1 問題。",
+        "en": "This will cause an N+1 problem in the database.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "雖然在資料量少時看似無害，但 `findAll()` 會將整張表的資料載入應用程式記憶體。當資料量達到數萬或數百萬筆時，這會耗盡伺服器記憶體 (OOM) 並阻塞網路頻寬。過濾邏輯應盡可能下推 (Push Down) 到資料庫層執行。",
+      "en": "While harmless with small data, `findAll()` loads the entire table into application memory. When data reaches tens of thousands or millions of rows, this will exhaust server memory (OOM) and clog network bandwidth. Filtering logic should be pushed down to the database layer whenever possible.",
+      "wg": [
+        {
+          "t": "下推",
+          "en": "Push Down",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "6",
+    "level": "3",
+    "keywords": "Projection, Payload, Best Practice",
+    "parentNo": null,
+    "images": "",
+    "codeSnippet": "",
+    "question": [
+      {
+        "t": "在 API 設計中，為什麼建議使用 DTO (Data Transfer Object) 或明確指定欄位，而不是直接將 ORM 的 Entity (即 `SELECT *`) 回傳給前端？",
+        "en": "In API design, why is it recommended to use DTOs (Data Transfer Objects) or explicit field selection, rather than returning ORM Entities (i.e., `SELECT *`) directly to the frontend?",
+        "wg": [
+          {
+            "t": "資料傳輸物件",
+            "en": "Data Transfer Object",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Multiple Choice",
+    "options": [
+      {
+        "t": "避免洩露敏感欄位 (如密碼雜湊、內部標記)。",
+        "en": "To avoid leaking sensitive fields (e.g., password hashes, internal flags).",
+        "wg": [
+          {
+            "t": "洩露",
+            "en": "Leak",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "減少網路傳輸量 (Payload Size) 與序列化成本。",
+        "en": "To reduce network payload size and serialization costs.",
+        "wg": [
+          {
+            "t": "序列化",
+            "en": "Serialization",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "解耦 API 契約與資料庫結構，方便未來重構 DB 而不破壞 API。",
+        "en": "To decouple the API contract from the database schema, allowing DB refactoring without breaking the API.",
+        "wg": [
+          {
+            "t": "解耦",
+            "en": "Decouple",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "以上皆是。",
+        "en": "All of the above.",
+        "wg": []
+      }
+    ],
+    "answer": "3",
+    "why": {
+      "t": "這是一個綜合性的最佳實務。直接回傳 Entity 會導致過度獲取 (Over-fetching)，增加頻寬與 CPU 負擔；同時也造成安全隱憂 (洩露不該公開的欄位) 與架構耦合 (DB 改名會直接影響前端)。",
+      "en": "This is a comprehensive best practice. Returning Entities directly leads to Over-fetching, increasing bandwidth and CPU load; it also creates security risks (leaking private fields) and architectural coupling (DB renames directly affect the frontend).",
+      "wg": [
+        {
+          "t": "過度獲取",
+          "en": "Over-fetching",
+          "ps": "noun"
+        },
+        {
+          "t": "耦合",
+          "en": "Coupling",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "id": "7",
+    "difficulty": "3",
+    "type": "Single Choice",
+    "topicTags": [
+      "Indexing",
+      "SQL",
+      "Performance"
+    ],
+    "focus": "Sargable Queries",
+    "codeSnippet": "-- Table 'orders' has an index on the column 'created_at'\nSELECT * \nFROM orders \nWHERE YEAR(created_at) = 2023;",
+    "questionSummaryZh": "儘管 `created_at` 欄位已經建立了索引，上述 SQL 查詢在資料量大時仍然觸發了全表掃描 (Full Table Scan)。請問主要原因為何？",
+    "questionSummaryEn": "Even though there is an index on the `created_at` column, the SQL query above still triggers a Full Table Scan on large datasets. What is the main reason?",
+    "question": [
+      {
+        "t": "儘管 `created_at` 欄位已經建立了索引，上述 SQL 查詢在資料量大時仍然觸發了全表掃描 (Full Table Scan)。請問主要原因為何？",
+        "en": "Even though there is an index on the `created_at` column, the SQL query above still triggers a Full Table Scan on large datasets. What is the main reason?",
+        "wg": [
+          {
+            "t": "全表掃描",
+            "en": "Full Table Scan",
+            "ps": "noun phrase"
+          },
+          {
+            "t": "觸發",
+            "en": "triggers",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "options": [
+      {
+        "t": "因為 2023 是一個整數，而 `created_at` 是時間戳記，型別不匹配導致索引失效。",
+        "en": "Because 2023 is an integer and `created_at` is a timestamp, the type mismatch invalidates the index.",
+        "wg": []
+      },
+      {
+        "t": "在索引欄位上使用函數 (如 `YEAR()`) 會導致資料庫無法直接使用 B-Tree 索引進行查找。",
+        "en": "Using a function (like `YEAR()`) on an indexed column prevents the database from directly using the B-Tree index for lookup.",
+        "wg": [
+          {
+            "t": "索引欄位",
+            "en": "indexed column",
+            "ps": "noun phrase"
+          }
+        ]
+      },
+      {
+        "t": "SELECT * 強制資料庫讀取所有欄位，因此必定會忽略索引。",
+        "en": "SELECT * forces the database to read all columns, so it inevitably ignores the index.",
+        "wg": []
+      },
+      {
+        "t": "MySQL/PostgreSQL 的查詢優化器在處理日期時，預設不使用索引。",
+        "en": "The query optimizer in MySQL/PostgreSQL defaults to not using indexes when handling dates.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "這是資料庫效能優化中常見的陷阱。當你在 `WHERE` 子句的索引欄位上套用函數（如 `YEAR(col)`、`LOWER(col)`）時，資料庫必須對每一行資料執行該函數後才能進行比對，這使得原本有序的索引結構無法被利用，導致全表掃描。正確做法是將查詢改寫為範圍查詢，例如 `WHERE created_at >= '2023-01-01' AND created_at < '2024-01-01'`。",
+      "en": "This is a common pitfall in database performance optimization. When you apply a function (like `YEAR(col)`, `LOWER(col)`) to an indexed column in the `WHERE` clause, the database must execute that function on every row before comparing, rendering the ordered index structure useless and causing a full table scan. The correct approach is to rewrite the query as a range query, such as `WHERE created_at >= '2023-01-01' AND created_at < '2024-01-01'`.",
+      "wg": [
+        {
+          "t": "陷阱",
+          "en": "pitfall",
+          "ps": "noun"
+        },
+        {
+          "t": "範圍查詢",
+          "en": "range query",
+          "ps": "noun phrase"
+        }
+      ]
+    }
+  },
+  {
+    "id": "8",
+    "difficulty": "3",
+    "type": "Single Choice",
+    "topicTags": [
+      "Indexing",
+      "Composite Index",
+      "Database Design"
+    ],
+    "focus": "Leftmost Prefix Rule",
+    "codeSnippet": "-- Table 'users' has a composite index: (status, created_at)\n\n-- Query A\nSELECT * FROM users WHERE status = 'active' AND created_at > '2023-01-01';\n\n-- Query B\nSELECT * FROM users WHERE created_at > '2023-01-01';\n\n-- Query C\nSELECT * FROM users WHERE status = 'active';",
+    "questionSummaryZh": "假設 `users` 表上有一個複合索引 `(status, created_at)`。根據「最左前綴原則 (Leftmost Prefix Rule)」，上述哪一個查詢 **無法** 有效利用此索引？",
+    "questionSummaryEn": "Assuming the `users` table has a composite index `(status, created_at)`. According to the 'Leftmost Prefix Rule', which of the above queries CANNOT effectively utilize this index?",
+    "question": [
+      {
+        "t": "假設 `users` 表上有一個複合索引 `(status, created_at)`。根據「最左前綴原則 (Leftmost Prefix Rule)」，上述哪一個查詢 **無法** 有效利用此索引？",
+        "en": "Assuming the `users` table has a composite index `(status, created_at)`. According to the 'Leftmost Prefix Rule', which of the above queries CANNOT effectively utilize this index?",
+        "wg": [
+          {
+            "t": "複合索引",
+            "en": "composite index",
+            "ps": "noun phrase"
+          },
+          {
+            "t": "最左前綴原則",
+            "en": "Leftmost Prefix Rule",
+            "ps": "noun phrase"
+          }
+        ]
+      }
+    ],
+    "options": [
+      {
+        "t": "Query A",
+        "en": "Query A",
+        "wg": []
+      },
+      {
+        "t": "Query B",
+        "en": "Query B",
+        "wg": []
+      },
+      {
+        "t": "Query C",
+        "en": "Query C",
+        "wg": []
+      },
+      {
+        "t": "Query A 與 Query C",
+        "en": "Query A and Query C",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "複合索引 `(status, created_at)` 的運作方式類似於電話簿：先按 `status` 排序，再按 `created_at` 排序。如果你跳過 `status` 直接查詢 `created_at` (Query B)，資料庫無法利用索引的排序結構，因此無法有效使用索引。Query A 和 Query C 都包含了最左邊的欄位 `status`，因此可以使用索引。",
+      "en": "A composite index `(status, created_at)` works like a phone book: sorted first by `status`, then by `created_at`. If you skip `status` and query directly by `created_at` (Query B), the database cannot utilize the sorted structure of the index, rendering it ineffective. Both Query A and Query C include the leftmost column `status`, so they can use the index.",
+      "wg": [
+        {
+          "t": "跳過",
+          "en": "skip",
+          "ps": "verb"
+        },
+        {
+          "t": "排序結構",
+          "en": "sorted structure",
+          "ps": "noun phrase"
+        }
+      ]
+    }
+  },
+  {
+    "id": "9",
+    "difficulty": "3",
+    "type": "Multiple Choice",
+    "topicTags": [
+      "Payload Optimization",
+      "Performance",
+      "Database I/O"
+    ],
+    "focus": "Impact of SELECT * with BLOBs",
+    "codeSnippet": "",
+    "questionSummaryZh": "在設計 API 時，為什麼要特別避免對包含 `TEXT` 或 `BLOB` (如文章內容、Base64 圖片) 的資料表使用 `SELECT *`？請選出所有正確原因。",
+    "questionSummaryEn": "When designing APIs, why should you specifically avoid using `SELECT *` on tables containing `TEXT` or `BLOB` columns (e.g., article content, Base64 images)? Select all correct reasons.",
+    "question": [
+      {
+        "t": "在設計 API 時，為什麼要特別避免對包含 `TEXT` 或 `BLOB` (如文章內容、Base64 圖片) 的資料表使用 `SELECT *`？請選出所有正確原因。",
+        "en": "When designing APIs, why should you specifically avoid using `SELECT *` on tables containing `TEXT` or `BLOB` columns (e.g., article content, Base64 images)? Select all correct reasons.",
+        "wg": [
+          {
+            "t": "避免",
+            "en": "avoid",
+            "ps": "verb"
+          },
+          {
+            "t": "資料表",
+            "en": "tables",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "options": [
+      {
+        "t": "大型欄位會顯著增加資料庫 I/O 負擔，導致查詢延遲增加。",
+        "en": "Large columns significantly increase database I/O load, leading to increased query latency.",
+        "wg": [
+          {
+            "t": "延遲",
+            "en": "latency",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "龐大的 Payload 會消耗更多的網路頻寬，並增加 Client 端解析 JSON 的 CPU 時間。",
+        "en": "Huge payloads consume more network bandwidth and increase CPU time for JSON parsing on the client side.",
+        "wg": [
+          {
+            "t": "頻寬",
+            "en": "bandwidth",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "使用 `SELECT *` 會導致資料庫無法使用任何索引。",
+        "en": "Using `SELECT *` prevents the database from using any indexes.",
+        "wg": []
+      },
+      {
+        "t": "這會破壞 ORM 的快取機制，導致每次都必須強制讀取硬碟。",
+        "en": "This breaks the ORM caching mechanism, forcing a disk read every time.",
+        "wg": []
+      }
+    ],
+    "answer": "0,1",
+    "why": {
+      "t": "選項 1 和 2 是主要原因。大型欄位（如文章正文）若非必要卻被取出，會造成不必要的磁碟 I/O 和網路傳輸成本。選項 3 是錯誤的，`SELECT *` 仍可使用 `WHERE` 子句中的索引來定位資料列，只是無法使用「覆蓋索引 (Covering Index)」優化。選項 4 也是錯誤的，ORM 快取與是否選取 BLOB 無直接關聯。",
+      "en": "Options 1 and 2 are the main reasons. Fetching large columns (like article bodies) when unnecessary causes avoidable disk I/O and network transfer costs. Option 3 is incorrect; `SELECT *` can still use indexes in the `WHERE` clause to locate rows, though it prevents 'Covering Index' optimization. Option 4 is also incorrect; ORM caching is not directly related to whether BLOBs are selected.",
+      "wg": [
+        {
+          "t": "覆蓋索引",
+          "en": "Covering Index",
+          "ps": "noun phrase"
+        },
+        {
+          "t": "磁碟 I/O",
+          "en": "disk I/O",
+          "ps": "noun phrase"
+        }
+      ]
+    }
+  },
+  {
+    "id": "10",
+    "difficulty": "3",
+    "type": "Single Choice",
+    "topicTags": [
+      "Pagination",
+      "System Design",
+      "Trade-offs"
+    ],
+    "focus": "Cursor Pagination Limitations",
+    "codeSnippet": "",
+    "questionSummaryZh": "你的產品經理要求在「最新動態」頁面增加一個「跳轉到第 50 頁 (Jump to Page 50)」的功能。若你的系統目前採用 Cursor-based Pagination，這會面臨什麼主要困難？",
+    "questionSummaryEn": "Your Product Manager requests a 'Jump to Page 50' feature for the 'Latest Feed' page. If your system currently uses Cursor-based Pagination, what is the main difficulty you will face?",
+    "question": [
+      {
+        "t": "你的產品經理要求在「最新動態」頁面增加一個「跳轉到第 50 頁 (Jump to Page 50)」的功能。若你的系統目前採用 Cursor-based Pagination，這會面臨什麼主要困難？",
+        "en": "Your Product Manager requests a 'Jump to Page 50' feature for the 'Latest Feed' page. If your system currently uses Cursor-based Pagination, what is the main difficulty you will face?",
+        "wg": [
+          {
+            "t": "跳轉",
+            "en": "jump to",
+            "ps": "verb"
+          },
+          {
+            "t": "面臨",
+            "en": "face",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "options": [
+      {
+        "t": "Cursor 分頁依賴上一頁的最後一筆資料作為標記，因此無法直接計算出第 50 頁的起始點，必須依序遍歷前 49 頁。",
+        "en": "Cursor pagination relies on the last item of the previous page as a token, so it cannot directly calculate the starting point of page 50 and must traverse the first 49 pages sequentially.",
+        "wg": [
+          {
+            "t": "依序遍歷",
+            "en": "traverse sequentially",
+            "ps": "verb phrase"
+          }
+        ]
+      },
+      {
+        "t": "Cursor 分頁在資料量大時效能比 Offset 分頁差，因此不適合做跳頁功能。",
+        "en": "Cursor pagination performs worse than Offset pagination with large datasets, making it unsuitable for jump-to-page functionality.",
+        "wg": []
+      },
+      {
+        "t": "Cursor 分頁無法支援 `ORDER BY` 排序，導致頁面順序錯亂。",
+        "en": "Cursor pagination does not support `ORDER BY`, leading to disordered page sequences.",
+        "wg": []
+      },
+      {
+        "t": "實作上沒有困難，只需要將 Cursor 參數設為 50 即可。",
+        "en": "There is no implementation difficulty; you just need to set the Cursor parameter to 50.",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "這是 Cursor-based 分頁的主要權衡 (Trade-off)。Cursor 的原理是「從這行之後繼續讀」，它不知道「第 50 頁」對應的 Cursor 值是什麼，除非你已經讀取了前 49 頁。如果業務需求強制要求「跳頁」功能，通常必須退回到 Offset-based 分頁，或者接受其效能代價。",
+      "en": "This is the main trade-off of Cursor-based pagination. The principle of a Cursor is 'continue reading after this row'; it doesn't know what Cursor value corresponds to 'Page 50' unless you have already read the previous 49 pages. If the business requirement strictly demands 'jump-to-page', you usually have to revert to Offset-based pagination or accept its performance costs.",
+      "wg": [
+        {
+          "t": "權衡",
+          "en": "trade-off",
+          "ps": "noun"
+        },
+        {
+          "t": "退回",
+          "en": "revert to",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "id": "11",
+    "difficulty": "4",
+    "type": "Single Choice",
+    "topicTags": [
+      "Monitoring",
+      "Performance",
+      "Execution Plan"
+    ],
+    "focus": "Interpreting Query Metrics",
+    "codeSnippet": "",
+    "questionSummaryZh": "你在監控系統中發現某個 API 的資料庫查詢指標顯示：「Rows Examined (掃描行數) = 100,000」但「Rows Sent (回傳行數) = 10」。這通常暗示了什麼潛在問題？",
+    "questionSummaryEn": "In your monitoring system, you notice a database query metric for an API showing: 'Rows Examined = 100,000' but 'Rows Sent = 10'. What potential problem does this usually imply?",
+    "question": [
+      {
+        "t": "你在監控系統中發現某個 API 的資料庫查詢指標顯示：「Rows Examined (掃描行數) = 100,000」但「Rows Sent (回傳行數) = 10」。這通常暗示了什麼潛在問題？",
+        "en": "In your monitoring system, you notice a database query metric for an API showing: 'Rows Examined = 100,000' but 'Rows Sent = 10'. What potential problem does this usually imply?",
+        "wg": [
+          {
+            "t": "掃描行數",
+            "en": "Rows Examined",
+            "ps": "noun phrase"
+          },
+          {
+            "t": "回傳行數",
+            "en": "Rows Sent",
+            "ps": "noun phrase"
+          },
+          {
+            "t": "暗示",
+            "en": "imply",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "options": [
+      {
+        "t": "這是正常的，資料庫總是需要掃描整個表來確保資料一致性。",
+        "en": "This is normal; the database always needs to scan the entire table to ensure data consistency.",
+        "wg": []
+      },
+      {
+        "t": "查詢缺少適當的索引，導致資料庫必須掃描大量資料後，才在記憶體中過濾出符合條件的 10 筆。",
+        "en": "The query lacks appropriate indexes, causing the database to scan a large amount of data before filtering out the 10 matching rows in memory.",
+        "wg": [
+          {
+            "t": "過濾",
+            "en": "filtering",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "這是 N+1 問題的典型特徵。",
+        "en": "This is a typical characteristic of the N+1 problem.",
+        "wg": []
+      },
+      {
+        "t": "這表示網路傳輸出現了封包遺失 (Packet Loss)。",
+        "en": "This indicates packet loss occurred during network transmission.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "「高掃描量、低回傳量」是索引效率低下的典型訊號。這意味著 `WHERE` 條件中的欄位沒有被索引覆蓋，或者索引失效，導致資料庫引擎必須讀取並檢查 10 萬行資料，最後只找到 10 行符合條件。理想情況下，Rows Examined 應盡量接近 Rows Sent。",
+      "en": "'High examined, low sent' is a classic sign of poor index efficiency. It means the columns in the `WHERE` clause are not covered by an index, or the index is invalid, forcing the database engine to read and inspect 100,000 rows to find only 10 matches. Ideally, Rows Examined should be as close to Rows Sent as possible.",
+      "wg": [
+        {
+          "t": "典型訊號",
+          "en": "classic sign",
+          "ps": "noun phrase"
+        },
+        {
+          "t": "符合條件",
+          "en": "matches",
+          "ps": "noun/verb"
+        }
+      ]
+    }
+  },
+  {
+    "id": "12",
+    "difficulty": "3",
+    "type": "Single Choice",
+    "topicTags": [
+      "ORM",
+      "N+1 Problem",
+      "SQL"
+    ],
+    "focus": "Eager Loading Mechanics",
+    "codeSnippet": "// ORM Example (e.g., Sequelize/TypeORM)\nconst users = await User.findAll({\n  include: ['posts'] // Eager Loading\n});",
+    "questionSummaryZh": "當你使用 ORM 的 Eager Loading (如 `include` 或 `with`) 來解決 N+1 問題時，底層通常會生成什麼樣的 SQL 結構來優化效能？",
+    "questionSummaryEn": "When you use ORM Eager Loading (like `include` or `with`) to solve the N+1 problem, what SQL structure is typically generated underneath to optimize performance?",
+    "question": [
+      {
+        "t": "當你使用 ORM 的 Eager Loading (如 `include` 或 `with`) 來解決 N+1 問題時，底層通常會生成什麼樣的 SQL 結構來優化效能？",
+        "en": "When you use ORM Eager Loading (like `include` or `with`) to solve the N+1 problem, what SQL structure is typically generated underneath to optimize performance?",
+        "wg": [
+          {
+            "t": "底層",
+            "en": "underneath / under the hood",
+            "ps": "adverb"
+          },
+          {
+            "t": "生成",
+            "en": "generate",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "options": [
+      {
+        "t": "生成一個巨大的 `JOIN` 查詢，一次將所有 User 和 Post 資料拉回來。",
+        "en": "Generates one huge `JOIN` query to fetch all User and Post data at once.",
+        "wg": []
+      },
+      {
+        "t": "先查詢 User，然後對每個 User 執行一次 `SELECT * FROM posts WHERE user_id = ?`。",
+        "en": "Queries Users first, then executes `SELECT * FROM posts WHERE user_id = ?` for each User.",
+        "wg": []
+      },
+      {
+        "t": "先查詢 User，收集所有 ID 後，執行第二條查詢 `SELECT * FROM posts WHERE user_id IN (...)`。",
+        "en": "Queries Users first, collects all IDs, and then executes a second query `SELECT * FROM posts WHERE user_id IN (...)`.",
+        "wg": [
+          {
+            "t": "收集",
+            "en": "collects",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "使用資料庫的 Stored Procedure 來在伺服器端合併資料。",
+        "en": "Uses database Stored Procedures to merge data on the server side.",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "雖然 `JOIN` (選項 1) 也是一種方式，但現代 ORM 在處理一對多 (One-to-Many) 關係時，更常使用「兩次查詢 + 記憶體組裝」的策略 (選項 2)。這樣可以避免 `JOIN` 造成的資料重複 (Cartesian Product) 和傳輸冗餘。選項 2 則是典型的 N+1 問題，正是我們要避免的。",
+      "en": "While `JOIN` (Option 1) is a valid approach, modern ORMs more commonly use the 'Two Queries + In-Memory Assembly' strategy (Option 2) for One-to-Many relationships. This avoids the data duplication (Cartesian Product) and transfer redundancy caused by `JOIN`s. Option 2 describes the typical N+1 problem, which is exactly what we are trying to avoid.",
+      "wg": [
+        {
+          "t": "記憶體組裝",
+          "en": "In-Memory Assembly",
+          "ps": "noun phrase"
+        },
+        {
+          "t": "資料重複",
+          "en": "data duplication",
+          "ps": "noun phrase"
+        }
+      ]
+    }
+  }
+]

@@ -1,0 +1,818 @@
+[
+  {
+    "no": "1",
+    "level": "medium",
+    "keywords": "Distributed Systems, Dual Write, Transactional Outbox, Data Consistency",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "func createOrder(order Order) {\n  db.BeginTransaction()\n  db.Save(order)\n  db.Commit()\n  // What if the system crashes here?\n  kafkaProducer.Send(\"order-created\", order)\n}",
+    "question": [
+      {
+        "t": "在微服務架構中，我們經常需要在寫入資料庫後發送領域事件（Domain Event）到訊息佇列（Message Queue）。請檢視上方的虛擬碼，這種「先 Commit DB，再發送 MQ」的寫法主要存在什麼風險？",
+        "en": "In a microservices architecture, we often need to publish a domain event to a message queue after writing to the database. Review the pseudo-code above. What is the primary risk of this 'Commit DB first, then send to MQ' approach?",
+        "wg": [
+          {
+            "t": "領域事件",
+            "en": "Domain Event",
+            "ps": "noun"
+          },
+          {
+            "t": "訊息佇列",
+            "en": "Message Queue",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "single",
+    "options": [
+      {
+        "t": "效能問題：資料庫交易會因為等待 Kafka 回應而變慢。",
+        "en": "Performance issue: The database transaction will slow down waiting for Kafka's response.",
+        "wg": []
+      },
+      {
+        "t": "資料不一致：若應用程式在 DB Commit 後但在發送 MQ 前崩潰，事件將會永久遺失。",
+        "en": "Data Inconsistency: If the application crashes after the DB commit but before sending to MQ, the event will be permanently lost.",
+        "wg": [
+          {
+            "t": "資料不一致",
+            "en": "Data Inconsistency",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "死鎖風險：Kafka 可能會回頭呼叫 DB 造成循環鎖定。",
+        "en": "Deadlock risk: Kafka might call back to the DB causing a circular lock.",
+        "wg": []
+      },
+      {
+        "t": "重複發送：若 DB Commit 失敗，MQ 仍可能發送成功。",
+        "en": "Duplicate sending: If the DB commit fails, the MQ message might still be sent successfully.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "這是典型的「雙寫問題（Dual Write Problem）」。若程式在 DB Commit 成功後、執行下一行發送 MQ 代碼前崩潰（Crash），資料庫已有訂單，但下游服務永遠收不到通知，導致系統狀態不一致。解決方案是使用「交易式發件箱模式（Transactional Outbox Pattern）」。",
+      "en": "This is a classic 'Dual Write Problem'. If the application crashes after the DB commit succeeds but before the MQ sending code executes, the database will have the order, but downstream services will never be notified, leading to system inconsistency. The solution is to use the 'Transactional Outbox Pattern'.",
+      "wg": [
+        {
+          "t": "雙寫問題",
+          "en": "Dual Write Problem",
+          "ps": "noun"
+        },
+        {
+          "t": "交易式發件箱模式",
+          "en": "Transactional Outbox Pattern",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "2",
+    "level": "medium",
+    "keywords": "Saga Pattern, Orchestration, Choreography, Microservices",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你的團隊正在設計一個涉及 8 個微服務、流程複雜且需要詳細監控每一步驟狀態的業務流程（例如：跨境物流追蹤）。根據 Handbook，哪種 Saga 實作模式最適合此場景？",
+        "en": "Your team is designing a business process involving 8 microservices, which is complex and requires detailed monitoring of each step's status (e.g., cross-border logistics tracking). According to the Handbook, which Saga implementation pattern is most suitable for this scenario?",
+        "wg": [
+          {
+            "t": "微服務",
+            "en": "Microservices",
+            "ps": "noun"
+          },
+          {
+            "t": "業務流程",
+            "en": "Business Process",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "single",
+    "options": [
+      {
+        "t": "編排式 (Choreography)：因為它去中心化，服務間耦合度最低。",
+        "en": "Choreography: Because it is decentralized and has the lowest coupling between services.",
+        "wg": [
+          {
+            "t": "編排式",
+            "en": "Choreography",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "指揮式 (Orchestration)：因為有中央協調者管理狀態機，適合複雜且參與者眾多的流程。",
+        "en": "Orchestration: Because it has a central coordinator managing the state machine, making it suitable for complex processes with many participants.",
+        "wg": [
+          {
+            "t": "指揮式",
+            "en": "Orchestration",
+            "ps": "noun"
+          },
+          {
+            "t": "中央協調者",
+            "en": "Central Coordinator",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "兩階段提交 (2PC)：因為它能保證強一致性，避免複雜的補償邏輯。",
+        "en": "Two-Phase Commit (2PC): Because it guarantees strong consistency and avoids complex compensation logic.",
+        "wg": []
+      },
+      {
+        "t": "本地交易 (Local Transaction)：將所有服務合併為一個單體應用。",
+        "en": "Local Transaction: Merge all services into a single monolithic application.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "雖然 Choreography 耦合度低，但在參與者多（>3-4 個）且流程複雜時，會變得難以追蹤與除錯。Orchestration 透過中央協調者（Orchestrator）集中管理狀態與錯誤處理，是處理複雜長流程的首選。2PC 在微服務間通常被視為 Anti-pattern。",
+      "en": "While Choreography has low coupling, it becomes difficult to track and debug when there are many participants (>3-4) and the process is complex. Orchestration, which centrally manages state and error handling via an Orchestrator, is the preferred choice for complex long-running processes. 2PC is generally considered an anti-pattern between microservices.",
+      "wg": [
+        {
+          "t": "反模式",
+          "en": "Anti-pattern",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "3",
+    "level": "hard",
+    "keywords": "Idempotency, API Design, Retry Mechanism, Payment",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在設計一個「扣款 API」時，客戶端發送請求後發生網路逾時（Timeout），客戶端無法確定伺服器是否已處理該請求，因此觸發了自動重試（Retry）。為了避免重複扣款，伺服器端必須實作什麼機制？",
+        "en": "When designing a 'Deduct Money API', a network timeout occurs after the client sends a request. The client cannot determine if the server has processed the request, so it triggers an automatic retry. To prevent double deduction, what mechanism must the server implement?",
+        "wg": [
+          {
+            "t": "網路逾時",
+            "en": "Network Timeout",
+            "ps": "noun"
+          },
+          {
+            "t": "自動重試",
+            "en": "Automatic Retry",
+            "ps": "noun"
+          },
+          {
+            "t": "重複扣款",
+            "en": "Double Deduction",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "single",
+    "options": [
+      {
+        "t": "分散式鎖 (Distributed Lock)：鎖定該使用者的帳戶直到交易完成。",
+        "en": "Distributed Lock: Lock the user's account until the transaction is complete.",
+        "wg": []
+      },
+      {
+        "t": "冪等性 (Idempotency)：要求客戶端帶上 `idempotency_key`，伺服器檢查該 Key 是否已處理過。",
+        "en": "Idempotency: Require the client to send an `idempotency_key`, and the server checks if that key has already been processed.",
+        "wg": [
+          {
+            "t": "冪等性",
+            "en": "Idempotency",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "最終一致性 (Eventual Consistency)：先回傳成功，後台再慢慢檢查是否有重複。",
+        "en": "Eventual Consistency: Return success first, then check for duplicates in the background.",
+        "wg": []
+      },
+      {
+        "t": "縮短逾時時間 (Short Timeout)：讓連線快速失敗，減少不確定性。",
+        "en": "Short Timeout: Fail the connection quickly to reduce uncertainty.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "在分散式環境中，網路逾時是常態。唯一能安全處理重試的方法是實作「冪等性」。伺服器需記錄已處理過的 `idempotency_key`（通常由客戶端生成，如 UUID），若收到相同 Key 的請求，則直接回傳上次的結果而不重複執行業務邏輯。",
+      "en": "In a distributed environment, network timeouts are common. The only way to safely handle retries is to implement 'Idempotency'. The server needs to record processed `idempotency_key`s (usually generated by the client, e.g., UUID). If a request with the same Key is received, it should return the previous result directly without re-executing the business logic.",
+      "wg": [
+        {
+          "t": "業務邏輯",
+          "en": "Business Logic",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "4",
+    "level": "medium",
+    "keywords": "Optimistic Locking, Concurrency Control, Database",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "UPDATE products \nSET quantity = quantity - 1, version = version + 1 \nWHERE id = 101 AND version = 5;",
+    "question": [
+      {
+        "t": "在高併發的搶票系統中，為了避免資料庫鎖定（Locking）造成的效能瓶頸，我們常採用樂觀鎖（Optimistic Concurrency Control）。參考上方的 SQL，如果該語句回傳「受影響行數 (Rows Affected) 為 0」，這代表什麼意義？",
+        "en": "In a high-concurrency ticket booking system, to avoid performance bottlenecks caused by database locking, we often use Optimistic Concurrency Control (OCC). Referring to the SQL above, if the statement returns 'Rows Affected: 0', what does this imply?",
+        "wg": [
+          {
+            "t": "高併發",
+            "en": "High Concurrency",
+            "ps": "noun"
+          },
+          {
+            "t": "樂觀鎖",
+            "en": "Optimistic Concurrency Control",
+            "ps": "noun"
+          },
+          {
+            "t": "受影響行數",
+            "en": "Rows Affected",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "single",
+    "options": [
+      {
+        "t": "資料庫連線失敗，需要重啟連線。",
+        "en": "Database connection failed; need to restart the connection.",
+        "wg": []
+      },
+      {
+        "t": "該商品 ID 不存在。",
+        "en": "The product ID does not exist.",
+        "wg": []
+      },
+      {
+        "t": "資料已被其他交易修改（version 已變更），當前操作失敗，應通知使用者重試。",
+        "en": "The data has been modified by another transaction (version changed). The current operation failed, and the user should be notified to retry.",
+        "wg": [
+          {
+            "t": "交易",
+            "en": "Transaction",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "SQL 語法錯誤。",
+        "en": "SQL syntax error.",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "樂觀鎖的核心機制是檢查 `version` 是否與讀取時一致。若受影響行數為 0，表示在我們讀取資料後、寫入資料前，已經有另一個請求修改了該筆資料（導致 DB 中的 version 變成了 6 或其他數字）。這是一種衝突檢測機制。",
+      "en": "The core mechanism of optimistic locking is to check if the `version` matches what was read. If rows affected is 0, it means that between our read and write, another request has already modified the data (changing the DB version to 6 or something else). This is a conflict detection mechanism.",
+      "wg": [
+        {
+          "t": "衝突檢測",
+          "en": "Conflict Detection",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "5",
+    "level": "medium",
+    "keywords": "Saga Pattern, Compensation, Error Handling",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在 Saga 模式中，如果業務流程執行到第 3 步失敗了（例如：扣款成功 -> 扣庫存成功 -> 安排物流失敗），系統必須執行什麼操作來維持資料一致性？",
+        "en": "In the Saga pattern, if the business process fails at step 3 (e.g., Payment Success -> Inventory Deducted -> Shipping Arrangement Failed), what operation must the system perform to maintain data consistency?",
+        "wg": [
+          {
+            "t": "資料一致性",
+            "en": "Data Consistency",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "single",
+    "options": [
+      {
+        "t": "立即重試第 3 步直到成功為止。",
+        "en": "Immediately retry step 3 until it succeeds.",
+        "wg": []
+      },
+      {
+        "t": "執行「補償交易 (Compensating Transaction)」，依序回滾第 2 步（補庫存）與第 1 步（退款）。",
+        "en": "Execute 'Compensating Transactions' to sequentially roll back step 2 (restock) and step 1 (refund).",
+        "wg": [
+          {
+            "t": "補償交易",
+            "en": "Compensating Transaction",
+            "ps": "noun"
+          },
+          {
+            "t": "回滾",
+            "en": "Rollback",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "刪除第 1 步與第 2 步的資料庫紀錄。",
+        "en": "Delete the database records for step 1 and step 2.",
+        "wg": []
+      },
+      {
+        "t": "發送 Alert 給管理員，手動修改資料庫。",
+        "en": "Send an alert to the administrator to manually modify the database.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "Saga 模式無法像 ACID 交易那樣自動 Rollback。開發者必須為每個正向步驟（如扣款）預先編寫對應的反向補償步驟（如退款）。當流程中斷時，Saga 協調者會反向執行這些補償邏輯，使系統回到語意上的一致狀態。",
+      "en": "The Saga pattern cannot automatically rollback like ACID transactions. Developers must pre-write a corresponding reverse compensation step (e.g., refund) for each forward step (e.g., charge). When the process is interrupted, the Saga coordinator executes these compensation logics in reverse to return the system to a semantically consistent state.",
+      "wg": [
+        {
+          "t": "語意上的",
+          "en": "Semantically",
+          "ps": "adverb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "6",
+    "level": "easy",
+    "keywords": "Anti-pattern, 2PC, Distributed Transactions",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "Handbook 中提到應避免在微服務 API 層級使用「兩階段提交 (2PC/XA)」。下列哪一項是 2PC 在分散式環境中最大的缺點？",
+        "en": "The Handbook advises against using 'Two-Phase Commit (2PC/XA)' at the microservice API level. Which of the following is the biggest drawback of 2PC in a distributed environment?",
+        "wg": [
+          {
+            "t": "兩階段提交",
+            "en": "Two-Phase Commit",
+            "ps": "noun"
+          },
+          {
+            "t": "分散式環境",
+            "en": "Distributed Environment",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "single",
+    "options": [
+      {
+        "t": "它無法保證資料的一致性。",
+        "en": "It cannot guarantee data consistency.",
+        "wg": []
+      },
+      {
+        "t": "同步阻塞 (Blocking)：協調者或任一參與者故障，都會導致資源長時間鎖定，嚴重影響可用性。",
+        "en": "Synchronous Blocking: Failure of the coordinator or any participant leads to long-term resource locking, severely impacting availability.",
+        "wg": [
+          {
+            "t": "同步阻塞",
+            "en": "Synchronous Blocking",
+            "ps": "noun"
+          },
+          {
+            "t": "可用性",
+            "en": "Availability",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "它只能在同一個資料庫實例中使用。",
+        "en": "It can only be used within the same database instance.",
+        "wg": []
+      },
+      {
+        "t": "它不支援 SQL 語言。",
+        "en": "It does not support SQL language.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "2PC 是一種強一致性協議，但在分散式系統中，它是同步阻塞的。根據 CAP 定理，這會犧牲可用性（Availability）。如果協調者掛掉，所有參與者都會卡在「準備提交」狀態，無法釋放鎖，導致系統癱瘓。這被稱為「單點故障擴大化」。",
+      "en": "2PC is a strong consistency protocol, but in distributed systems, it is synchronously blocking. According to the CAP theorem, this sacrifices Availability. If the coordinator crashes, all participants get stuck in the 'Prepare' state, unable to release locks, leading to system paralysis. This is known as 'amplifying single points of failure'.",
+      "wg": [
+        {
+          "t": "單點故障",
+          "en": "Single Point of Failure",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "7",
+    "level": "medium",
+    "keywords": "Local Transaction, Aggregate Pattern, DDD",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在考慮使用複雜的分散式一致性模式（如 Saga）之前，Handbook 建議優先採用的策略是什麼？",
+        "en": "Before considering complex distributed consistency patterns (like Saga), what strategy does the Handbook recommend adopting first?",
+        "wg": [
+          {
+            "t": "分散式一致性",
+            "en": "Distributed Consistency",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "single",
+    "options": [
+      {
+        "t": "本地交易優先 (Local Transaction First)：重新檢視聚合邊界，盡量將強相關資料放在同一個 DB 中。",
+        "en": "Local Transaction First: Re-examine aggregate boundaries and try to keep strongly related data in the same DB.",
+        "wg": [
+          {
+            "t": "聚合邊界",
+            "en": "Aggregate Boundaries",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "全面使用 NoSQL 資料庫以獲得高效能。",
+        "en": "Use NoSQL databases exclusively for high performance.",
+        "wg": []
+      },
+      {
+        "t": "忽略一致性問題，依賴人工修復。",
+        "en": "Ignore consistency issues and rely on manual repair.",
+        "wg": []
+      },
+      {
+        "t": "將所有服務改寫為無狀態 (Stateless) 函數。",
+        "en": "Rewrite all services as stateless functions.",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "分散式交易非常昂貴且易錯。最佳實務是「不要為了拆分而拆分」。透過領域驅動設計 (DDD) 的聚合 (Aggregate) 概念，將必須保持強一致性的資料（如訂單與訂單明細）放在同一個資料庫交易中處理，可以解決 80% 的問題，而無需引入 Saga。",
+      "en": "Distributed transactions are expensive and error-prone. The best practice is 'don't split for the sake of splitting'. By using the Aggregate concept from Domain-Driven Design (DDD), keeping data that requires strong consistency (like orders and order items) within the same database transaction can solve 80% of the problems without introducing Saga.",
+      "wg": [
+        {
+          "t": "領域驅動設計",
+          "en": "Domain-Driven Design",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "8",
+    "level": "easy",
+    "keywords": "Mental Model, ACID, BASE, State Machine",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在從單體架構轉向分散式系統時，Handbook 提到我們的心智模型（Mental Model）需要從「依賴鎖定 (Locking)」轉變為什麼？",
+        "en": "When moving from monolithic to distributed systems, the Handbook mentions that our Mental Model needs to shift from 'relying on Locking' to what?",
+        "wg": [
+          {
+            "t": "心智模型",
+            "en": "Mental Model",
+            "ps": "noun"
+          },
+          {
+            "t": "單體架構",
+            "en": "Monolithic Architecture",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "single",
+    "options": [
+      {
+        "t": "狀態流轉 (State Transitions)：將業務視為一系列狀態的變更，並接受中間的暫時不一致。",
+        "en": "State Transitions: Viewing business logic as a series of state changes and accepting temporary inconsistency in between.",
+        "wg": [
+          {
+            "t": "狀態流轉",
+            "en": "State Transitions",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "全域鎖定 (Global Locking)：使用 Redis 鎖住所有相關資源。",
+        "en": "Global Locking: Using Redis to lock all related resources.",
+        "wg": []
+      },
+      {
+        "t": "即時同步 (Real-time Sync)：確保所有節點在 1ms 內同步資料。",
+        "en": "Real-time Sync: Ensuring all nodes sync data within 1ms.",
+        "wg": []
+      },
+      {
+        "t": "無狀態設計 (Stateless Design)：不儲存任何資料。",
+        "en": "Stateless Design: Not storing any data.",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "這是 ACID (Monolithic) 與 BASE (Distributed) 思維的根本差異。在分散式環境中，強行鎖住資源會導致效能低落。正確的做法是像「星巴克點餐」一樣，透過狀態機（Pending -> Processing -> Done）來管理流程，允許中間狀態的存在。",
+      "en": "This is the fundamental difference between ACID (Monolithic) and BASE (Distributed) mindsets. In a distributed environment, forcibly locking resources leads to poor performance. The correct approach is like 'ordering at Starbucks', managing the process via a state machine (Pending -> Processing -> Done) and allowing intermediate states to exist.",
+      "wg": [
+        {
+          "t": "中間狀態",
+          "en": "Intermediate State",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "9",
+    "level": "medium",
+    "keywords": "API Design, HTTP Status Code, Async Processing, User Experience",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "當我們將系統從單體架構遷移至基於「最終一致性」的微服務架構後，某些業務操作（如：結帳、產生報表）可能需要數秒甚至更久才能完成。根據 Handbook 的「前端適配」建議，API 不應讓客戶端一直等待連線逾時，而應該立即回傳哪個 HTTP 狀態碼，並提供後續查詢機制？",
+        "en": "When migrating from a monolithic architecture to a microservices architecture based on 'Eventual Consistency', certain business operations (e.g., checkout, report generation) may take seconds or longer to complete. According to the 'Frontend Adaptation' recommendation in the Handbook, instead of making the client wait until a connection timeout, which HTTP status code should the API return immediately along with a mechanism for subsequent status checks?",
+        "wg": [
+          {
+            "t": "最終一致性",
+            "en": "Eventual Consistency",
+            "ps": "noun phrase"
+          },
+          {
+            "t": "前端適配",
+            "en": "Frontend Adaptation",
+            "ps": "noun phrase"
+          }
+        ]
+      }
+    ],
+    "type": "single",
+    "options": [
+      {
+        "t": "200 OK",
+        "en": "200 OK",
+        "wg": []
+      },
+      {
+        "t": "201 Created",
+        "en": "201 Created",
+        "wg": []
+      },
+      {
+        "t": "202 Accepted",
+        "en": "202 Accepted",
+        "wg": []
+      },
+      {
+        "t": "204 No Content",
+        "en": "204 No Content",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "根據 Handbook 的檢查清單，對於非同步處理的長流程，API 應回傳 `202 Accepted`。這代表伺服器已接收請求並開始處理，但尚未完成。通常回應中會包含一個 `Location` 標頭或連結，供客戶端輪詢（Polling）處理狀態，避免客戶端因長時間等待而發生 Timeout。",
+      "en": "According to the Handbook's checklist, for long-running asynchronous processes, the API should return `202 Accepted`. This indicates that the server has received the request and started processing it, but it is not yet complete. The response usually includes a `Location` header or link for the client to poll the processing status, preventing client-side timeouts due to long waits.",
+      "wg": [
+        {
+          "t": "輪詢",
+          "en": "Polling",
+          "ps": "verb/noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "10",
+    "level": "medium",
+    "keywords": "Dead Letter Queue, DLQ, Error Handling, Message Queue",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在事件驅動架構（Event-driven Architecture）或 Saga 模式中，若某個訊息因格式錯誤或程式 Bug 導致處理失敗，即使經過多次自動重試（Retry）後仍然失敗。為了避免該訊息持續阻塞佇列（Queue），Handbook 建議應實作下列哪種機制來隔離並保存這些訊息以供人工排查？",
+        "en": "In an Event-driven Architecture or Saga pattern, if a message fails to process due to a format error or bug, and continues to fail even after multiple automatic retries. To prevent this message from blocking the queue indefinitely, which mechanism does the Handbook recommend implementing to isolate and store these messages for manual investigation?",
+        "wg": [
+          {
+            "t": "事件驅動架構",
+            "en": "Event-driven Architecture",
+            "ps": "noun phrase"
+          },
+          {
+            "t": "阻塞",
+            "en": "Blocking",
+            "ps": "verb"
+          },
+          {
+            "t": "人工排查",
+            "en": "Manual Investigation",
+            "ps": "noun phrase"
+          }
+        ]
+      }
+    ],
+    "type": "single",
+    "options": [
+      {
+        "t": "斷路器 (Circuit Breaker)",
+        "en": "Circuit Breaker",
+        "wg": []
+      },
+      {
+        "t": "死信隊列 (Dead Letter Queue, DLQ)",
+        "en": "Dead Letter Queue (DLQ)",
+        "wg": []
+      },
+      {
+        "t": "兩階段提交 (Two-Phase Commit)",
+        "en": "Two-Phase Commit",
+        "wg": []
+      },
+      {
+        "t": "寫入時複製 (Copy on Write)",
+        "en": "Copy on Write",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "Handbook 的實作檢核表（Implementation Checklist）中明確提到「死信隊列 (DLQ)」。當訊息處理失敗且重試次數耗盡時，系統應將該訊息移至 DLQ，以防止毒藥訊息（Poison Message）卡住整個處理流程，並保留現場供開發者後續分析修復。",
+      "en": "The Handbook's Implementation Checklist explicitly mentions the 'Dead Letter Queue (DLQ)'. When message processing fails and retries are exhausted, the system should move the message to a DLQ. This prevents 'poison messages' from jamming the entire processing flow and preserves the data for developers to analyze and fix later.",
+      "wg": [
+        {
+          "t": "毒藥訊息",
+          "en": "Poison Message",
+          "ps": "noun phrase"
+        }
+      ]
+    }
+  },
+  {
+    "no": "11",
+    "level": "medium",
+    "keywords": "Saga Pattern, Timeout, Resilience, Distributed Systems",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在 Saga 指揮模式（Orchestration）中，如果其中一個參與的微服務（例如物流服務）完全沒有回應（Hang），導致流程卡住。為了確保系統能自動恢復或終止錯誤狀態，Handbook 強調必須在 Saga 中設計什麼機制來觸發回滾（Rollback）？",
+        "en": "In the Saga Orchestration pattern, if one of the participating microservices (e.g., Shipping Service) becomes unresponsive (hangs), causing the flow to get stuck. To ensure the system can automatically recover or terminate the error state, what mechanism does the Handbook emphasize must be designed in the Saga to trigger a rollback?",
+        "wg": [
+          {
+            "t": "指揮模式",
+            "en": "Orchestration",
+            "ps": "noun phrase"
+          },
+          {
+            "t": "回滾",
+            "en": "Rollback",
+            "ps": "verb/noun"
+          }
+        ]
+      }
+    ],
+    "type": "single",
+    "options": [
+      {
+        "t": "樂觀鎖 (Optimistic Locking)",
+        "en": "Optimistic Locking",
+        "wg": []
+      },
+      {
+        "t": "逾時處理 (Timeout Handling)",
+        "en": "Timeout Handling",
+        "wg": []
+      },
+      {
+        "t": "資料庫快照 (Database Snapshot)",
+        "en": "Database Snapshot",
+        "wg": []
+      },
+      {
+        "t": "雙重寫入 (Dual Write)",
+        "en": "Dual Write",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "在分散式系統中，服務可能因為網路問題或當機而無法回應。Handbook 的檢核表中提到「逾時處理」：Saga 協調者必須設定等待上限，一旦超過時間仍未收到回應，即視為失敗並觸發補償交易（Compensating Transaction）來回滾已完成的步驟，避免交易無限期懸掛。",
+      "en": "In distributed systems, services may fail to respond due to network issues or crashes. The Handbook's checklist mentions 'Timeout Handling': The Saga orchestrator must set a maximum wait time. If no response is received within this limit, it is treated as a failure, triggering Compensating Transactions to rollback completed steps and preventing the transaction from hanging indefinitely.",
+      "wg": [
+        {
+          "t": "補償交易",
+          "en": "Compensating Transaction",
+          "ps": "noun phrase"
+        },
+        {
+          "t": "無限期懸掛",
+          "en": "Hanging indefinitely",
+          "ps": "verb phrase"
+        }
+      ]
+    }
+  },
+  {
+    "no": "12",
+    "level": "hard",
+    "keywords": "Consistency Spectrum, Causal Consistency, Distributed Systems",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在社群媒體系統中，如果「使用者 A 發布了一張照片」導致「使用者 B 對該照片留言」。系統必須保證任何讀取到該「留言」的節點，也一定能讀取到該「照片」，否則會出現顯示錯誤。根據 Handbook 的一致性光譜（Consistency Spectrum），這屬於哪種一致性模型？",
+        "en": "In a social media system, if 'User A posts a photo' causes 'User B to comment on that photo'. The system must guarantee that any node reading the 'comment' can also read the 'photo'; otherwise, a display error will occur. According to the Handbook's Consistency Spectrum, which consistency model does this belong to?",
+        "wg": [
+          {
+            "t": "一致性光譜",
+            "en": "Consistency Spectrum",
+            "ps": "noun phrase"
+          },
+          {
+            "t": "節點",
+            "en": "Node",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "single",
+    "options": [
+      {
+        "t": "強一致性 (Strong Consistency)",
+        "en": "Strong Consistency",
+        "wg": []
+      },
+      {
+        "t": "因果一致性 (Causal Consistency)",
+        "en": "Causal Consistency",
+        "wg": []
+      },
+      {
+        "t": "最終一致性 (Eventual Consistency)",
+        "en": "Eventual Consistency",
+        "wg": []
+      },
+      {
+        "t": "弱一致性 (Weak Consistency)",
+        "en": "Weak Consistency",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "Handbook 定義「因果一致性 (Causal Consistency)」為：如果事件 A 導致了事件 B，系統保證所有節點都先看到 A 再看到 B。在此情境中，照片（A）是留言（B）的因，因此系統必須維護這種因果順序，這比單純的最終一致性更嚴格，但不需要強一致性那麼高的代價。",
+      "en": "The Handbook defines 'Causal Consistency' as: If event A causes event B, the system guarantees all nodes see A before B. In this scenario, the photo (A) is the cause of the comment (B), so the system must maintain this causal order. This is stricter than simple Eventual Consistency but does not require the high cost of Strong Consistency.",
+      "wg": [
+        {
+          "t": "因果順序",
+          "en": "Causal order",
+          "ps": "noun phrase"
+        }
+      ]
+    }
+  }
+]

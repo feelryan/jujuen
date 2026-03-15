@@ -1,0 +1,829 @@
+[
+  {
+    "no": "1",
+    "level": "Hard",
+    "keywords": "Kubernetes,Health Checks,Cascading Failure,Readiness Probe",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在設計 Kubernetes 的 Readiness Probe（就緒探針）時，手冊強烈建議「不要」包含對資料庫連線的依賴檢查。請問主要原因為何？",
+        "en": "When designing Kubernetes Readiness Probes, the handbook strongly advises 'not' to include database connection dependency checks. What is the primary reason for this?",
+        "wg": [
+          {
+            "t": "就緒探針",
+            "en": "Readiness Probe",
+            "ps": "noun"
+          },
+          {
+            "t": "依賴檢查",
+            "en": "dependency checks",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "因為檢查資料庫會消耗過多的 CPU 資源，導致 Pod 啟動緩慢。",
+        "en": "Because checking the database consumes too much CPU, causing slow Pod startup.",
+        "wg": []
+      },
+      {
+        "t": "因為這會導致系統雪崩（Cascading Failure）：一旦資料庫發生短暫閃斷，所有 API 實例會同時被標記為不可用，導致流量完全中斷。",
+        "en": "Because this leads to Cascading Failure: if the database blips briefly, all API instances are marked unavailable simultaneously, cutting off all traffic.",
+        "wg": [
+          {
+            "t": "系統雪崩",
+            "en": "Cascading Failure",
+            "ps": "noun"
+          },
+          {
+            "t": "閃斷",
+            "en": "blip/transient failure",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "因為 Kubernetes 原生不支援跨 Pod 的資料庫連線檢查。",
+        "en": "Because Kubernetes does not natively support cross-pod database connection checks.",
+        "wg": []
+      },
+      {
+        "t": "因為 Readiness Probe 的超時設定通常比資料庫查詢的超時設定短，容易造成誤判。",
+        "en": "Because Readiness Probe timeouts are usually shorter than database query timeouts, leading to false positives.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "若 Readiness Probe 依賴 DB，當 DB 發生短暫不穩時，Load Balancer 會認為所有 Pod 都「未就緒」並移除流量轉發，導致服務完全中斷（即使應用層仍能處理部分非 DB 請求或快取）。正確做法是讓 Liveness/Readiness 僅檢查應用程式本身，DB 錯誤應由應用層捕捉並回傳 500。",
+      "en": "If the Readiness Probe depends on the DB, a brief DB instability causes the Load Balancer to mark all Pods as 'unready' and stop traffic forwarding, causing a total outage. The correct approach is for Liveness/Readiness to check the application only; DB errors should be caught by the app layer and return 500.",
+      "wg": [
+        {
+          "t": "流量轉發",
+          "en": "traffic forwarding",
+          "ps": "verb phrase"
+        }
+      ]
+    }
+  },
+  {
+    "no": "2",
+    "level": "Medium",
+    "keywords": "Timeouts,Resiliency,Layered Timeouts",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "Load Balancer Timeout: 30s\nDatabase Query Timeout: 10s\nAPI Server Timeout: ?",
+    "question": [
+      {
+        "t": "根據「分層超時（Layered Timeouts）」的最佳實務，若 Load Balancer 設定為 30 秒超時，且資料庫查詢超時設定為 10 秒。請問 API Server 的超時設定應為多少最為合適？",
+        "en": "According to the 'Layered Timeouts' best practice, if the Load Balancer timeout is set to 30s and the Database query timeout is 10s, what is the most appropriate timeout setting for the API Server?",
+        "wg": [
+          {
+            "t": "分層超時",
+            "en": "Layered Timeouts",
+            "ps": "noun phrase"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "5 秒 (5s)",
+        "en": "5 seconds (5s)",
+        "wg": []
+      },
+      {
+        "t": "20 秒 (20s)",
+        "en": "20 seconds (20s)",
+        "wg": []
+      },
+      {
+        "t": "40 秒 (40s)",
+        "en": "40 seconds (40s)",
+        "wg": []
+      },
+      {
+        "t": "無限 (Infinite)",
+        "en": "Infinite",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "超時設定應遵循「內層 < 中層 < 外層」的原則，確保內部服務先失敗並有機會處理錯誤，而不是讓外層先切斷連線。因此 API Server (中層) 應介於 DB (10s) 與 LB (30s) 之間，例如 20s。",
+      "en": "Timeout settings should follow the 'Inner < Middle < Outer' principle to ensure internal services fail first and have a chance to handle errors, rather than the outer layer cutting the connection first. Therefore, the API Server (middle) should be between the DB (10s) and LB (30s), e.g., 20s.",
+      "wg": [
+        {
+          "t": "內層",
+          "en": "Inner layer",
+          "ps": "noun"
+        },
+        {
+          "t": "外層",
+          "en": "Outer layer",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "3",
+    "level": "Medium",
+    "keywords": "Observability,Metrics,RED Method,USE Method",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在監控系統設計中，針對「資料庫（Database）」層級的資源監控，手冊建議採用哪一種方法論？",
+        "en": "In monitoring system design, which methodology does the handbook recommend for 'Database' level resource monitoring?",
+        "wg": [
+          {
+            "t": "方法論",
+            "en": "methodology",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "RED Method (Rate, Errors, Duration)",
+        "en": "RED Method (Rate, Errors, Duration)",
+        "wg": []
+      },
+      {
+        "t": "USE Method (Utilization, Saturation, Errors)",
+        "en": "USE Method (Utilization, Saturation, Errors)",
+        "wg": []
+      },
+      {
+        "t": "Four Golden Signals (Latency, Traffic, Errors, Saturation)",
+        "en": "Four Golden Signals (Latency, Traffic, Errors, Saturation)",
+        "wg": []
+      },
+      {
+        "t": "LEET Method (Latency, Errors, Efficiency, Throughput)",
+        "en": "LEET Method (Latency, Errors, Efficiency, Throughput)",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "RED Method 通常用於 Request-based 的服務（如 API），關注速率與延遲；而 USE Method 專注於 Resource-based 的系統（如資料庫、磁碟），關注使用率 (Utilization) 與飽和度 (Saturation)。",
+      "en": "The RED Method is typically used for Request-based services (like APIs), focusing on rate and duration; whereas the USE Method focuses on Resource-based systems (like databases, disks), focusing on Utilization and Saturation.",
+      "wg": [
+        {
+          "t": "飽和度",
+          "en": "Saturation",
+          "ps": "noun"
+        },
+        {
+          "t": "使用率",
+          "en": "Utilization",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "4",
+    "level": "Hard",
+    "keywords": "Connection Pooling,Firewall,Troubleshooting,Configuration",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "Firewall TCP Idle Timeout: 300 seconds\nApp Connection Pool MaxLifetime: 30 minutes",
+    "question": [
+      {
+        "t": "某系統每天早上第一波流量都會出現 `Communications link failure` 錯誤，隨後恢復正常。已知架構中包含防火牆設定（如上方程式碼區塊所示）。請問造成此問題的根本原因與最佳修正方式為何？",
+        "en": "A system reports `Communications link failure` errors during the first wave of traffic every morning, then recovers. The architecture includes firewall settings (as shown in the code snippet above). What is the root cause and the best fix?",
+        "wg": [
+          {
+            "t": "根本原因",
+            "en": "root cause",
+            "ps": "noun"
+          },
+          {
+            "t": "第一波流量",
+            "en": "first wave of traffic",
+            "ps": "noun phrase"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "原因：資料庫在夜間自動重啟。修正：設定自動重連機制。",
+        "en": "Cause: Database restarts automatically at night. Fix: Configure auto-reconnect mechanism.",
+        "wg": []
+      },
+      {
+        "t": "原因：防火牆默默切斷了閒置連線，但 App 連線池仍認為連線有效。修正：將 App 的 `MaxLifetime` 設定為小於 300 秒（例如 240 秒）。",
+        "en": "Cause: The firewall silently drops idle connections, but the App pool thinks they are valid. Fix: Set App `MaxLifetime` to less than 300s (e.g., 240s).",
+        "wg": [
+          {
+            "t": "默默切斷",
+            "en": "silently drops",
+            "ps": "verb phrase"
+          }
+        ]
+      },
+      {
+        "t": "原因：連線池大小不足。修正：增加 `Maximum Pool Size`。",
+        "en": "Cause: Insufficient connection pool size. Fix: Increase `Maximum Pool Size`.",
+        "wg": []
+      },
+      {
+        "t": "原因：網路頻寬不足。修正：升級防火牆硬體。",
+        "en": "Cause: Insufficient network bandwidth. Fix: Upgrade firewall hardware.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "這是經典的「防火牆切斷閒置連線」問題。防火牆會在連線閒置 300 秒後丟棄封包，但不會通知雙方。App 連線池若設定 30 分鐘才汰換連線，就會在早上拿到一個已經「死掉」的連線去請求 DB，導致 Timeout。修正方式是讓 App 主動在防火牆切斷前（<300s）汰換連線。",
+      "en": "This is the classic 'Firewall cuts idle connections' issue. The firewall drops packets after 300s of idleness without notifying either side. If the App pool waits 30 mins to retire connections, it will grab a 'dead' connection in the morning, causing a Timeout. The fix is to have the App retire connections before the firewall cuts them (<300s).",
+      "wg": [
+        {
+          "t": "汰換",
+          "en": "retire/evict",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "5",
+    "level": "Medium",
+    "keywords": "Retries,Thundering Herd,Reliability",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在實作 API 重試機制（Retry Logic）時，為了避免「驚群效應（Thundering Herd）」導致剛恢復的服務再次被大量同步的請求打垮，除了使用指數退避（Exponential Backoff）外，還必須加入什麼機制？",
+        "en": "When implementing API Retry Logic, to avoid the 'Thundering Herd' effect where a recovered service is immediately overwhelmed by synchronized requests, what mechanism must be added besides Exponential Backoff?",
+        "wg": [
+          {
+            "t": "驚群效應",
+            "en": "Thundering Herd",
+            "ps": "noun phrase"
+          },
+          {
+            "t": "指數退避",
+            "en": "Exponential Backoff",
+            "ps": "noun phrase"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "Circuit Breaker (斷路器)",
+        "en": "Circuit Breaker",
+        "wg": []
+      },
+      {
+        "t": "Jitter (隨機抖動)",
+        "en": "Jitter",
+        "wg": [
+          {
+            "t": "隨機抖動",
+            "en": "Jitter",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "Load Balancer (負載平衡器)",
+        "en": "Load Balancer",
+        "wg": []
+      },
+      {
+        "t": "Connection Pooling (連線池)",
+        "en": "Connection Pooling",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "即使有指數退避，若所有客戶端在同一時間發起第一次重試，仍會形成波峰。加入 Jitter（隨機因子）可以將重試請求分散在不同時間點，平滑流量曲線。",
+      "en": "Even with exponential backoff, if all clients start the first retry at the same time, it still creates a spike. Adding Jitter (random factor) spreads the retry requests across different time points, smoothing the traffic curve.",
+      "wg": [
+        {
+          "t": "平滑",
+          "en": "smooth out",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "6",
+    "level": "Medium",
+    "keywords": "Deadlocks,Database,Troubleshooting",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "Transaction 1: UPDATE A -> UPDATE B\nTransaction 2: UPDATE B -> UPDATE A",
+    "question": [
+      {
+        "t": "當資料庫頻繁出現 Deadlock（死鎖）錯誤時，最常見的成因通常與上方程式碼區塊描述的情境有關。請問該如何解決這類死鎖問題？",
+        "en": "When a database frequently encounters Deadlock errors, the most common cause is related to the scenario described in the code snippet above. How should this type of deadlock be resolved?",
+        "wg": [
+          {
+            "t": "死鎖",
+            "en": "Deadlock",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "增加資料庫的 CPU 資源。",
+        "en": "Increase the database CPU resources.",
+        "wg": []
+      },
+      {
+        "t": "將 Transaction Isolation Level 設為 Serializable。",
+        "en": "Set the Transaction Isolation Level to Serializable.",
+        "wg": []
+      },
+      {
+        "t": "強制所有交易以「固定順序」存取資源（例如依 ID 排序）。",
+        "en": "Enforce all transactions to access resources in a 'fixed order' (e.g., sort by ID).",
+        "wg": [
+          {
+            "t": "固定順序",
+            "en": "fixed order",
+            "ps": "noun phrase"
+          }
+        ]
+      },
+      {
+        "t": "關閉資料庫的 Row-level locking。",
+        "en": "Disable Row-level locking on the database.",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "死鎖通常是因為兩個交易以「相反順序」競爭相同的資源鎖。解決方案是確保應用程式層面在進行批量更新或多表操作時，總是依照一致的順序（例如 ID 由小到大）來獲取鎖。",
+      "en": "Deadlocks are usually caused by two transactions competing for the same resource locks in 'opposite orders'. The solution is to ensure the application layer always acquires locks in a consistent order (e.g., ID ascending) during batch updates or multi-table operations.",
+      "wg": [
+        {
+          "t": "相反順序",
+          "en": "opposite order",
+          "ps": "noun phrase"
+        },
+        {
+          "t": "獲取鎖",
+          "en": "acquire locks",
+          "ps": "verb phrase"
+        }
+      ]
+    }
+  },
+  {
+    "no": "7",
+    "level": "Medium",
+    "keywords": "Graceful Shutdown, Deployment, SIGTERM, Reliability",
+    "parentNo": null,
+    "images": "",
+    "codeSnippet": "deploy_script.sh:\n...\nkill -9 $PID\nstart_new_version.sh\n...",
+    "question": [
+      {
+        "t": "某團隊的自動化部署腳本使用 `kill -9` 來停止舊版本的應用程式實例（如上方程式碼所示）。請問這種做法在生產環境中會導致什麼主要風險？",
+        "en": "A team's automated deployment script uses `kill -9` to stop old application instances (as shown in the code snippet above). What is the primary risk of this approach in a production environment?",
+        "wg": [
+          {
+            "t": "自動化部署腳本",
+            "en": "automated deployment script",
+            "ps": "noun phrase"
+          },
+          {
+            "t": "生產環境",
+            "en": "production environment",
+            "ps": "noun phrase"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "舊版本的 Process 無法被作業系統正確回收，導致記憶體洩漏。",
+        "en": "The old version's process cannot be correctly reclaimed by the OS, causing memory leaks.",
+        "wg": []
+      },
+      {
+        "t": "正在處理中的請求會被強制中斷，導致資料不一致或客戶端收到 502 錯誤。",
+        "en": "In-flight requests are forcibly interrupted, leading to data inconsistency or clients receiving 502 errors.",
+        "wg": [
+          {
+            "t": "正在處理中的請求",
+            "en": "in-flight requests",
+            "ps": "noun phrase"
+          },
+          {
+            "t": "強制中斷",
+            "en": "forcibly interrupted",
+            "ps": "verb phrase"
+          }
+        ]
+      },
+      {
+        "t": "新版本的應用程式會因為連接埠（Port）衝突而無法啟動。",
+        "en": "The new version of the application will fail to start due to port conflicts.",
+        "wg": []
+      },
+      {
+        "t": "資料庫連線池會立即釋放所有連線，導致資料庫負載瞬間歸零。",
+        "en": "The database connection pool will immediately release all connections, causing the database load to drop to zero instantly.",
+        "wg": []
+      }
+    ],
+    "answer": "正在處理中的請求會被強制中斷，導致資料不一致或客戶端收到 502 錯誤。",
+    "why": {
+      "t": "`kill -9` 發送的是 SIGKILL 信號，應用程式無法攔截此信號進行清理工作，會導致正在執行的交易或請求被立即切斷。正確做法是發送 `SIGTERM`，讓應用程式停止接收新請求，並等待現有請求處理完畢（Graceful Shutdown）。",
+      "en": "`kill -9` sends a SIGKILL signal, which the application cannot intercept for cleanup, causing immediate termination of ongoing transactions or requests. The correct approach is to send `SIGTERM`, allowing the application to stop accepting new requests and wait for existing ones to complete (Graceful Shutdown).",
+      "wg": [
+        {
+          "t": "信號",
+          "en": "signal",
+          "ps": "noun"
+        },
+        {
+          "t": "攔截",
+          "en": "intercept",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "8",
+    "level": "Medium",
+    "keywords": "N+1 Problem, Performance, CI/CD, Testing",
+    "parentNo": null,
+    "images": "",
+    "codeSnippet": "",
+    "question": [
+      {
+        "t": "開發者在本地環境測試 API 時效能良好，但上線後隨著資料量增加，該 API 導致資料庫 CPU 飆升。經查發現是因為觸發了「N+1 Query」問題。為了在程式碼合併前自動偵測此類問題，手冊建議採取什麼措施？",
+        "en": "A developer found the API performance good in the local environment, but after deployment, increased data volume caused the database CPU to spike. Investigation revealed an 'N+1 Query' issue. What measure does the handbook suggest to automatically detect such issues before code merge?",
+        "wg": [
+          {
+            "t": "本地環境",
+            "en": "local environment",
+            "ps": "noun phrase"
+          },
+          {
+            "t": "程式碼合併",
+            "en": "code merge",
+            "ps": "noun phrase"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "在 CI/CD 階段引入 Query Count Assertion（查詢次數斷言），限制單次請求能觸發的 SQL 數量。",
+        "en": "Introduce Query Count Assertion in the CI/CD stage to limit the number of SQL queries triggered by a single request.",
+        "wg": [
+          {
+            "t": "查詢次數斷言",
+            "en": "Query Count Assertion",
+            "ps": "noun phrase"
+          }
+        ]
+      },
+      {
+        "t": "強制所有開發者在本地環境安裝與生產環境相同資料量的資料庫。",
+        "en": "Mandate all developers to install a database with the same data volume as the production environment locally.",
+        "wg": []
+      },
+      {
+        "t": "將資料庫隔離層級（Isolation Level）調整為 Serializable。",
+        "en": "Adjust the database isolation level to Serializable.",
+        "wg": []
+      },
+      {
+        "t": "在生產環境開啟所有 SQL 的 General Log 以便事後分析。",
+        "en": "Enable General Log for all SQLs in the production environment for post-mortem analysis.",
+        "wg": []
+      }
+    ],
+    "answer": "在 CI/CD 階段引入 Query Count Assertion（查詢次數斷言），限制單次請求能觸發的 SQL 數量。",
+    "why": {
+      "t": "N+1 問題在資料量少時難以察覺。手冊建議在自動化測試（CI/CD）中加入斷言，例如「此 API 呼叫不應產生超過 5 次 SQL 查詢」，以在開發階段即時攔截潛在的效能殺手。",
+      "en": "The N+1 problem is hard to notice with small datasets. The handbook suggests adding assertions in automated testing (CI/CD), such as 'This API call should not generate more than 5 SQL queries', to catch potential performance killers during the development phase.",
+      "wg": [
+        {
+          "t": "斷言",
+          "en": "assertion",
+          "ps": "noun"
+        },
+        {
+          "t": "攔截",
+          "en": "catch/intercept",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "9",
+    "level": "Medium",
+    "keywords": "Security, Logging, PII, Anti-pattern",
+    "parentNo": null,
+    "images": "",
+    "codeSnippet": "app.use((req, res, next) => {\n  console.log(\"Request Body:\", JSON.stringify(req.body));\n  next();\n});",
+    "question": [
+      {
+        "t": "為了方便除錯，某工程師在 Middleware 加入了如上方程式碼的 Log 紀錄。請問這違反了哪一項生產環境的最佳實務（Anti-pattern），且可能導致什麼嚴重後果？",
+        "en": "For easier debugging, an engineer added logging in the Middleware as shown in the code snippet above. Which production best practice (Anti-pattern) does this violate, and what serious consequence might it lead to?",
+        "wg": [
+          {
+            "t": "除錯",
+            "en": "debugging",
+            "ps": "verb/noun"
+          },
+          {
+            "t": "最佳實務",
+            "en": "best practice",
+            "ps": "noun phrase"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "違反了「Fail Fast」原則，會導致請求處理延遲增加。",
+        "en": "Violates the 'Fail Fast' principle, leading to increased request processing latency.",
+        "wg": []
+      },
+      {
+        "t": "違反了「Logging Sensitive Data」原則，可能導致使用者密碼或個資洩漏至 Log 系統。",
+        "en": "Violates the 'Logging Sensitive Data' principle, potentially leaking user passwords or PII into the log system.",
+        "wg": [
+          {
+            "t": "個資",
+            "en": "PII (Personally Identifiable Information)",
+            "ps": "noun"
+          },
+          {
+            "t": "洩漏",
+            "en": "leak",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "違反了「Layered Timeouts」原則，會造成 Log 寫入阻塞。",
+        "en": "Violates the 'Layered Timeouts' principle, causing log writing blockage.",
+        "wg": []
+      },
+      {
+        "t": "違反了「Connection Pooling」原則，會過度消耗 I/O 資源。",
+        "en": "Violates the 'Connection Pooling' principle, excessively consuming I/O resources.",
+        "wg": []
+      }
+    ],
+    "answer": "違反了「Logging Sensitive Data」原則，可能導致使用者密碼或個資洩漏至 Log 系統。",
+    "why": {
+      "t": "直接印出完整的 `req.body` 是常見的反模式（Anti-pattern），因為其中可能包含密碼、Token 或信用卡號等敏感資訊（PII）。這會導致嚴重的資安合規問題（如 GDPR/PCI-DSS）。應實作 Log Sanitization（脫敏）機制。",
+      "en": "Printing the full `req.body` is a common anti-pattern as it may contain sensitive information (PII) like passwords, tokens, or credit card numbers. This leads to serious security compliance issues (e.g., GDPR/PCI-DSS). Log Sanitization mechanisms should be implemented.",
+      "wg": [
+        {
+          "t": "反模式",
+          "en": "anti-pattern",
+          "ps": "noun"
+        },
+        {
+          "t": "脫敏",
+          "en": "sanitization/masking",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "10",
+    "level": "Hard",
+    "keywords": "Database Migration, Table Lock, Online DDL, Availability",
+    "parentNo": null,
+    "images": "",
+    "codeSnippet": "ALTER TABLE users ADD COLUMN age INT DEFAULT 0;",
+    "question": [
+      {
+        "t": "在上班時間對一個擁有 1000 萬筆資料的 `users` 表執行上述 SQL 語句，導致系統出現大量 503 錯誤。請問根本原因通常是什麼？",
+        "en": "Executing the above SQL statement on a `users` table with 10 million records during business hours caused a massive number of 503 errors. What is the usual root cause?",
+        "wg": [
+          {
+            "t": "根本原因",
+            "en": "root cause",
+            "ps": "noun phrase"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "資料庫磁碟空間不足，導致無法寫入新欄位。",
+        "en": "Insufficient database disk space prevented writing the new column.",
+        "wg": []
+      },
+      {
+        "t": "該語句觸發了全表鎖定（Table Lock），導致所有對該表的讀寫請求被阻塞，連線池耗盡。",
+        "en": "The statement triggered a Table Lock, blocking all read/write requests to the table and exhausting the connection pool.",
+        "wg": [
+          {
+            "t": "全表鎖定",
+            "en": "Table Lock",
+            "ps": "noun phrase"
+          },
+          {
+            "t": "阻塞",
+            "en": "block",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "新增欄位的預設值 `0` 與現有資料型態不相容。",
+        "en": "The default value `0` for the new column is incompatible with existing data types.",
+        "wg": []
+      },
+      {
+        "t": "資料庫索引失效，導致查詢變慢。",
+        "en": "Database indexes became invalid, causing slow queries.",
+        "wg": []
+      }
+    ],
+    "answer": "該語句觸發了全表鎖定（Table Lock），導致所有對該表的讀寫請求被阻塞，連線池耗盡。",
+    "why": {
+      "t": "在舊版 MySQL 或特定模式下，`ALTER TABLE` 會鎖住整張表（Table Lock）直到操作完成。對於大表，這可能需要數分鐘，期間所有應用程式的連線都會卡住等待鎖釋放，導致連線池爆滿並回傳 503。解決方案是使用 Online DDL 或工具如 `gh-ost`。",
+      "en": "In older MySQL versions or specific modes, `ALTER TABLE` locks the entire table until the operation completes. For large tables, this can take minutes, during which all application connections are stuck waiting for the lock, causing the pool to fill up and return 503s. The solution is to use Online DDL or tools like `gh-ost`.",
+      "wg": [
+        {
+          "t": "連線池爆滿",
+          "en": "connection pool exhaustion",
+          "ps": "noun phrase"
+        }
+      ]
+    }
+  },
+  {
+    "no": "11",
+    "level": "Medium",
+    "keywords": "Troubleshooting, Latency, Database, Slow Query",
+    "parentNo": null,
+    "images": "",
+    "codeSnippet": "",
+    "question": [
+      {
+        "t": "當 APM（應用效能監控）顯示 API 高延遲的瓶頸在於「資料庫」時，根據手冊的故障排除流程（Troubleshooting Workflow），下列哪一項**不是**首要檢查的項目？",
+        "en": "When APM (Application Performance Monitoring) indicates that the bottleneck for high API latency lies in the 'Database', according to the handbook's Troubleshooting Workflow, which of the following is **NOT** a primary item to check?",
+        "wg": [
+          {
+            "t": "瓶頸",
+            "en": "bottleneck",
+            "ps": "noun"
+          },
+          {
+            "t": "首要檢查的項目",
+            "en": "primary item to check",
+            "ps": "noun phrase"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "檢查 Slow Query Log，確認是否有全表掃描（Full Table Scan）。",
+        "en": "Check the Slow Query Log to confirm if there are Full Table Scans.",
+        "wg": []
+      },
+      {
+        "t": "檢查 DB Locks，確認是否有長交易鎖住了表。",
+        "en": "Check DB Locks to confirm if long transactions are locking tables.",
+        "wg": []
+      },
+      {
+        "t": "檢查應用程式的 GC Logs（垃圾回收紀錄）。",
+        "en": "Check the application's GC Logs (Garbage Collection logs).",
+        "wg": [
+          {
+            "t": "垃圾回收",
+            "en": "Garbage Collection",
+            "ps": "noun phrase"
+          }
+        ]
+      },
+      {
+        "t": "檢查資料庫資源使用率（如 CPU 是否 100%）。",
+        "en": "Check database resource utilization (e.g., if CPU is at 100%).",
+        "wg": []
+      }
+    ],
+    "answer": "檢查應用程式的 GC Logs（垃圾回收紀錄）。",
+    "why": {
+      "t": "根據手冊的決策樹，若已確認瓶頸在 DB，應檢查 DB 相關指標（Slow Query, Locks, Resources）。檢查 App 的 GC Logs 是當瓶頸在「App 層」時才需要執行的步驟。",
+      "en": "According to the handbook's decision tree, if the bottleneck is confirmed to be in the DB, you should check DB-related metrics (Slow Query, Locks, Resources). Checking the App's GC Logs is a step to take when the bottleneck is in the 'App layer'.",
+      "wg": [
+        {
+          "t": "決策樹",
+          "en": "decision tree",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "12",
+    "level": "Hard",
+    "keywords": "Connection Pool, Troubleshooting, Transaction Leak, Resource Exhaustion",
+    "parentNo": null,
+    "images": "",
+    "codeSnippet": "",
+    "question": [
+      {
+        "t": "當系統出現 `Connection pool exhausted`（連線池耗盡）錯誤時，除了單純增加 Pool Size 之外，手冊建議優先排查潛在的「連線洩漏（Leak）」問題。請問這類洩漏最常見的程式碼成因為何？",
+        "en": "When the system encounters a `Connection pool exhausted` error, besides simply increasing the Pool Size, the handbook suggests prioritizing the investigation of potential 'Connection Leaks'. What is the most common code cause for such leaks?",
+        "wg": [
+          {
+            "t": "連線池耗盡",
+            "en": "Connection pool exhausted",
+            "ps": "noun phrase"
+          },
+          {
+            "t": "連線洩漏",
+            "en": "Connection Leak",
+            "ps": "noun phrase"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "開啟了 Transaction 但在某些執行路徑（如發生 Exception 時）忘記執行 commit 或 rollback。",
+        "en": "Opened a Transaction but forgot to execute commit or rollback in certain execution paths (e.g., when an Exception occurs).",
+        "wg": [
+          {
+            "t": "執行路徑",
+            "en": "execution path",
+            "ps": "noun phrase"
+          }
+        ]
+      },
+      {
+        "t": "資料庫的密碼過期導致連線被拒絕。",
+        "en": "Database password expiration caused connections to be refused.",
+        "wg": []
+      },
+      {
+        "t": "使用了過舊版本的 JDBC Driver。",
+        "en": "Used an outdated version of the JDBC Driver.",
+        "wg": []
+      },
+      {
+        "t": "Load Balancer 的 Timeout 設定小於 API Server 的 Timeout。",
+        "en": "The Load Balancer's Timeout setting is smaller than the API Server's Timeout.",
+        "wg": []
+      }
+    ],
+    "answer": "開啟了 Transaction 但在某些執行路徑（如發生 Exception 時）忘記執行 commit 或 rollback。",
+    "why": {
+      "t": "連線洩漏通常是因為程式碼開啟了交易，但在錯誤處理（catch block）中遺漏了關閉連線或回滾（rollback）的邏輯。這導致連線一直被該執行緒佔用而無法歸還給連線池，最終導致池耗盡。",
+      "en": "Connection leaks are usually caused by code that opens a transaction but misses the logic to close the connection or rollback in error handling (catch block). This causes the connection to be held by the thread indefinitely and not returned to the pool, eventually exhausting it.",
+      "wg": [
+        {
+          "t": "回滾",
+          "en": "rollback",
+          "ps": "verb/noun"
+        },
+        {
+          "t": "歸還",
+          "en": "return (to pool)",
+          "ps": "verb"
+        }
+      ]
+    }
+  }
+]

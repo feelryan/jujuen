@@ -1,0 +1,986 @@
+[
+  {
+    "no": "1",
+    "level": "Intermediate",
+    "keywords": "BOLA, IDOR, AuthZ, API Security",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "app.get('/api/invoices/:id', authMiddleware, async (req, res) => {\n  // authMiddleware verifies the JWT is valid\n  const invoice = await db.query(\n    'SELECT * FROM invoices WHERE id = $1',\n    [req.params.id]\n  );\n  \n  if (!invoice) return res.status(404).json({ error: 'Not found' });\n  res.json(invoice);\n});",
+    "question": [
+      {
+        "t": "請檢視上方的程式碼片段。假設 `authMiddleware` 已經正確驗證了使用者的 JWT 簽章與效期，這段程式碼仍然存在哪一種嚴重的安全漏洞？",
+        "en": "Review the code snippet above. Assuming `authMiddleware` correctly verifies the user's JWT signature and expiration, what critical security vulnerability still exists in this code?",
+        "wg": [
+          {
+            "t": "安全漏洞",
+            "en": "security vulnerability",
+            "ps": "noun"
+          },
+          {
+            "t": "簽章",
+            "en": "signature",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "SQL 注入 (SQL Injection)",
+        "en": "SQL Injection",
+        "wg": []
+      },
+      {
+        "t": "失效的物件層級授權 (BOLA / IDOR)",
+        "en": "Broken Object Level Authorization (BOLA / IDOR)",
+        "wg": [
+          {
+            "t": "失效的物件層級授權",
+            "en": "Broken Object Level Authorization",
+            "ps": "noun phrase"
+          }
+        ]
+      },
+      {
+        "t": "跨站腳本攻擊 (XSS)",
+        "en": "Cross-Site Scripting (XSS)",
+        "wg": []
+      },
+      {
+        "t": "大量賦值 (Mass Assignment)",
+        "en": "Mass Assignment",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "這段程式碼雖然使用了參數化查詢防止 SQL Injection，且驗證了使用者的登入狀態 (AuthN)，但它**沒有檢查**當前使用者是否有權限存取該特定 ID 的發票 (AuthZ)。攻擊者只需更改 URL 中的 ID 即可存取其他人的資料，這是典型的 BOLA (或稱 IDOR) 漏洞。",
+      "en": "While the code uses parameterized queries to prevent SQL Injection and verifies the user's login status (AuthN), it **fails to check** if the current user has permission to access that specific invoice ID (AuthZ). An attacker can simply change the ID in the URL to access others' data, which is a classic BOLA (or IDOR) vulnerability.",
+      "wg": [
+        {
+          "t": "參數化查詢",
+          "en": "parameterized queries",
+          "ps": "noun"
+        },
+        {
+          "t": "存取",
+          "en": "access",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "2",
+    "level": "Intermediate",
+    "keywords": "Mass Assignment, Input Validation, API Design",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "// User profile update endpoint\napp.put('/api/users/me', authMiddleware, async (req, res) => {\n  const currentUser = req.user;\n  // Directly merging request body into the database model\n  await User.update(req.body, {\n    where: { id: currentUser.id }\n  });\n  res.json({ success: true });\n});",
+    "question": [
+      {
+        "t": "攻擊者發送了包含 `{\"role\": \"admin\", \"balance\": 999999}` 的 JSON Payload 到上述 API 端點。如果後端沒有額外的防護機制，這種攻擊手法稱為什麼？",
+        "en": "An attacker sends a JSON payload containing `{\"role\": \"admin\", \"balance\": 999999}` to the API endpoint above. If the backend lacks additional protection, what is this attack vector called?",
+        "wg": [
+          {
+            "t": "攻擊手法",
+            "en": "attack vector",
+            "ps": "noun"
+          },
+          {
+            "t": "後端",
+            "en": "backend",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "參數汙染 (Parameter Pollution)",
+        "en": "Parameter Pollution",
+        "wg": []
+      },
+      {
+        "t": "大量賦值 (Mass Assignment)",
+        "en": "Mass Assignment",
+        "wg": [
+          {
+            "t": "大量賦值",
+            "en": "Mass Assignment",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "中間人攻擊 (Man-in-the-Middle)",
+        "en": "Man-in-the-Middle",
+        "wg": []
+      },
+      {
+        "t": "不安全的還原序列化 (Insecure Deserialization)",
+        "en": "Insecure Deserialization",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "這是一個典型的「大量賦值」(Mass Assignment) 漏洞。開發者直接將前端傳入的物件綁定到資料庫模型，導致攻擊者可以注入未經授權的欄位（如權限或餘額）。正確做法是使用 DTO 或白名單 (Allow-list) 明確定義可更新的欄位。",
+      "en": "This is a classic 'Mass Assignment' vulnerability. The developer binds the input object directly to the database model, allowing attackers to inject unauthorized fields (like roles or balance). The correct approach is to use a DTO or an allow-list to explicitly define which fields can be updated.",
+      "wg": [
+        {
+          "t": "綁定",
+          "en": "bind",
+          "ps": "verb"
+        },
+        {
+          "t": "白名單",
+          "en": "allow-list",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "3",
+    "level": "Beginner",
+    "keywords": "SQL Injection, Database Security, Prepared Statements",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在 Code Review 時，你發現一位初階工程師試圖透過正則表達式 (Regex) 過濾輸入字串中的單引號 `'` 來防禦 SQL Injection。作為資深工程師，你應該給予什麼建議？",
+        "en": "During a Code Review, you notice a junior engineer attempting to prevent SQL Injection by using Regex to filter out single quotes `'` from input strings. As a senior engineer, what advice should you give?",
+        "wg": [
+          {
+            "t": "正則表達式",
+            "en": "Regular Expression (Regex)",
+            "ps": "noun"
+          },
+          {
+            "t": "過濾",
+            "en": "filter",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "批准該做法，因為過濾單引號足以防禦大多數攻擊。",
+        "en": "Approve it, as filtering single quotes is sufficient for most attacks.",
+        "wg": []
+      },
+      {
+        "t": "建議同時過濾分號 `;` 與雙引號 `\"` 即可。",
+        "en": "Suggest filtering semicolons `;` and double quotes `\"` as well.",
+        "wg": []
+      },
+      {
+        "t": "拒絕該做法，並要求改用 Prepared Statements (參數化查詢)。",
+        "en": "Reject it and require the use of Prepared Statements (Parameterized Queries).",
+        "wg": [
+          {
+            "t": "拒絕",
+            "en": "reject",
+            "ps": "verb"
+          },
+          {
+            "t": "參數化查詢",
+            "en": "Parameterized Queries",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "建議將輸入字串進行 Base64 編碼後再存入資料庫。",
+        "en": "Suggest Base64 encoding the input string before storing it in the database.",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "試圖自行「消毒」(Sanitize) 輸入是危險且容易出錯的，攻擊者常能找到繞過過濾字元的方法。防禦 SQL Injection 的唯一黃金標準是使用 **Prepared Statements (參數化查詢)**，這能確保資料庫將輸入視為單純的資料而非可執行的指令。",
+      "en": "Attempting to manually 'sanitize' input is dangerous and error-prone, as attackers can often find ways to bypass character filters. The only gold standard for preventing SQL Injection is using **Prepared Statements (Parameterized Queries)**, which ensure the database treats input as pure data rather than executable code.",
+      "wg": [
+        {
+          "t": "消毒",
+          "en": "sanitize",
+          "ps": "verb"
+        },
+        {
+          "t": "黃金標準",
+          "en": "gold standard",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "4",
+    "level": "Advanced",
+    "keywords": "PII, Encryption, Blind Index, Database Design",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你需要設計一個系統來儲存使用者的身分證字號 (National ID)。需求包括：(1) 資料在資料庫中必須加密儲存，(2) 客服人員需要能透過「精確輸入身分證號」來搜尋使用者。下列哪種設計模式最安全且效能最佳？",
+        "en": "You need to design a system to store users' National IDs. Requirements include: (1) Data must be encrypted at rest in the database, and (2) Customer support needs to be able to search for users by 'exact National ID input'. Which design pattern is the most secure and performant?",
+        "wg": [
+          {
+            "t": "身分證字號",
+            "en": "National ID",
+            "ps": "noun"
+          },
+          {
+            "t": "精確輸入",
+            "en": "exact input",
+            "ps": "noun phrase"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "僅使用 AES 加密儲存。搜尋時，將資料庫中所有記錄解密後進行比對。",
+        "en": "Use AES encryption only. For search, decrypt all records in the database to compare.",
+        "wg": []
+      },
+      {
+        "t": "僅儲存身分證號的 Hash 值。搜尋時比對 Hash，但無法還原原始證號供顯示。",
+        "en": "Store only the Hash of the National ID. Compare Hashes for search, but the original ID cannot be retrieved for display.",
+        "wg": []
+      },
+      {
+        "t": "同時儲存「加密後的密文」(用於顯示) 與「帶有 Salt 的 Hash 值」(Blind Index，用於搜尋)。",
+        "en": "Store both the 'Encrypted Ciphertext' (for display) and a 'Salted Hash' (Blind Index, for search).",
+        "wg": [
+          {
+            "t": "密文",
+            "en": "ciphertext",
+            "ps": "noun"
+          },
+          {
+            "t": "盲索引",
+            "en": "Blind Index",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "使用可搜尋加密 (Searchable Encryption) 的專有演算法，直接對密文進行模糊搜尋。",
+        "en": "Use proprietary Searchable Encryption algorithms to perform fuzzy search directly on ciphertext.",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "選項 1 效能極差；選項 2 無法滿足「顯示」或後續業務需求。最佳實務是 **Blind Indexing**：儲存一份加密資料 (Encrypted Data) 用於讀取/解密，並另外儲存一份 Hash (Blind Index) 用於 `WHERE hash_col = ?` 的快速搜尋。這樣既保證了安全性，也維持了搜尋效能。",
+      "en": "Option 1 has terrible performance; Option 2 fails to meet the requirement for display/business use. The best practice is **Blind Indexing**: store the Encrypted Data for retrieval/decryption, and separately store a Hash (Blind Index) for fast `WHERE hash_col = ?` lookups. This ensures both security and search performance.",
+      "wg": [
+        {
+          "t": "最佳實務",
+          "en": "best practice",
+          "ps": "noun"
+        },
+        {
+          "t": "效能",
+          "en": "performance",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "5",
+    "level": "Intermediate",
+    "keywords": "Least Privilege, Database Configuration, Security Architecture",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "根據「最小權限原則」(Principle of Least Privilege)，在設定應用程式連接資料庫的帳號時，下列哪種做法是正確的？",
+        "en": "According to the 'Principle of Least Privilege', which of the following practices is correct when configuring the database account for an application?",
+        "wg": [
+          {
+            "t": "最小權限原則",
+            "en": "Principle of Least Privilege",
+            "ps": "noun"
+          },
+          {
+            "t": "帳號",
+            "en": "account",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "為了開發方便與避免權限錯誤，統一使用 `root` 或 `sa` 帳號。",
+        "en": "Use `root` or `sa` accounts universally for development convenience and to avoid permission errors.",
+        "wg": []
+      },
+      {
+        "t": "應用程式 (Runtime) 與 資料庫遷移工具 (Migration Tool) 應使用不同的帳號，前者僅擁有 DML 權限，後者擁有 DDL 權限。",
+        "en": "The Application (Runtime) and Migration Tool should use different accounts; the former having only DML permissions, and the latter having DDL permissions.",
+        "wg": [
+          {
+            "t": "資料庫遷移工具",
+            "en": "Migration Tool",
+            "ps": "noun"
+          },
+          {
+            "t": "資料操作語言",
+            "en": "DML (Data Manipulation Language)",
+            "ps": "noun"
+          },
+          {
+            "t": "資料定義語言",
+            "en": "DDL (Data Definition Language)",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "應用程式應擁有所有資料表的 `DROP` 與 `ALTER` 權限，以便在程式碼中動態調整結構。",
+        "en": "The application should have `DROP` and `ALTER` permissions on all tables to dynamically adjust the structure within the code.",
+        "wg": []
+      },
+      {
+        "t": "唯讀 (Read-only) 的 API 端點可以使用與寫入端點相同的 DB 帳號，只要程式碼不執行寫入即可。",
+        "en": "Read-only API endpoints can use the same DB account as write endpoints, as long as the code doesn't execute writes.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "最小權限原則要求每個實體僅擁有完成其工作所需的最小權限。應用程式在執行時 (Runtime) 通常只需要讀寫資料 (SELECT, INSERT, UPDATE, DELETE)，不應擁有修改結構 (DDL) 的能力。DDL 操作應由專門的 Migration 流程使用另一個高權限帳號執行。這能防止 SQL Injection 導致的災難性後果（如 `DROP TABLE`）。",
+      "en": "The Principle of Least Privilege dictates that every entity should only have the minimum permissions necessary to perform its job. The application at Runtime typically only needs to read/write data (DML) and should not have the ability to modify the structure (DDL). DDL operations should be performed by a dedicated Migration process using a separate, higher-privilege account. This prevents catastrophic consequences (like `DROP TABLE`) from SQL Injection.",
+      "wg": [
+        {
+          "t": "實體",
+          "en": "entity",
+          "ps": "noun"
+        },
+        {
+          "t": "災難性後果",
+          "en": "catastrophic consequences",
+          "ps": "noun phrase"
+        }
+      ]
+    }
+  },
+  {
+    "no": "6",
+    "level": "Beginner",
+    "keywords": "Error Handling, Information Leakage, Security Misconfiguration",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "當 API 在 Production 環境發生未預期的錯誤 (500 Internal Server Error) 時，回傳下列哪種回應內容是**最不安全**的？",
+        "en": "When an API encounters an unexpected error (500 Internal Server Error) in a Production environment, which of the following responses is the **least secure**?",
+        "wg": [
+          {
+            "t": "未預期的錯誤",
+            "en": "unexpected error",
+            "ps": "noun phrase"
+          },
+          {
+            "t": "最不安全",
+            "en": "least secure",
+            "ps": "adjective phrase"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "`{\"error\": \"An unexpected error occurred. Please contact support.\"}`",
+        "en": "`{\"error\": \"An unexpected error occurred. Please contact support.\"}`",
+        "wg": []
+      },
+      {
+        "t": "`{\"error\": \"Service Unavailable\", \"requestId\": \"req-12345\"}`",
+        "en": "`{\"error\": \"Service Unavailable\", \"requestId\": \"req-12345\"}`",
+        "wg": []
+      },
+      {
+        "t": "`{\"message\": \"Syntax error at or near 'WHERE'\", \"stack\": \"Error: ... at /app/src/controllers/user.js:45:12\"}`",
+        "en": "`{\"message\": \"Syntax error at or near 'WHERE'\", \"stack\": \"Error: ... at /app/src/controllers/user.js:45:12\"}`",
+        "wg": [
+          {
+            "t": "堆疊追蹤",
+            "en": "stack trace",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "`{\"error\": \"Internal Server Error\"}`",
+        "en": "`{\"error\": \"Internal Server Error\"}`",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "回傳詳細的錯誤訊息（如 Stack Trace、SQL 語法錯誤、檔案路徑）屬於「過於詳細的錯誤訊息」(Verbose Error Messages) 漏洞。這會洩漏後端使用的技術棧、資料庫結構與程式碼路徑，為攻擊者提供了極具價值的入侵地圖。Production 環境應始終回傳通用的錯誤訊息。",
+      "en": "Returning detailed error messages (like Stack Traces, SQL syntax errors, file paths) constitutes a 'Verbose Error Messages' vulnerability. This leaks the backend technology stack, database structure, and code paths, providing attackers with a valuable map for intrusion. Production environments should always return generic error messages.",
+      "wg": [
+        {
+          "t": "技術棧",
+          "en": "technology stack",
+          "ps": "noun"
+        },
+        {
+          "t": "入侵地圖",
+          "en": "intrusion map",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "7",
+    "level": "Intermediate",
+    "keywords": "JWT, API Security, Logging, Sensitive Data Exposure",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "GET /api/download-report?file_id=99&token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "question": [
+      {
+        "t": "在設計一個檔案下載功能時，開發者為了方便前端實作，決定將 JWT (Access Token) 放在 URL 的 Query Parameter 中傳遞（如上方程式碼所示）。",
+        "en": "When designing a file download feature, a developer decided to pass the JWT (Access Token) in the URL Query Parameter (as shown in the code snippet above) for frontend convenience.",
+        "wg": [
+          {
+            "t": "查詢參數",
+            "en": "Query Parameter",
+            "ps": "noun"
+          },
+          {
+            "t": "實作",
+            "en": "implementation",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "即使該 Token 的簽章與效期驗證邏輯都正確，這種做法主要會引入下列哪項安全風險？",
+        "en": "Even if the token signature and expiration validation logic are correct, what primary security risk does this approach introduce?",
+        "wg": [
+          {
+            "t": "簽章",
+            "en": "signature",
+            "ps": "noun"
+          },
+          {
+            "t": "引入",
+            "en": "introduce",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "Token 容易受到 SQL Injection 攻擊。",
+        "en": "The token is vulnerable to SQL Injection attacks.",
+        "wg": []
+      },
+      {
+        "t": "Token 會被記錄在伺服器 Log、瀏覽器歷史紀錄或 Proxy Log 中，導致憑證洩漏。",
+        "en": "The token will be recorded in server logs, browser history, or proxy logs, leading to credential leakage.",
+        "wg": [
+          {
+            "t": "憑證",
+            "en": "credential",
+            "ps": "noun"
+          },
+          {
+            "t": "洩漏",
+            "en": "leakage",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "URL 的長度限制會導致 Token 被截斷而失效。",
+        "en": "URL length limits will cause the token to be truncated and become invalid.",
+        "wg": []
+      },
+      {
+        "t": "這會導致 CORS (跨來源資源共用) 驗證失敗。",
+        "en": "This will cause CORS (Cross-Origin Resource Sharing) validation failures.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "將敏感資訊（如 Token）放在 URL 中是常見的反模式。URL 通常會被完整記錄在 Web Server 的 Access Logs、CDN/Proxy Logs 以及瀏覽器的歷史紀錄中，這使得攻擊者有機會透過讀取 Log 獲取有效憑證。正確做法是使用 `Authorization: Bearer <token>` Header。",
+      "en": "Placing sensitive information (like tokens) in the URL is a common anti-pattern. URLs are typically fully recorded in Web Server Access Logs, CDN/Proxy Logs, and browser history, giving attackers a chance to obtain valid credentials by reading logs. The correct approach is to use the `Authorization: Bearer <token>` header.",
+      "wg": [
+        {
+          "t": "反模式",
+          "en": "anti-pattern",
+          "ps": "noun"
+        },
+        {
+          "t": "存取日誌",
+          "en": "Access Logs",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "8",
+    "level": "Intermediate",
+    "keywords": "Password Storage, Cryptography, Database Security, Hashing",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你需要為一個新系統設計使用者密碼的儲存方案。根據現代安全標準，下列哪一種做法是**最安全且正確**的？",
+        "en": "You need to design a user password storage scheme for a new system. According to modern security standards, which of the following practices is the **most secure and correct**?",
+        "wg": [
+          {
+            "t": "儲存方案",
+            "en": "storage scheme",
+            "ps": "noun"
+          },
+          {
+            "t": "標準",
+            "en": "standards",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "使用 AES-256 對密碼進行加密，並將金鑰妥善保存在 KMS 中。",
+        "en": "Encrypt passwords using AES-256 and securely store the key in a KMS.",
+        "wg": []
+      },
+      {
+        "t": "使用 Base64 編碼儲存，以便在使用者忘記密碼時可以還原並寄回給他們。",
+        "en": "Store using Base64 encoding so it can be decoded and emailed back to users if they forget it.",
+        "wg": []
+      },
+      {
+        "t": "使用強雜湊演算法（如 Argon2id 或 bcrypt）進行單向雜湊儲存。",
+        "en": "Store using a strong one-way hashing algorithm (such as Argon2id or bcrypt).",
+        "wg": [
+          {
+            "t": "單向",
+            "en": "one-way",
+            "ps": "adjective"
+          },
+          {
+            "t": "雜湊",
+            "en": "hashing",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "使用 SHA-256 進行雜湊，不需加鹽 (Salt)，以維持查詢效能。",
+        "en": "Hash using SHA-256 without salt to maintain query performance.",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "密碼不應被「加密」（可逆），而應被「雜湊」（不可逆）。AES 是可逆加密，若金鑰洩漏，所有密碼都會曝光。Base64 只是編碼，等同明碼。SHA-256 若無 Salt 容易被彩虹表 (Rainbow Table) 破解。Argon2id 與 bcrypt 是專為密碼設計的慢速雜湊演算法，能有效抵禦暴力破解。",
+      "en": "Passwords should not be 'encrypted' (reversible) but 'hashed' (irreversible). AES is reversible; if the key leaks, all passwords are exposed. Base64 is just encoding, equivalent to plaintext. SHA-256 without salt is vulnerable to Rainbow Table attacks. Argon2id and bcrypt are slow hashing algorithms designed specifically for passwords to resist brute-force attacks.",
+      "wg": [
+        {
+          "t": "可逆",
+          "en": "reversible",
+          "ps": "adjective"
+        },
+        {
+          "t": "彩虹表",
+          "en": "Rainbow Table",
+          "ps": "noun"
+        },
+        {
+          "t": "抵禦",
+          "en": "resist",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "9",
+    "level": "Intermediate",
+    "keywords": "Input Validation, Allow-list, Security Design",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "function validateUsername(username) {\n  // Block-list approach\n  const badChars = ['<', '>', \"'\", '\"', ';', '--'];\n  for (let char of badChars) {\n    if (username.includes(char)) return false;\n  }\n  return true;\n}",
+    "question": [
+      {
+        "t": "一位工程師寫了上述函式來驗證使用者名稱，試圖過濾掉危險字元（黑名單策略）。",
+        "en": "An engineer wrote the above function to validate usernames, attempting to filter out dangerous characters (Block-list strategy).",
+        "wg": [
+          {
+            "t": "過濾",
+            "en": "filter out",
+            "ps": "verb"
+          },
+          {
+            "t": "黑名單",
+            "en": "Block-list",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "為什麼這種「黑名單 (Block-list)」的做法通常被認為是不夠安全的？",
+        "en": "Why is this 'Block-list' approach generally considered insufficiently secure?",
+        "wg": [
+          {
+            "t": "被認為",
+            "en": "considered",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "因為黑名單會導致效能低落，迴圈檢查太慢。",
+        "en": "Because block-lists cause poor performance; loop checking is too slow.",
+        "wg": []
+      },
+      {
+        "t": "因為很難窮舉所有可能的惡意字元或編碼方式，容易有漏網之魚。",
+        "en": "Because it is difficult to exhaustively list all possible malicious characters or encoding methods, leading to potential bypasses.",
+        "wg": [
+          {
+            "t": "窮舉",
+            "en": "exhaustively list",
+            "ps": "verb"
+          },
+          {
+            "t": "漏網之魚",
+            "en": "bypasses / omissions",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "因為 JavaScript 的 `includes` 方法本身有安全漏洞。",
+        "en": "Because JavaScript's `includes` method itself has security vulnerabilities.",
+        "wg": []
+      },
+      {
+        "t": "因為這會阻止使用者使用合法的特殊符號（如連字號）。",
+        "en": "Because this prevents users from using legitimate special characters (like hyphens).",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "黑名單策略永遠無法預測攻擊者所有可能的變形（例如使用 Unicode 編碼繞過）。安全設計的最佳實務是採用「白名單 (Allow-list)」策略，明確定義「什麼是合法的」（例如：只允許 `^[a-zA-Z0-9_]+$`），其餘一律拒絕。",
+      "en": "Block-list strategies can never predict all possible variations an attacker might use (e.g., using Unicode encoding to bypass). The best practice in security design is to use an 'Allow-list' strategy, explicitly defining 'what is valid' (e.g., only allowing `^[a-zA-Z0-9_]+$`) and rejecting everything else.",
+      "wg": [
+        {
+          "t": "變形",
+          "en": "variations",
+          "ps": "noun"
+        },
+        {
+          "t": "白名單",
+          "en": "Allow-list",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "10",
+    "level": "Beginner",
+    "keywords": "Secrets Management, CI/CD, Security Misconfiguration",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "const AWS_ACCESS_KEY = \"AKIAIOSFODNN7EXAMPLE\"; // TODO: Move to env later",
+    "question": [
+      {
+        "t": "在 Code Review 時，你發現同事將 AWS Access Key 直接寫死 (Hardcode) 在程式碼中，並提交到了私有的 Git Repository。",
+        "en": "During a Code Review, you notice a colleague has hardcoded an AWS Access Key directly into the code and committed it to a private Git Repository.",
+        "wg": [
+          {
+            "t": "寫死",
+            "en": "hardcode",
+            "ps": "verb"
+          },
+          {
+            "t": "提交",
+            "en": "commit",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "同事認為「這是私有 Repo，外人看不到，所以沒關係」。作為資深工程師，你應如何回應？",
+        "en": "The colleague argues, 'It's a private repo, outsiders can't see it, so it's fine.' As a senior engineer, how should you respond?",
+        "wg": [
+          {
+            "t": "私有",
+            "en": "private",
+            "ps": "adjective"
+          },
+          {
+            "t": "回應",
+            "en": "respond",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "同意他的觀點，只要 Repo 權限設定正確即可。",
+        "en": "Agree with his point, as long as the repo permissions are set correctly.",
+        "wg": []
+      },
+      {
+        "t": "要求他將 Key 進行 Base64 編碼後再提交，以避免明碼顯示。",
+        "en": "Ask him to Base64 encode the key before committing to avoid plaintext display.",
+        "wg": []
+      },
+      {
+        "t": "這是嚴重漏洞。Git 紀錄會永久保存該 Key，且所有有權限的開發者都能看到。應立即撤銷該 Key 並改用環境變數。",
+        "en": "This is a critical vulnerability. Git history permanently retains the key, and all developers with access can see it. The key should be revoked immediately and replaced with environment variables.",
+        "wg": [
+          {
+            "t": "撤銷",
+            "en": "revoke",
+            "ps": "verb"
+          },
+          {
+            "t": "環境變數",
+            "en": "environment variables",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "建議他將 Key 移到另一個名為 `secrets.js` 的檔案並提交。",
+        "en": "Suggest he moves the key to a separate file named `secrets.js` and commits it.",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "Hardcode Secrets 是最常見的安全配置錯誤之一。即使是私有 Repo，憑證也可能透過離職員工、遭駭的開發者帳號或意外公開而洩漏。正確做法是使用 `.env` 檔案（不提交到 Git）或 Secrets Management 服務，並配合工具（如 trufflehog）掃描 Git 紀錄。",
+      "en": "Hardcoding secrets is one of the most common security misconfigurations. Even in private repos, credentials can leak through former employees, compromised developer accounts, or accidental exposure. The correct approach is to use `.env` files (not committed to Git) or Secrets Management services, and use tools (like trufflehog) to scan Git history.",
+      "wg": [
+        {
+          "t": "配置錯誤",
+          "en": "misconfiguration",
+          "ps": "noun"
+        },
+        {
+          "t": "遭駭",
+          "en": "compromised",
+          "ps": "adjective"
+        }
+      ]
+    }
+  },
+  {
+    "no": "11",
+    "level": "Intermediate",
+    "keywords": "Rate Limiting, Brute Force, API Protection",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你的登入 API (`POST /api/login`) 正受到來自單一 IP 的大量請求攻擊，試圖暴力破解使用者密碼。",
+        "en": "Your login API (`POST /api/login`) is under attack with a massive number of requests from a single IP, attempting to brute-force user passwords.",
+        "wg": [
+          {
+            "t": "暴力破解",
+            "en": "brute-force",
+            "ps": "verb"
+          },
+          {
+            "t": "大量",
+            "en": "massive",
+            "ps": "adjective"
+          }
+        ]
+      },
+      {
+        "t": "除了強制使用者設定強密碼外，在 API 層面最有效的即時防禦手段是什麼？",
+        "en": "Besides enforcing strong passwords for users, what is the most effective immediate defense measure at the API level?",
+        "wg": [
+          {
+            "t": "即時",
+            "en": "immediate",
+            "ps": "adjective"
+          },
+          {
+            "t": "防禦手段",
+            "en": "defense measure",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "實作速率限制 (Rate Limiting)，對超過閾值的 IP 回傳 429 Too Many Requests。",
+        "en": "Implement Rate Limiting, returning 429 Too Many Requests for IPs exceeding the threshold.",
+        "wg": [
+          {
+            "t": "閾值",
+            "en": "threshold",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "將 API 回應改為 200 OK 但內容為空，以迷惑攻擊者。",
+        "en": "Change the API response to 200 OK with empty content to confuse the attacker.",
+        "wg": []
+      },
+      {
+        "t": "使用 HTTPS 加密傳輸，防止密碼被竊聽。",
+        "en": "Use HTTPS encryption to prevent password eavesdropping.",
+        "wg": []
+      },
+      {
+        "t": "將資料庫的密碼欄位長度增加，以容納更長的雜湊值。",
+        "en": "Increase the length of the password field in the database to accommodate longer hashes.",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "針對登入、註冊等敏感接口，必須實作速率限制 (Rate Limiting) 來防止自動化腳本的暴力破解或撞庫攻擊。HTTPS 僅防竊聽，無法阻擋暴力破解；迷惑回應則無法降低伺服器負載。",
+      "en": "For sensitive interfaces like login and registration, Rate Limiting must be implemented to prevent automated brute-force or credential stuffing attacks. HTTPS only prevents eavesdropping and cannot stop brute-force attacks; confusing responses do not reduce server load.",
+      "wg": [
+        {
+          "t": "撞庫攻擊",
+          "en": "credential stuffing",
+          "ps": "noun"
+        },
+        {
+          "t": "負載",
+          "en": "load",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "12",
+    "level": "Advanced",
+    "keywords": "Zero Trust, Defense in Depth, Microservices",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在微服務架構中，服務 A 會呼叫內網中的服務 B。開發團隊認為：「因為服務 B 位於私有 VPC 內，且只有服務 A 能呼叫它，所以服務 B 不需要再做輸入驗證 (Input Validation) 或權限檢查。」",
+        "en": "In a microservices architecture, Service A calls Service B within an internal network. The development team argues: 'Since Service B is inside a private VPC and only Service A can call it, Service B does not need to perform Input Validation or permission checks.'",
+        "wg": [
+          {
+            "t": "內網",
+            "en": "internal network",
+            "ps": "noun"
+          },
+          {
+            "t": "私有",
+            "en": "private",
+            "ps": "adjective"
+          }
+        ]
+      },
+      {
+        "t": "這種思維違反了哪一個核心安全原則？",
+        "en": "Which core security principle does this mindset violate?",
+        "wg": [
+          {
+            "t": "違反",
+            "en": "violate",
+            "ps": "verb"
+          },
+          {
+            "t": "核心原則",
+            "en": "core principle",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "DRY (Don't Repeat Yourself) 原則。",
+        "en": "The DRY (Don't Repeat Yourself) principle.",
+        "wg": []
+      },
+      {
+        "t": "零信任 (Zero Trust) 與縱深防禦 (Defense in Depth)。",
+        "en": "Zero Trust and Defense in Depth.",
+        "wg": [
+          {
+            "t": "縱深防禦",
+            "en": "Defense in Depth",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "最終一致性 (Eventual Consistency)。",
+        "en": "Eventual Consistency.",
+        "wg": []
+      },
+      {
+        "t": "單一職責原則 (Single Responsibility Principle)。",
+        "en": "Single Responsibility Principle.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "這就是典型的「城堡思維」（外硬內軟）。零信任架構強調「Never Trust, Always Verify」。即使是內網流量，也可能因為服務 A 被攻陷、內部惡意人員或橫向移動攻擊而變得危險。因此，服務 B 仍必須視所有輸入為不可信並進行驗證。",
+      "en": "This is typical 'Castle Mentality' (hard shell, soft center). Zero Trust architecture emphasizes 'Never Trust, Always Verify.' Even internal traffic can be dangerous due to Service A being compromised, malicious insiders, or lateral movement attacks. Therefore, Service B must still treat all input as untrusted and validate it.",
+      "wg": [
+        {
+          "t": "橫向移動",
+          "en": "lateral movement",
+          "ps": "noun"
+        },
+        {
+          "t": "攻陷",
+          "en": "compromised",
+          "ps": "verb"
+        }
+      ]
+    }
+  }
+]

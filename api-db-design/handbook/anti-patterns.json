@@ -1,0 +1,869 @@
+[
+  {
+    "no": "1",
+    "level": "easy",
+    "keywords": "God Object,Over-fetching,Performance",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "GET /api/v1/users/me\n{\n  \"id\": 123,\n  \"name\": \"Alice\",\n  \"preferences\": { ... },\n  \"orders\": [ ... ], // Contains 5 years of history\n  \"logs\": [ ... ]    // Contains all login records\n}",
+    "question": [
+      {
+        "t": "請觀察上方的 API 回應範例。這是一個典型的「上帝物件（God Object）」反模式。",
+        "en": "Please observe the API response example above. This is a typical 'God Object' anti-pattern.",
+        "wg": [
+          {
+            "t": "上帝物件",
+            "en": "God Object",
+            "ps": "noun"
+          },
+          {
+            "t": "反模式",
+            "en": "anti-pattern",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "根據手冊內容，下列哪一項是此設計最直接導致的負面後果？",
+        "en": "According to the handbook, which of the following is the most direct negative consequence of this design?",
+        "wg": []
+      }
+    ],
+    "type": "single",
+    "options": [
+      {
+        "t": "因為發送了過多請求導致網路延遲（Latency）。",
+        "en": "Network latency caused by sending too many requests.",
+        "wg": [
+          {
+            "t": "延遲",
+            "en": "latency",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "不需要訂單資訊的頁面也被迫下載大量資料（Over-fetching），導致效能低落。",
+        "en": "Pages that do not need order information are forced to download large amounts of data (Over-fetching), resulting in poor performance.",
+        "wg": [
+          {
+            "t": "過度獲取",
+            "en": "Over-fetching",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "導致資料庫發生死鎖（Deadlock）。",
+        "en": "Causing database deadlocks.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "上帝物件的主要問題在於「過度獲取（Over-fetching）」與「耦合（Coupling）」。選項 0 描述的是「碎嘴介面（Chatty Interface）」的問題；選項 2 雖然可能發生，但不是此模式最核心的定義特徵。",
+      "en": "The main issue with God Objects is 'Over-fetching' and 'Coupling'. Option 0 describes the 'Chatty Interface' problem; Option 2, while possible, is not the core defining characteristic of this pattern.",
+      "wg": [
+        {
+          "t": "耦合",
+          "en": "coupling",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "2",
+    "level": "medium",
+    "keywords": "Distributed Monolith,Shared Database,Microservices",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "情境：你有兩個微服務 Service A（會員）與 Service B（訂單）。Service B 為了產生收據，直接撰寫 SQL `JOIN` Service A 的 `users` 資料表來取得 email。",
+        "en": "Scenario: You have two microservices, Service A (Member) and Service B (Order). To generate receipts, Service B directly writes SQL to `JOIN` Service A's `users` table to get emails.",
+        "wg": [
+          {
+            "t": "微服務",
+            "en": "microservices",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "這種架構被稱為「分散式大泥球（Distributed Monolith）」。當 Service A 團隊決定重新命名 `users` 資料表中的欄位時，會發生什麼事？",
+        "en": "This architecture is called a 'Distributed Monolith'. What happens when the Service A team decides to rename a column in the `users` table?",
+        "wg": [
+          {
+            "t": "分散式大泥球",
+            "en": "Distributed Monolith",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "single",
+    "options": [
+      {
+        "t": "Service B 會自動偵測 schema 變更並更新其 SQL。",
+        "en": "Service B will automatically detect the schema change and update its SQL.",
+        "wg": []
+      },
+      {
+        "t": "Service B 會毫無預警地崩潰，因為它依賴的欄位消失了，且這造成了「整合地獄（Integration Hell）」。",
+        "en": "Service B will crash without warning because the column it relies on is gone, causing 'Integration Hell'.",
+        "wg": [
+          {
+            "t": "整合地獄",
+            "en": "Integration Hell",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "資料庫會自動建立視圖（View）來維持相容性。",
+        "en": "The database will automatically create a View to maintain compatibility.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "這是「共享資料庫（Shared Database）」反模式的典型後果。服務之間失去了獨立性，一個服務的內部重構（Refactoring）會意外破壞另一個服務。",
+      "en": "This is a typical consequence of the 'Shared Database' anti-pattern. Services lose autonomy, and internal refactoring of one service accidentally breaks another.",
+      "wg": [
+        {
+          "t": "重構",
+          "en": "refactoring",
+          "ps": "noun"
+        },
+        {
+          "t": "自主性",
+          "en": "autonomy",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "3",
+    "level": "medium",
+    "keywords": "Chatty Interface,N+1 Problem,Latency",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "// Client Logic\nids = api.getProductIds(); // returns 20 IDs\nforeach (id in ids) {\n  details = api.getProductDetail(id); // 20 HTTP calls\n}",
+    "question": [
+      {
+        "t": "上述程式碼展示了「碎嘴介面（Chatty Interface）」或 HTTP 層級的 N+1 問題。",
+        "en": "The code above demonstrates the 'Chatty Interface' or the N+1 problem at the HTTP level.",
+        "wg": [
+          {
+            "t": "碎嘴介面",
+            "en": "Chatty Interface",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "為什麼這種模式在行動裝置（Mobile）環境下特別危險？",
+        "en": "Why is this pattern particularly dangerous in a mobile environment?",
+        "wg": []
+      }
+    ],
+    "type": "single",
+    "options": [
+      {
+        "t": "因為行動裝置的 CPU 無法處理迴圈。",
+        "en": "Because mobile CPUs cannot handle loops.",
+        "wg": []
+      },
+      {
+        "t": "因為網路延遲（Latency）是效能殺手，多次往返（Round-trips）會導致極差的使用者體驗。",
+        "en": "Because network latency is a performance killer, and multiple round-trips result in a very poor user experience.",
+        "wg": [
+          {
+            "t": "往返",
+            "en": "round-trips",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "因為伺服器無法同時處理超過 10 個連線。",
+        "en": "Because the server cannot handle more than 10 concurrent connections.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "在 4G/5G 網路環境下，建立連線與傳輸的延遲顯著。發起 20 次請求比發起 1 次大請求慢得多。正確解法是使用 BFF 或支援批次查詢的 API。",
+      "en": "In 4G/5G environments, connection setup and transmission latency are significant. Making 20 requests is much slower than making 1 large request. The correct solution is to use a BFF or an API that supports batch queries.",
+      "wg": [
+        {
+          "t": "批次",
+          "en": "batch",
+          "ps": "adjective"
+        }
+      ]
+    }
+  },
+  {
+    "no": "4",
+    "level": "easy",
+    "keywords": "Leaky Abstractions,Security,Design",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "HTTP/1.1 500 Internal Server Error\n{\n  \"error\": \"SQLSTATE[23000]: Integrity constraint violation: 1062 Duplicate entry 'user@example.com' for key 'users_email_unique'\"\n}",
+    "question": [
+      {
+        "t": "當 API 回傳如上圖的錯誤訊息時，這犯了「洩漏的抽象（Leaky Abstractions）」反模式。",
+        "en": "When an API returns an error message like the one above, it commits the 'Leaky Abstractions' anti-pattern.",
+        "wg": [
+          {
+            "t": "洩漏的抽象",
+            "en": "Leaky Abstractions",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "除了造成客戶端與後端實作緊密耦合外，這還帶來什麼主要風險？",
+        "en": "Besides causing tight coupling between the client and backend implementation, what is the other major risk?",
+        "wg": [
+          {
+            "t": "緊密耦合",
+            "en": "tight coupling",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "single",
+    "options": [
+      {
+        "t": "資安風險：駭客可推測資料庫結構，成為 SQL Injection 的前兆。",
+        "en": "Security risk: Hackers can infer the database structure, a precursor to SQL Injection.",
+        "wg": [
+          {
+            "t": "推測",
+            "en": "infer",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "效能風險：回傳長字串會佔用過多頻寬。",
+        "en": "Performance risk: Returning long strings consumes too much bandwidth.",
+        "wg": []
+      },
+      {
+        "t": "相容性風險：舊版瀏覽器無法解析 JSON。",
+        "en": "Compatibility risk: Older browsers cannot parse JSON.",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "直接暴露原始 Exception Stack Trace 或 DB 錯誤訊息，會讓攻擊者了解你的 Table 名稱（如 `users`）與約束條件，這違反了最小權限與資訊隱藏原則。",
+      "en": "Exposing raw Exception Stack Traces or DB error messages allows attackers to learn your Table names (e.g., `users`) and constraints, violating the principles of least privilege and information hiding.",
+      "wg": [
+        {
+          "t": "資訊隱藏",
+          "en": "information hiding",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "5",
+    "level": "medium",
+    "keywords": "Idempotency,POST,Data Integrity",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "使用者在結帳頁面點擊「付款」，但因為網路不穩導致 Request Time out。使用者以為沒成功，於是又點了一次。",
+        "en": "A user clicks 'Pay' on the checkout page, but the request times out due to network instability. Thinking it failed, the user clicks it again.",
+        "wg": [
+          {
+            "t": "逾時",
+            "en": "Time out",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "如果 API 設計忽略了「冪等性（Idempotency）」，會發生什麼後果？",
+        "en": "What happens if the API design ignores 'Idempotency'?",
+        "wg": [
+          {
+            "t": "冪等性",
+            "en": "Idempotency",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "single",
+    "options": [
+      {
+        "t": "第二次請求會被自動拒絕，因為 TCP 連線已關閉。",
+        "en": "The second request will be automatically rejected because the TCP connection is closed.",
+        "wg": []
+      },
+      {
+        "t": "使用者可能會被扣款兩次，嚴重損害資料一致性與用戶信任。",
+        "en": "The user might be charged twice, severely damaging data integrity and user trust.",
+        "wg": [
+          {
+            "t": "資料一致性",
+            "en": "data integrity",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "資料庫會自動合併這兩筆交易。",
+        "en": "The database will automatically merge these two transactions.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "POST 請求通常不是冪等的。若沒有設計防止重複提交的機制（如 Idempotency Key），伺服器會將兩次請求視為兩筆獨立的交易。",
+      "en": "POST requests are typically not idempotent. Without a mechanism to prevent duplicate submissions (like an Idempotency Key), the server will treat the two requests as two independent transactions.",
+      "wg": []
+    }
+  },
+  {
+    "no": "6",
+    "level": "medium",
+    "keywords": "BFF,Pattern,Architecture",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "為了避免 Mobile App 需要發起 20 個 API 請求來渲染一個畫面，手冊建議使用「Backend for Frontend (BFF)」模式。",
+        "en": "To avoid the Mobile App having to make 20 API requests to render a single screen, the handbook suggests using the 'Backend for Frontend (BFF)' pattern.",
+        "wg": [
+          {
+            "t": "渲染",
+            "en": "render",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "下列關於 BFF 的描述，何者正確？",
+        "en": "Which of the following descriptions about BFF is correct?",
+        "wg": []
+      }
+    ],
+    "type": "single",
+    "options": [
+      {
+        "t": "BFF 是一個位於 Client 與 Backend 之間的聚合層，負責根據 UI 需求組裝資料。",
+        "en": "BFF is an aggregation layer between the Client and Backend, responsible for assembling data based on UI requirements.",
+        "wg": [
+          {
+            "t": "聚合層",
+            "en": "aggregation layer",
+            "ps": "noun"
+          },
+          {
+            "t": "組裝",
+            "en": "assemble",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "BFF 意味著前端工程師必須直接存取資料庫。",
+        "en": "BFF means frontend engineers must access the database directly.",
+        "wg": []
+      },
+      {
+        "t": "BFF 是指將所有的商業邏輯都移到前端 JavaScript 中執行。",
+        "en": "BFF refers to moving all business logic to be executed in the frontend JavaScript.",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "BFF 的核心目的是將複雜度留在 Server 端，減少網路往返（Round-trips），並提供針對特定 UI 優化的資料格式。",
+      "en": "The core purpose of BFF is to keep complexity on the Server side, reduce network round-trips, and provide data formats optimized for specific UIs.",
+      "wg": []
+    }
+  },
+  {
+    "no": "7",
+    "level": "medium",
+    "keywords": "Unbounded Result Sets,Pagination,Performance,Database",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "app.get('/api/orders', async (req, res) => {\n  // Anti-pattern: Fetching all records without limits\n  const orders = await db.query('SELECT * FROM orders');\n  res.json(orders);\n});",
+    "question": [
+      {
+        "t": "這段程式碼在開發環境（只有 10 筆資料）運作正常，但在正式環境（有 100 萬筆資料）卻導致伺服器崩潰。",
+        "en": "This code works fine in the development environment (with only 10 records) but causes the server to crash in production (with 1 million records).",
+        "wg": []
+      },
+      {
+        "t": "請問這犯了哪一種反模式，以及最佳的修正方式為何？",
+        "en": "Which anti-pattern does this represent, and what is the best fix?",
+        "wg": []
+      }
+    ],
+    "type": "single",
+    "options": [
+      {
+        "t": "反模式：上帝物件 (God Object)。修正：移除不必要的欄位。",
+        "en": "Anti-pattern: God Object. Fix: Remove unnecessary fields.",
+        "wg": [
+          {
+            "t": "上帝物件",
+            "en": "God Object",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "反模式：無限制的結果集 (Unbounded Result Sets)。修正：實作分頁機制 (Pagination)。",
+        "en": "Anti-pattern: Unbounded Result Sets. Fix: Implement Pagination.",
+        "wg": [
+          {
+            "t": "無限制的結果集",
+            "en": "Unbounded Result Sets",
+            "ps": "noun"
+          },
+          {
+            "t": "分頁機制",
+            "en": "Pagination",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "反模式：碎嘴介面 (Chatty Interface)。修正：使用 GraphQL。",
+        "en": "Anti-pattern: Chatty Interface. Fix: Use GraphQL.",
+        "wg": [
+          {
+            "t": "碎嘴介面",
+            "en": "Chatty Interface",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "反模式：洩漏的抽象 (Leaky Abstractions)。修正：使用 DTO。",
+        "en": "Anti-pattern: Leaky Abstractions. Fix: Use DTOs.",
+        "wg": [
+          {
+            "t": "洩漏的抽象",
+            "en": "Leaky Abstractions",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "此程式碼未對查詢結果設限，當資料量增長時會耗盡記憶體 (OOM) 或拖垮資料庫，這是典型的「無限制結果集」問題。應強制實作 `limit` 與 `offset`。",
+      "en": "The code does not limit the query results. As data grows, this will cause Out of Memory (OOM) errors or overwhelm the database, which is the 'Unbounded Result Sets' anti-pattern. Mandatory `limit` and `offset` should be implemented.",
+      "wg": [
+        {
+          "t": "無限制結果集",
+          "en": "Unbounded Result Sets",
+          "ps": "noun"
+        },
+        {
+          "t": "耗盡記憶體",
+          "en": "Out of Memory (OOM)",
+          "ps": "phrase"
+        }
+      ]
+    }
+  },
+  {
+    "no": "8",
+    "level": "medium",
+    "keywords": "DTO,Coupling,Refactoring,Architecture",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你的團隊決定將資料庫中的 `user_name` 欄位重新命名為 `username`。",
+        "en": "Your team decides to rename the `user_name` column to `username` in the database.",
+        "wg": []
+      },
+      {
+        "t": "部署後，所有的 Mobile App 客戶端都崩潰了，因為它們預期 API 會回傳 `user_name`。",
+        "en": "After deployment, all Mobile App clients crash because they expected the API to return `user_name`.",
+        "wg": []
+      },
+      {
+        "t": "這個災難原本可以透過哪種設計模式來避免？",
+        "en": "Which design pattern could have prevented this disaster?",
+        "wg": []
+      }
+    ],
+    "type": "single",
+    "options": [
+      {
+        "t": "Backend for Frontend (BFF)",
+        "en": "Backend for Frontend (BFF)",
+        "wg": []
+      },
+      {
+        "t": "Database per Service",
+        "en": "Database per Service",
+        "wg": []
+      },
+      {
+        "t": "Data Transfer Objects (DTOs) 與 Mappers",
+        "en": "Data Transfer Objects (DTOs) and Mappers",
+        "wg": [
+          {
+            "t": "資料傳輸物件",
+            "en": "Data Transfer Objects",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "Idempotency Keys",
+        "en": "Idempotency Keys",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "這個問題源於將內部資料模型 (DB Entity) 直接暴露給外部。使用 DTO 與 Mapper 可以將「內部資料庫結構」與「外部 API 合約」解耦，即使 DB 欄位改名，只需修改 Mapper 即可，不影響 API。",
+      "en": "This issue arises from exposing the internal data model (DB Entity) directly to the outside. Using DTOs and Mappers decouples the 'internal database structure' from the 'external API contract'. Even if DB columns are renamed, you only need to update the Mapper without affecting the API.",
+      "wg": [
+        {
+          "t": "解耦",
+          "en": "decouple",
+          "ps": "verb"
+        },
+        {
+          "t": "外部 API 合約",
+          "en": "external API contract",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "9",
+    "level": "hard",
+    "keywords": "Latency,Performance,Mobile,Chatty Interface",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在 4G/5G 行動網路環境下，為什麼「碎嘴介面 (Chatty Interface)」(例如發送 20 個小的 HTTP 請求) 通常比「單一大型請求 (God Object)」(發送 1 個包含所有資料的請求) 帶來更差的使用者體驗？",
+        "en": "In a 4G/5G mobile network environment, why does a 'Chatty Interface' (e.g., sending 20 small HTTP requests) usually result in a worse user experience than a 'Single Large Request (God Object)' (sending 1 request containing all data)?",
+        "wg": [
+          {
+            "t": "碎嘴介面",
+            "en": "Chatty Interface",
+            "ps": "noun"
+          },
+          {
+            "t": "單一大型請求",
+            "en": "Single Large Request",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "single",
+    "options": [
+      {
+        "t": "因為大型請求會佔用更多伺服器 CPU。",
+        "en": "Because large requests consume more server CPU.",
+        "wg": []
+      },
+      {
+        "t": "因為網路延遲 (Latency) 與往返時間 (RTT) 的累積效應遠大於頻寬 (Bandwidth) 的限制。",
+        "en": "Because the cumulative effect of network latency and Round-Trip Time (RTT) far outweighs bandwidth limitations.",
+        "wg": [
+          {
+            "t": "網路延遲",
+            "en": "network latency",
+            "ps": "noun"
+          },
+          {
+            "t": "往返時間",
+            "en": "Round-Trip Time (RTT)",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "因為行動裝置無法同時處理多個 TCP 連線。",
+        "en": "Because mobile devices cannot handle multiple TCP connections simultaneously.",
+        "wg": []
+      },
+      {
+        "t": "因為資料庫無法處理併發查詢。",
+        "en": "Because the database cannot handle concurrent queries.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "在行動網路上，建立連線與封包往返 (RTT) 的成本很高。發送 20 次請求意味著要承受 20 次的網路延遲，這通常比下載一個稍大的封包還要慢得多。",
+      "en": "On mobile networks, the cost of establishing connections and packet round-trips (RTT) is high. Sending 20 requests means incurring the network latency penalty 20 times, which is usually much slower than downloading a single slightly larger packet.",
+      "wg": [
+        {
+          "t": "封包往返",
+          "en": "packet round-trips",
+          "ps": "noun"
+        },
+        {
+          "t": "成本",
+          "en": "cost/overhead",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "10",
+    "level": "medium",
+    "keywords": "API Design,Granularity,Performance,Decision Tree",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你正在設計一個 `GET /products` 列表 API。產品經理要求在列表中加入「即時運費試算」欄位。",
+        "en": "You are designing a `GET /products` list API. The product manager asks to add a 'Real-time Shipping Cost' field to the list.",
+        "wg": []
+      },
+      {
+        "t": "計算運費需要呼叫一個外部物流服務，每次耗時約 200ms。根據 API 設計決策樹，你應該如何處理？",
+        "en": "Calculating shipping costs requires calling an external logistics service, taking about 200ms per item. According to the API design decision tree, how should you handle this?",
+        "wg": [
+          {
+            "t": "外部物流服務",
+            "en": "external logistics service",
+            "ps": "noun"
+          },
+          {
+            "t": "決策樹",
+            "en": "decision tree",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "single",
+    "options": [
+      {
+        "t": "直接加在列表中，並使用平行處理 (Parallel Processing) 加速。",
+        "en": "Add it directly to the list and use Parallel Processing to speed it up.",
+        "wg": []
+      },
+      {
+        "t": "拒絕需求，告訴 PM 這是不可能的。",
+        "en": "Reject the requirement and tell the PM it's impossible.",
+        "wg": []
+      },
+      {
+        "t": "將該欄位從列表 API 中移除，改為在「產品詳情頁」或透過獨立的 API 依需求載入 (Load on demand)。",
+        "en": "Remove the field from the list API. Instead, load it on the 'Product Detail Page' or via a separate API on demand.",
+        "wg": [
+          {
+            "t": "依需求載入",
+            "en": "Load on demand",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "使用快取 (Cache) 儲存運費，即使金額可能不準確。",
+        "en": "Use Cache to store shipping costs, even if the amount might be inaccurate.",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "若單一欄位的計算需要昂貴的第三方呼叫，將其放入列表 API 會導致整體效能低落（例如 10 個商品就需 2 秒）。正確做法是將其拆分，僅在使用者點擊詳情或結帳時才計算。",
+      "en": "If calculating a single field requires an expensive 3rd-party call, including it in a list API will degrade overall performance (e.g., 10 items would take 2 seconds). The correct approach is to split it out and calculate it only when the user views details or checks out.",
+      "wg": [
+        {
+          "t": "昂貴的",
+          "en": "expensive (computationally)",
+          "ps": "adjective"
+        },
+        {
+          "t": "拆分",
+          "en": "split/separate",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "11",
+    "level": "hard",
+    "keywords": "Distributed Monolith,Shared Database,Locking,Microservices",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "情境：Service A (報表服務) 與 Service B (交易服務) 共用同一個資料庫 (Shared Database)。",
+        "en": "Scenario: Service A (Reporting) and Service B (Transaction) share the same database (Shared Database).",
+        "wg": [
+          {
+            "t": "共用同一個資料庫",
+            "en": "share the same database",
+            "ps": "phrase"
+          }
+        ]
+      },
+      {
+        "t": "每當 Service A 執行長時間的分析查詢時，Service B 的使用者就會遇到「請求逾時 (Request Timeout)」錯誤。",
+        "en": "Whenever Service A runs a long-running analysis query, Service B users experience 'Request Timeout' errors.",
+        "wg": []
+      },
+      {
+        "t": "這是什麼原因造成的？",
+        "en": "What is the cause of this?",
+        "wg": []
+      }
+    ],
+    "type": "single",
+    "options": [
+      {
+        "t": "Service A 的查詢鎖定了資料表 (Database Locking)，導致 Service B 無法寫入或讀取。",
+        "en": "Service A's query locked the database tables, preventing Service B from writing or reading.",
+        "wg": [
+          {
+            "t": "鎖定",
+            "en": "lock",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "Service B 的程式碼有 Bug，沒有正確處理重試。",
+        "en": "Service B's code has a bug and doesn't handle retries correctly.",
+        "wg": []
+      },
+      {
+        "t": "這是 API Gateway 的設定問題，與資料庫無關。",
+        "en": "This is an API Gateway configuration issue, unrelated to the database.",
+        "wg": []
+      },
+      {
+        "t": "因為 Service A 消耗了所有的網路頻寬。",
+        "en": "Because Service A consumed all the network bandwidth.",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "這是「分散式大泥球 (Distributed Monolith)」的典型副作用。共用資料庫意味著共用資源（如 DB Lock、CPU、IO）。長交易會鎖住 Table，導致需要即時回應的服務被阻塞。",
+      "en": "This is a typical side effect of the 'Distributed Monolith'. Sharing a database means sharing resources (like DB Locks, CPU, IO). Long transactions lock tables, causing services that require real-time responses to be blocked.",
+      "wg": [
+        {
+          "t": "分散式大泥球",
+          "en": "Distributed Monolith",
+          "ps": "noun"
+        },
+        {
+          "t": "阻塞",
+          "en": "blocked",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "12",
+    "level": "medium",
+    "keywords": "API Design,Decision Tree,Sub-resources,Payload Size",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "根據手冊中的決策樹：如果一個 API 回應中，有 50% 的欄位（例如龐大的 `audit_logs` 陣列）是被 80% 的客戶端所忽略的。",
+        "en": "According to the decision tree in the handbook: If 50% of the fields in an API response (e.g., a huge `audit_logs` array) are ignored by 80% of the clients.",
+        "wg": [
+          {
+            "t": "忽略",
+            "en": "ignored",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "你應該採取什麼行動？",
+        "en": "What action should you take?",
+        "wg": []
+      }
+    ],
+    "type": "single",
+    "options": [
+      {
+        "t": "保持原樣，因為硬碟空間很便宜。",
+        "en": "Keep it as is, because disk space is cheap.",
+        "wg": []
+      },
+      {
+        "t": "將這些罕用欄位拆分到子資源 (Sub-resource) 中 (例如 `GET /users/1/audit-logs`)。",
+        "en": "Separate these rarely used fields into a sub-resource (e.g., `GET /users/1/audit-logs`).",
+        "wg": [
+          {
+            "t": "罕用欄位",
+            "en": "rarely used fields",
+            "ps": "noun"
+          },
+          {
+            "t": "子資源",
+            "en": "sub-resource",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "強制所有客戶端都必須顯示這些資料。",
+        "en": "Force all clients to display this data.",
+        "wg": []
+      },
+      {
+        "t": "使用壓縮演算法 (Gzip) 來解決問題。",
+        "en": "Use compression algorithms (Gzip) to solve the problem.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "當大部分客戶端不需要某些「重量級」資料時，將其保留在主 API 會造成不必要的傳輸與 DB 負載。最佳做法是將其拆分為獨立的子資源，讓有需要的客戶端再發起請求。",
+      "en": "When most clients don't need certain 'heavy' data, keeping it in the main API causes unnecessary transfer and DB load. The best practice is to split it into a separate sub-resource, allowing clients to request it only when needed.",
+      "wg": [
+        {
+          "t": "重量級",
+          "en": "heavy/large",
+          "ps": "adjective"
+        },
+        {
+          "t": "傳輸",
+          "en": "transfer",
+          "ps": "noun"
+        }
+      ]
+    }
+  }
+]

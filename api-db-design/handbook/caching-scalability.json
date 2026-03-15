@@ -1,0 +1,862 @@
+[
+  {
+    "no": "1",
+    "level": "Medium",
+    "keywords": "Cache-Aside, Consistency, Race Condition",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在實作 Cache-Aside 模式時，當應用程式更新資料庫中的資料後，針對快取（Cache）的最佳操作策略為何？",
+        "en": "In the Cache-Aside pattern, what is the best strategy for handling the cache after the application updates data in the database?",
+        "wg": [
+          {
+            "t": "快取",
+            "en": "Cache",
+            "ps": "noun"
+          },
+          {
+            "t": "最佳操作策略",
+            "en": "Best practice/strategy",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "立即更新快取中的值，以確保讀取到最新資料。",
+        "en": "Immediately update the value in the cache to ensure the latest data is read.",
+        "wg": []
+      },
+      {
+        "t": "刪除（Invalidate）該快取鍵，讓下一次讀取時重新載入。",
+        "en": "Delete (Invalidate) the cache key, allowing it to be reloaded on the next read.",
+        "wg": [
+          {
+            "t": "刪除",
+            "en": "Invalidate/Delete",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "不需做任何動作，等待 TTL 過期即可。",
+        "en": "Do nothing and wait for the TTL to expire.",
+        "wg": []
+      },
+      {
+        "t": "使用背景執行緒非同步更新快取。",
+        "en": "Use a background thread to asynchronously update the cache.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "在 Cache-Aside 模式中，更新資料庫後應選擇「刪除快取」而非「更新快取」。這是為了避免並發寫入時的競態條件（Race Condition），例如兩個執行緒同時更新，但寫入快取的順序與寫入 DB 的順序不一致，導致快取中殘留髒資料。刪除快取雖然會導致下一次讀取時多一次 DB 查詢（Cache Miss），但能保證資料的一致性。",
+      "en": "In the Cache-Aside pattern, you should 'delete' the cache rather than 'update' it after a DB write. This prevents Race Conditions where concurrent writes might update the cache in a different order than the DB, leaving dirty data. While deleting causes a Cache Miss on the next read, it guarantees data consistency.",
+      "wg": [
+        {
+          "t": "競態條件",
+          "en": "Race Condition",
+          "ps": "noun"
+        },
+        {
+          "t": "髒資料",
+          "en": "Dirty Data",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "2",
+    "level": "Hard",
+    "keywords": "Scalability, Replication Lag, Read-Write Splitting",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你的系統採用了「讀寫分離」架構。使用者回報說，當他們修改完個人簡介後立即重新整理頁面，卻仍然看到舊的資料。請問這是什麼問題，以及最適合的解決方案為何？",
+        "en": "Your system uses a 'Read-Write Splitting' architecture. Users report that immediately after updating their profile and refreshing the page, they still see the old data. What is this issue, and what is the most suitable solution?",
+        "wg": [
+          {
+            "t": "讀寫分離",
+            "en": "Read-Write Splitting",
+            "ps": "noun"
+          },
+          {
+            "t": "重新整理",
+            "en": "Refresh",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "這是快取雪崩（Cache Avalanche），應增加 TTL 的隨機性。",
+        "en": "This is Cache Avalanche; randomness should be added to the TTL.",
+        "wg": []
+      },
+      {
+        "t": "這是複製延遲（Replication Lag），應採用 Pin-to-Master 策略。",
+        "en": "This is Replication Lag; a Pin-to-Master strategy should be adopted.",
+        "wg": [
+          {
+            "t": "複製延遲",
+            "en": "Replication Lag",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "這是快取穿透（Cache Penetration），應使用 Bloom Filter。",
+        "en": "This is Cache Penetration; a Bloom Filter should be used.",
+        "wg": []
+      },
+      {
+        "t": "這是資料庫死鎖（Deadlock），應優化 SQL 交易層級。",
+        "en": "This is a Database Deadlock; SQL transaction levels should be optimized.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "這是典型的「複製延遲」問題，因為資料寫入 Primary DB 後，尚未同步到 Read Replicas。最佳解法是 Pin-to-Master：當偵測到使用者剛進行寫入操作後，在短時間內強制將該使用者的讀取請求導向 Primary DB，確保他們能看到自己的修改。",
+      "en": "This is a classic 'Replication Lag' issue, where data written to the Primary DB hasn't yet synced to the Read Replicas. The best solution is 'Pin-to-Master': force the user's read requests to the Primary DB for a short window after they perform a write, ensuring they see their own updates.",
+      "wg": [
+        {
+          "t": "複製延遲",
+          "en": "Replication Lag",
+          "ps": "noun"
+        },
+        {
+          "t": "主從同步",
+          "en": "Sync/Replication",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "3",
+    "level": "Medium",
+    "keywords": "Defensive Caching, Cache Breakdown, Hotspot",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "某個電商網站正在進行秒殺活動，某個熱門商品的快取 Key 剛好過期，瞬間湧入數千個請求同時發現 Cache Miss 並直接查詢資料庫，導致資料庫 CPU 飆高。這種現象稱為什麼？",
+        "en": "An e-commerce site is running a flash sale. The cache key for a popular item expires, and thousands of requests instantly encounter a Cache Miss, hitting the database simultaneously and spiking the DB CPU. What is this phenomenon called?",
+        "wg": [
+          {
+            "t": "秒殺活動",
+            "en": "Flash sale",
+            "ps": "noun"
+          },
+          {
+            "t": "瞬間湧入",
+            "en": "Surge/Influx",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "快取穿透 (Cache Penetration)",
+        "en": "Cache Penetration",
+        "wg": []
+      },
+      {
+        "t": "快取雪崩 (Cache Avalanche)",
+        "en": "Cache Avalanche",
+        "wg": []
+      },
+      {
+        "t": "快取擊穿 (Cache Breakdown / Thundering Herd)",
+        "en": "Cache Breakdown / Thundering Herd",
+        "wg": [
+          {
+            "t": "快取擊穿",
+            "en": "Cache Breakdown",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "快取預熱 (Cache Warming)",
+        "en": "Cache Warming",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "這描述的是「快取擊穿」（Cache Breakdown），特指「單一熱點 Key」過期導致的並發 DB 請求。相比之下，「快取雪崩」是指大量不同的 Key 同時過期；「快取穿透」是指查詢根本不存在的 Key。解決擊穿的常見方法是使用 Mutex Lock。",
+      "en": "This describes 'Cache Breakdown', referring to concurrent DB requests caused by the expiration of a 'single hot key'. In contrast, 'Cache Avalanche' is when many different keys expire at once; 'Cache Penetration' is querying for non-existent keys. A common solution for Breakdown is using a Mutex Lock.",
+      "wg": [
+        {
+          "t": "熱點",
+          "en": "Hotspot",
+          "ps": "noun"
+        },
+        {
+          "t": "互斥鎖",
+          "en": "Mutex Lock",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "4",
+    "level": "Medium",
+    "keywords": "Sharding, Anti-pattern, Database Design",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "關於資料庫分片（Sharding），以下哪一個敘述符合「最佳實務」與「反模式」的判斷？",
+        "en": "Regarding Database Sharding, which of the following statements aligns with 'Best Practices' and identifying 'Anti-patterns'?",
+        "wg": [
+          {
+            "t": "分片",
+            "en": "Sharding",
+            "ps": "noun"
+          },
+          {
+            "t": "反模式",
+            "en": "Anti-pattern",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "專案初期應儘早設計分片機制，以避免未來資料量過大時難以遷移。",
+        "en": "Design sharding early in the project to avoid difficult migration when data grows large in the future.",
+        "wg": []
+      },
+      {
+        "t": "使用時間（Time）作為 Sharding Key 是完美的選擇，因為它容易進行範圍查詢且寫入分佈均勻。",
+        "en": "Using Time as a Sharding Key is perfect because it allows easy range queries and distributes writes evenly.",
+        "wg": []
+      },
+      {
+        "t": "分片應作為最後手段。在此之前應優先考慮索引優化、快取、讀寫分離與垂直擴展。",
+        "en": "Sharding should be the last resort. Prioritize index optimization, caching, read-write splitting, and vertical scaling first.",
+        "wg": [
+          {
+            "t": "最後手段",
+            "en": "Last resort",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "分片後，跨分片的 Join 操作（Cross-shard Join）效能會自動提升。",
+        "en": "After sharding, the performance of Cross-shard Join operations will automatically improve.",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "過早分片（Premature Sharding）是經典的反模式，會大幅增加開發與維運複雜度。以時間分片雖然利於範圍查詢，但會造成寫入熱點（Hotspot）。分片會導致 Join 與交易變得極其困難，因此應作為垂直擴展與讀寫分離後的最後手段。",
+      "en": "Premature Sharding is a classic anti-pattern that significantly increases development and operational complexity. While time-based sharding helps with range queries, it creates write hotspots. Sharding makes Joins and transactions extremely difficult, so it should be the last resort after vertical scaling and read-write splitting.",
+      "wg": [
+        {
+          "t": "寫入熱點",
+          "en": "Write Hotspot",
+          "ps": "noun"
+        },
+        {
+          "t": "垂直擴展",
+          "en": "Vertical Scaling",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "5",
+    "level": "Easy",
+    "keywords": "Defensive Caching, Cache Avalanche, Jitter",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "為了防止「快取雪崩」（Cache Avalanche），即大量快取在同一時間失效，導致資料庫壓力驟增，最簡單有效的策略是什麼？",
+        "en": "To prevent 'Cache Avalanche', where a large number of cache keys expire at the same time causing a spike in database load, what is the simplest and most effective strategy?",
+        "wg": [
+          {
+            "t": "快取雪崩",
+            "en": "Cache Avalanche",
+            "ps": "noun"
+          },
+          {
+            "t": "失效",
+            "en": "Expire/Invalidate",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "將所有快取的 TTL 設定為無限期（No Expiration）。",
+        "en": "Set the TTL of all caches to infinite (No Expiration).",
+        "wg": []
+      },
+      {
+        "t": "在原本的 TTL 上增加一個隨機時間（Jitter）。",
+        "en": "Add a random time (Jitter) to the original TTL.",
+        "wg": [
+          {
+            "t": "隨機時間",
+            "en": "Jitter/Randomness",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "完全禁用快取，直接查詢資料庫。",
+        "en": "Disable caching completely and query the database directly.",
+        "wg": []
+      },
+      {
+        "t": "使用 Write-Through 模式來寫入快取。",
+        "en": "Use the Write-Through pattern to write to the cache.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "快取雪崩通常是因為大量 Key 設定了相同的固定過期時間。透過加入隨機時間（Jitter），可以將過期時間分散開來，避免同一時刻發生大量 Cache Miss。",
+      "en": "Cache Avalanche usually happens when many keys have the same fixed expiration time. Adding random time (Jitter) spreads out the expirations, preventing a massive number of Cache Misses at the same moment.",
+      "wg": [
+        {
+          "t": "分散",
+          "en": "Spread out/Disperse",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "6",
+    "level": "Hard",
+    "keywords": "Security, Cache Penetration, Bloom Filter",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你的系統遭受惡意攻擊，攻擊者大量查詢「不存在的 User ID」。這些請求穿透了快取直接打擊資料庫（Cache Penetration）。以下哪兩種方法是防禦此類攻擊的有效手段？",
+        "en": "Your system is under malicious attack where attackers are querying a large number of 'non-existent User IDs'. These requests penetrate the cache and hit the database directly (Cache Penetration). Which two methods are effective defenses against this?",
+        "wg": [
+          {
+            "t": "惡意攻擊",
+            "en": "Malicious attack",
+            "ps": "noun"
+          },
+          {
+            "t": "不存在的",
+            "en": "Non-existent",
+            "ps": "adj"
+          }
+        ]
+      }
+    ],
+    "type": "Multiple Choice",
+    "options": [
+      {
+        "t": "使用 Bloom Filter 在查詢快取前先過濾掉一定不存在的 Key。",
+        "en": "Use a Bloom Filter to filter out keys that definitely do not exist before querying the cache.",
+        "wg": [
+          {
+            "t": "布隆過濾器",
+            "en": "Bloom Filter",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "將「空結果」（Null Object）也寫入快取，並設定較短的 TTL。",
+        "en": "Cache the 'Null Result' (Null Object) with a short TTL.",
+        "wg": [
+          {
+            "t": "空結果",
+            "en": "Null Result",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "使用 Mutex Lock 鎖定該 ID。",
+        "en": "Use a Mutex Lock to lock the ID.",
+        "wg": []
+      },
+      {
+        "t": "將資料庫設定為 Read-Only 模式。",
+        "en": "Set the database to Read-Only mode.",
+        "wg": []
+      }
+    ],
+    "answer": "0,1",
+    "why": {
+      "t": "針對查詢不存在 Key 的穿透攻擊：(1) Bloom Filter 可以極快地判斷 Key 是否「可能存在」，若判斷不存在則直接攔截；(2) 快取空結果（Cache Null）可以防止重複查詢同一個不存在的 ID 打到 DB。Mutex Lock 是用來解決熱點擊穿（Breakdown），對隨機生成的亂數 ID 攻擊效果有限。",
+      "en": "For penetration attacks querying non-existent keys: (1) A Bloom Filter can quickly determine if a key 'might exist', blocking it if it doesn't; (2) Caching Null results prevents repeated queries for the same non-existent ID from hitting the DB. Mutex Locks are for Hotspot Breakdown and are less effective against random ID attacks.",
+      "wg": [
+        {
+          "t": "攔截",
+          "en": "Intercept/Block",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "7",
+    "level": "Medium",
+    "keywords": "Write-Back, Write-Through, Caching Pattern, High Throughput",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你正在設計一個影片串流平台的「觀看次數計數器」。該數值更新頻率極高（每秒數萬次寫入），但業務上允許在系統崩潰時遺失最近幾秒的統計數據，且不需要強一致性。",
+        "en": "You are designing a 'view count counter' for a video streaming platform. The update frequency is extremely high (tens of thousands of writes per second), but the business allows for the loss of the last few seconds of statistics in the event of a system crash, and strong consistency is not required.",
+        "wg": [
+          {
+            "t": "觀看次數計數器",
+            "en": "view count counter",
+            "ps": "noun"
+          },
+          {
+            "t": "強一致性",
+            "en": "strong consistency",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "為了最大化寫入效能並保護資料庫，下列哪種快取模式最適合此場景？",
+        "en": "To maximize write performance and protect the database, which caching pattern is most suitable for this scenario?",
+        "wg": []
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "Cache-Aside (Lazy Loading)",
+        "en": "Cache-Aside (Lazy Loading)",
+        "wg": []
+      },
+      {
+        "t": "Write-Through",
+        "en": "Write-Through",
+        "wg": []
+      },
+      {
+        "t": "Write-Back (Write-Behind)",
+        "en": "Write-Back (Write-Behind)",
+        "wg": []
+      },
+      {
+        "t": "Read-Through",
+        "en": "Read-Through",
+        "wg": []
+      }
+    ],
+    "answer": "Write-Back (Write-Behind)",
+    "why": {
+      "t": "Write-Back 模式下，應用程式只寫入快取並立即返回，由快取組件非同步（Asynchronously）批次寫入資料庫。這能極大化寫入吞吐量，適合計數器這類寫入頻繁且允許少量資料遺失的場景。Cache-Aside 與 Write-Through 都會同步寫入資料庫，無法解決資料庫寫入壓力問題。",
+      "en": "In the Write-Back pattern, the application writes only to the cache and returns immediately, while the cache component asynchronously batch-writes to the database. This maximizes write throughput and is suitable for scenarios like counters where frequent writes occur and slight data loss is acceptable. Both Cache-Aside and Write-Through involve synchronous writes to the database, which does not solve the issue of database write pressure.",
+      "wg": [
+        {
+          "t": "非同步",
+          "en": "asynchronously",
+          "ps": "adverb"
+        },
+        {
+          "t": "吞吐量",
+          "en": "throughput",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "8",
+    "level": "Hard",
+    "keywords": "Sharding, Database Design, Hotspot, Scalability",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你的團隊決定對一個寫入量巨大的「系統日誌（System Logs）」資料庫進行分片（Sharding）。為了方便進行「特定時間範圍」的查詢，團隊打算選擇 `timestamp` 作為 Sharding Key（例如每週一張表）。",
+        "en": "Your team decides to shard a 'System Logs' database that has a huge write volume. To facilitate queries for a 'specific time range', the team plans to choose `timestamp` as the Sharding Key (e.g., one table per week).",
+        "wg": [
+          {
+            "t": "分片",
+            "en": "sharding",
+            "ps": "verb/noun"
+          },
+          {
+            "t": "時間範圍",
+            "en": "time range",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "請問這種設計最主要的潛在風險是什麼？",
+        "en": "What is the primary potential risk of this design?",
+        "wg": []
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "跨分片查詢（Cross-shard Join）會變得非常頻繁且緩慢。",
+        "en": "Cross-shard Joins will become very frequent and slow.",
+        "wg": []
+      },
+      {
+        "t": "會造成寫入熱點（Write Hotspot），因為所有新資料都會集中寫入到同一個分片。",
+        "en": "It will cause a Write Hotspot, as all new data will be concentrated and written to the same shard.",
+        "wg": [
+          {
+            "t": "寫入熱點",
+            "en": "Write Hotspot",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "資料分佈會過於隨機，導致硬碟碎片化。",
+        "en": "Data distribution will be too random, leading to disk fragmentation.",
+        "wg": []
+      },
+      {
+        "t": "無法針對舊資料進行歸檔（Archiving）。",
+        "en": "Unable to archive old data.",
+        "wg": []
+      }
+    ],
+    "answer": "會造成寫入熱點（Write Hotspot），因為所有新資料都會集中寫入到同一個分片。",
+    "why": {
+      "t": "以時間為 Sharding Key 雖然有利於範圍查詢，但會導致所有當下的寫入請求都打在代表「現在」的那一個分片上（Hotspot），無法有效利用多台伺服器的寫入效能，違背了分片分散寫入壓力的初衷。",
+      "en": "While using time as a Sharding Key facilitates range queries, it causes all current write requests to hit the single shard representing 'now' (Hotspot). This fails to effectively utilize the write performance of multiple servers, defeating the purpose of sharding to distribute write pressure.",
+      "wg": [
+        {
+          "t": "違背",
+          "en": "defeat/contradict",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "9",
+    "level": "Medium",
+    "keywords": "Security, Anti-pattern, Key Naming",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "某個應用程式發生了嚴重的資安事故：使用者 A 登入後，竟然看到了使用者 B 的個人資料。經排查，發現問題出在快取層。",
+        "en": "A serious security incident occurred in an application: User A logged in and saw User B's personal data. Investigation revealed the issue was in the caching layer.",
+        "wg": [
+          {
+            "t": "資安事故",
+            "en": "security incident",
+            "ps": "noun"
+          },
+          {
+            "t": "排查",
+            "en": "investigation/troubleshooting",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "開發者在實作 `GET /users/profile` 的快取時，最可能犯了哪種「反模式（Anti-pattern）」錯誤？",
+        "en": "Which 'Anti-pattern' mistake did the developer most likely make when implementing caching for `GET /users/profile`?",
+        "wg": []
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "快取了未加密的 PII（個人識別資訊）。",
+        "en": "Cached unencrypted PII (Personally Identifiable Information).",
+        "wg": []
+      },
+      {
+        "t": "使用了過長的 TTL，導致資料無法即時更新。",
+        "en": "Used an excessively long TTL, causing data to not update in time.",
+        "wg": []
+      },
+      {
+        "t": "使用了不包含 User ID 的共用 Key（例如 `app:profile`）來儲存特定使用者的資料。",
+        "en": "Used a shared Key that does not include the User ID (e.g., `app:profile`) to store specific user data.",
+        "wg": [
+          {
+            "t": "共用",
+            "en": "shared",
+            "ps": "adjective"
+          }
+        ]
+      },
+      {
+        "t": "沒有設定 Eviction Policy，導致記憶體溢出。",
+        "en": "Did not set an Eviction Policy, leading to memory overflow.",
+        "wg": []
+      }
+    ],
+    "answer": "使用了不包含 User ID 的共用 Key（例如 `app:profile`）來儲存特定使用者的資料。",
+    "why": {
+      "t": "這是典型的 Key Naming 錯誤。若快取 Key 沒有包含使用者的唯一識別碼（如 `app:user:123:profile`），所有呼叫該 API 的使用者都會存取到同一個 Key，導致後來的請求讀取到前一個使用者快取的資料。",
+      "en": "This is a typical Key Naming error. If the cache Key does not include the user's unique identifier (e.g., `app:user:123:profile`), all users calling that API will access the same Key, causing subsequent requests to read the data cached by a previous user.",
+      "wg": [
+        {
+          "t": "唯一識別碼",
+          "en": "unique identifier",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "10",
+    "level": "Medium",
+    "keywords": "Redis, Eviction Policy, Operations",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你的 Redis 快取伺服器記憶體已滿，應用程式開始收到 `OOM command not allowed` 錯誤，導致寫入失敗。",
+        "en": "Your Redis cache server memory is full, and the application starts receiving `OOM command not allowed` errors, causing write failures.",
+        "wg": [
+          {
+            "t": "記憶體已滿",
+            "en": "memory is full",
+            "ps": "phrase"
+          }
+        ]
+      },
+      {
+        "t": "為了讓 Redis 表現得像一個真正的 LRU 快取（自動移除舊資料以容納新資料），你應該檢查並修改哪個設定？",
+        "en": "To make Redis behave like a true LRU cache (automatically removing old data to accommodate new data), which setting should you check and modify?",
+        "wg": []
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "將 `appendonly` 設定為 `yes`。",
+        "en": "Set `appendonly` to `yes`.",
+        "wg": []
+      },
+      {
+        "t": "調整 `maxmemory-policy`（例如改為 `allkeys-lru`）。",
+        "en": "Adjust `maxmemory-policy` (e.g., change to `allkeys-lru`).",
+        "wg": [
+          {
+            "t": "調整",
+            "en": "adjust",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "增加 `tcp-keepalive` 的時間。",
+        "en": "Increase the `tcp-keepalive` time.",
+        "wg": []
+      },
+      {
+        "t": "啟用 Redis Cluster 模式。",
+        "en": "Enable Redis Cluster mode.",
+        "wg": []
+      }
+    ],
+    "answer": "調整 `maxmemory-policy`（例如改為 `allkeys-lru`）。",
+    "why": {
+      "t": "預設情況下，Redis 的 `maxmemory-policy` 可能是 `noeviction`，這意味著當記憶體滿時它會拒絕寫入。要作為快取使用，應設定為 `allkeys-lru` 或 `volatile-lru`，以便自動淘汰最少使用的資料。",
+      "en": "By default, Redis's `maxmemory-policy` might be `noeviction`, meaning it rejects writes when memory is full. To use it as a cache, it should be set to `allkeys-lru` or `volatile-lru` to automatically evict the least recently used data.",
+      "wg": [
+        {
+          "t": "淘汰",
+          "en": "evict/eliminate",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "11",
+    "level": "Hard",
+    "keywords": "Concurrency, Atomic Operations, Inventory, Redis",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在設計一個「秒殺活動」的庫存扣減系統時，直接操作資料庫會因 Row Lock 導致效能瓶頸。為了支援高並發且避免超賣（Overselling），以下哪個方案是最佳實務？",
+        "en": "When designing an inventory deduction system for a 'flash sale', directly operating on the database causes performance bottlenecks due to Row Locks. To support high concurrency and avoid overselling, which of the following is the best practice?",
+        "wg": [
+          {
+            "t": "秒殺活動",
+            "en": "flash sale",
+            "ps": "noun"
+          },
+          {
+            "t": "超賣",
+            "en": "overselling",
+            "ps": "noun"
+          },
+          {
+            "t": "列鎖",
+            "en": "Row Lock",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "使用 Cache-Aside 模式，讀取快取後在應用程式內減 1，再寫回資料庫。",
+        "en": "Use the Cache-Aside pattern: read from cache, decrement by 1 in the application, then write back to the database.",
+        "wg": []
+      },
+      {
+        "t": "使用 Redis 的 `DECR` 原子指令預扣庫存，成功後再非同步發送訊息更新資料庫。",
+        "en": "Use Redis's `DECR` atomic command to pre-deduct inventory, and upon success, asynchronously send a message to update the database.",
+        "wg": [
+          {
+            "t": "原子指令",
+            "en": "atomic command",
+            "ps": "noun"
+          },
+          {
+            "t": "預扣",
+            "en": "pre-deduct",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "完全依賴資料庫，但將交易隔離層級（Isolation Level）降至 Read Uncommitted。",
+        "en": "Rely entirely on the database, but lower the Transaction Isolation Level to Read Uncommitted.",
+        "wg": []
+      },
+      {
+        "t": "使用 Bloom Filter 來判斷庫存是否足夠。",
+        "en": "Use a Bloom Filter to determine if inventory is sufficient.",
+        "wg": []
+      }
+    ],
+    "answer": "使用 Redis 的 `DECR` 原子指令預扣庫存，成功後再非同步發送訊息更新資料庫。",
+    "why": {
+      "t": "Redis 的 `DECR` 是原子操作，能在單執行緒中保證扣減的正確性且效能極高。將 Redis 作為短期內的 Source of Truth，再透過非同步方式同步回 DB，是解決秒殺高並發的標準模式。選項 A 會發生 Race Condition；選項 C 會導致嚴重資料不一致。",
+      "en": "Redis's `DECR` is an atomic operation that guarantees correctness and high performance in a single thread. Using Redis as the temporary Source of Truth and then syncing back to the DB asynchronously is the standard pattern for handling high-concurrency flash sales. Option A causes Race Conditions; Option C leads to severe data inconsistency.",
+      "wg": [
+        {
+          "t": "標準模式",
+          "en": "standard pattern",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "12",
+    "level": "Medium",
+    "keywords": "L1 Cache, Local Cache, Latency, Access Hierarchy",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你的系統有一個「全域設定服務（Global Config Service）」，其資料極少變更（每月一次），但每個請求都需要讀取它（每秒 10 萬次讀取）。",
+        "en": "Your system has a 'Global Config Service' where data rarely changes (once a month), but every request needs to read it (100k reads per second).",
+        "wg": [
+          {
+            "t": "全域設定",
+            "en": "global config",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "目前的 Redis Cluster 因為網路頻寬飽和而成為瓶頸。根據「存取階層金字塔」概念，最有效的優化方式是什麼？",
+        "en": "The current Redis Cluster has become a bottleneck due to network bandwidth saturation. Based on the 'Access Hierarchy Pyramid' concept, what is the most effective optimization?",
+        "wg": [
+          {
+            "t": "網路頻寬飽和",
+            "en": "network bandwidth saturation",
+            "ps": "phrase"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "對 Redis 進行分片（Sharding）擴充更多節點。",
+        "en": "Shard the Redis cluster to add more nodes.",
+        "wg": []
+      },
+      {
+        "t": "引入 L1 本地快取（Local Cache / In-Memory Cache），如 Guava 或 Caffeine。",
+        "en": "Introduce L1 Local Cache (In-Memory Cache), such as Guava or Caffeine.",
+        "wg": [
+          {
+            "t": "本地快取",
+            "en": "Local Cache",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "將資料庫升級為讀寫分離架構。",
+        "en": "Upgrade the database to a Read-Write Splitting architecture.",
+        "wg": []
+      },
+      {
+        "t": "縮短 Redis Key 的長度以節省頻寬。",
+        "en": "Shorten the Redis Key length to save bandwidth.",
+        "wg": []
+      }
+    ],
+    "answer": "引入 L1 本地快取（Local Cache / In-Memory Cache），如 Guava 或 Caffeine。",
+    "why": {
+      "t": "針對「讀多寫少」且「極高頻存取」的熱點資料，網路 I/O 往往是最大成本。將資料快取在應用程式記憶體（L1 Cache）中可以完全消除網路請求，是金字塔頂端最高效的存取方式。雖然擴充 Redis (A) 也能提升吞吐量，但在這種極端讀取場景下，Local Cache 效益更高且成本更低。",
+      "en": "For 'read-heavy, write-rare' and 'extremely high-frequency access' hotspot data, network I/O is often the biggest cost. Caching data in the application memory (L1 Cache) completely eliminates network requests and is the most efficient access method at the top of the pyramid. While scaling Redis (A) can also increase throughput, Local Cache is more effective and cost-efficient in this extreme read scenario.",
+      "wg": [
+        {
+          "t": "效益",
+          "en": "effectiveness/benefit",
+          "ps": "noun"
+        }
+      ]
+    }
+  }
+]
