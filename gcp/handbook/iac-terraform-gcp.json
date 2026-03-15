@@ -1,0 +1,841 @@
+[
+  {
+    "no": "1",
+    "level": "Intermediate",
+    "keywords": "Security, IAM, Service Account, Impersonation, JSON Key",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你的團隊正在為新的 GCP 專案設定 Terraform 自動化流程。一位初階工程師建議下載 Service Account 的 JSON 金鑰檔案，並將其路徑設定在環境變數 `GOOGLE_APPLICATION_CREDENTIALS` 中，以便在本地開發與 CI/CD 流程中使用。身為資深工程師，你應該如何評審這項提議？",
+        "en": "Your team is setting up Terraform automation for a new GCP project. A junior engineer suggests downloading a Service Account JSON key file and setting its path in the `GOOGLE_APPLICATION_CREDENTIALS` environment variable for use in both local development and CI/CD pipelines. As a senior engineer, how should you review this proposal?",
+        "wg": [
+          {
+            "t": "服務帳號",
+            "en": "Service Account",
+            "ps": "noun"
+          },
+          {
+            "t": "JSON 金鑰",
+            "en": "JSON Key",
+            "ps": "noun"
+          },
+          {
+            "t": "環境變數",
+            "en": "Environment Variable",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "接受提議，這是 Google 官方文件推薦的標準做法，只要確保金鑰檔案不被提交到 Git 即可。",
+        "en": "Accept the proposal; this is the standard practice recommended by Google documentation, as long as the key file is not committed to Git.",
+        "wg": []
+      },
+      {
+        "t": "拒絕提議。應使用「身分模擬」與 Workload Identity Federation。JSON 金鑰屬於長效憑證，極易洩漏且難以輪替，存在重大安全隱憂。",
+        "en": "Reject the proposal. Use 'Service Account Impersonation' and Workload Identity Federation instead. JSON keys are long-lived credentials that are easily leaked and difficult to rotate, posing a significant security risk.",
+        "wg": [
+          {
+            "t": "身分模擬",
+            "en": "Impersonation",
+            "ps": "noun"
+          },
+          {
+            "t": "長效憑證",
+            "en": "Long-lived Credentials",
+            "ps": "noun"
+          },
+          {
+            "t": "輪替",
+            "en": "Rotate",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "拒絕提議。應該使用個人的 Google 帳號直接執行 Terraform，完全不需要 Service Account。",
+        "en": "Reject the proposal. You should use your personal Google account to run Terraform directly, without needing a Service Account at all.",
+        "wg": []
+      },
+      {
+        "t": "接受提議，但要求每週手動輪替一次 JSON 金鑰以確保安全。",
+        "en": "Accept the proposal, but require manual rotation of the JSON key every week to ensure security.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "這是 GCP Terraform 安全性的核心原則。JSON Key 是長效憑證 (Long-lived credential)，一旦洩漏（例如誤傳至 GitHub）將造成持續性風險。最佳實踐是在本地使用 `gcloud auth ... --impersonate-service-account` 獲取短效 Token，在 CI/CD 則使用 Workload Identity Federation。",
+      "en": "This is a core security principle for Terraform on GCP. JSON Keys are long-lived credentials; once leaked (e.g., accidentally pushed to GitHub), they pose a persistent risk. The best practice is to use `gcloud auth ... --impersonate-service-account` locally to get short-lived tokens, and use Workload Identity Federation in CI/CD.",
+      "wg": [
+        {
+          "t": "最佳實踐",
+          "en": "Best Practice",
+          "ps": "noun"
+        },
+        {
+          "t": "短效",
+          "en": "Short-lived",
+          "ps": "adjective"
+        }
+      ]
+    }
+  },
+  {
+    "no": "2",
+    "level": "Advanced",
+    "keywords": "API, Lifecycle, google_project_service, Pitfall",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "resource \"google_project_service\" \"compute\" {\n  project = var.project_id\n  service = \"compute.googleapis.com\"\n  # Missing setting here\n}",
+    "question": [
+      {
+        "t": "你正在使用 Terraform 管理一個 GCP 專案。當你執行 `terraform destroy` 打算移除該環境的計算資源時，你發現該專案下的 GCS Bucket 資料和 BigQuery Dataset 變得無法存取，甚至發生非預期的資料遺失。最可能的原因是什麼？",
+        "en": "You are managing a GCP project using Terraform. When you run `terraform destroy` intending to remove the compute resources of that environment, you notice that GCS Bucket data and BigQuery Datasets in that project become inaccessible or even suffer unexpected data loss. What is the most likely cause?",
+        "wg": [
+          {
+            "t": "非預期的",
+            "en": "Unexpected",
+            "ps": "adjective"
+          },
+          {
+            "t": "資料遺失",
+            "en": "Data Loss",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "Terraform 預設會刪除專案內的所有資源，包括未被 Terraform 管理的資源。",
+        "en": "Terraform deletes all resources within the project by default, including resources not managed by Terraform.",
+        "wg": []
+      },
+      {
+        "t": "`google_project_service` 資源在 destroy 時預設會關閉 API，導致依賴該 API 的資料（如 GCS/BQ）被隱藏或刪除。",
+        "en": "The `google_project_service` resource disables the API by default upon destroy, causing data dependent on that API (like GCS/BQ) to be hidden or deleted.",
+        "wg": [
+          {
+            "t": "依賴",
+            "en": "Dependent",
+            "ps": "adjective"
+          }
+        ]
+      },
+      {
+        "t": "你忘記在 GCS Bucket 上啟用版本控制 (Versioning)。",
+        "en": "You forgot to enable versioning on the GCS Bucket.",
+        "wg": []
+      },
+      {
+        "t": "Service Account 的權限過大，自動觸發了專案刪除 (Project Deletion)。",
+        "en": "The Service Account had excessive permissions and automatically triggered Project Deletion.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "這是 GCP Terraform 常見的陷阱。`google_project_service` 預設行為是在資源刪除時「關閉 API」。關閉某些 API（如 GCS 或 BigQuery）可能導致相關資料不可用或被清除。解決方案是設定 `disable_on_destroy = false`。",
+      "en": "This is a common pitfall in GCP Terraform. The default behavior of `google_project_service` is to 'disable the API' when the resource is destroyed. Disabling certain APIs (like GCS or BigQuery) can cause related data to become unavailable or purged. The solution is to set `disable_on_destroy = false`.",
+      "wg": [
+        {
+          "t": "陷阱",
+          "en": "Pitfall",
+          "ps": "noun"
+        },
+        {
+          "t": "解決方案",
+          "en": "Solution",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "3",
+    "level": "Intermediate",
+    "keywords": "State Management, Architecture, Monolithic, Blast Radius",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你的團隊將 VPC 網路、GKE 叢集與 Cloud SQL 資料庫全部定義在同一個 `main.tf` 與 State 檔案中。隨著專案成長，`terraform plan` 變得極慢，且修改防火牆規則時曾意外觸發資料庫的更新。為了改善此狀況，你應採用哪種架構模式？",
+        "en": "Your team defines VPC networking, GKE clusters, and Cloud SQL databases all in a single `main.tf` and State file. As the project grows, `terraform plan` becomes extremely slow, and modifying firewall rules has previously accidentally triggered database updates. Which architectural pattern should you adopt to improve this situation?",
+        "wg": [
+          {
+            "t": "防火牆規則",
+            "en": "Firewall Rules",
+            "ps": "noun"
+          },
+          {
+            "t": "架構模式",
+            "en": "Architectural Pattern",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "Project Factory Pattern (專案工廠模式)",
+        "en": "Project Factory Pattern",
+        "wg": []
+      },
+      {
+        "t": "Monolithic State (單體狀態模式)",
+        "en": "Monolithic State",
+        "wg": []
+      },
+      {
+        "t": "Layered State Management (分層狀態管理)",
+        "en": "Layered State Management",
+        "wg": [
+          {
+            "t": "分層",
+            "en": "Layered",
+            "ps": "adjective"
+          }
+        ]
+      },
+      {
+        "t": "GitOps Workflow (GitOps 工作流)",
+        "en": "GitOps Workflow",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "應採用「分層狀態管理」(Layered State Management)。將基礎設施拆分為不同層級（如 Networking、Platform/GKE、Application），每層擁有獨立的 State file。這樣可以縮小爆炸半徑 (Blast Radius) 並加快執行速度。",
+      "en": "You should adopt 'Layered State Management'. Split infrastructure into different layers (e.g., Networking, Platform/GKE, Application), with each layer having its own independent State file. This reduces the Blast Radius and speeds up execution.",
+      "wg": [
+        {
+          "t": "爆炸半徑",
+          "en": "Blast Radius",
+          "ps": "noun"
+        },
+        {
+          "t": "獨立的",
+          "en": "Independent",
+          "ps": "adjective"
+        }
+      ]
+    }
+  },
+  {
+    "no": "4",
+    "level": "Intermediate",
+    "keywords": "Project ID, Anti-pattern, Naming Convention",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "resource \"google_project\" \"my_project\" {\n  name       = \"My Production App\"\n  project_id = \"acme-payment-prod\" # Hardcoded\n  org_id     = var.org_id\n}",
+    "question": [
+      {
+        "t": "在你的 Terraform 程式碼中，你將專案 ID 硬編碼為 `project_id = \"acme-payment-prod\"`。某次災難復原演練中，你刪除了該專案並試圖立即重建，卻收到錯誤訊息指出 ID 不可用。這是為什麼？以及如何修正？",
+        "en": "In your Terraform code, you hardcoded the project ID as `project_id = \"acme-payment-prod\"`. During a disaster recovery drill, you deleted the project and tried to recreate it immediately, but received an error stating the ID is unavailable. Why is this, and how should you fix it?",
+        "wg": [
+          {
+            "t": "硬編碼",
+            "en": "Hardcoded",
+            "ps": "verb"
+          },
+          {
+            "t": "災難復原演練",
+            "en": "Disaster Recovery Drill",
+            "ps": "noun"
+          },
+          {
+            "t": "不可用",
+            "en": "Unavailable",
+            "ps": "adjective"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "GCP 專案 ID 全球唯一且刪除後有 Soft-delete 期（通常 30 天）。應使用隨機後綴 (Random Suffix) 來生成專案 ID。",
+        "en": "GCP Project IDs are globally unique and have a soft-delete period (usually 30 days) after deletion. You should use a Random Suffix to generate Project IDs.",
+        "wg": [
+          {
+            "t": "全球唯一",
+            "en": "Globally Unique",
+            "ps": "adjective"
+          },
+          {
+            "t": "隨機後綴",
+            "en": "Random Suffix",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "這是 Terraform State 鎖定導致的。應執行 `terraform force-unlock`。",
+        "en": "This is caused by Terraform State locking. You should run `terraform force-unlock`.",
+        "wg": []
+      },
+      {
+        "t": "你需要聯絡 Google Support 來手動釋放該 ID。",
+        "en": "You need to contact Google Support to manually release the ID.",
+        "wg": []
+      },
+      {
+        "t": "專案名稱 (Name) 重複了，而不是 ID 重複。應修改 `name` 欄位。",
+        "en": "The Project Name is duplicated, not the ID. You should modify the `name` field.",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "GCP Project ID 是全球唯一的，且刪除後會進入「待刪除」狀態，期間內無法被重複使用。最佳實踐是讓 Terraform (或 Project Factory 模組) 自動附加隨機字串（如 `-x9z2`）作為 ID 的一部分。",
+      "en": "GCP Project IDs are globally unique and enter a 'pending deletion' state after being deleted, during which they cannot be reused. The best practice is to let Terraform (or the Project Factory module) automatically append a random string (e.g., `-x9z2`) as part of the ID.",
+      "wg": [
+        {
+          "t": "待刪除",
+          "en": "Pending Deletion",
+          "ps": "adjective"
+        }
+      ]
+    }
+  },
+  {
+    "no": "5",
+    "level": "Intermediate",
+    "keywords": "Networking, VPC, Default Resources, Security",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "當你在 GCP 建立新專案時，系統通常會自動建立一個名為 `default` 的 VPC 網路。關於這個預設資源，以下哪項是符合生產環境安全性的最佳實踐？",
+        "en": "When you create a new project on GCP, the system usually automatically creates a VPC network named `default`. Regarding this default resource, which of the following is the best practice for production security?",
+        "wg": [
+          {
+            "t": "預設資源",
+            "en": "Default Resource",
+            "ps": "noun"
+          },
+          {
+            "t": "生產環境",
+            "en": "Production Environment",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "使用 Terraform 的 `import` 功能將其納入管理，並修改其防火牆規則以符合需求。",
+        "en": "Use Terraform's `import` feature to bring it under management and modify its firewall rules to meet requirements.",
+        "wg": []
+      },
+      {
+        "t": "保留它作為備用網路，但移除所有防火牆規則。",
+        "en": "Keep it as a backup network but remove all firewall rules.",
+        "wg": []
+      },
+      {
+        "t": "刪除 `default` VPC，並建立全新的自定義 VPC (Custom VPC)。",
+        "en": "Delete the `default` VPC and create a brand new Custom VPC.",
+        "wg": [
+          {
+            "t": "自定義",
+            "en": "Custom",
+            "ps": "adjective"
+          }
+        ]
+      },
+      {
+        "t": "直接在 `default` VPC 中部署資源，因為它是 Google 最佳化過的網路。",
+        "en": "Deploy resources directly in the `default` VPC because it is a network optimized by Google.",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "預設 VPC (Default VPC) 包含許多寬鬆的設定（如自動建立的子網域、預設防火牆規則），不適合生產環境。最佳實踐是完全刪除它，並根據需求建立自定義的 VPC，以確保最小權限與網路隔離。",
+      "en": "The Default VPC contains many loose settings (e.g., auto-created subnets, default firewall rules) that are not suitable for production. The best practice is to delete it entirely and create a custom VPC based on your needs to ensure least privilege and network isolation.",
+      "wg": [
+        {
+          "t": "寬鬆的",
+          "en": "Loose / Permissive",
+          "ps": "adjective"
+        },
+        {
+          "t": "網路隔離",
+          "en": "Network Isolation",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "6",
+    "level": "Intermediate",
+    "keywords": "Provider, Beta Features, GKE, Syntax",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "resource \"google_container_cluster\" \"primary\" {\n  name     = \"my-gke-cluster\"\n  location = \"us-central1\"\n  # Need to use a beta feature here\n  # ...\n}",
+    "question": [
+      {
+        "t": "你需要為 GKE Cluster 設定一個目前僅在 GCP Beta API 中提供的進階網路功能。你應該如何在 Terraform 中正確實作？",
+        "en": "You need to configure an advanced networking feature for a GKE Cluster that is currently only available in the GCP Beta API. How should you correctly implement this in Terraform?",
+        "wg": [
+          {
+            "t": "進階網路功能",
+            "en": "Advanced Networking Feature",
+            "ps": "noun"
+          },
+          {
+            "t": "實作",
+            "en": "Implement",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "直接在資源區塊中使用該參數，Terraform 會自動偵測並切換 API。",
+        "en": "Use the parameter directly in the resource block; Terraform will automatically detect and switch APIs.",
+        "wg": []
+      },
+      {
+        "t": "在 `provider \"google\"` 區塊中設定 `version = \"beta\"`。",
+        "en": "Set `version = \"beta\"` in the `provider \"google\"` block.",
+        "wg": []
+      },
+      {
+        "t": "定義一個 `google-beta` provider，並在資源區塊中指定 `provider = google-beta`。",
+        "en": "Define a `google-beta` provider and specify `provider = google-beta` in the resource block.",
+        "wg": [
+          {
+            "t": "指定",
+            "en": "Specify",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "無法在 Terraform 中使用 Beta 功能，必須使用 `gcloud` 指令。",
+        "en": "Beta features cannot be used in Terraform; you must use `gcloud` commands.",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "GCP 的 Beta 功能需要透過專門的 `google-beta` provider 來存取。你必須在 Terraform 設定中同時定義 `google` 和 `google-beta` provider，並在需要使用 Beta 功能的資源上明確指定 `provider = google-beta`。",
+      "en": "GCP Beta features are accessed via the dedicated `google-beta` provider. You must define both `google` and `google-beta` providers in your Terraform configuration and explicitly specify `provider = google-beta` on resources that require Beta features.",
+      "wg": [
+        {
+          "t": "明確指定",
+          "en": "Explicitly Specify",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "7",
+    "level": "Intermediate",
+    "keywords": "GCS Backend, State Management, Versioning, Recovery",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "terraform {\n  backend \"gcs\" {\n    bucket = \"tf-state-prod\"\n    prefix = \"terraform/state\"\n  }\n}",
+    "question": [
+      {
+        "t": "你正在為生產環境配置 GCS Backend 以儲存 Terraform State。為了防止 State 檔案因人為錯誤或併發寫入問題而損壞，除了依賴 GCS 原生的鎖定機制外，你還必須在 GCS Bucket 上啟用哪項關鍵功能以確保可復原性？",
+        "en": "You are configuring a GCS Backend to store Terraform State for a production environment. To prevent State file corruption due to human error or concurrent write issues, in addition to relying on GCS native locking, what critical feature must you enable on the GCS Bucket to ensure recoverability?",
+        "wg": [
+          {
+            "t": "可復原性",
+            "en": "recoverability",
+            "ps": "noun"
+          },
+          {
+            "t": "併發寫入",
+            "en": "concurrent write",
+            "ps": "noun phrase"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "物件版本控制 (Object Versioning)",
+        "en": "Object Versioning",
+        "wg": []
+      },
+      {
+        "t": "統一 bucket 存取權 (Uniform Bucket-Level Access)",
+        "en": "Uniform Bucket-Level Access",
+        "wg": []
+      },
+      {
+        "t": "生命週期管理 (Lifecycle Management)",
+        "en": "Lifecycle Management",
+        "wg": []
+      },
+      {
+        "t": "保留政策 (Retention Policy)",
+        "en": "Retention Policy",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "啟用物件版本控制 (Object Versioning) 是 GCS Backend 的最佳實踐。當 State 檔案被錯誤覆蓋或損壞時，版本控制允許你還原到先前的版本。雖然 GCS 支援 State Locking，但它無法防止邏輯錯誤或意外的 `force-unlock` 導致的損壞，版本控制是最後的保險。",
+      "en": "Enabling Object Versioning is a best practice for GCS Backends. It allows you to restore a previous version of the State file if it gets overwritten or corrupted. While GCS supports State Locking, it does not prevent corruption caused by logical errors or accidental `force-unlock`, making versioning the ultimate safety net.",
+      "wg": [
+        {
+          "t": "最後的保險",
+          "en": "ultimate safety net",
+          "ps": "noun phrase"
+        }
+      ]
+    }
+  },
+  {
+    "no": "8",
+    "level": "Advanced",
+    "keywords": "Layered Architecture, Remote State, Data Source, Inter-dependency",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你的組織採用分層狀態管理 (Layered State Management)。網路團隊在 `networking` 層級建立了一個 Shared VPC，而應用團隊需要在 `application` 層級的 Terraform 程式碼中將 Cloud SQL 實例部署到該 VPC 的特定子網段。應用團隊應該如何取得該子網段的 ID？",
+        "en": "Your organization adopts Layered State Management. The networking team creates a Shared VPC in the `networking` layer, and the application team needs to deploy a Cloud SQL instance into a specific subnet of that VPC in their `application` layer Terraform code. How should the application team retrieve the Subnet ID?",
+        "wg": [
+          {
+            "t": "分層狀態管理",
+            "en": "Layered State Management",
+            "ps": "noun phrase"
+          },
+          {
+            "t": "子網段",
+            "en": "subnet",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "使用 `data \"terraform_remote_state\"` 讀取網路層的輸出變數",
+        "en": "Use `data \"terraform_remote_state\"` to read output variables from the networking layer",
+        "wg": []
+      },
+      {
+        "t": "將子網段 ID 硬編碼 (Hardcode) 在應用層的 `variables.tf` 中",
+        "en": "Hardcode the Subnet ID in the application layer's `variables.tf`",
+        "wg": []
+      },
+      {
+        "t": "使用 `module` 來源直接引用網路團隊的 Git 儲存庫",
+        "en": "Use a `module` source to directly reference the networking team's Git repository",
+        "wg": []
+      },
+      {
+        "t": "在應用層重新定義一個名稱相同的 `google_compute_subnetwork` 資源",
+        "en": "Redefine a `google_compute_subnetwork` resource with the same name in the application layer",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "在分層架構中，上層資源應透過 `terraform_remote_state` 資料來源讀取底層資源的 `outputs`。這確保了應用層使用的是基礎設施層實際產生的 ID，同時保持了狀態檔案的解耦。硬編碼缺乏彈性，而重新定義資源會導致衝突或重複建立。",
+      "en": "In a layered architecture, upper-layer resources should read the `outputs` of lower-layer resources via the `terraform_remote_state` data source. This ensures the application layer uses the actual IDs generated by the infrastructure layer while keeping state files decoupled. Hardcoding lacks flexibility, and redefining resources leads to conflicts or duplication.",
+      "wg": [
+        {
+          "t": "解耦",
+          "en": "decoupled",
+          "ps": "adjective"
+        },
+        {
+          "t": "缺乏彈性",
+          "en": "lacks flexibility",
+          "ps": "verb phrase"
+        }
+      ]
+    }
+  },
+  {
+    "no": "9",
+    "level": "Intermediate",
+    "keywords": "Safety, Deletion Protection, Cloud SQL, Production Readiness",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "resource \"google_sql_database_instance\" \"main\" {\n  name             = \"prod-db\"\n  database_version = \"POSTGRES_14\"\n  # ... other settings\n  # Missing setting here\n}",
+    "question": [
+      {
+        "t": "你正在編寫用於生產環境的 Cloud SQL Terraform 程式碼。為了防止因誤刪 Terraform 程式碼或執行 `terraform destroy` 而導致資料庫被意外刪除，你應該在資源區塊中明確設定哪個參數？",
+        "en": "You are writing Terraform code for a production Cloud SQL instance. To prevent accidental database deletion caused by removing Terraform code or running `terraform destroy`, which argument should you explicitly set in the resource block?",
+        "wg": [
+          {
+            "t": "誤刪",
+            "en": "accidental deletion",
+            "ps": "noun phrase"
+          },
+          {
+            "t": "明確設定",
+            "en": "explicitly set",
+            "ps": "verb phrase"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "deletion_protection = true",
+        "en": "deletion_protection = true",
+        "wg": []
+      },
+      {
+        "t": "prevent_destroy = true",
+        "en": "prevent_destroy = true",
+        "wg": []
+      },
+      {
+        "t": "lifecycle { ignore_changes = [all] }",
+        "en": "lifecycle { ignore_changes = [all] }",
+        "wg": []
+      },
+      {
+        "t": "disable_api_termination = true",
+        "en": "disable_api_termination = true",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "`deletion_protection = true` 是 GCP 資源（如 Cloud SQL 和 GKE）特定的參數，它會在 GCP API 層級鎖定刪除操作。即使你移除了 Terraform 程式碼並執行 apply，GCP API 也會拒絕刪除請求，這是生產環境最強的保護措施。`prevent_destroy` 僅是 Terraform 的生命週期參數，若從設定檔中移除資源區塊，該保護可能失效或行為不同。",
+      "en": "`deletion_protection = true` is a specific argument for GCP resources (like Cloud SQL and GKE) that locks deletion at the GCP API level. Even if you remove the Terraform code and run apply, the GCP API will reject the deletion request, providing the strongest protection for production environments. `prevent_destroy` is merely a Terraform lifecycle argument; if the resource block is removed from the configuration, that protection might be bypassed or behave differently.",
+      "wg": [
+        {
+          "t": "鎖定",
+          "en": "locks",
+          "ps": "verb"
+        },
+        {
+          "t": "失效",
+          "en": "bypassed / become ineffective",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "10",
+    "level": "Intermediate",
+    "keywords": "API Dependencies, Race Condition, depends_on, google_project_service",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "resource \"google_project_service\" \"compute\" {\n  service = \"compute.googleapis.com\"\n}\n\nresource \"google_compute_instance\" \"vm\" {\n  name = \"test-vm\"\n  # ...\n}",
+    "question": [
+      {
+        "t": "你在同一個 Terraform 設定檔中定義了啟用 Compute Engine API 的資源與建立 VM 的資源。執行 `terraform apply` 時，流程失敗並顯示「API 尚未啟用」的錯誤。這是什麼原因造成的？",
+        "en": "You defined resources to enable the Compute Engine API and create a VM in the same Terraform configuration. When running `terraform apply`, the process fails with an \"API not enabled\" error. What is the cause of this?",
+        "wg": [
+          {
+            "t": "尚未啟用",
+            "en": "not yet enabled",
+            "ps": "adjective phrase"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "Terraform 平行建立資源，VM 資源未明確宣告依賴於 API 啟用資源",
+        "en": "Terraform creates resources in parallel, and the VM resource does not explicitly declare a dependency on the API enablement resource",
+        "wg": [
+          {
+            "t": "平行建立",
+            "en": "creates ... in parallel",
+            "ps": "verb phrase"
+          },
+          {
+            "t": "明確宣告依賴",
+            "en": "explicitly declare a dependency",
+            "ps": "verb phrase"
+          }
+        ]
+      },
+      {
+        "t": "GCP 需要至少 24 小時才能讓新啟用的 API 生效",
+        "en": "GCP takes at least 24 hours for newly enabled APIs to take effect",
+        "wg": []
+      },
+      {
+        "t": "你必須使用 `google-beta` provider 才能在同一次執行中啟用 API",
+        "en": "You must use the `google-beta` provider to enable APIs in the same run",
+        "wg": []
+      },
+      {
+        "t": "Service Account 缺少 `serviceusage.services.use` 權限",
+        "en": "The Service Account lacks `serviceusage.services.use` permission",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "Terraform 預設會盡可能平行建立資源。由於 `google_compute_instance` 不會自動知道它需要等待 `google_project_service` 完成，因此可能會在 API 啟用完成前就嘗試建立 VM。解決方案是在 VM 資源中加入 `depends_on = [google_project_service.compute]`，或使用 Project Factory 模組來處理這種依賴。",
+      "en": "Terraform attempts to create resources in parallel by default. Since `google_compute_instance` does not automatically know it needs to wait for `google_project_service` to complete, it may attempt to create the VM before the API is fully enabled. The solution is to add `depends_on = [google_project_service.compute]` to the VM resource, or use the Project Factory module which handles this dependency.",
+      "wg": [
+        {
+          "t": "平行建立",
+          "en": "create ... in parallel",
+          "ps": "verb phrase"
+        }
+      ]
+    }
+  },
+  {
+    "no": "11",
+    "level": "Intermediate",
+    "keywords": "Project Factory, Best Practices, Automation, Default Service Account",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "GCP 手冊強烈建議使用 `terraform-google-modules/project-factory/google` 模組來建立專案，而非單純使用 `google_project` 資源。除了簡化 API 啟用外，該模組還自動處理了哪項重要的安全性最佳實踐？",
+        "en": "The GCP handbook strongly recommends using the `terraform-google-modules/project-factory/google` module to create projects instead of just using the `google_project` resource. Besides simplifying API activation, what important security best practice does this module automatically handle?",
+        "wg": [
+          {
+            "t": "安全性最佳實踐",
+            "en": "security best practice",
+            "ps": "noun phrase"
+          },
+          {
+            "t": "自動處理",
+            "en": "automatically handle",
+            "ps": "verb phrase"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "移除或停用預設的 Compute Engine Service Account",
+        "en": "Removing or disabling the default Compute Engine Service Account",
+        "wg": []
+      },
+      {
+        "t": "自動為所有 GCS Bucket 加密",
+        "en": "Automatically encrypting all GCS Buckets",
+        "wg": []
+      },
+      {
+        "t": "強制開啟 VPC Service Controls",
+        "en": "Enforcing VPC Service Controls",
+        "wg": []
+      },
+      {
+        "t": "自動輪替所有 Service Account 的 JSON Key",
+        "en": "Automatically rotating JSON Keys for all Service Accounts",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "Project Factory 模組的一個關鍵功能是處理預設資源的清理，特別是它會移除預設的 Compute Engine Service Account（該帳號通常具有過大的 Editor 權限）。這符合「修改預設資源」的反模式建議，確保新專案從一開始就遵循最小權限原則。",
+      "en": "A key feature of the Project Factory module is handling the cleanup of default resources, specifically removing the default Compute Engine Service Account (which typically has excessive Editor permissions). This aligns with the advice against the 'Modifying Default Resources' anti-pattern, ensuring new projects follow the principle of least privilege from the start.",
+      "wg": [
+        {
+          "t": "過大的",
+          "en": "excessive",
+          "ps": "adjective"
+        },
+        {
+          "t": "清理",
+          "en": "cleanup",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "12",
+    "level": "Intermediate",
+    "keywords": "IAM, Least Privilege, Service Account, Security",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "根據生產環境就緒清單 (Production Readiness Checklist)，為 Terraform 運行的 Service Account 設定權限時，應避免直接給予 `Owner` 角色。下列哪種角色組合是更符合最小權限原則的建議替代方案？",
+        "en": "According to the Production Readiness Checklist, you should avoid granting the `Owner` role directly when configuring permissions for the Service Account running Terraform. Which of the following role combinations is a recommended alternative that better aligns with the principle of least privilege?",
+        "wg": [
+          {
+            "t": "生產環境就緒清單",
+            "en": "Production Readiness Checklist",
+            "ps": "noun phrase"
+          },
+          {
+            "t": "最小權限原則",
+            "en": "principle of least privilege",
+            "ps": "noun phrase"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "Editor + Security Admin (或其他特定管理員角色)",
+        "en": "Editor + Security Admin (or other specific admin roles)",
+        "wg": []
+      },
+      {
+        "t": "Viewer + Service Account User",
+        "en": "Viewer + Service Account User",
+        "wg": []
+      },
+      {
+        "t": "Organization Administrator",
+        "en": "Organization Administrator",
+        "wg": []
+      },
+      {
+        "t": "Compute Admin + Storage Admin",
+        "en": "Compute Admin + Storage Admin",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "`Owner` 角色權限過大，包含修改 IAM 政策與存取所有資源。建議的做法是給予 `Editor`（允許建立與刪除大部分資源）加上 `Security Admin`（允許 Terraform 管理 IAM 政策，這是 Editor 所缺乏的）。這樣的組合既能滿足 Terraform 運作需求，又比 Owner 安全。",
+      "en": "The `Owner` role is overly permissive, including the ability to modify IAM policies and access all resources. The recommended practice is to grant `Editor` (allowing creation and deletion of most resources) plus `Security Admin` (allowing Terraform to manage IAM policies, which Editor lacks). This combination satisfies Terraform's operational needs while being more secure than Owner.",
+      "wg": [
+        {
+          "t": "權限過大",
+          "en": "overly permissive",
+          "ps": "adjective phrase"
+        },
+        {
+          "t": "缺乏",
+          "en": "lacks",
+          "ps": "verb"
+        }
+      ]
+    }
+  }
+]

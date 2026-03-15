@@ -1,0 +1,802 @@
+[
+  {
+    "no": "1",
+    "level": "3",
+    "keywords": "Pub/Sub, BigQuery, Ingestion, Zero-Ops",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你的團隊需要將大量的原始 JSON 應用程式日誌從 Cloud Pub/Sub 存入 BigQuery，以便後續使用 SQL 進行分析。這些數據不需要在傳輸過程中進行任何清洗或轉換。為了最小化維運成本（Zero-Ops）與開發時間，你應該選擇哪種架構模式？",
+        "en": "Your team needs to ingest a large volume of raw JSON application logs from Cloud Pub/Sub into BigQuery for subsequent SQL analysis. The data does not require any cleaning or transformation in transit. To minimize operational overhead (Zero-Ops) and development time, which architecture pattern should you choose?",
+        "wg": [
+          {
+            "t": "維運成本",
+            "en": "operational overhead",
+            "ps": "noun"
+          },
+          {
+            "t": "架構模式",
+            "en": "architecture pattern",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "撰寫一個 Cloud Dataflow 串流作業，使用 Streaming Insert API 寫入 BigQuery。",
+        "en": "Write a Cloud Dataflow streaming job using the Streaming Insert API to write to BigQuery.",
+        "wg": []
+      },
+      {
+        "t": "直接設定 Pub/Sub Subscription 的類型為 'Write to BigQuery'。",
+        "en": "Configure a Pub/Sub Subscription with the type 'Write to BigQuery' directly.",
+        "wg": []
+      },
+      {
+        "t": "使用 Cloud Functions 觸發器，每當有訊息時呼叫 BigQuery API 寫入。",
+        "en": "Use a Cloud Functions trigger to call the BigQuery API whenever a message arrives.",
+        "wg": []
+      },
+      {
+        "t": "部署 Dataproc 叢集並執行 Spark Streaming 作業來寫入數據。",
+        "en": "Deploy a Dataproc cluster and run a Spark Streaming job to write the data.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "這是最簡單的 'Zero-Ops' 模式。當不需要中途轉換（ETL）而只是單純的攝取（EL）時，直接使用 Pub/Sub 的 BigQuery Subscription 功能可以免除管理 Dataflow 或任何運算資源的成本，且能自動處理 Schema 變更。",
+      "en": "This is the simplest 'Zero-Ops' pattern. When no intermediate transformation (ETL) is needed and only ingestion (EL) is required, using Pub/Sub's BigQuery Subscription feature directly eliminates the cost of managing Dataflow or any compute resources, and it can automatically handle schema changes.",
+      "wg": [
+        {
+          "t": "攝取",
+          "en": "ingestion",
+          "ps": "noun"
+        },
+        {
+          "t": "免除",
+          "en": "eliminate",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "2",
+    "level": "4",
+    "keywords": "Dataflow, Hot Key, Performance, GroupByKey",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你正在監控一個 Cloud Dataflow 串流作業，發現整體處理速度變慢（System Lag 增加）。檢查監控介面後，發現其中一個 Worker 的 CPU 使用率持續維持在 100%，而其他 Worker 卻相對閒置。該作業包含一個 `GroupByKey` 步驟。這最可能是什麼問題？",
+        "en": "You are monitoring a Cloud Dataflow streaming job and notice that the overall processing speed is slowing down (System Lag is increasing). Upon checking the monitoring interface, you find that one Worker's CPU usage is consistently at 100%, while others are relatively idle. The job includes a `GroupByKey` step. What is the most likely problem?",
+        "wg": [
+          {
+            "t": "閒置",
+            "en": "idle",
+            "ps": "adjective"
+          },
+          {
+            "t": "持續維持",
+            "en": "consistently",
+            "ps": "adverb"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "記憶體不足（OOM），需要開啟 Vertical Autoscaling。",
+        "en": "Out of Memory (OOM); need to enable Vertical Autoscaling.",
+        "wg": []
+      },
+      {
+        "t": "熱點問題（Hot Key Problem），某個 Key 的數據量遠大於其他 Keys。",
+        "en": "The Hot Key Problem; the data volume for a specific Key is much larger than others.",
+        "wg": [
+          {
+            "t": "熱點問題",
+            "en": "Hot Key Problem",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "序列化開銷（Serialization Overhead）過大，導致 CPU 滿載。",
+        "en": "Excessive Serialization Overhead causing CPU saturation.",
+        "wg": []
+      },
+      {
+        "t": "網路 I/O 瓶頸，因為沒有配置 Private IP。",
+        "en": "Network I/O bottleneck because Private IP is not configured.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "當單一 Worker 負載過重而其他閒置時，通常是因為數據分佈不均（Data Skew）。在 `GroupByKey` 操作中，如果某個 Key（如 'null' 或特定熱門 ID）擁有大量數據，這些數據會被發送到同一個 Worker 處理，導致該 Worker 成為瓶頸。解決方案包括使用 Salting 打散 Key 或啟用 Dataflow Shuffle Service。",
+      "en": "When a single Worker is overloaded while others are idle, it is usually due to data skew. In a `GroupByKey` operation, if a specific Key (such as 'null' or a popular ID) has a large amount of data, that data is sent to the same Worker for processing, causing that Worker to become a bottleneck. Solutions include using Salting to distribute the Key or enabling the Dataflow Shuffle Service.",
+      "wg": [
+        {
+          "t": "數據分佈不均",
+          "en": "Data Skew",
+          "ps": "noun"
+        },
+        {
+          "t": "瓶頸",
+          "en": "bottleneck",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "3",
+    "level": "4",
+    "keywords": "BigQuery, Cost Optimization, Deduplication, Streaming",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你的數據管道需要將事件串流寫入 BigQuery。由於上游來源是 At-least-once 傳輸，BigQuery 中可能會出現重複數據。為了在保持低成本與高效能的前提下提供「去重後」的數據視圖，你應採取哪種策略？",
+        "en": "Your data pipeline needs to stream events into BigQuery. Since the upstream source uses At-least-once delivery, duplicate data may appear in BigQuery. To provide a 'deduplicated' data view while maintaining low cost and high performance, which strategy should you adopt?",
+        "wg": [
+          {
+            "t": "去重",
+            "en": "deduplication",
+            "ps": "noun"
+          },
+          {
+            "t": "前提",
+            "en": "premise",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "在 Dataflow 中使用全域 Window 進行去重，確保只寫入唯一值。",
+        "en": "Use a global Window in Dataflow for deduplication to ensure only unique values are written.",
+        "wg": []
+      },
+      {
+        "t": "每分鐘在 BigQuery 中執行一次 `MERGE` 語句來刪除重複項。",
+        "en": "Execute a `MERGE` statement in BigQuery every minute to remove duplicates.",
+        "wg": []
+      },
+      {
+        "t": "採用 Append-only 模式寫入所有數據，並在讀取時使用 `QUALIFY ROW_NUMBER()` 進行去重。",
+        "en": "Adopt an Append-only mode to write all data, and use `QUALIFY ROW_NUMBER()` for deduplication at read time.",
+        "wg": [
+          {
+            "t": "僅追加",
+            "en": "Append-only",
+            "ps": "adjective"
+          }
+        ]
+      },
+      {
+        "t": "使用 `DELETE` 語句定期清理重複的 Row。",
+        "en": "Periodically use `DELETE` statements to clean up duplicate rows.",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "在 BigQuery 中，頻繁的 `UPDATE`、`DELETE` 或 `MERGE` 操作非常昂貴且受配額限制。最佳實務是允許串流寫入重複數據（Append-only），利用 BigQuery 強大的運算能力，在查詢時透過 `QUALIFY ROW_NUMBER() OVER (PARTITION BY id ORDER BY timestamp DESC)` 動態過濾出最新的一筆。",
+      "en": "In BigQuery, frequent `UPDATE`, `DELETE`, or `MERGE` operations are expensive and quota-limited. The best practice is to allow duplicate data in streaming writes (Append-only) and leverage BigQuery's powerful compute capabilities to dynamically filter the latest record at query time using `QUALIFY ROW_NUMBER() OVER (PARTITION BY id ORDER BY timestamp DESC)`.",
+      "wg": [
+        {
+          "t": "配額限制",
+          "en": "quota-limited",
+          "ps": "adjective"
+        },
+        {
+          "t": "動態過濾",
+          "en": "dynamically filter",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "4",
+    "level": "3",
+    "keywords": "Apache Beam, Python, Performance, DoFn",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "class EnrichData(beam.DoFn):\n    def process(self, element):\n        # Anti-pattern here\n        client = BigQueryClient()\n        row = client.query(f\"SELECT * FROM table WHERE id={element['id']}\")\n        yield {**element, **row}",
+    "question": [
+      {
+        "t": "請檢視上方的 Dataflow Python 程式碼片段。在 `process` 方法中直接初始化 API Client（如 BigQueryClient）會導致什麼後果？",
+        "en": "Review the Dataflow Python code snippet above. What is the consequence of initializing an API Client (like BigQueryClient) directly inside the `process` method?",
+        "wg": [
+          {
+            "t": "初始化",
+            "en": "initializing",
+            "ps": "verb"
+          },
+          {
+            "t": "後果",
+            "en": "consequence",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "這是標準做法，能確保每個元素處理時的執行緒安全。",
+        "en": "This is standard practice and ensures thread safety for each element processing.",
+        "wg": []
+      },
+      {
+        "t": "會導致嚴重的效能問題，因為系統需為「每一個元素」重新建立連線。",
+        "en": "It will cause severe performance issues because the system has to re-establish the connection for 'every single element'.",
+        "wg": []
+      },
+      {
+        "t": "會導致 Dataflow Worker 立即崩潰（Crash）。",
+        "en": "It will cause the Dataflow Worker to crash immediately.",
+        "wg": []
+      },
+      {
+        "t": "沒有影響，Python 的 Garbage Collection 會自動處理。",
+        "en": "No impact; Python's Garbage Collection will handle it automatically.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "在 `process` 方法中建立重型物件（如資料庫連線或 API Client）是常見的反模式。因為 `process` 會針對每一個輸入元素執行一次，這會導致頻繁的連線建立與拆除，極大地拖慢處理速度。正確做法是在 `setup` 或 `start_bundle` 方法中初始化，讓同一個 Bundle 的元素共用連線。",
+      "en": "Creating heavy objects (like database connections or API Clients) inside the `process` method is a common anti-pattern. Since `process` executes once for every input element, this leads to frequent connection establishment and teardown, drastically slowing down processing speed. The correct approach is to initialize in the `setup` or `start_bundle` method, allowing elements in the same Bundle to share the connection.",
+      "wg": [
+        {
+          "t": "反模式",
+          "en": "anti-pattern",
+          "ps": "noun"
+        },
+        {
+          "t": "拆除",
+          "en": "teardown",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "5",
+    "level": "3",
+    "keywords": "Security, IAM, Production Readiness, Dataflow",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在準備將 Dataflow Pipeline 部署到生產環境（Production）時，以下哪項設定屬於「安全反模式（Security Anti-pattern）」？",
+        "en": "When preparing to deploy a Dataflow Pipeline to production, which of the following settings is considered a 'Security Anti-pattern'?",
+        "wg": [
+          {
+            "t": "安全反模式",
+            "en": "Security Anti-pattern",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "使用預設的 Compute Engine Service Account 來執行 Worker。",
+        "en": "Using the default Compute Engine Service Account to run Workers.",
+        "wg": []
+      },
+      {
+        "t": "配置 Private IP 以避免 Worker 暴露在公共網際網路。",
+        "en": "Configuring Private IP to avoid exposing Workers to the public internet.",
+        "wg": []
+      },
+      {
+        "t": "為 Service Account 設定最小權限（Least Privilege），僅允許讀取特定的 Pub/Sub Topic。",
+        "en": "Setting Least Privilege for the Service Account, allowing only reading from specific Pub/Sub Topics.",
+        "wg": []
+      },
+      {
+        "t": "使用 Dataflow Flex Templates 來封裝程式碼。",
+        "en": "Using Dataflow Flex Templates to encapsulate the code.",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "預設的 Compute Engine Service Account 通常擁有過大的權限（如 Project Editor），這違反了最小權限原則。在生產環境中，應建立一個專用的 Service Account，並僅賦予該 Pipeline 運作所需的權限（如 Dataflow Worker, BigQuery Data Editor, Pub/Sub Subscriber）。",
+      "en": "The default Compute Engine Service Account usually has excessive permissions (like Project Editor), which violates the principle of least privilege. In a production environment, you should create a dedicated Service Account and grant only the permissions necessary for the pipeline to operate (such as Dataflow Worker, BigQuery Data Editor, Pub/Sub Subscriber).",
+      "wg": [
+        {
+          "t": "最小權限原則",
+          "en": "principle of least privilege",
+          "ps": "noun"
+        },
+        {
+          "t": "賦予",
+          "en": "grant",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "6",
+    "level": "4",
+    "keywords": "Dataflow, Operations, Drain, Update",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你需要停止一個正在運行的 Dataflow 串流作業以進行維護。你的目標是確保所有「已經從 Pub/Sub 讀取但尚未處理完畢」的數據都能被完整處理並寫入 BigQuery，同時不再讀取新的數據。你應該使用哪個指令？",
+        "en": "You need to stop a running Dataflow streaming job for maintenance. Your goal is to ensure that all data 'already read from Pub/Sub but not yet fully processed' is completely processed and written to BigQuery, while stopping the ingestion of new data. Which command should you use?",
+        "wg": [
+          {
+            "t": "尚未處理完畢",
+            "en": "not yet fully processed",
+            "ps": "adjective"
+          },
+          {
+            "t": "攝取",
+            "en": "ingestion",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "Cancel",
+        "en": "Cancel",
+        "wg": []
+      },
+      {
+        "t": "Drain",
+        "en": "Drain",
+        "wg": []
+      },
+      {
+        "t": "Update",
+        "en": "Update",
+        "wg": []
+      },
+      {
+        "t": "Stop",
+        "en": "Stop",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "`Drain` 指令會停止從來源攝取新數據，但會保持現有的視窗開啟，直到所有緩衝區內的數據都處理完畢並輸出結果後才關閉作業。相比之下，`Cancel` 會立即停止作業，可能導致正在處理中的數據遺失（雖然 Pub/Sub 未確認的訊息會被重新派送，但狀態可能不一致）。",
+      "en": "The `Drain` command stops ingesting new data from the source but keeps existing windows open until all buffered data is processed and results are output, after which it shuts down the job. In contrast, `Cancel` stops the job immediately, which may lead to the loss of in-flight data (although unacknowledged Pub/Sub messages will be redelivered, the state might be inconsistent).",
+      "wg": [
+        {
+          "t": "緩衝區",
+          "en": "buffered",
+          "ps": "adjective"
+        },
+        {
+          "t": "不一致",
+          "en": "inconsistent",
+          "ps": "adjective"
+        }
+      ]
+    }
+  },
+  {
+    "no": "7",
+    "level": "3",
+    "keywords": "Dataflow, Error Handling, DLQ, Reliability",
+    "parentNo": null,
+    "images": "",
+    "codeSnippet": "",
+    "question": [
+      {
+        "t": "你的 Dataflow 串流管道正在處理來自 Pub/Sub 的 JSON 事件。偶爾會有格式錯誤（Malformed）的數據進入，導致 Worker 拋出例外並不斷重試，進而阻塞了整個管道的處理進度。",
+        "en": "Your Dataflow streaming pipeline is processing JSON events from Pub/Sub. Occasionally, malformed data arrives, causing the worker to throw an exception and retry indefinitely, blocking the entire pipeline's progress.",
+        "wg": [
+          {
+            "t": "格式錯誤",
+            "en": "Malformed",
+            "ps": "adj"
+          },
+          {
+            "t": "例外",
+            "en": "Exception",
+            "ps": "noun"
+          },
+          {
+            "t": "阻塞",
+            "en": "Block",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "為了確保管道的穩定性與資料完整性，你應該採取哪種最佳實務？",
+        "en": "To ensure pipeline stability and data integrity, which best practice should you adopt?",
+        "wg": []
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "在 `DoFn` 中增加 `try-except` 區塊，捕捉例外後將錯誤日誌寫入 Cloud Logging 並丟棄該筆數據。",
+        "en": "Add a `try-except` block in the `DoFn`, catch the exception, write the error log to Cloud Logging, and discard the data.",
+        "wg": []
+      },
+      {
+        "t": "增加 Worker 的數量（Scaling up）以分散處理這些錯誤數據的負載。",
+        "en": "Increase the number of workers (Scaling up) to distribute the load of processing these erroneous data.",
+        "wg": []
+      },
+      {
+        "t": "實作 Dead Letter Queue (DLQ) 模式：捕捉例外後，將失敗的原始數據寫入獨立的 Pub/Sub Topic 或 GCS Bucket，並讓主流程繼續。",
+        "en": "Implement the Dead Letter Queue (DLQ) pattern: catch the exception, write the failed raw data to a separate Pub/Sub Topic or GCS Bucket, and allow the main process to continue.",
+        "wg": [
+          {
+            "t": "死信佇列",
+            "en": "Dead Letter Queue",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "設定 Pub/Sub 的 `ackDeadline` 為最大值，讓 Dataflow 有更多時間處理這些錯誤數據。",
+        "en": "Set the Pub/Sub `ackDeadline` to the maximum value to give Dataflow more time to process this erroneous data.",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "選項 2 是最佳實務。DLQ 模式能確保壞資料不會導致 Pipeline 崩潰或卡住（因為無限重試），同時保留原始數據供後續修復與重放（Replay）。選項 0 雖然能防止崩潰，但會導致數據遺失（丟棄且無法修復）。選項 1 無法解決程式碼無法解析數據的根本問題。",
+      "en": "Option 2 is the best practice. The DLQ pattern ensures that bad data does not cause the pipeline to crash or get stuck (due to infinite retries) while preserving the raw data for later remediation and replay. Option 0 prevents crashing but results in data loss (discarded without recovery). Option 1 does not solve the root cause that the code cannot parse the data.",
+      "wg": [
+        {
+          "t": "重放",
+          "en": "Replay",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "8",
+    "level": "4",
+    "keywords": "Dataflow, Side Inputs, Join, Enrichment",
+    "parentNo": null,
+    "images": "",
+    "codeSnippet": "",
+    "question": [
+      {
+        "t": "你需要設計一個 Dataflow 管道，將即時的交易事件串流（Transaction Stream）與一個儲存在 BigQuery 中的「使用者資料表」（User Profile）進行 Join 以豐富數據內容。",
+        "en": "You need to design a Dataflow pipeline to join a real-time transaction stream with a 'User Profile' table stored in BigQuery to enrich the data.",
+        "wg": [
+          {
+            "t": "豐富",
+            "en": "Enrich",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "已知使用者資料表大小約為 500MB，且更新頻率較低。為了兼顧效能與實作複雜度，最適合的模式是什麼？",
+        "en": "Given that the user profile table is about 500MB and updates infrequently. To balance performance and implementation complexity, what is the most suitable pattern?",
+        "wg": []
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "在 `process` 方法中，針對每一筆交易事件直接使用 BigQuery Client 查詢使用者資料。",
+        "en": "In the `process` method, use the BigQuery Client to query user data for each transaction event directly.",
+        "wg": []
+      },
+      {
+        "t": "將 BigQuery 表格作為 Side Input 讀取，並將其廣播（Broadcast）到所有 Worker 進行記憶體內查找。",
+        "en": "Read the BigQuery table as a Side Input and broadcast it to all workers for in-memory lookup.",
+        "wg": [
+          {
+            "t": "旁路輸入",
+            "en": "Side Input",
+            "ps": "noun"
+          },
+          {
+            "t": "廣播",
+            "en": "Broadcast",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "將交易串流先寫入 BigQuery，然後在 BigQuery 內部使用 SQL View 進行 Join。",
+        "en": "Write the transaction stream to BigQuery first, then use a SQL View inside BigQuery to perform the Join.",
+        "wg": []
+      },
+      {
+        "t": "使用 `CoGroupByKey` 將串流數據與 BigQuery 表格進行 Shuffle Join。",
+        "en": "Use `CoGroupByKey` to perform a Shuffle Join between the stream data and the BigQuery table.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "選項 1 是正確的。對於較小且更新緩慢的靜態數據（如 500MB），使用 Side Input 是最有效率的方式，因為它避免了對外部服務的頻繁呼叫（選項 0 的反模式）以及昂貴的 Shuffle 操作（選項 3）。選項 2 會導致延遲增加，不符合即時處理的需求。",
+      "en": "Option 1 is correct. For smaller, slowly updating static data (like 500MB), using Side Input is the most efficient method as it avoids frequent calls to external services (the anti-pattern in Option 0) and expensive Shuffle operations (Option 3). Option 2 would increase latency and does not meet real-time processing needs.",
+      "wg": []
+    }
+  },
+  {
+    "no": "9",
+    "level": "4",
+    "keywords": "Apache Beam, Watermark, Event Time, Windowing",
+    "parentNo": null,
+    "images": "",
+    "codeSnippet": "",
+    "question": [
+      {
+        "t": "在處理大數據串流時，數據的「事件發生時間」（Event Time）往往與「系統處理時間」（Processing Time）不同步，且可能會有亂序（Out-of-order）到達的情況。",
+        "en": "When processing big data streams, the 'Event Time' of data is often not synchronized with the 'Processing Time', and data may arrive out-of-order.",
+        "wg": [
+          {
+            "t": "亂序",
+            "en": "Out-of-order",
+            "ps": "adj"
+          }
+        ]
+      },
+      {
+        "t": "在 Apache Beam/Dataflow 中，哪一個機制負責定義「系統認為某個時間點之前的數據都已經到齊了」，從而觸發視窗（Window）的計算？",
+        "en": "In Apache Beam/Dataflow, which mechanism is responsible for defining 'the system believes all data before a certain point in time has arrived', thereby triggering the window calculation?",
+        "wg": []
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "Trigger (觸發器)",
+        "en": "Trigger",
+        "wg": []
+      },
+      {
+        "t": "Watermark (浮水印)",
+        "en": "Watermark",
+        "wg": []
+      },
+      {
+        "t": "Timestamp (時間戳)",
+        "en": "Timestamp",
+        "wg": []
+      },
+      {
+        "t": "WindowFn (視窗函數)",
+        "en": "WindowFn",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "Watermark 是系統對於 Event Time 進度的估計，它標示了「在這個時間點之前的數據應該都已經到達」。當 Watermark 通過視窗結束時間時，系統會認為該視窗已完整並觸發計算。Trigger 決定何時輸出結果，但 Watermark 決定時間的完整性。",
+      "en": "The Watermark is the system's estimate of Event Time progress, indicating that 'all data before this point should have arrived'. When the Watermark passes the window end time, the system considers the window complete and triggers calculation. Triggers decide when to emit results, but the Watermark determines temporal completeness.",
+      "wg": [
+        {
+          "t": "浮水印",
+          "en": "Watermark",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "10",
+    "level": "4",
+    "keywords": "BigQuery, Storage Write API, Cost Optimization, Performance",
+    "parentNo": null,
+    "images": "",
+    "codeSnippet": "",
+    "question": [
+      {
+        "t": "你正在優化一個高吞吐量的 Dataflow 管道，該管道負責將數據寫入 BigQuery。目前的實作使用舊版的 Streaming Insert API (`insertAll`)，成本較高且偶爾會遇到配額限制。",
+        "en": "You are optimizing a high-throughput Dataflow pipeline that writes data to BigQuery. The current implementation uses the legacy Streaming Insert API (`insertAll`), which is costly and occasionally hits quota limits.",
+        "wg": [
+          {
+            "t": "吞吐量",
+            "en": "Throughput",
+            "ps": "noun"
+          },
+          {
+            "t": "配額",
+            "en": "Quota",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "為了降低成本並獲得 Exactly-once（精確一次）的寫入語意，你應該改用哪種 API？",
+        "en": "To reduce costs and achieve Exactly-once writing semantics, which API should you switch to?",
+        "wg": [
+          {
+            "t": "精確一次",
+            "en": "Exactly-once",
+            "ps": "adj"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "BigQuery Load Jobs (Batch Load)",
+        "en": "BigQuery Load Jobs (Batch Load)",
+        "wg": []
+      },
+      {
+        "t": "BigQuery Storage Write API",
+        "en": "BigQuery Storage Write API",
+        "wg": []
+      },
+      {
+        "t": "BigQuery Data Transfer Service",
+        "en": "BigQuery Data Transfer Service",
+        "wg": []
+      },
+      {
+        "t": "Firestore Native Mode API",
+        "en": "Firestore Native Mode API",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "BigQuery Storage Write API 是 Google 推薦用於高吞吐量串流寫入的新標準。它比舊版 `insertAll` 更具成本效益（某些模式下更便宜），且原生支援 Exactly-once 語意。Load Jobs 適用於批次而非即時串流。",
+      "en": "The BigQuery Storage Write API is the new standard recommended by Google for high-throughput streaming writes. It is more cost-effective than the legacy `insertAll` (cheaper in certain modes) and natively supports Exactly-once semantics. Load Jobs are for batch processing, not real-time streaming.",
+      "wg": []
+    }
+  },
+  {
+    "no": "11",
+    "level": "3",
+    "keywords": "Pub/Sub, Anti-pattern, Architecture, Storage",
+    "parentNo": null,
+    "images": "",
+    "codeSnippet": "",
+    "question": [
+      {
+        "t": "某個專案團隊提議使用 Cloud Pub/Sub 作為「原始日誌的長期儲存庫」，計畫將數據保留 30 天，並讓分析師直接對 Pub/Sub 執行 SQL 查詢以進行臨時分析。",
+        "en": "A project team proposes using Cloud Pub/Sub as a 'long-term storage for raw logs', planning to retain data for 30 days and allowing analysts to run SQL queries directly against Pub/Sub for ad-hoc analysis.",
+        "wg": [
+          {
+            "t": "長期儲存庫",
+            "en": "Long-term storage",
+            "ps": "noun"
+          },
+          {
+            "t": "臨時分析",
+            "en": "Ad-hoc analysis",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "為什麼這被視為一個架構上的反模式（Anti-pattern）？",
+        "en": "Why is this considered an architectural Anti-pattern?",
+        "wg": []
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "Pub/Sub 的數據傳輸延遲太高，不適合即時分析。",
+        "en": "Pub/Sub's data transmission latency is too high for real-time analysis.",
+        "wg": []
+      },
+      {
+        "t": "Pub/Sub 不支援任何形式的數據保留（Retention），數據被消費後會立即刪除。",
+        "en": "Pub/Sub does not support any form of data retention; data is deleted immediately after consumption.",
+        "wg": []
+      },
+      {
+        "t": "Pub/Sub 主要是訊息傳輸通道，不具備索引與 SQL 查詢能力，且長期儲存成本通常高於 BigQuery 或 GCS。",
+        "en": "Pub/Sub is primarily a messaging transport channel, lacking indexing and SQL query capabilities, and long-term storage costs are typically higher than BigQuery or GCS.",
+        "wg": []
+      },
+      {
+        "t": "Pub/Sub 無法保證訊息的順序性，導致分析結果不準確。",
+        "en": "Pub/Sub cannot guarantee message ordering, leading to inaccurate analysis results.",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "Pub/Sub 的設計目的是解耦與傳輸，而非儲存或查詢。雖然它支援訊息保留（Retention），但它不提供 SQL 介面或索引來檢索特定數據。正確的做法是將數據儘快落地到 BigQuery（用於分析）或 GCS（用於存檔）。",
+      "en": "Pub/Sub is designed for decoupling and transport, not storage or querying. While it supports message retention, it does not provide a SQL interface or indexing to retrieve specific data. The correct approach is to land data into BigQuery (for analysis) or GCS (for archiving) as soon as possible.",
+      "wg": []
+    }
+  },
+  {
+    "no": "12",
+    "level": "3",
+    "keywords": "Dataflow, Flex Templates, DevOps, CI/CD",
+    "parentNo": null,
+    "images": "",
+    "codeSnippet": "",
+    "question": [
+      {
+        "t": "你的團隊希望將 Dataflow Pipeline 的部署流程標準化，整合進 CI/CD 系統，並避免「開發環境與生產環境依賴不一致」的問題。",
+        "en": "Your team wants to standardize the Dataflow Pipeline deployment process, integrate it into the CI/CD system, and avoid 'dependency inconsistency between development and production environments'.",
+        "wg": [
+          {
+            "t": "依賴不一致",
+            "en": "Dependency inconsistency",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "你應該採用哪種 Dataflow 部署方式來封裝程式碼與環境依賴？",
+        "en": "Which Dataflow deployment method should you use to encapsulate code and environmental dependencies?",
+        "wg": [
+          {
+            "t": "封裝",
+            "en": "Encapsulate",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "直接在 CI Server 上執行 `python main.py` 來啟動 Job。",
+        "en": "Execute `python main.py` directly on the CI Server to launch the Job.",
+        "wg": []
+      },
+      {
+        "t": "使用 Dataflow Flex Templates，將程式碼與依賴打包成 Docker Image。",
+        "en": "Use Dataflow Flex Templates to package code and dependencies into a Docker Image.",
+        "wg": [
+          {
+            "t": "彈性範本",
+            "en": "Flex Templates",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "將程式碼上傳至 Cloud Functions 並由其觸發 Dataflow。",
+        "en": "Upload the code to Cloud Functions and have it trigger Dataflow.",
+        "wg": []
+      },
+      {
+        "t": "使用 `pip freeze` 產生 requirements.txt 並在 Runtime 動態安裝。",
+        "en": "Use `pip freeze` to generate requirements.txt and install dynamically at Runtime.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "Dataflow Flex Templates 允許開發者將 Pipeline 程式碼與所有相依套件打包進一個 Docker Image 中。這實現了「基礎設施即程式碼」（IaC）的最佳實務，確保了環境的一致性與可重複部署性，是生產環境的首選。",
+      "en": "Dataflow Flex Templates allow developers to package pipeline code and all dependencies into a Docker Image. This implements 'Infrastructure as Code' (IaC) best practices, ensuring environmental consistency and reproducible deployments, making it the preferred choice for production.",
+      "wg": []
+    }
+  }
+]

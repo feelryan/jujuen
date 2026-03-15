@@ -1,0 +1,843 @@
+[
+  {
+    "no": "1",
+    "level": "Medium",
+    "keywords": "Networking, VPC-native, Alias IPs, Performance",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在現代 GKE 架構中，為何強烈建議使用 VPC-native (Alias IPs) 模式，而非早期的 Routes-based 網路模式？",
+        "en": "In modern GKE architecture, why is the VPC-native (Alias IPs) mode strongly recommended over the legacy Routes-based networking mode?",
+        "wg": [
+          {
+            "t": "VPC 原生",
+            "en": "VPC-native",
+            "ps": "adjective"
+          },
+          {
+            "t": "路由模式",
+            "en": "Routes-based",
+            "ps": "adjective"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "因為它移除了封包封裝的開銷，且 Pod IP 可直接被 VPC 防火牆與混合雲網路識別。",
+        "en": "Because it removes packet encapsulation overhead, and Pod IPs are directly visible to VPC firewalls and hybrid cloud networks.",
+        "wg": [
+          {
+            "t": "封包封裝",
+            "en": "packet encapsulation",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "因為它強制所有 Pod 都必須擁有公開 IP (Public IP)，方便外部存取。",
+        "en": "Because it enforces that all Pods must have a Public IP for easier external access.",
+        "wg": []
+      },
+      {
+        "t": "因為它是唯一支援 Windows Node Pool 的網路模式。",
+        "en": "Because it is the only networking mode that supports Windows Node Pools.",
+        "wg": []
+      },
+      {
+        "t": "因為它允許 Control Plane 自動管理 VPC 的路由表 (Route Table) 以突破 1000 條路由的限制。",
+        "en": "Because it allows the Control Plane to automatically manage the VPC Route Table to bypass the 1000-route limit.",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "VPC-native 使用 Alias IP 範圍，Pod IP 是 VPC 子網段的一部分，這意味著不需要額外的 Overlay 封裝 (如 VXLAN/Calico IPIP)，效能更好。同時，因為 Pod IP 在 VPC 內是可路由的，防火牆規則與 Cloud Router (VPN/Interconnect) 可以直接識別並管理 Pod 流量。選項 2 錯誤，VPC-native 不代表 Pod 有 Public IP；選項 4 錯誤，Routes-based 才會依賴路由表且受配額限制，VPC-native 正是為了解決此限制。",
+      "en": "VPC-native uses Alias IP ranges, making Pod IPs part of the VPC subnet. This eliminates the need for extra overlay encapsulation (like VXLAN/Calico IPIP), resulting in better performance. Since Pod IPs are routable within the VPC, firewall rules and Cloud Routers (VPN/Interconnect) can directly identify and manage Pod traffic. Option 2 is incorrect; VPC-native does not imply Pods have Public IPs. Option 4 is incorrect; Routes-based networking relies on route tables and hits quota limits, whereas VPC-native solves this limitation.",
+      "wg": [
+        {
+          "t": "覆蓋網路",
+          "en": "Overlay",
+          "ps": "noun"
+        },
+        {
+          "t": "配額",
+          "en": "quota",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "2",
+    "level": "Hard",
+    "keywords": "Security, IAM, Service Account, Least Privilege",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "resource \"google_container_node_pool\" \"default\" {\n  name       = \"default-pool\"\n  # Missing service_account configuration\n  node_config {\n    machine_type = \"e2-medium\"\n  }\n}",
+    "question": [
+      {
+        "t": "你在審查團隊的 Terraform 程式碼時發現了上述設定。這是一個嚴重的安全隱患 (Anti-pattern)，主要原因為何？",
+        "en": "You discovered the above configuration while reviewing your team's Terraform code. Why is this considered a serious security anti-pattern?",
+        "wg": [
+          {
+            "t": "安全隱患",
+            "en": "security risk/anti-pattern",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "未指定 Service Account 會導致 Node 無法拉取 GCR/Artifact Registry 的映像檔。",
+        "en": "Not specifying a Service Account will cause Nodes to fail pulling images from GCR/Artifact Registry.",
+        "wg": []
+      },
+      {
+        "t": "GKE 會預設使用專案的 Default Compute Engine Service Account，該帳號通常擁有過大的權限 (Editor Role)。",
+        "en": "GKE will default to the project's Default Compute Engine Service Account, which typically has excessive permissions (Editor Role).",
+        "wg": [
+          {
+            "t": "過大的權限",
+            "en": "excessive permissions",
+            "ps": "noun phrase"
+          }
+        ]
+      },
+      {
+        "t": "未指定 Service Account 會導致 GKE Control Plane 無法與 Node 進行通訊。",
+        "en": "Not specifying a Service Account will prevent the GKE Control Plane from communicating with the Nodes.",
+        "wg": []
+      },
+      {
+        "t": "這會導致 Workload Identity 功能失效，所有 Pod 都無法存取 GCP API。",
+        "en": "This will cause Workload Identity to fail, preventing all Pods from accessing GCP APIs.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "若未在 `node_config` 中指定 `service_account`，GKE 會預設使用 Compute Engine Default Service Account。此帳號在許多舊專案或預設設定中擁有 `Editor` 角色，這意味著只要攻擊者攻破叢集中的任一容器並逃逸至 Node，就有可能取得整個 GCP 專案的控制權。最佳實務是建立一個僅具備最小權限 (Least Privilege) 的自定義 Service Account 給 Node Pool 使用。",
+      "en": "If `service_account` is not specified in `node_config`, GKE defaults to the Compute Engine Default Service Account. In many projects, this account holds the `Editor` role by default. This means if an attacker compromises a container and escapes to the Node, they could potentially gain control over the entire GCP project. The best practice is to create a custom Service Account with Least Privilege for the Node Pool.",
+      "wg": [
+        {
+          "t": "最小權限",
+          "en": "Least Privilege",
+          "ps": "noun"
+        },
+        {
+          "t": "容器逃逸",
+          "en": "container escape",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "3",
+    "level": "Medium",
+    "keywords": "Availability, Architecture, Regional Cluster, SLA",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你的團隊正在部署一個關鍵的支付服務，SLA 要求極高，且必須能容忍單一可用區 (Zone) 的完全故障（包含 Control Plane）。你應該選擇哪種 GKE 叢集架構？",
+        "en": "Your team is deploying a critical payment service with strict SLA requirements. It must tolerate a complete failure of a single Zone (including the Control Plane). Which GKE cluster architecture should you choose?",
+        "wg": [
+          {
+            "t": "可用區",
+            "en": "Zone",
+            "ps": "noun"
+          },
+          {
+            "t": "控制平面",
+            "en": "Control Plane",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "Zonal Cluster (單一區域叢集)",
+        "en": "Zonal Cluster",
+        "wg": []
+      },
+      {
+        "t": "Regional Cluster (區域性叢集)",
+        "en": "Regional Cluster",
+        "wg": []
+      },
+      {
+        "t": "Private Cluster (私有叢集)",
+        "en": "Private Cluster",
+        "wg": []
+      },
+      {
+        "t": "Multi-cluster Ingress (多叢集入口)",
+        "en": "Multi-cluster Ingress",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "Regional Cluster 會在三個 Zone 中複製 Control Plane 和 Node。即使單一 Zone 發生災難性故障，Control Plane 仍然可用（你可以繼續執行 `kubectl` 指令），且其他 Zone 的 Node 仍能處理流量。Zonal Cluster 的 Control Plane 僅位於單一 Zone，若該 Zone 故障，叢集將無法被管理。Private Cluster 是安全性設定，與可用性架構無直接關係。",
+      "en": "A Regional Cluster replicates both the Control Plane and Nodes across three Zones. Even if a single Zone suffers a catastrophic failure, the Control Plane remains available (you can still run `kubectl` commands), and Nodes in other Zones continue to serve traffic. A Zonal Cluster has its Control Plane in a single Zone; if that Zone fails, the cluster becomes unmanageable. Private Cluster is a security setting, not directly related to availability architecture.",
+      "wg": [
+        {
+          "t": "複製",
+          "en": "replicate",
+          "ps": "verb"
+        },
+        {
+          "t": "災難性故障",
+          "en": "catastrophic failure",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "4",
+    "level": "Medium",
+    "keywords": "Operations, Upgrades, PDB, Availability",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在 GKE 進行節點自動升級期間，你的服務發生了短暫的中斷 (503 Service Unavailable)。經檢查發現，GKE 在升級過程中同時排空 (Drain) 了過多的 Pod，導致服務沒有足夠的副本 (Replicas) 處理流量。你遺漏了哪項關鍵設定？",
+        "en": "During a GKE node auto-upgrade, your service experienced a brief outage (503 Service Unavailable). Investigation revealed that GKE drained too many Pods simultaneously, leaving insufficient replicas to handle traffic. What key configuration was missing?",
+        "wg": [
+          {
+            "t": "排空",
+            "en": "Drain",
+            "ps": "verb"
+          },
+          {
+            "t": "副本",
+            "en": "Replicas",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "Liveness Probe (存活探針)",
+        "en": "Liveness Probe",
+        "wg": []
+      },
+      {
+        "t": "Pod Disruption Budget (PDB)",
+        "en": "Pod Disruption Budget (PDB)",
+        "wg": []
+      },
+      {
+        "t": "Horizontal Pod Autoscaler (HPA)",
+        "en": "Horizontal Pod Autoscaler (HPA)",
+        "wg": []
+      },
+      {
+        "t": "Readiness Probe (就緒探針)",
+        "en": "Readiness Probe",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "Pod Disruption Budget (PDB) 用於限制在自願性干擾（如節點升級、排空）期間，同時不可用的 Pod 數量（或必須保持可用的最小數量）。如果沒有設定 PDB，GKE 可能會一次性排空多個節點上的 Pod，導致服務可用副本數歸零或過低。Probes 是用於檢測單個 Pod 健康狀態，HPA 是用於擴展，皆無法直接防止升級時的過度排空。",
+      "en": "Pod Disruption Budget (PDB) limits the number of Pods that can be simultaneously unavailable (or specifies a minimum available) during voluntary disruptions like node upgrades or draining. Without a PDB, GKE might drain Pods from multiple nodes at once, causing the available replicas to drop to zero or critically low levels. Probes check individual Pod health, and HPA handles scaling, but neither directly prevents excessive draining during upgrades.",
+      "wg": [
+        {
+          "t": "自願性干擾",
+          "en": "voluntary disruptions",
+          "ps": "noun"
+        },
+        {
+          "t": "不可用",
+          "en": "unavailable",
+          "ps": "adjective"
+        }
+      ]
+    }
+  },
+  {
+    "no": "5",
+    "level": "Hard",
+    "keywords": "Security, Workload Identity, IAM, Best Practices",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "開發團隊希望他們的 Pod 能夠讀取 Cloud Storage (GCS) 中的敏感資料。有人提議建立一個 Service Account Key (JSON 檔) 並透過 Kubernetes Secret 掛載到 Pod 中。作為資深工程師，你應建議什麼更好的替代方案？",
+        "en": "The development team wants their Pods to read sensitive data from Cloud Storage (GCS). Someone suggested creating a Service Account Key (JSON file) and mounting it via Kubernetes Secret. As a senior engineer, what better alternative should you recommend?",
+        "wg": [
+          {
+            "t": "掛載",
+            "en": "mount",
+            "ps": "verb"
+          },
+          {
+            "t": "敏感資料",
+            "en": "sensitive data",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "使用 Workload Identity 將 K8s ServiceAccount 與 Google Service Account 綁定。",
+        "en": "Use Workload Identity to bind the K8s ServiceAccount with a Google Service Account.",
+        "wg": [
+          {
+            "t": "綁定",
+            "en": "bind",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "將 JSON Key 存放在 Docker Image 中以簡化部署。",
+        "en": "Store the JSON Key inside the Docker Image to simplify deployment.",
+        "wg": []
+      },
+      {
+        "t": "給予 Node 的 Service Account 完整的 GCS Admin 權限。",
+        "en": "Grant the Node's Service Account full GCS Admin permissions.",
+        "wg": []
+      },
+      {
+        "t": "使用 API Key 並將其寫死在環境變數中。",
+        "en": "Use an API Key and hardcode it in the environment variables.",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "掛載長效型的 Service Account Key JSON 是主要的安全風險（金鑰洩漏風險高、輪替困難）。Workload Identity 是 GKE 推薦的最佳實務，它允許 K8s ServiceAccount 暫時扮演 (Impersonate) Google Service Account，無需管理任何實體金鑰檔案，且權限粒度可控制在 Pod 層級而非 Node 層級。",
+      "en": "Mounting long-lived Service Account Key JSON files is a major security risk (high risk of leakage, difficult rotation). Workload Identity is the recommended best practice for GKE. It allows a K8s ServiceAccount to temporarily impersonate a Google Service Account without managing any physical key files, and permissions are granularly controlled at the Pod level rather than the Node level.",
+      "wg": [
+        {
+          "t": "長效型",
+          "en": "long-lived",
+          "ps": "adjective"
+        },
+        {
+          "t": "扮演",
+          "en": "impersonate",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "6",
+    "level": "Hard",
+    "keywords": "Networking, Troubleshooting, SNAT, Cloud NAT",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你的應用程式部署在私有 GKE 叢集 (Private Cluster) 中，並透過 Cloud NAT 存取外部網路。最近應用程式在呼叫外部第三方 API 時，頻繁出現連線逾時 (Connection Timeout)，但 CPU 與記憶體使用率都很低。這最可能是什麼問題？",
+        "en": "Your application is deployed in a Private GKE cluster and accesses the internet via Cloud NAT. Recently, the application frequently experiences connection timeouts when calling an external third-party API, despite low CPU and memory usage. What is the most likely issue?",
+        "wg": [
+          {
+            "t": "連線逾時",
+            "en": "Connection Timeout",
+            "ps": "noun"
+          },
+          {
+            "t": "第三方",
+            "en": "third-party",
+            "ps": "adjective"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "SNAT 埠口耗盡 (SNAT Port Exhaustion)。",
+        "en": "SNAT Port Exhaustion.",
+        "wg": [
+          {
+            "t": "耗盡",
+            "en": "exhaustion",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "Pod 的 CPU Limit 設定太低，導致節流 (Throttling)。",
+        "en": "Pod CPU Limit is set too low, causing throttling.",
+        "wg": []
+      },
+      {
+        "t": "VPC 的次要 IP 範圍 (Secondary IP Range) 已用盡。",
+        "en": "VPC Secondary IP Range is exhausted.",
+        "wg": []
+      },
+      {
+        "t": "GKE Control Plane 發生故障。",
+        "en": "GKE Control Plane failure.",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "當大量 Pod 透過同一個 Cloud NAT IP 連線到相同的外部目的地 IP 與 Port 時，可能會耗盡來源埠口 (Source Ports)，導致 SNAT 失敗並丟棄封包。這在私有叢集中是常見的擴展性瓶頸。解決方案包括增加 Cloud NAT 的 IP 數量或調整每 VM 的最小埠口配置。CPU 低使用率排除了運算資源不足的可能性。",
+      "en": "When many Pods connect to the same external destination IP and Port via the same Cloud NAT IP, they can exhaust the available Source Ports, causing SNAT failures and packet drops. This is a common scalability bottleneck in private clusters. Solutions include adding more IPs to Cloud NAT or adjusting the minimum ports per VM configuration. Low CPU usage rules out computational resource shortages.",
+      "wg": [
+        {
+          "t": "來源埠口",
+          "en": "Source Ports",
+          "ps": "noun"
+        },
+        {
+          "t": "瓶頸",
+          "en": "bottleneck",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "7",
+    "level": "Medium",
+    "keywords": "Scaling, Node Auto-provisioning, NAP, Node Pools",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你的 GKE 叢集目前只有一個標準型號 (e2-standard) 的 Node Pool。資料科學團隊突然部署了一個需要 GPU 加速的新工作負載 (Workload)，但該 Pod 一直處於 Pending 狀態，且 Cluster Autoscaler 並沒有擴展節點。為了讓 GKE 能自動解決此類硬體需求不匹配的問題，你應該啟用什麼功能？",
+        "en": "Your GKE cluster currently has only one Node Pool with a standard machine type (e2-standard). The data science team suddenly deploys a new workload requiring GPU acceleration, but the Pod remains in a Pending state, and the Cluster Autoscaler does not scale up nodes. To allow GKE to automatically resolve such hardware mismatch issues, what feature should you enable?",
+        "wg": [
+          {
+            "t": "節點自動配置",
+            "en": "Node Auto-provisioning",
+            "ps": "noun"
+          },
+          {
+            "t": "工作負載",
+            "en": "Workload",
+            "ps": "noun"
+          },
+          {
+            "t": "待處理",
+            "en": "Pending",
+            "ps": "adjective"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "Vertical Pod Autoscaler (VPA)",
+        "en": "Vertical Pod Autoscaler (VPA)",
+        "wg": []
+      },
+      {
+        "t": "Node Auto-provisioning (NAP)",
+        "en": "Node Auto-provisioning (NAP)",
+        "wg": []
+      },
+      {
+        "t": "Horizontal Pod Autoscaler (HPA)",
+        "en": "Horizontal Pod Autoscaler (HPA)",
+        "wg": []
+      },
+      {
+        "t": "Multidimensional Pod Autoscaling",
+        "en": "Multidimensional Pod Autoscaling",
+        "wg": []
+      }
+    ],
+    "answer": "Node Auto-provisioning (NAP)",
+    "why": {
+      "t": "標準的 Cluster Autoscaler 只能在「既有的」Node Pools 中調整節點數量。若現有的 Node Pool 規格（如 CPU 型號、缺乏 GPU）無法滿足 Pod 的 `nodeSelector` 或資源需求，擴展便不會發生。啟用 Node Auto-provisioning (NAP) 後，GKE 能夠根據待排程 Pod 的資源需求，自動建立包含合適機器型號（如 GPU 實例）的新 Node Pool。",
+      "en": "The standard Cluster Autoscaler can only adjust the number of nodes within 'existing' Node Pools. If the specifications of existing Node Pools (e.g., CPU type, lack of GPU) cannot meet the Pod's `nodeSelector` or resource requirements, scaling will not occur. Enabling Node Auto-provisioning (NAP) allows GKE to automatically create new Node Pools with appropriate machine types (e.g., GPU instances) based on the resource requirements of pending Pods.",
+      "wg": [
+        {
+          "t": "既有的",
+          "en": "existing",
+          "ps": "adjective"
+        },
+        {
+          "t": "規格",
+          "en": "specifications",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "8",
+    "level": "Medium",
+    "keywords": "Security, Networking, Master Authorized Networks, Control Plane",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "為了方便維運人員從家中或辦公室管理叢集，你在建立私有叢集 (Private Cluster) 時保留了 `enable_private_endpoint = false` 設定（即允許透過公網 IP 存取 Control Plane）。為了修補這個潛在的安全漏洞，同時不切斷合法的管理連線，你必須實施哪項控制措施？",
+        "en": "To facilitate cluster management from home or the office, you kept the `enable_private_endpoint = false` setting (allowing public IP access to the Control Plane) when creating a Private Cluster. To patch this potential security vulnerability without cutting off legitimate management connections, what control measure must you implement?",
+        "wg": [
+          {
+            "t": "私有端點",
+            "en": "Private Endpoint",
+            "ps": "noun"
+          },
+          {
+            "t": "控制平面",
+            "en": "Control Plane",
+            "ps": "noun"
+          },
+          {
+            "t": "安全漏洞",
+            "en": "Security vulnerability",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "設定 VPC 防火牆規則以阻擋 443 port",
+        "en": "Configure VPC firewall rules to block port 443",
+        "wg": []
+      },
+      {
+        "t": "啟用 Master Authorized Networks 並列入允許的 CIDR",
+        "en": "Enable Master Authorized Networks and list allowed CIDRs",
+        "wg": []
+      },
+      {
+        "t": "移除 Control Plane 的 Public IP 並強制使用 Cloud VPN",
+        "en": "Remove the Control Plane's Public IP and force the use of Cloud VPN",
+        "wg": []
+      },
+      {
+        "t": "使用 Identity-Aware Proxy (IAP) 包裹 kubectl 流量",
+        "en": "Use Identity-Aware Proxy (IAP) to wrap kubectl traffic",
+        "wg": []
+      }
+    ],
+    "answer": "啟用 Master Authorized Networks 並列入允許的 CIDR",
+    "why": {
+      "t": "當 Control Plane 暴露於公網時，預設情況下 `0.0.0.0/0` 皆可嘗試連線，這是一個嚴重的反模式 (Anti-pattern)。「Master Authorized Networks」是 GKE 專門用於保護 Master Endpoint 的機制，它允許你定義一組白名單 CIDR（例如公司 VPN 出口 IP），只有來自這些網段的流量才能存取 API Server，從而大幅縮小攻擊面。",
+      "en": "When the Control Plane is exposed to the public internet, `0.0.0.0/0` can attempt to connect by default, which is a serious anti-pattern. 'Master Authorized Networks' is a mechanism in GKE specifically designed to protect the Master Endpoint. It allows you to define a whitelist of CIDRs (e.g., corporate VPN exit IPs), ensuring that only traffic from these ranges can access the API Server, thereby significantly reducing the attack surface.",
+      "wg": [
+        {
+          "t": "白名單",
+          "en": "whitelist",
+          "ps": "noun"
+        },
+        {
+          "t": "攻擊面",
+          "en": "attack surface",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "9",
+    "level": "Medium",
+    "keywords": "Networking, Dataplane V2, eBPF, Network Policy",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你的團隊正在規劃一個新的 GKE 生產叢集，需求包含：高效能的網路轉發、無需額外安裝 Calico 即可支援 Kubernetes Network Policy，以及更好的網路可觀測性。根據最佳實務，你應該在建立叢集時啟用哪項功能？",
+        "en": "Your team is planning a new GKE production cluster with requirements including: high-performance network forwarding, support for Kubernetes Network Policy without installing Calico, and better network observability. According to best practices, which feature should you enable when creating the cluster?",
+        "wg": [
+          {
+            "t": "網路轉發",
+            "en": "Network forwarding",
+            "ps": "noun"
+          },
+          {
+            "t": "可觀測性",
+            "en": "Observability",
+            "ps": "noun"
+          },
+          {
+            "t": "最佳實務",
+            "en": "Best practices",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "GKE Dataplane V2",
+        "en": "GKE Dataplane V2",
+        "wg": []
+      },
+      {
+        "t": "Istio Service Mesh",
+        "en": "Istio Service Mesh",
+        "wg": []
+      },
+      {
+        "t": "VPC Flow Logs",
+        "en": "VPC Flow Logs",
+        "wg": []
+      },
+      {
+        "t": "Intranode Visibility",
+        "en": "Intranode Visibility",
+        "wg": []
+      }
+    ],
+    "answer": "GKE Dataplane V2",
+    "why": {
+      "t": "GKE Dataplane V2 基於 eBPF 技術實作，它取代了傳統的 kube-proxy (iptables 模式)，直接在核心層處理封包路由。它內建了 Network Policy 的執行能力（無需 Calico），並提供更豐富的即時網路可觀測性資料，是現代 GKE 叢集的建議配置。",
+      "en": "GKE Dataplane V2 is implemented based on eBPF technology, replacing the traditional kube-proxy (iptables mode) by handling packet routing directly at the kernel level. It has built-in enforcement capabilities for Network Policy (eliminating the need for Calico) and provides richer real-time network observability data, making it the recommended configuration for modern GKE clusters.",
+      "wg": [
+        {
+          "t": "核心層",
+          "en": "kernel level",
+          "ps": "noun"
+        },
+        {
+          "t": "內建",
+          "en": "built-in",
+          "ps": "adjective"
+        }
+      ]
+    }
+  },
+  {
+    "no": "10",
+    "level": "Hard",
+    "keywords": "Resource Management, Cluster Autoscaler, Requests, Scheduling",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在一次負載測試中，你發現雖然 HPA 已經產生了大量新的 Pod，且這些 Pod 處於 Pending 狀態，但 Cluster Autoscaler (CA) 卻遲遲沒有擴展新的節點。經檢查，節點的實際 CPU 使用率很高，但 Pod 的 YAML 配置中完全省略了 `resources.requests`。為什麼 CA 沒有觸發擴展？",
+        "en": "During a load test, you notice that although the HPA has generated a large number of new Pods and these Pods are in a Pending state, the Cluster Autoscaler (CA) is hesitating to scale up new nodes. Upon inspection, the actual CPU usage of the nodes is high, but `resources.requests` is completely omitted in the Pod's YAML configuration. Why did the CA not trigger scaling?",
+        "wg": [
+          {
+            "t": "負載測試",
+            "en": "Load test",
+            "ps": "noun"
+          },
+          {
+            "t": "省略",
+            "en": "omitted",
+            "ps": "verb"
+          },
+          {
+            "t": "觸發",
+            "en": "trigger",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "CA 依賴實際 CPU 使用率來決定擴展，可能是 Metrics Server 故障",
+        "en": "CA relies on actual CPU usage to decide scaling; the Metrics Server might be down",
+        "wg": []
+      },
+      {
+        "t": "未設定 Requests 的 Pod 被視為 BestEffort，CA 認為它們需要的資源為 0，因此誤判它們可以塞進現有節點（即使實際已滿）",
+        "en": "Pods without Requests are treated as BestEffort; CA assumes they need 0 resources and incorrectly thinks they can fit into existing nodes (even if actually full)",
+        "wg": []
+      },
+      {
+        "t": "CA 只能擴展設定了 Limits 的 Pod，因為 Limits 決定了節點容量",
+        "en": "CA can only scale for Pods with Limits set, as Limits determine node capacity",
+        "wg": []
+      },
+      {
+        "t": "這是 GKE 的 Bug，必須重啟 kube-scheduler",
+        "en": "This is a GKE bug; kube-scheduler must be restarted",
+        "wg": []
+      }
+    ],
+    "answer": "未設定 Requests 的 Pod 被視為 BestEffort，CA 認為它們需要的資源為 0，因此誤判它們可以塞進現有節點（即使實際已滿）",
+    "why": {
+      "t": "Cluster Autoscaler 的決策完全依賴於 Pod 的 Resource Requests，而非實際負載。如果未設定 Requests，Kubernetes 排程器與 CA 會將該 Pod 視為不需要任何保證資源（0 CPU/Memory）。因此，CA 會認為現有節點仍有空間容納這些 Pod（邏輯上），導致不會觸發擴展，即使節點實際上已經過載。",
+      "en": "Cluster Autoscaler's decisions rely entirely on Pod Resource Requests, not actual load. If Requests are not set, the Kubernetes scheduler and CA treat the Pod as needing no guaranteed resources (0 CPU/Memory). Consequently, CA assumes existing nodes still have space to accommodate these Pods (logically), resulting in no scaling trigger, even if the nodes are actually overloaded.",
+      "wg": [
+        {
+          "t": "保證資源",
+          "en": "guaranteed resources",
+          "ps": "noun"
+        },
+        {
+          "t": "過載",
+          "en": "overloaded",
+          "ps": "adjective"
+        }
+      ]
+    }
+  },
+  {
+    "no": "11",
+    "level": "Medium",
+    "keywords": "Operations, Upgrades, Maintenance Window, Exclusions",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你的電商平台即將迎來「黑色星期五」大促銷，這段期間系統負載極高且不容許任何變更。你已經設定了週末的「維護視窗 (Maintenance Window)」，但為了確保在大促銷的幾天內（包含平日）絕對不會發生 GKE 自動升級，你應該額外設定什麼？",
+        "en": "Your e-commerce platform is approaching the 'Black Friday' sale, a period of extremely high system load where no changes are tolerated. You have already configured a 'Maintenance Window' for weekends, but to ensure that absolutely no GKE auto-upgrades occur during the few days of the sale (including weekdays), what should you additionally configure?",
+        "wg": [
+          {
+            "t": "大促銷",
+            "en": "Major sale / Promotion",
+            "ps": "noun"
+          },
+          {
+            "t": "維護視窗",
+            "en": "Maintenance Window",
+            "ps": "noun"
+          },
+          {
+            "t": "自動升級",
+            "en": "Auto-upgrades",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "將 Release Channel 切換為 Rapid",
+        "en": "Switch the Release Channel to Rapid",
+        "wg": []
+      },
+      {
+        "t": "設定維護排除視窗 (Maintenance Exclusions)",
+        "en": "Configure Maintenance Exclusions",
+        "wg": []
+      },
+      {
+        "t": "刪除所有的維護視窗設定",
+        "en": "Delete all Maintenance Window settings",
+        "wg": []
+      },
+      {
+        "t": "手動將節點降級到舊版本",
+        "en": "Manually downgrade nodes to an older version",
+        "wg": []
+      }
+    ],
+    "answer": "設定維護排除視窗 (Maintenance Exclusions)",
+    "why": {
+      "t": "「維護視窗」只是告訴 GKE 「偏好」在何時升級，並不能保證在視窗外絕對不升級（例如緊急安全修補）。要確保特定期間（如業務高峰期）完全禁止任何自動升級，必須設定「維護排除視窗 (Maintenance Exclusions)」。這能暫停所有非緊急的自動升級操作。",
+      "en": "'Maintenance Windows' only tell GKE when you 'prefer' upgrades to happen; they do not guarantee that upgrades won't occur outside the window (e.g., for urgent security patches). To ensure that absolutely no auto-upgrades occur during a specific period (like peak business hours), you must configure 'Maintenance Exclusions'. This pauses all non-emergency auto-upgrade operations.",
+      "wg": [
+        {
+          "t": "偏好",
+          "en": "prefer",
+          "ps": "verb"
+        },
+        {
+          "t": "緊急安全修補",
+          "en": "urgent security patches",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "12",
+    "level": "Medium",
+    "keywords": "Architecture, Cost Optimization, Spot Instances, Node Pools",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你正在設計一個負責處理大量背景報表任務的 GKE 架構。這些任務可以容忍中斷並重新執行 (Idempotent)。為了最大化節省成本，你應該採用哪種 Node Pool 策略？",
+        "en": "You are designing a GKE architecture responsible for processing a large number of background reporting tasks. These tasks can tolerate interruptions and are idempotent. To maximize cost savings, which Node Pool strategy should you adopt?",
+        "wg": [
+          {
+            "t": "背景報表任務",
+            "en": "Background reporting tasks",
+            "ps": "noun"
+          },
+          {
+            "t": "容忍中斷",
+            "en": "Tolerate interruptions",
+            "ps": "verb"
+          },
+          {
+            "t": "冪等",
+            "en": "Idempotent",
+            "ps": "adjective"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "將所有任務部署在 Default Node Pool 並啟用 HPA",
+        "en": "Deploy all tasks to the Default Node Pool and enable HPA",
+        "wg": []
+      },
+      {
+        "t": "建立一個專用的 Node Pool，使用 Spot (Preemptible) Instances，並設定 Taints/Tolerations",
+        "en": "Create a dedicated Node Pool using Spot (Preemptible) Instances, and configure Taints/Tolerations",
+        "wg": []
+      },
+      {
+        "t": "使用 Compute Optimized (c2) 機器以縮短執行時間",
+        "en": "Use Compute Optimized (c2) machines to shorten execution time",
+        "wg": []
+      },
+      {
+        "t": "關閉 Cluster Autoscaler 並手動配置節點數量",
+        "en": "Disable Cluster Autoscaler and manually configure the node count",
+        "wg": []
+      }
+    ],
+    "answer": "建立一個專用的 Node Pool，使用 Spot (Preemptible) Instances，並設定 Taints/Tolerations",
+    "why": {
+      "t": "對於可容忍中斷的批次處理任務，使用 Spot Instances (或 Preemptible VMs) 可以節省高達 60-91% 的運算成本。最佳實務是將這些節點隔離在單獨的 Node Pool 中，並利用 Taints 與 Tolerations 確保只有這些特定的批次任務會被排程到這些不穩定的節點上，避免影響核心服務。",
+      "en": "For batch processing tasks that can tolerate interruptions, using Spot Instances (or Preemptible VMs) can save up to 60-91% on compute costs. The best practice is to isolate these nodes in a separate Node Pool and use Taints and Tolerations to ensure that only these specific batch tasks are scheduled on these unstable nodes, avoiding impact on core services.",
+      "wg": [
+        {
+          "t": "批次處理",
+          "en": "batch processing",
+          "ps": "noun"
+        },
+        {
+          "t": "隔離",
+          "en": "isolate",
+          "ps": "verb"
+        }
+      ]
+    }
+  }
+]

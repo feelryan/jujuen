@@ -1,0 +1,898 @@
+[
+  {
+    "no": "1",
+    "level": "Hard",
+    "keywords": "Cloud Spanner,Schema Design,Anti-pattern,Hotspotting",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "CREATE TABLE Users (\n  UserId INT64 NOT NULL,\n  UserName STRING(1024),\n  Email STRING(1024)\n) PRIMARY KEY (UserId);",
+    "question": [
+      {
+        "t": "你正在將一個傳統的關聯式資料庫遷移至 Cloud Spanner，以支援全球規模的交易需求。在設計 `Users` 資料表時，你沿用了如上所示的 Schema，並計畫使用連續的整數（如 `1, 2, 3...`）作為 `UserId`。請問這種設計在 Spanner 中會導致什麼嚴重後果？",
+        "en": "You are migrating a traditional relational database to Cloud Spanner to support global-scale transactions. When designing the `Users` table, you kept the schema shown above and planned to use sequential integers (e.g., `1, 2, 3...`) as the `UserId`. What severe consequence will this design cause in Spanner?",
+        "wg": [
+          {
+            "t": "連續的整數",
+            "en": "sequential integers",
+            "ps": "noun phrase"
+          },
+          {
+            "t": "遷移",
+            "en": "migrating",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "type": "Single",
+    "options": [
+      {
+        "t": "資料將會因為缺乏索引而導致查詢速度變慢。",
+        "en": "Queries will become slow due to a lack of indexes.",
+        "wg": []
+      },
+      {
+        "t": "會發生「熱點問題」，導致所有寫入流量集中在單一節點 (Split)，限制了系統的水平擴展能力。",
+        "en": "It will cause 'Hotspotting', directing all write traffic to a single node (Split), limiting the system's ability to scale horizontally.",
+        "wg": [
+          {
+            "t": "熱點問題",
+            "en": "Hotspotting",
+            "ps": "noun"
+          },
+          {
+            "t": "水平擴展能力",
+            "en": "horizontal scalability",
+            "ps": "noun phrase"
+          }
+        ]
+      },
+      {
+        "t": "Spanner 不支援 INT64 作為 Primary Key，會導致遷移失敗。",
+        "en": "Spanner does not support INT64 as a Primary Key, causing the migration to fail.",
+        "wg": []
+      },
+      {
+        "t": "會導致全球複寫延遲增加，破壞外部一致性。",
+        "en": "It will increase global replication latency, breaking external consistency.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "這是 Spanner 的經典反模式。Spanner 根據 Key Range 將資料切分為 Splits。若使用單調遞增的 Key（如連續整數或時間戳），新資料會不斷寫入同一個 Split（通常是範圍的末端），導致該節點過載，無法利用分散式架構的優勢。最佳實務是使用 UUID 或對 Key 進行 Bit-reverse。",
+      "en": "This is a classic anti-pattern in Spanner. Spanner divides data into Splits based on Key Range. Using monotonically increasing keys (like sequential integers or timestamps) causes new data to be written to the same Split (usually at the end of the range), overloading that node and failing to leverage the distributed architecture. The best practice is to use UUIDs or Bit-reverse the key.",
+      "wg": [
+        {
+          "t": "單調遞增",
+          "en": "monotonically increasing",
+          "ps": "adjective"
+        },
+        {
+          "t": "反模式",
+          "en": "anti-pattern",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "2",
+    "level": "Medium",
+    "keywords": "Cloud SQL,Security,GKE,Sidecar Pattern",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你的團隊正在 GKE (Google Kubernetes Engine) 上部署一個微服務應用，該應用需要連線到 Cloud SQL (PostgreSQL)。為了確保連線安全性並簡化憑證管理，下列哪一種做法最符合 GCP 的最佳實務？",
+        "en": "Your team is deploying a microservice application on GKE (Google Kubernetes Engine) that needs to connect to Cloud SQL (PostgreSQL). To ensure connection security and simplify credential management, which of the following approaches best aligns with GCP best practices?",
+        "wg": [
+          {
+            "t": "憑證管理",
+            "en": "credential management",
+            "ps": "noun phrase"
+          },
+          {
+            "t": "最佳實務",
+            "en": "best practices",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single",
+    "options": [
+      {
+        "t": "將 Cloud SQL 的 Public IP 加入 GKE 節點的防火牆白名單，並手動管理 SSL 憑證。",
+        "en": "Whitelist the Cloud SQL Public IP in the GKE node firewall and manually manage SSL certificates.",
+        "wg": []
+      },
+      {
+        "t": "在每個 Pod 中部署 Cloud SQL Auth Proxy 作為 Sidecar 容器，並透過 localhost 連線。",
+        "en": "Deploy the Cloud SQL Auth Proxy as a Sidecar container in each Pod and connect via localhost.",
+        "wg": [
+          {
+            "t": "Sidecar 容器",
+            "en": "Sidecar container",
+            "ps": "noun phrase"
+          }
+        ]
+      },
+      {
+        "t": "將資料庫密碼硬編碼 (Hard-code) 在應用程式程式碼中，以減少配置複雜度。",
+        "en": "Hard-code the database password in the application code to reduce configuration complexity.",
+        "wg": []
+      },
+      {
+        "t": "使用 Cloud VPN 建立通道，但不使用任何代理服務。",
+        "en": "Create a tunnel using Cloud VPN but do not use any proxy service.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "使用 Cloud SQL Auth Proxy (Sidecar Pattern) 是標準建議做法。它能自動處理 IAM 驗證與加密連線，應用程式只需連線到 `localhost`，無需處理複雜的 SSL 憑證或 IP 白名單問題。此外，應儘量搭配 Private Service Access (Private IP) 使用。",
+      "en": "Using the Cloud SQL Auth Proxy (Sidecar Pattern) is the standard recommendation. It automatically handles IAM authentication and encrypted connections, allowing the application to simply connect to `localhost` without managing complex SSL certificates or IP whitelists. Additionally, it should ideally be used with Private Service Access (Private IP).",
+      "wg": [
+        {
+          "t": "加密連線",
+          "en": "encrypted connections",
+          "ps": "noun phrase"
+        },
+        {
+          "t": "白名單",
+          "en": "whitelists",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "3",
+    "level": "Medium",
+    "keywords": "Firestore,Cost Optimization,Anti-pattern,Indexing",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你正在開發一個高流量的社交媒體 App 後端，使用 Firestore 作為資料庫。上線後發現 Firestore 的成本異常高昂，且部分寫入操作延遲增加。經檢查發現，每個 Document 包含大量欄位，且應用程式對這些欄位進行頻繁更新。最可能的原因是什麼？",
+        "en": "You are developing the backend for a high-traffic social media app using Firestore. After launch, you notice unusually high Firestore costs and increased latency for some write operations. Upon inspection, you find that each document contains many fields, and the application frequently updates these fields. What is the most likely cause?",
+        "wg": [
+          {
+            "t": "異常高昂",
+            "en": "unusually high",
+            "ps": "adjective phrase"
+          },
+          {
+            "t": "頻繁更新",
+            "en": "frequently updates",
+            "ps": "verb phrase"
+          }
+        ]
+      }
+    ],
+    "type": "Single",
+    "options": [
+      {
+        "t": "Firestore 不適合用於社交媒體 App，應遷移至 Cloud Spanner。",
+        "en": "Firestore is not suitable for social media apps and should be migrated to Cloud Spanner.",
+        "wg": []
+      },
+      {
+        "t": "發生了「索引爆炸 (Index Explosion)」。Firestore 預設對所有欄位建立索引，頻繁寫入導致索引寫入成本與延遲暴增。",
+        "en": "An 'Index Explosion' has occurred. Firestore indexes all fields by default, and frequent writes are causing skyrocketing index write costs and latency.",
+        "wg": [
+          {
+            "t": "索引爆炸",
+            "en": "Index Explosion",
+            "ps": "noun"
+          },
+          {
+            "t": "暴增",
+            "en": "skyrocketing",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "Firestore 的單一 Document 大小超過了 1MB 的限制。",
+        "en": "The size of a single Firestore document has exceeded the 1MB limit.",
+        "wg": []
+      },
+      {
+        "t": "沒有使用 Subcollections，導致讀取效能下降。",
+        "en": "Subcollections were not used, leading to degraded read performance.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "Firestore 預設會為 Document 中的每個欄位建立索引（單欄位索引）。如果欄位眾多且寫入頻繁，每次更新都會觸發多次索引寫入，這不僅計費昂貴，還可能觸發單一 Document 的寫入頻率限制。解決方案是使用 `Exemptions` 排除不需要查詢的欄位索引。",
+      "en": "Firestore by default creates an index for every field in a document (single-field index). If there are many fields and frequent writes, each update triggers multiple index writes, which is not only expensive but can also hit the write rate limit for a single document. The solution is to use `Exemptions` to exclude fields that do not need to be queried.",
+      "wg": [
+        {
+          "t": "排除",
+          "en": "exclude",
+          "ps": "verb"
+        },
+        {
+          "t": "計費昂貴",
+          "en": "expensive billing",
+          "ps": "adjective phrase"
+        }
+      ]
+    }
+  },
+  {
+    "no": "4",
+    "level": "Hard",
+    "keywords": "Cloud Bigtable,Schema Design,IoT,Row Key",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "某物聯網 (IoT) 平台需要每秒寫入數百萬筆感測器數據，並主要支援「查詢特定區域內、最新的感測器數值」這類存取模式。你選擇了 Cloud Bigtable。為了避免寫入熱點 (Hotspotting) 並優化最新資料的讀取效能，下列哪種 Row Key 設計最為合適？",
+        "en": "An IoT platform needs to ingest millions of sensor data points per second and primarily supports access patterns like 'querying the latest sensor values within a specific region'. You chose Cloud Bigtable. To avoid write hotspotting and optimize read performance for the latest data, which Row Key design is most appropriate?",
+        "wg": [
+          {
+            "t": "感測器數據",
+            "en": "sensor data points",
+            "ps": "noun phrase"
+          },
+          {
+            "t": "寫入熱點",
+            "en": "write hotspotting",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single",
+    "options": [
+      {
+        "t": "[Timestamp]#[Region_Code]#[Sensor_ID]",
+        "en": "[Timestamp]#[Region_Code]#[Sensor_ID]",
+        "wg": []
+      },
+      {
+        "t": "[Sensor_ID]#[Timestamp]",
+        "en": "[Sensor_ID]#[Timestamp]",
+        "wg": []
+      },
+      {
+        "t": "[Region_Code]#[Reverse_Timestamp]#[Sensor_ID]",
+        "en": "[Region_Code]#[Reverse_Timestamp]#[Sensor_ID]",
+        "wg": []
+      },
+      {
+        "t": "[Region_Code]#[Sensor_ID]",
+        "en": "[Region_Code]#[Sensor_ID]",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "選項 3 (`[Region_Code]#[Reverse_Timestamp]#[Sensor_ID]`) 是最佳解。`Region_Code` 作為前綴可以將不同區域的數據分散到不同節點（假設區域夠多），避免單點寫入；`Reverse_Timestamp` 確保最新的數據排在最前面（Bigtable 按字典序排序），讓查詢最新數據時能最快掃描到。選項 1 會導致嚴重的熱點問題（所有寫入都在當前時間）。",
+      "en": "Option 3 (`[Region_Code]#[Reverse_Timestamp]#[Sensor_ID]`) is the best solution. Using `Region_Code` as a prefix distributes data from different regions across nodes (assuming enough regions), avoiding single-point write hotspots. `Reverse_Timestamp` ensures the latest data appears first (since Bigtable sorts lexicographically), enabling the fastest scans for recent data. Option 1 would cause severe hotspotting (all writes happening at the current time).",
+      "wg": [
+        {
+          "t": "字典序",
+          "en": "lexicographically",
+          "ps": "adverb"
+        },
+        {
+          "t": "前綴",
+          "en": "prefix",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "5",
+    "level": "Medium",
+    "keywords": "Database Selection,Global Scale,Consistency,Cloud SQL,Cloud Spanner",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你的公司正在開發一款全球多人連線遊戲，需要儲存玩家的虛擬寶物與貨幣餘額。需求包括：跨區域的強一致性（避免道具複製或消失）、極高的寫入吞吐量（全球水平擴展）、以及 99.999% 的可用性。下列哪項服務最能滿足此需求？",
+        "en": "Your company is developing a global MMO game that needs to store player inventory and currency balances. Requirements include: cross-region strong consistency (to prevent item duplication or loss), extremely high write throughput (global horizontal scaling), and 99.999% availability. Which service best meets these needs?",
+        "wg": [
+          {
+            "t": "強一致性",
+            "en": "strong consistency",
+            "ps": "noun phrase"
+          },
+          {
+            "t": "吞吐量",
+            "en": "throughput",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single",
+    "options": [
+      {
+        "t": "Cloud SQL (MySQL)",
+        "en": "Cloud SQL (MySQL)",
+        "wg": []
+      },
+      {
+        "t": "Cloud Bigtable",
+        "en": "Cloud Bigtable",
+        "wg": []
+      },
+      {
+        "t": "Cloud Spanner",
+        "en": "Cloud Spanner",
+        "wg": []
+      },
+      {
+        "t": "Firestore (Multi-region)",
+        "en": "Firestore (Multi-region)",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "Cloud Spanner 是唯一能同時提供「全球強一致性 (Global Strong Consistency)」與「水平寫入擴展 (Horizontal Write Scaling)」的關聯式資料庫，非常適合金融級或遊戲資產類的高價值數據。Cloud SQL 僅支援單點寫入 (Single Writer)，無法滿足全球水平寫入擴展；Bigtable 雖可擴展但不支援跨行 ACID 交易（對資產不安全）；Firestore 雖有強一致性但在極高寫入吞吐量與關聯查詢上不如 Spanner。",
+      "en": "Cloud Spanner is the only relational database that provides both 'Global Strong Consistency' and 'Horizontal Write Scaling', making it ideal for high-value data like financial or game assets. Cloud SQL only supports a Single Writer and cannot meet global horizontal write scaling needs. Bigtable scales well but lacks cross-row ACID transactions (unsafe for assets). Firestore has strong consistency but falls short of Spanner in extremely high write throughput and relational query capabilities.",
+      "wg": [
+        {
+          "t": "水平寫入擴展",
+          "en": "Horizontal Write Scaling",
+          "ps": "noun phrase"
+        },
+        {
+          "t": "資產",
+          "en": "assets",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "6",
+    "level": "Medium",
+    "keywords": "Cloud Bigtable,Anti-pattern,Use Case,BigQuery",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你正在設計一個廣告數據分析系統。你需要儲存大量的點擊流日誌 (Clickstream logs)，並希望能夠執行複雜的 SQL 查詢（例如多表關聯 Joins、聚合分析）來產出商業報表。有人建議使用 Cloud Bigtable 因為它寫入很快。請問這個建議是否合適？",
+        "en": "You are designing an ad data analytics system. You need to store massive clickstream logs and want to perform complex SQL queries (e.g., multi-table joins, aggregations) to generate business reports. Someone suggested using Cloud Bigtable because of its fast write speed. Is this suggestion appropriate?",
+        "wg": [
+          {
+            "t": "點擊流日誌",
+            "en": "Clickstream logs",
+            "ps": "noun phrase"
+          },
+          {
+            "t": "聚合分析",
+            "en": "aggregations",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single",
+    "options": [
+      {
+        "t": "合適，Bigtable 支援完整的 ANSI SQL 標準。",
+        "en": "Appropriate. Bigtable supports the full ANSI SQL standard.",
+        "wg": []
+      },
+      {
+        "t": "不合適，Bigtable 是 Key-Value store，不支援複雜的 SQL Join 或二級索引。此場景應使用 BigQuery。",
+        "en": "Inappropriate. Bigtable is a Key-Value store and does not support complex SQL Joins or secondary indexes. BigQuery should be used for this scenario.",
+        "wg": [
+          {
+            "t": "二級索引",
+            "en": "secondary indexes",
+            "ps": "noun phrase"
+          }
+        ]
+      },
+      {
+        "t": "合適，只要使用 Bigtable 的 Coprocessors 就能執行 Join。",
+        "en": "Appropriate, as long as you use Bigtable Coprocessors to execute Joins.",
+        "wg": []
+      },
+      {
+        "t": "不合適，因為 Bigtable 的寫入速度比 Cloud SQL 慢。",
+        "en": "Inappropriate, because Bigtable's write speed is slower than Cloud SQL.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "這是一個常見的誤區。雖然 Bigtable 寫入吞吐量極高，但它是一個 NoSQL 寬表服務 (Wide-column store)，不具備關聯式資料庫的查詢能力（如 Join）。對於需要複雜 SQL 分析的場景，BigQuery 才是正確的選擇。實務上常將資料寫入 Bigtable 後，透過 ETL 或 Federation 匯入 BigQuery 進行分析。",
+      "en": "This is a common misconception. While Bigtable has extremely high write throughput, it is a NoSQL wide-column store and lacks relational database query capabilities (like Joins). For scenarios requiring complex SQL analysis, BigQuery is the correct choice. In practice, data is often written to Bigtable and then imported into BigQuery via ETL or Federation for analysis.",
+      "wg": [
+        {
+          "t": "誤區",
+          "en": "misconception",
+          "ps": "noun"
+        },
+        {
+          "t": "寬表服務",
+          "en": "Wide-column store",
+          "ps": "noun phrase"
+        }
+      ]
+    }
+  },
+  {
+    "no": "7",
+    "level": "Hard",
+    "keywords": "Cloud Spanner, Schema Design, Performance, Interleaved Tables",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "CREATE TABLE Singers (\n  SingerId   STRING(36) NOT NULL,\n  FirstName  STRING(1024),\n  LastName   STRING(1024),\n) PRIMARY KEY (SingerId);\n\nCREATE TABLE Albums (\n  SingerId     STRING(36) NOT NULL,\n  AlbumId      STRING(36) NOT NULL,\n  AlbumTitle   STRING(1024),\n) PRIMARY KEY (SingerId, AlbumId),\n  INTERLEAVE IN PARENT Singers ON DELETE CASCADE;",
+    "question": [
+      {
+        "t": "你正在使用 Cloud Spanner 設計一個音樂串流平台的資料庫，其中包含 `Singers`（歌手）與 `Albums`（專輯）兩個資料表。",
+        "en": "You are designing a database for a music streaming platform using Cloud Spanner, containing `Singers` and `Albums` tables.",
+        "wg": []
+      },
+      {
+        "t": "應用程式最頻繁的查詢模式是「取得特定歌手的所有專輯」。",
+        "en": "The most frequent query pattern in the application is \"get all albums for a specific singer\".",
+        "wg": []
+      },
+      {
+        "t": "為了優化這種父子關聯查詢的效能，你採用了如上所示的 Schema 設計。",
+        "en": "To optimize the performance of this parent-child relationship query, you adopted the Schema design shown above.",
+        "wg": []
+      },
+      {
+        "t": "請問這種設計被稱為什麼？它主要解決了什麼問題？",
+        "en": "What is this design called, and what primary problem does it solve?",
+        "wg": []
+      }
+    ],
+    "type": "Single",
+    "options": [
+      {
+        "t": "交錯表 (Interleaved Tables)；透過將子表資料與父表資料儲存在同一個 Split (節點) 上，減少跨節點通訊並提升 Join 效能。",
+        "en": "Interleaved Tables; it improves Join performance by storing child table data in the same Split (node) as the parent table data, reducing cross-node communication.",
+        "wg": [
+          {
+            "t": "交錯表",
+            "en": "Interleaved Tables",
+            "ps": "noun"
+          },
+          {
+            "t": "節點",
+            "en": "Split/Node",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "反正規化 (Denormalization)；透過複製歌手資料到專輯表中，避免執行 Join 操作。",
+        "en": "Denormalization; it avoids Join operations by duplicating singer data into the albums table.",
+        "wg": [
+          {
+            "t": "反正規化",
+            "en": "Denormalization",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "二級索引 (Secondary Index)；透過建立額外的索引結構來加速特定欄位的查詢。",
+        "en": "Secondary Index; it accelerates queries on specific columns by creating additional index structures.",
+        "wg": []
+      },
+      {
+        "t": "分片 (Sharding)；透過 SingerId 將資料分散到不同的資料庫實例中。",
+        "en": "Sharding; it distributes data across different database instances based on SingerId.",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "這是 Cloud Spanner 特有的 **Interleaved Tables (交錯表)** 模式。透過 `INTERLEAVE IN PARENT` 語法，Spanner 會將具有相同 `SingerId` 的 `Albums` 資料列，物理上緊鄰著對應的 `Singers` 資料列儲存（位於同一個 Split）。這使得父子表的 Join 操作可以在單一節點內完成，大幅降低延遲並提升吞吐量。",
+      "en": "This is the **Interleaved Tables** pattern specific to Cloud Spanner. Using the `INTERLEAVE IN PARENT` syntax, Spanner physically stores `Albums` rows with the same `SingerId` adjacent to the corresponding `Singers` row (within the same Split). This allows Join operations between parent and child tables to be completed within a single node, significantly reducing latency and increasing throughput.",
+      "wg": [
+        {
+          "t": "交錯表",
+          "en": "Interleaved Tables",
+          "ps": "noun"
+        },
+        {
+          "t": "物理上緊鄰",
+          "en": "physically co-located/adjacent",
+          "ps": "phrase"
+        }
+      ]
+    }
+  },
+  {
+    "no": "8",
+    "level": "Medium",
+    "keywords": "Cloud SQL, Read Replica, Performance, Best Practice",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你維護的一個電子商務系統使用 Cloud SQL (PostgreSQL) 作為主要資料庫。",
+        "en": "You maintain an e-commerce system that uses Cloud SQL (PostgreSQL) as its primary database.",
+        "wg": []
+      },
+      {
+        "t": "每當營運團隊在後台執行複雜的月度報表查詢時，前台使用者的結帳操作就會變慢甚至逾時。",
+        "en": "Whenever the operations team runs complex monthly report queries in the backend, checkout operations for frontend users slow down or even time out.",
+        "wg": [
+          {
+            "t": "逾時",
+            "en": "time out",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "根據 GCP 最佳實務，你應採取哪項措施來最有效地解決此問題？",
+        "en": "According to GCP best practices, what measure should you take to most effectively resolve this issue?",
+        "wg": []
+      }
+    ],
+    "type": "Single",
+    "options": [
+      {
+        "t": "升級 Cloud SQL 實例的 CPU 與記憶體規格，以處理更高的負載。",
+        "en": "Upgrade the Cloud SQL instance's CPU and memory specifications to handle the higher load.",
+        "wg": []
+      },
+      {
+        "t": "建立 Read Replica (讀取複本)，並將報表類查詢導向複本，保留 Primary 實例給交易寫入。",
+        "en": "Create a Read Replica and direct report queries to the replica, reserving the Primary instance for transactional writes.",
+        "wg": [
+          {
+            "t": "讀取複本",
+            "en": "Read Replica",
+            "ps": "noun"
+          },
+          {
+            "t": "交易寫入",
+            "en": "transactional writes",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "啟用 High Availability (HA) 功能，讓報表查詢自動容錯移轉到 Standby 節點。",
+        "en": "Enable High Availability (HA) so that report queries automatically failover to the Standby node.",
+        "wg": [
+          {
+            "t": "容錯移轉",
+            "en": "failover",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "將資料庫遷移至 Cloud Spanner 以獲得全球一致性。",
+        "en": "Migrate the database to Cloud Spanner to gain global consistency.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "這是典型的 **讀寫分離 (Read-Write Split)** 場景。報表查詢通常是資源密集型的讀取操作，會爭搶 CPU 與 I/O 資源，影響交易型 (OLTP) 的寫入效能。建立 **Read Replica** 並將分析型查詢導流過去，可以隔離負載，確保核心業務不受影響。升級規格治標不治本；HA 的 Standby 節點平時不提供讀取服務。",
+      "en": "This is a classic **Read-Write Split** scenario. Reporting queries are typically resource-intensive read operations that compete for CPU and I/O resources, impacting transactional (OLTP) write performance. Creating a **Read Replica** and offloading analytical queries to it isolates the load, ensuring core business operations are unaffected. Upgrading specs is a temporary fix; the HA Standby node does not serve read traffic during normal operation.",
+      "wg": [
+        {
+          "t": "讀寫分離",
+          "en": "Read-Write Split",
+          "ps": "noun"
+        },
+        {
+          "t": "治標不治本",
+          "en": "treats the symptoms but not the root cause",
+          "ps": "idiom"
+        }
+      ]
+    }
+  },
+  {
+    "no": "9",
+    "level": "Medium",
+    "keywords": "Firestore, Limits, Schema Design, Subcollections",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你正在使用 Firestore 開發一個聊天應用程式。最初的設計是將聊天室內的每條訊息都存放在同一個 `ChatRoom` document 的一個 Array 欄位中。",
+        "en": "You are developing a chat application using Firestore. The initial design stores every message in a chat room within an Array field of a single `ChatRoom` document.",
+        "wg": []
+      },
+      {
+        "t": "隨著聊天訊息增加，你收到了 `Document size limit exceeded` 的錯誤。",
+        "en": "As chat messages increase, you receive a `Document size limit exceeded` error.",
+        "wg": []
+      },
+      {
+        "t": "為了修復此問題並支援無限擴展的訊息量，你應該改用哪種 Firestore 設計模式？",
+        "en": "To fix this issue and support an infinitely scalable number of messages, which Firestore design pattern should you switch to?",
+        "wg": []
+      }
+    ],
+    "type": "Single",
+    "options": [
+      {
+        "t": "使用 Subcollections (子集合)；在 `ChatRoom` document 下建立一個 `Messages` collection 來儲存訊息。",
+        "en": "Use Subcollections; create a `Messages` collection under the `ChatRoom` document to store messages.",
+        "wg": [
+          {
+            "t": "子集合",
+            "en": "Subcollections",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "啟用 Firestore 的自動壓縮功能，減少 document 的大小。",
+        "en": "Enable Firestore's automatic compression feature to reduce the document size.",
+        "wg": []
+      },
+      {
+        "t": "將 Array 欄位轉換為 Map 欄位，以避開陣列長度限制。",
+        "en": "Convert the Array field to a Map field to bypass the array length limit.",
+        "wg": []
+      },
+      {
+        "t": "為該 document 建立更多的索引，以分散儲存壓力。",
+        "en": "Create more indexes for the document to distribute storage pressure.",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "Firestore 的單一 Document 大小限制為 **1 MiB**。將無限增長的資料（如聊天記錄）存放在單一 Document 的 Array 或 Map 中是反模式。正確做法是使用 **Subcollections**，這允許隨著 Parent document 自動擴展，且每個 Message 都是獨立的 Document，不再受 1 MiB 限制。",
+      "en": "Firestore has a single Document size limit of **1 MiB**. Storing infinitely growing data (like chat logs) in an Array or Map within a single Document is an anti-pattern. The correct approach is to use **Subcollections**, which allows scaling automatically with the Parent document, where each Message is an independent Document, no longer subject to the 1 MiB limit.",
+      "wg": [
+        {
+          "t": "反模式",
+          "en": "anti-pattern",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "10",
+    "level": "Medium",
+    "keywords": "Cloud SQL, Anti-pattern, High Availability, Architecture",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你的團隊習慣使用 Oracle RAC，並希望在 GCP 上尋找類似的架構。",
+        "en": "Your team is used to Oracle RAC and is looking for a similar architecture on GCP.",
+        "wg": []
+      },
+      {
+        "t": "他們選擇了 Cloud SQL 並啟用了 High Availability (HA)，期望能藉此獲得「多個節點同時寫入 (Multi-Master)」的能力以提升寫入吞吐量。",
+        "en": "They selected Cloud SQL and enabled High Availability (HA), expecting to gain \"simultaneous multi-node writing (Multi-Master)\" capabilities to increase write throughput.",
+        "wg": [
+          {
+            "t": "多個節點同時寫入",
+            "en": "simultaneous multi-node writing",
+            "ps": "phrase"
+          }
+        ]
+      },
+      {
+        "t": "關於這個決策，以下敘述何者正確？",
+        "en": "Regarding this decision, which of the following statements is correct?",
+        "wg": []
+      }
+    ],
+    "type": "Single",
+    "options": [
+      {
+        "t": "這是正確的；Cloud SQL HA 模式下，Primary 與 Standby 都可以處理寫入流量。",
+        "en": "This is correct; in Cloud SQL HA mode, both Primary and Standby can handle write traffic.",
+        "wg": []
+      },
+      {
+        "t": "這是錯誤的；Cloud SQL 是單點寫入 (Single Writer) 架構。HA 僅用於故障轉移，Standby 節點平時不接受寫入。",
+        "en": "This is incorrect; Cloud SQL is a Single Writer architecture. HA is only for failover, and the Standby node does not accept writes during normal operation.",
+        "wg": [
+          {
+            "t": "單點寫入",
+            "en": "Single Writer",
+            "ps": "noun"
+          },
+          {
+            "t": "故障轉移",
+            "en": "failover",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "這是錯誤的；要實現多寫入，必須使用 Cloud SQL 的 Read Replicas。",
+        "en": "This is incorrect; to achieve multi-write, you must use Cloud SQL Read Replicas.",
+        "wg": []
+      },
+      {
+        "t": "這是正確的；但必須使用 Private IP 才能啟用多寫入功能。",
+        "en": "This is correct; but you must use Private IP to enable the multi-write feature.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "這是一個常見的誤解 (Anti-pattern)。**Cloud SQL** 採用的是傳統的主從 (Master-Slave) 架構，屬於 **Single Writer**。HA 的 Standby 實例僅在 Primary 故障時接手，平時無法分擔寫入負載。若需要水平擴展寫入能力 (Scale-out Writes)，應考慮使用 **Cloud Spanner**。",
+      "en": "This is a common misconception (Anti-pattern). **Cloud SQL** uses a traditional Master-Slave architecture and is a **Single Writer**. The HA Standby instance only takes over when the Primary fails and cannot share the write load during normal operation. If you need to scale-out writes, you should consider using **Cloud Spanner**.",
+      "wg": [
+        {
+          "t": "誤解",
+          "en": "misconception",
+          "ps": "noun"
+        },
+        {
+          "t": "水平擴展寫入",
+          "en": "Scale-out Writes",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "11",
+    "level": "Medium",
+    "keywords": "Firestore, NoSQL, Denormalization, Performance",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你正在設計一個電商 App 的訂單歷史頁面，使用 Firestore 作為資料庫。",
+        "en": "You are designing an order history page for an e-commerce app using Firestore as the database.",
+        "wg": []
+      },
+      {
+        "t": "每個 `Order` document 包含 `product_id`。為了在前端顯示商品名稱，你目前的做法是：讀取 `Order` 後，再根據 ID 去讀取 `Product` document。",
+        "en": "Each `Order` document contains a `product_id`. To display the product name on the frontend, your current approach is: read the `Order`, then read the `Product` document based on the ID.",
+        "wg": []
+      },
+      {
+        "t": "這導致讀取次數倍增且畫面載入緩慢。根據 NoSQL 最佳實務，你應如何優化？",
+        "en": "This doubles the number of reads and slows down screen loading. According to NoSQL best practices, how should you optimize this?",
+        "wg": []
+      }
+    ],
+    "type": "Single",
+    "options": [
+      {
+        "t": "使用 Cloud Functions 在讀取時動態 Join 資料。",
+        "en": "Use Cloud Functions to dynamically Join data upon reading.",
+        "wg": []
+      },
+      {
+        "t": "採用反正規化 (Denormalization)；在建立訂單時，將商品名稱直接複製一份存入 `Order` document 中。",
+        "en": "Adopt Denormalization; when creating an order, duplicate the product name and store it directly in the `Order` document.",
+        "wg": [
+          {
+            "t": "反正規化",
+            "en": "Denormalization",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "將 Firestore 替換為 Cloud Bigtable 以獲得更快的讀取速度。",
+        "en": "Replace Firestore with Cloud Bigtable to get faster read speeds.",
+        "wg": []
+      },
+      {
+        "t": "在 `Product` document 上建立更多的索引。",
+        "en": "Create more indexes on the `Product` document.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "在 NoSQL (如 Firestore) 中，為了讀取效能，我們傾向於 **反正規化 (Denormalization)**。這意味著「寧可重複儲存資料，也要減少讀取時的關聯查詢」。將 `product_name` 快照存入 `Order` document，不僅能將讀取次數減半，還能保留訂單成立當下的商品名稱（即使後來商品改名了）。",
+      "en": "In NoSQL (like Firestore), we lean towards **Denormalization** for read performance. This means \"it's better to duplicate data than to perform joins during reads.\" Storing a snapshot of `product_name` in the `Order` document not only halves the number of reads but also preserves the product name as it was when the order was placed (even if the product is renamed later).",
+      "wg": [
+        {
+          "t": "快照",
+          "en": "snapshot",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "12",
+    "level": "Hard",
+    "keywords": "Cloud Bigtable, Schema Design, Column Families, Performance",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你正在設計一個使用 Cloud Bigtable 的物聯網數據平台。每個感測器會回報 50 種不同的指標（如溫度、濕度、電壓等）。",
+        "en": "You are designing an IoT data platform using Cloud Bigtable. Each sensor reports 50 different metrics (e.g., temperature, humidity, voltage).",
+        "wg": []
+      },
+      {
+        "t": "為了區分這些數據，你考慮為每一種指標建立一個獨立的 Column Family（共 50 個 Column Families）。",
+        "en": "To distinguish this data, you are considering creating a separate Column Family for each metric (totaling 50 Column Families).",
+        "wg": [
+          {
+            "t": "指標",
+            "en": "metrics",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "請問這種設計是否合適？為什麼？",
+        "en": "Is this design appropriate? Why or why not?",
+        "wg": []
+      }
+    ],
+    "type": "Single",
+    "options": [
+      {
+        "t": "合適；這樣可以針對每個指標單獨設定過期時間 (TTL) 與壓縮策略。",
+        "en": "Appropriate; this allows setting TTL and compression policies individually for each metric.",
+        "wg": []
+      },
+      {
+        "t": "不合適；Bigtable 建議設計極少量的 Column Families（通常不超過 100 個，建議更少），過多會導致效能下降。",
+        "en": "Inappropriate; Bigtable recommends designing very few Column Families (usually no more than 100, preferably fewer), as too many will degrade performance.",
+        "wg": [
+          {
+            "t": "極少量",
+            "en": "very few / minimal",
+            "ps": "adjective"
+          }
+        ]
+      },
+      {
+        "t": "合適；這是「Tall and Narrow」設計模式的標準實踐。",
+        "en": "Appropriate; this is the standard practice for the \"Tall and Narrow\" design pattern.",
+        "wg": []
+      },
+      {
+        "t": "不合適；應該將所有數據存成 JSON 字串放在單一 Column 中。",
+        "en": "Inappropriate; all data should be stored as a JSON string in a single Column.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "Bigtable 的最佳實務是 **「Tall and Narrow」** 表結構，這意味著 Row 數量可以極多，但 **Column Families 應保持極少**。Column Families 是資料物理儲存與壓縮的單位，過多的 Column Families 會增加 metadata 開銷並降低讀寫效能。正確做法是將相關指標分組到少數幾個 Column Families 中，利用 Column Qualifier (欄位修飾符) 來區分不同指標。",
+      "en": "Bigtable best practice is a **\"Tall and Narrow\"** table structure, meaning the number of Rows can be huge, but **Column Families should be kept to a minimum**. Column Families are the unit of physical storage and compression; too many increase metadata overhead and degrade read/write performance. The correct approach is to group related metrics into a few Column Families and use Column Qualifiers to distinguish between different metrics.",
+      "wg": [
+        {
+          "t": "欄位修飾符",
+          "en": "Column Qualifier",
+          "ps": "noun"
+        },
+        {
+          "t": "開銷",
+          "en": "overhead",
+          "ps": "noun"
+        }
+      ]
+    }
+  }
+]
