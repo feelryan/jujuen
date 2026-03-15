@@ -1,0 +1,905 @@
+[
+  {
+    "no": "1",
+    "level": "Intermediate",
+    "keywords": "RAII, Exception Safety, Memory Leak",
+    "parentNo": null,
+    "images": "",
+    "codeSnippet": "void processData() {\n    Data* d = new Data();\n    d->load(); // Might throw an exception\n    d->process();\n    delete d;\n}",
+    "question": [
+      {
+        "t": "請分析上述程式碼片段。為何這種寫法在現代 C++ 中被視為反模式（Anti-pattern），以及它潛在的風險是什麼？",
+        "en": "Analyze the code snippet above. Why is this coding style considered an anti-pattern in modern C++, and what is its potential risk?",
+        "wg": [
+          {
+            "t": "反模式",
+            "en": "anti-pattern",
+            "ps": "noun"
+          },
+          {
+            "t": "潛在風險",
+            "en": "potential risk",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "這段程式碼是正確的，因為它有明確的 `delete` 來釋放記憶體。",
+        "en": "The code is correct because it explicitly calls `delete` to free memory.",
+        "wg": []
+      },
+      {
+        "t": "如果 `load()` 拋出異常，`delete d` 將永遠不會被執行，導致記憶體洩漏（Memory Leak）。應改用 RAII（如 `std::unique_ptr`）。",
+        "en": "If `load()` throws an exception, `delete d` will never be executed, causing a memory leak. RAII (e.g., `std::unique_ptr`) should be used instead.",
+        "wg": [
+          {
+            "t": "記憶體洩漏",
+            "en": "memory leak",
+            "ps": "noun"
+          },
+          {
+            "t": "拋出異常",
+            "en": "throw exception",
+            "ps": "verb phrase"
+          }
+        ]
+      },
+      {
+        "t": "這段程式碼效率低落，因為 `new` 的開銷太大，應該使用 `malloc`。",
+        "en": "The code is inefficient because `new` has too much overhead; `malloc` should be used instead.",
+        "wg": []
+      },
+      {
+        "t": "應該在 `delete` 之後將指標設為 `nullptr` 即可解決所有問題。",
+        "en": "Setting the pointer to `nullptr` after `delete` would solve all issues.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "這是典型的非異常安全（Exception Unsafe）程式碼。若 `d->load()` 拋出異常，執行流會直接跳出函式，導致 `delete d` 被跳過，發生資源洩漏。RAII 的核心價值即在於利用 Stack Unwinding 機制確保資源釋放。",
+      "en": "This is typical exception-unsafe code. If `d->load()` throws an exception, the execution flow exits the function immediately, skipping `delete d` and causing a resource leak. The core value of RAII is leveraging the Stack Unwinding mechanism to ensure resource release.",
+      "wg": [
+        {
+          "t": "異常安全",
+          "en": "exception safety",
+          "ps": "noun"
+        },
+        {
+          "t": "堆疊展開",
+          "en": "stack unwinding",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "2",
+    "level": "Intermediate",
+    "keywords": "Pimpl, unique_ptr, Compilation Error, Incomplete Type",
+    "parentNo": null,
+    "images": "",
+    "codeSnippet": "// Widget.h\nclass Widget {\npublic:\n    Widget();\n    ~Widget() = default; // Defined in header\nprivate:\n    class Impl;\n    std::unique_ptr<Impl> pImpl;\n};",
+    "question": [
+      {
+        "t": "在使用 Pimpl 慣用語搭配 `std::unique_ptr` 時，若如上述程式碼在 Header 檔中直接寫 `~Widget() = default;`，通常會導致編譯錯誤。請問原因為何？",
+        "en": "When using the Pimpl idiom with `std::unique_ptr`, writing `~Widget() = default;` directly in the header file (as shown above) usually causes a compilation error. What is the reason?",
+        "wg": [
+          {
+            "t": "慣用語",
+            "en": "idiom",
+            "ps": "noun"
+          },
+          {
+            "t": "編譯錯誤",
+            "en": "compilation error",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "`std::unique_ptr` 不支援 Pimpl 模式，必須改用 `std::shared_ptr`。",
+        "en": "`std::unique_ptr` does not support the Pimpl pattern; `std::shared_ptr` must be used instead.",
+        "wg": []
+      },
+      {
+        "t": "因為 `Impl` 在 Header 中是「不完整型別（Incomplete Type）」，而 `unique_ptr` 的解構子需要知道型別的大小才能呼叫 `delete`。",
+        "en": "Because `Impl` is an 'Incomplete Type' in the header, and `unique_ptr`'s destructor needs to know the type's size to call `delete`.",
+        "wg": [
+          {
+            "t": "不完整型別",
+            "en": "incomplete type",
+            "ps": "noun"
+          },
+          {
+            "t": "解構子",
+            "en": "destructor",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "因為 `default` 關鍵字只能用於 `.cpp` 檔案中。",
+        "en": "Because the `default` keyword can only be used in `.cpp` files.",
+        "wg": []
+      },
+      {
+        "t": "因為 `pImpl` 是 private 成員，外部無法存取其解構子。",
+        "en": "Because `pImpl` is a private member, its destructor cannot be accessed externally.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "`std::unique_ptr` 的預設刪除器（Deleter）在編譯期會檢查 `sizeof(T)` 以確保能夠正確呼叫 `delete`。在 Header 檔中 `Impl` 僅被前向宣告（Forward Declared），屬於不完整型別，因此編譯器無法生成刪除程式碼。解法是將解構子實作移至 `.cpp` 檔，那裡 `Impl` 已被完整定義。",
+      "en": "`std::unique_ptr`'s default deleter checks `sizeof(T)` at compile time to ensure `delete` can be called correctly. In the header file, `Impl` is only forward-declared and is an incomplete type, so the compiler cannot generate the deletion code. The solution is to move the destructor implementation to the `.cpp` file, where `Impl` is fully defined.",
+      "wg": [
+        {
+          "t": "預設刪除器",
+          "en": "default deleter",
+          "ps": "noun"
+        },
+        {
+          "t": "前向宣告",
+          "en": "forward declaration",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "3",
+    "level": "Advanced",
+    "keywords": "Pimpl, Const Correctness, propagate_const",
+    "parentNo": null,
+    "images": "",
+    "codeSnippet": "void Widget::setText(const std::string& s) const {\n    pImpl->text = s; // Compiles fine even if Widget is const\n}",
+    "question": [
+      {
+        "t": "在 Pimpl 模式中，上述程式碼展示了一個常見陷阱：即使 `Widget` 方法標記為 `const`，它仍能修改 `pImpl` 指向的內容。這被稱為「Broken Const Correctness」。請問這是為什麼？",
+        "en": "In the Pimpl pattern, the code above demonstrates a common pitfall: even if the `Widget` method is marked `const`, it can still modify the content pointed to by `pImpl`. This is known as 'Broken Const Correctness'. Why does this happen?",
+        "wg": [
+          {
+            "t": "常見陷阱",
+            "en": "common pitfall",
+            "ps": "noun"
+          },
+          {
+            "t": "常數正確性",
+            "en": "const correctness",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "這是 C++ 編譯器的 Bug。",
+        "en": "This is a bug in the C++ compiler.",
+        "wg": []
+      },
+      {
+        "t": "`std::unique_ptr` 的 `const` 屬性只作用於指標本身（不能改變指向），而不作用於被指的物件（Pointee）。",
+        "en": "The `const` property of `std::unique_ptr` applies only to the pointer itself (it cannot be reseated), not to the object being pointed to (the pointee).",
+        "wg": [
+          {
+            "t": "指標本身",
+            "en": "pointer itself",
+            "ps": "noun"
+          },
+          {
+            "t": "被指的物件",
+            "en": "pointee",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "因為 `pImpl` 是在 Heap 上分配的，`const` 無法約束 Heap 記憶體。",
+        "en": "Because `pImpl` is allocated on the Heap, and `const` cannot constrain Heap memory.",
+        "wg": []
+      },
+      {
+        "t": "因為 `Impl` 類別沒有定義 `const` 成員函式。",
+        "en": "Because the `Impl` class does not define `const` member functions.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "指標的 const 性質是淺層的（Shallow const）。`const std::unique_ptr<Impl>` 等同於 `Impl* const`，這意味著你不能讓指標指向別處，但你可以透過指標修改它指向的物件。若要修復此問題，可使用 `std::experimental::propagate_const` 或在存取時手動確保 const 語意。",
+      "en": "The constness of a pointer is shallow. `const std::unique_ptr<Impl>` is equivalent to `Impl* const`, meaning you cannot make the pointer point elsewhere, but you can modify the object it points to. To fix this, use `std::experimental::propagate_const` or manually enforce const semantics during access.",
+      "wg": [
+        {
+          "t": "淺層 const",
+          "en": "shallow const",
+          "ps": "noun"
+        },
+        {
+          "t": "傳遞 const",
+          "en": "propagate const",
+          "ps": "verb phrase"
+        }
+      ]
+    }
+  },
+  {
+    "no": "4",
+    "level": "Intermediate",
+    "keywords": "RAII, C API, Custom Deleter",
+    "parentNo": null,
+    "images": "",
+    "codeSnippet": "FILE* fp = fopen(\"data.txt\", \"r\");\n// ... usage ...\nfclose(fp);",
+    "question": [
+      {
+        "t": "你需要使用一個舊式的 C 語言 API（如 `fopen`/`fclose`）。為了符合現代 C++ RAII 原則，下列哪種封裝方式最為推薦？",
+        "en": "You need to use a legacy C API (like `fopen`/`fclose`). To adhere to modern C++ RAII principles, which of the following encapsulation methods is most recommended?",
+        "wg": [
+          {
+            "t": "封裝方式",
+            "en": "encapsulation method",
+            "ps": "noun"
+          },
+          {
+            "t": "最為推薦",
+            "en": "most recommended",
+            "ps": "adjective phrase"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "使用 `std::shared_ptr<FILE>` 並依賴作業系統回收。",
+        "en": "Use `std::shared_ptr<FILE>` and rely on the OS to reclaim resources.",
+        "wg": []
+      },
+      {
+        "t": "撰寫一個包含 `try-catch` 的 wrapper function 來確保 `fclose` 被呼叫。",
+        "en": "Write a wrapper function containing `try-catch` to ensure `fclose` is called.",
+        "wg": []
+      },
+      {
+        "t": "使用 `std::unique_ptr<FILE, CustomDeleter>`，其中 `CustomDeleter` 呼叫 `fclose`。",
+        "en": "Use `std::unique_ptr<FILE, CustomDeleter>`, where `CustomDeleter` calls `fclose`.",
+        "wg": [
+          {
+            "t": "自定義刪除器",
+            "en": "custom deleter",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "直接在解構子中呼叫 `free(fp)`。",
+        "en": "Call `free(fp)` directly in the destructor.",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "這是封裝 Legacy C Resource 的標準做法。`std::unique_ptr` 允許指定第二個樣板參數作為 Deleter，這樣既能享受自動資源管理，又不需要手寫完整的 Wrapper Class。`free` 是錯誤的釋放方式（對應 `malloc`），`fopen` 必須配對 `fclose`。",
+      "en": "This is the standard practice for wrapping Legacy C Resources. `std::unique_ptr` allows specifying a second template parameter as a Deleter, enabling automatic resource management without writing a full Wrapper Class manually. `free` is the wrong deallocation method (pairs with `malloc`); `fopen` must be paired with `fclose`.",
+      "wg": [
+        {
+          "t": "標準做法",
+          "en": "standard practice",
+          "ps": "noun"
+        },
+        {
+          "t": "樣板參數",
+          "en": "template parameter",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "5",
+    "level": "Intermediate",
+    "keywords": "Type Erasure, std::function, Polymorphism",
+    "parentNo": null,
+    "images": "",
+    "codeSnippet": "",
+    "question": [
+      {
+        "t": "關於 Type Erasure（型別抹除）與傳統繼承（Inheritance）的比較，下列敘述何者正確？",
+        "en": "Regarding the comparison between Type Erasure and traditional Inheritance, which of the following statements is correct?",
+        "wg": [
+          {
+            "t": "型別抹除",
+            "en": "type erasure",
+            "ps": "noun"
+          },
+          {
+            "t": "繼承",
+            "en": "inheritance",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "Type Erasure 要求所有物件必須繼承自同一個 Base Class。",
+        "en": "Type Erasure requires all objects to inherit from the same Base Class.",
+        "wg": []
+      },
+      {
+        "t": "Type Erasure 關注物件「能做什麼（Behavior）」，而非物件「是什麼（Is-A）」，因此耦合度較低。",
+        "en": "Type Erasure focuses on what an object 'can do' (Behavior) rather than what it 'is' (Is-A), resulting in lower coupling.",
+        "wg": [
+          {
+            "t": "耦合度",
+            "en": "coupling",
+            "ps": "noun"
+          },
+          {
+            "t": "行為",
+            "en": "behavior",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "Type Erasure 的執行效能總是優於 Virtual Function。",
+        "en": "Type Erasure always performs better than Virtual Functions.",
+        "wg": []
+      },
+      {
+        "t": "`std::vector<void*>` 是 C++ 中 Type Erasure 的最佳實踐。",
+        "en": "`std::vector<void*>` is the best practice for Type Erasure in C++.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "Type Erasure（如 `std::function`）的核心優勢在於 Duck Typing：只要物件符合特定介面（例如可以被呼叫），就能被儲存與使用，無需繼承特定的父類別。這解除了型別間的強耦合。選項 2 錯誤，因為 Type Erasure 內部通常仍涉及虛擬呼叫與記憶體配置，效能未必較佳。選項 3 錯誤，`void*` 缺乏型別安全且無法正確解構物件。",
+      "en": "The core advantage of Type Erasure (like `std::function`) is Duck Typing: as long as an object satisfies a specific interface (e.g., is callable), it can be stored and used without inheriting from a specific base class. This removes strong coupling between types. Option 2 is incorrect because Type Erasure usually involves virtual calls and memory allocation internally, so performance is not necessarily better. Option 3 is incorrect as `void*` lacks type safety and cannot properly destruct objects.",
+      "wg": [
+        {
+          "t": "鴨子型別",
+          "en": "duck typing",
+          "ps": "noun"
+        },
+        {
+          "t": "強耦合",
+          "en": "strong coupling",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "6",
+    "level": "Intermediate",
+    "keywords": "RAII, Destructor, Exception, std::terminate",
+    "parentNo": null,
+    "images": "",
+    "codeSnippet": "class Connection {\npublic:\n    ~Connection() {\n        if (!close()) {\n            throw std::runtime_error(\"Close failed\");\n        }\n    }\n};",
+    "question": [
+      {
+        "t": "在 RAII 類別的解構子中拋出異常（如上例）是非常危險的。如果這個解構子是在「堆疊展開（Stack Unwinding）」過程中被呼叫的，會發生什麼事？",
+        "en": "Throwing an exception in an RAII class destructor (as shown above) is very dangerous. What happens if this destructor is called during 'Stack Unwinding'?",
+        "wg": [
+          {
+            "t": "堆疊展開",
+            "en": "stack unwinding",
+            "ps": "noun"
+          },
+          {
+            "t": "危險的",
+            "en": "dangerous",
+            "ps": "adjective"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "異常會被忽略，程式繼續執行。",
+        "en": "The exception is ignored, and the program continues execution.",
+        "wg": []
+      },
+      {
+        "t": "新的異常會取代舊的異常，由 catch block 捕獲。",
+        "en": "The new exception replaces the old one and is caught by the catch block.",
+        "wg": []
+      },
+      {
+        "t": "C++ Runtime 會呼叫 `std::terminate()`，導致程式直接崩潰。",
+        "en": "The C++ Runtime calls `std::terminate()`, causing the program to crash immediately.",
+        "wg": [
+          {
+            "t": "崩潰",
+            "en": "crash",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "編譯器會自動將解構子標記為 `noexcept(false)`，允許異常傳遞。",
+        "en": "The compiler automatically marks the destructor as `noexcept(false)`, allowing the exception to propagate.",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "當一個異常正在處理中（Stack Unwinding 進行時），若解構子又拋出另一個異常，C++ 無法同時處理兩個異常，因此標準規定必須呼叫 `std::terminate()` 終止程式。因此，解構子應始終視為 `noexcept`，任何錯誤都應在內部吞掉或記錄，不可外洩。",
+      "en": "When an exception is being handled (Stack Unwinding is in progress), if a destructor throws another exception, C++ cannot handle two exceptions simultaneously. The standard mandates calling `std::terminate()` to end the program. Therefore, destructors should always be treated as `noexcept`; any errors should be swallowed or logged internally, never propagated out.",
+      "wg": [
+        {
+          "t": "終止程式",
+          "en": "terminate program",
+          "ps": "verb phrase"
+        },
+        {
+          "t": "外洩",
+          "en": "propagate out",
+          "ps": "verb phrase"
+        }
+      ]
+    }
+  },
+  {
+    "no": "7",
+    "level": "Advanced",
+    "keywords": "Pimpl, Rule of Five, Move Semantics, unique_ptr",
+    "parentNo": null,
+    "images": "",
+    "codeSnippet": "// Widget.h\nclass Widget {\npublic:\n    Widget();\n    ~Widget(); // User-declared destructor\n\n    void doSomething();\n\nprivate:\n    class Impl;\n    std::unique_ptr<Impl> pImpl;\n};\n\n// main.cpp\nWidget w1;\nWidget w2 = std::move(w1); // Error here",
+    "question": [
+      {
+        "t": "在實作 Pimpl 慣用語時，開發者在 Header 檔宣告了自定義解構子 `~Widget()` 並在 .cpp 檔中實作。然而，當嘗試使用 `std::move` 移動該物件時（如程式碼所示），卻發生了編譯錯誤。請問主要原因為何？",
+        "en": "When implementing the Pimpl idiom, the developer declared a custom destructor `~Widget()` in the header and implemented it in the .cpp file. However, a compilation error occurs when attempting to move the object using `std::move` (as shown in the code). What is the primary reason for this?",
+        "wg": [
+          {
+            "t": "自定義解構子",
+            "en": "User-declared destructor",
+            "ps": "noun phrase"
+          },
+          {
+            "t": "編譯錯誤",
+            "en": "Compilation error",
+            "ps": "noun phrase"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "因為 `std::unique_ptr` 不支援移動操作。",
+        "en": "Because `std::unique_ptr` does not support move operations.",
+        "wg": []
+      },
+      {
+        "t": "因為 `Impl` 類別在 Header 檔中是不完整型別（Incomplete Type），無法移動。",
+        "en": "Because the `Impl` class is an incomplete type in the header file and cannot be moved.",
+        "wg": []
+      },
+      {
+        "t": "因為宣告了自定義解構子，編譯器不再自動生成移動建構子（Move Constructor），且複製建構子因 `unique_ptr` 而被刪除。",
+        "en": "Because a user-declared destructor suppresses the automatic generation of the move constructor, and the copy constructor is deleted due to the `unique_ptr`.",
+        "wg": [
+          {
+            "t": "自動生成",
+            "en": "Automatic generation",
+            "ps": "verb phrase"
+          },
+          {
+            "t": "被刪除",
+            "en": "Deleted",
+            "ps": "adjective"
+          }
+        ]
+      },
+      {
+        "t": "因為 `pImpl` 是私有成員，外部無法存取。",
+        "en": "Because `pImpl` is a private member and cannot be accessed externally.",
+        "wg": []
+      }
+    ],
+    "answer": "因為宣告了自定義解構子，編譯器不再自動生成移動建構子（Move Constructor），且複製建構子因 `unique_ptr` 而被刪除。",
+    "why": {
+      "t": "根據 C++ 的「Rule of Five」，一旦使用者宣告了解構子，編譯器就不會自動生成移動建構子與移動賦值運算子。當程式碼嘗試移動 `Widget` 時，編譯器會退而尋找複製建構子，但由於 `std::unique_ptr` 是不可複製的（Non-copyable），導致隱式複製建構子被標記為刪除（Deleted），最終引發編譯錯誤。正確做法是在 .cpp 檔中手動實作移動運算（通常設為 `= default`）。",
+      "en": "According to the 'Rule of Five' in C++, declaring a destructor prevents the compiler from automatically generating the move constructor and move assignment operator. When attempting to move `Widget`, the compiler falls back to the copy constructor. However, since `std::unique_ptr` is non-copyable, the implicit copy constructor is defined as deleted, causing a compilation error. The correct fix is to manually implement the move operations (usually as `= default`) in the .cpp file.",
+      "wg": [
+        {
+          "t": "Rule of Five",
+          "en": "Rule of Five",
+          "ps": "proper noun"
+        },
+        {
+          "t": "不可複製的",
+          "en": "Non-copyable",
+          "ps": "adjective"
+        }
+      ]
+    }
+  },
+  {
+    "no": "8",
+    "level": "Intermediate",
+    "keywords": "Type Erasure, std::variant, Performance, Over-Engineering",
+    "parentNo": null,
+    "images": "",
+    "codeSnippet": "",
+    "question": [
+      {
+        "t": "在設計一個高效能系統時，你需要儲存一組異質物件（Heterogeneous objects）。已知這些物件的型別是固定且有限的（例如只有 `Circle`, `Square`, `Triangle` 三種）。根據 Handbook 的建議，相較於使用 `std::function` 或傳統 Type Erasure，為何使用 `std::variant` 是更好的選擇？",
+        "en": "When designing a high-performance system, you need to store a set of heterogeneous objects. It is known that the types of these objects are fixed and finite (e.g., only `Circle`, `Square`, `Triangle`). According to the Handbook, why is `std::variant` a better choice compared to `std::function` or traditional Type Erasure?",
+        "wg": [
+          {
+            "t": "異質物件",
+            "en": "Heterogeneous objects",
+            "ps": "noun phrase"
+          },
+          {
+            "t": "固定且有限的",
+            "en": "Fixed and finite",
+            "ps": "adjective phrase"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "因為 `std::variant` 支援執行時期的動態擴充型別。",
+        "en": "Because `std::variant` supports dynamic extension of types at runtime.",
+        "wg": []
+      },
+      {
+        "t": "因為 `std::variant` 避免了堆積記憶體配置（Heap Allocation）與虛擬函式呼叫（Virtual Dispatch）的開銷。",
+        "en": "Because `std::variant` avoids the overhead of heap allocation and virtual dispatch.",
+        "wg": [
+          {
+            "t": "堆積記憶體配置",
+            "en": "Heap Allocation",
+            "ps": "noun phrase"
+          },
+          {
+            "t": "虛擬函式呼叫",
+            "en": "Virtual Dispatch",
+            "ps": "noun phrase"
+          }
+        ]
+      },
+      {
+        "t": "因為 `std::variant` 可以自動將任何型別轉換為基底類別指標。",
+        "en": "Because `std::variant` can automatically convert any type to a base class pointer.",
+        "wg": []
+      },
+      {
+        "t": "因為 `std::variant` 的編譯時間比 `std::function` 短。",
+        "en": "Because `std::variant` has shorter compilation times than `std::function`.",
+        "wg": []
+      }
+    ],
+    "answer": "因為 `std::variant` 避免了堆積記憶體配置（Heap Allocation）與虛擬函式呼叫（Virtual Dispatch）的開銷。",
+    "why": {
+      "t": "傳統 Type Erasure（如 `std::function`）通常需要將物件配置在 Heap 上（除非物件很小符合 SBO），並且透過虛擬表格或類似機制進行呼叫，這會造成 Cache Miss 與額外開銷。`std::variant` 則是在 Stack 上保留足夠空間來存放最大的型別（Union-like），並透過索引直接存取，對於固定型別集合來說效能更優且更型別安全。",
+      "en": "Traditional Type Erasure (like `std::function`) often requires allocating objects on the heap (unless they fit Small Buffer Optimization) and invoking them via vtables or similar mechanisms, causing cache misses and overhead. `std::variant` reserves enough space on the stack for the largest type (Union-like) and accesses it via an index, offering better performance and type safety for a fixed set of types.",
+      "wg": [
+        {
+          "t": "快取未命中",
+          "en": "Cache Miss",
+          "ps": "noun phrase"
+        },
+        {
+          "t": "型別安全",
+          "en": "Type safe",
+          "ps": "adjective"
+        }
+      ]
+    }
+  },
+  {
+    "no": "9",
+    "level": "Intermediate",
+    "keywords": "RAII, Rule of Zero, Code Smell",
+    "parentNo": null,
+    "images": "",
+    "codeSnippet": "class DataProcessor {\npublic:\n    // ... constructors ...\n    ~DataProcessor() {\n        buffer.clear();\n        name.clear();\n    }\nprivate:\n    std::vector<int> buffer;\n    std::string name;\n};",
+    "question": [
+      {
+        "t": "請檢視上述程式碼中的解構子實作。根據現代 C++ 的「Rule of Zero」原則，這種寫法有什麼問題？",
+        "en": "Please review the destructor implementation in the code above. According to the 'Rule of Zero' principle in modern C++, what is wrong with this approach?",
+        "wg": [
+          {
+            "t": "解構子實作",
+            "en": "Destructor implementation",
+            "ps": "noun phrase"
+          },
+          {
+            "t": "Rule of Zero",
+            "en": "Rule of Zero",
+            "ps": "proper noun"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "沒有問題，顯式清除容器內容是良好的防禦性程式設計。",
+        "en": "No issue; explicitly clearing container contents is good defensive programming.",
+        "wg": []
+      },
+      {
+        "t": "這是多餘的（Redundant），且手動定義解構子會抑制編譯器自動生成移動運算（Move Operations），可能導致效能下降。",
+        "en": "It is redundant, and manually defining a destructor suppresses the compiler's automatic generation of move operations, potentially degrading performance.",
+        "wg": [
+          {
+            "t": "多餘的",
+            "en": "Redundant",
+            "ps": "adjective"
+          },
+          {
+            "t": "抑制",
+            "en": "Suppresses",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "應該使用 `shrink_to_fit()` 而不是 `clear()` 來確保記憶體釋放。",
+        "en": "It should use `shrink_to_fit()` instead of `clear()` to ensure memory release.",
+        "wg": []
+      },
+      {
+        "t": "解構子應該標記為 `virtual` 才能正確運作。",
+        "en": "The destructor should be marked as `virtual` to function correctly.",
+        "wg": []
+      }
+    ],
+    "answer": "這是多餘的（Redundant），且手動定義解構子會抑制編譯器自動生成移動運算（Move Operations），可能導致效能下降。",
+    "why": {
+      "t": "`std::vector` 與 `std::string` 均已具備 RAII 特性，會在自身解構時自動釋放資源，因此手動呼叫 `clear()` 是多餘的。更嚴重的是，根據 C++ 規範，一旦定義了自定義解構子，類別就不再被視為「Trivially Copyable/Movable」，且編譯器不會自動生成移動建構子與移動賦值運算子，這會導致該類別在被放入容器或回傳時發生不必要的深層複製（Deep Copy）。",
+      "en": "`std::vector` and `std::string` already possess RAII characteristics and automatically release resources upon destruction, making the manual call to `clear()` redundant. More critically, according to C++ standards, defining a custom destructor prevents the class from being 'Trivially Copyable/Movable' and stops the automatic generation of move constructors and move assignment operators. This leads to unnecessary deep copies when the class is stored in containers or returned.",
+      "wg": [
+        {
+          "t": "深層複製",
+          "en": "Deep Copy",
+          "ps": "noun phrase"
+        },
+        {
+          "t": "自動釋放資源",
+          "en": "Automatically release resources",
+          "ps": "verb phrase"
+        }
+      ]
+    }
+  },
+  {
+    "no": "10",
+    "level": "Intermediate",
+    "keywords": "Design Patterns, Type Erasure, Decision Tree",
+    "parentNo": null,
+    "images": "",
+    "codeSnippet": "",
+    "question": [
+      {
+        "t": "你正在設計一個繪圖系統，需要一個容器來儲存各種不同類型的物件（如 `Car`, `House`, `Tree`），並對它們統一呼叫 `draw()` 方法。這些類別由不同的團隊開發，無法強制它們繼承自同一個 Base Class，且未來可能會新增更多未知型別。根據 Handbook 的決策樹，下列哪種設計模式最適合此情境？",
+        "en": "You are designing a drawing system that needs a container to store various types of objects (e.g., `Car`, `House`, `Tree`) and call a `draw()` method on them uniformly. These classes are developed by different teams, so you cannot force them to inherit from a common Base Class, and more unknown types might be added in the future. According to the Handbook's decision tree, which design pattern is most suitable for this scenario?",
+        "wg": [
+          {
+            "t": "強制繼承",
+            "en": "Force to inherit",
+            "ps": "verb phrase"
+          },
+          {
+            "t": "未知型別",
+            "en": "Unknown types",
+            "ps": "noun phrase"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "Pimpl (Pointer to Implementation)",
+        "en": "Pimpl (Pointer to Implementation)",
+        "wg": []
+      },
+      {
+        "t": "傳統繼承 (Inheritance) 與虛擬函式",
+        "en": "Traditional Inheritance with virtual functions",
+        "wg": []
+      },
+      {
+        "t": "Type Erasure (如 `std::function` 或 Concept-Model 模式)",
+        "en": "Type Erasure (e.g., `std::function` or Concept-Model pattern)",
+        "wg": []
+      },
+      {
+        "t": "C-style `void*` 指標與轉型",
+        "en": "C-style `void*` pointers and casting",
+        "wg": []
+      }
+    ],
+    "answer": "Type Erasure (如 `std::function` 或 Concept-Model 模式)",
+    "why": {
+      "t": "此情境符合 Type Erasure 的核心使用時機：需要多型行為（Polymorphism），但無法或不想使用繼承關係（Non-intrusive）。Pimpl 用於隱藏實作細節；傳統繼承需要修改原始類別；`void*` 則缺乏型別安全且難以正確呼叫方法。Type Erasure 允許物件只要具備特定簽章的方法（Duck Typing）即可被儲存與呼叫。",
+      "en": "This scenario fits the core use case for Type Erasure: needing polymorphism without being able to or wanting to use inheritance (Non-intrusive). Pimpl is for hiding implementation details; traditional inheritance requires modifying original classes; `void*` lacks type safety and makes method invocation difficult. Type Erasure allows objects to be stored and called as long as they possess methods with a specific signature (Duck Typing).",
+      "wg": [
+        {
+          "t": "非侵入式",
+          "en": "Non-intrusive",
+          "ps": "adjective"
+        },
+        {
+          "t": "鴨子型別",
+          "en": "Duck Typing",
+          "ps": "noun phrase"
+        }
+      ]
+    }
+  },
+  {
+    "no": "11",
+    "level": "Advanced",
+    "keywords": "Pimpl, ABI Stability, Binary Compatibility",
+    "parentNo": null,
+    "images": "",
+    "codeSnippet": "// Widget.h\nclass Widget {\n    // ... public API ...\nprivate:\n    class Impl;\n    std::unique_ptr<Impl> pImpl;\n};",
+    "question": [
+      {
+        "t": "Pimpl 慣用語常被用於維護函式庫的 ABI（Application Binary Interface）穩定性。假設你發布了一個使用 Pimpl 的動態連結函式庫（DLL/Shared Object），隨後在更新版本中，你在 `Impl` 結構體內新增了一個 `std::string` 成員變數。為何這不會破壞已編譯客戶端程式的二進位容性？",
+        "en": "The Pimpl idiom is often used to maintain ABI (Application Binary Interface) stability in libraries. Suppose you released a dynamic library (DLL/Shared Object) using Pimpl. In a subsequent update, you added a `std::string` member variable inside the `Impl` struct. Why does this not break the binary compatibility of already compiled client programs?",
+        "wg": [
+          {
+            "t": "二進位相容性",
+            "en": "Binary compatibility",
+            "ps": "noun phrase"
+          },
+          {
+            "t": "動態連結函式庫",
+            "en": "Dynamic library",
+            "ps": "noun phrase"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "因為 `std::unique_ptr` 會自動調整大小以適應新的 `Impl`。",
+        "en": "Because `std::unique_ptr` automatically resizes to accommodate the new `Impl`.",
+        "wg": []
+      },
+      {
+        "t": "因為 `Widget` 物件的大小只取決於 `unique_ptr` 的大小（通常是指標大小），而這在 `Impl` 變更時保持不變。",
+        "en": "Because the size of the `Widget` object depends only on the size of the `unique_ptr` (usually the pointer size), which remains constant when `Impl` changes.",
+        "wg": [
+          {
+            "t": "指標大小",
+            "en": "Pointer size",
+            "ps": "noun phrase"
+          },
+          {
+            "t": "保持不變",
+            "en": "Remains constant",
+            "ps": "verb phrase"
+          }
+        ]
+      },
+      {
+        "t": "因為新增的成員變數會被編譯器優化掉，除非它被公開介面使用。",
+        "en": "Because the added member variable is optimized away by the compiler unless used by the public interface.",
+        "wg": []
+      },
+      {
+        "t": "因為 C++ 標準保證私有成員的變更不影響物件佈局。",
+        "en": "Because the C++ standard guarantees that changes to private members do not affect object layout.",
+        "wg": []
+      }
+    ],
+    "answer": "因為 `Widget` 物件的大小只取決於 `unique_ptr` 的大小（通常是指標大小），而這在 `Impl` 變更時保持不變。",
+    "why": {
+      "t": "客戶端程式碼只看得到 `Widget.h`，其中 `Widget` 的記憶體佈局只包含一個 `std::unique_ptr`。無論 `Impl` 內部如何變大或變小，`unique_ptr` 本身的大小（指標寬度）是固定的。因此，客戶端不需要重新編譯，舊的二進位檔仍能正確地配置 `Widget` 物件的大小，這就是 Pimpl 提供的 ABI 穩定性。",
+      "en": "Client code only sees `Widget.h`, where the memory layout of `Widget` consists solely of a `std::unique_ptr`. Regardless of how `Impl` grows or shrinks internally, the size of the `unique_ptr` itself (pointer width) is fixed. Therefore, clients do not need to recompile, and old binaries can still correctly allocate the size of `Widget` objects. This is the ABI stability provided by Pimpl.",
+      "wg": [
+        {
+          "t": "記憶體佈局",
+          "en": "Memory layout",
+          "ps": "noun phrase"
+        },
+        {
+          "t": "重新編譯",
+          "en": "Recompile",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "12",
+    "level": "Intermediate",
+    "keywords": "RAII, Exception Safety, Mutex, Locking",
+    "parentNo": null,
+    "images": "",
+    "codeSnippet": "std::mutex mtx;\n\nvoid processData() {\n    mtx.lock();\n    // ... 執行複雜運算，可能會拋出異常 ...\n    if (errorCondition) {\n        throw std::runtime_error(\"Error\");\n    }\n    mtx.unlock();\n}",
+    "question": [
+      {
+        "t": "上述程式碼展示了一個非 RAII 風格的資源管理。請問這段程式碼最大的風險是什麼？以及應如何使用 RAII 慣用語修正？",
+        "en": "The code above demonstrates non-RAII style resource management. What is the biggest risk in this code? And how should it be fixed using the RAII idiom?",
+        "wg": [
+          {
+            "t": "非 RAII 風格",
+            "en": "Non-RAII style",
+            "ps": "adjective phrase"
+          },
+          {
+            "t": "資源管理",
+            "en": "Resource management",
+            "ps": "noun phrase"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "風險是 `mtx` 可能被重複鎖定（Double Lock）；修正方式是改用 `std::recursive_mutex`。",
+        "en": "The risk is that `mtx` might be double-locked; fix by using `std::recursive_mutex`.",
+        "wg": []
+      },
+      {
+        "t": "風險是發生異常時 `unlock()` 不會被執行，導致死結（Deadlock）；修正方式是使用 `std::lock_guard<std::mutex> lock(mtx);`。",
+        "en": "The risk is that `unlock()` will not be executed if an exception occurs, leading to a deadlock; fix by using `std::lock_guard<std::mutex> lock(mtx);`.",
+        "wg": [
+          {
+            "t": "死結",
+            "en": "Deadlock",
+            "ps": "noun"
+          },
+          {
+            "t": "異常",
+            "en": "Exception",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "風險是效能低落；修正方式是將鎖定範圍縮小。",
+        "en": "The risk is poor performance; fix by narrowing the locking scope.",
+        "wg": []
+      },
+      {
+        "t": "風險是 `mtx` 未初始化；修正方式是在建構子中初始化它。",
+        "en": "The risk is that `mtx` is uninitialized; fix by initializing it in the constructor.",
+        "wg": []
+      }
+    ],
+    "answer": "風險是發生異常時 `unlock()` 不會被執行，導致死結（Deadlock）；修正方式是使用 `std::lock_guard<std::mutex> lock(mtx);`。",
+    "why": {
+      "t": "這是「Scope as Owner」心智模型的典型應用。手動呼叫 `lock()` 與 `unlock()` 無法保證在異常發生路徑上正確釋放鎖。使用 `std::lock_guard` 或 `std::unique_lock` 可以確保當函式因異常退出或正常結束（Scope Exit）時，解構子會自動觸發 `unlock()`，從而保證異常安全（Exception Safety）。",
+      "en": "This is a classic application of the 'Scope as Owner' mental model. Manually calling `lock()` and `unlock()` cannot guarantee the lock is released correctly on exception paths. Using `std::lock_guard` or `std::unique_lock` ensures that when the function exits (either via exception or normally), the destructor automatically triggers `unlock()`, thereby guaranteeing Exception Safety.",
+      "wg": [
+        {
+          "t": "異常安全",
+          "en": "Exception Safety",
+          "ps": "noun phrase"
+        },
+        {
+          "t": "作用域退出",
+          "en": "Scope Exit",
+          "ps": "noun phrase"
+        }
+      ]
+    }
+  }
+]

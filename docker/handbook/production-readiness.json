@@ -1,0 +1,851 @@
+[
+  {
+    "no": "1",
+    "level": "Intermediate",
+    "keywords": "orchestration, liveness probe, startup",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你正在部署一個 Java 應用程式，該程式需要約 45 秒的時間進行初始化（例如暖機快取）才能開始處理流量。然而，你發現編排系統每隔 30 秒就會強制重啟該容器，導致它永遠無法完成啟動。請問最可能的原因是什麼？",
+        "en": "You are deploying a Java application that takes about 45 seconds to initialize (e.g., warm up caches) before it can handle traffic. However, you notice that the orchestration system forcibly restarts the container every 30 seconds, preventing it from ever completing startup. What is the most likely cause?",
+        "wg": [
+          {
+            "t": "編排系統",
+            "en": "orchestration system",
+            "ps": "noun"
+          },
+          {
+            "t": "強制重啟",
+            "en": "forcibly restarts",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "type": "Single",
+    "options": [
+      {
+        "t": "就緒探針 (Readiness Probe) 配置錯誤，導致系統誤判容器未準備好而重啟它。",
+        "en": "The Readiness Probe is misconfigured, causing the system to restart the container because it is not ready.",
+        "wg": [
+          {
+            "t": "就緒探針",
+            "en": "Readiness Probe",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "存活探針 (Liveness Probe) 的初始延遲 (Initial Delay) 設定過短，導致在應用程式初始化完成前就判定失敗並重啟。",
+        "en": "The Liveness Probe's initial delay is set too short, causing it to fail and restart the container before initialization completes.",
+        "wg": [
+          {
+            "t": "存活探針",
+            "en": "Liveness Probe",
+            "ps": "noun"
+          },
+          {
+            "t": "初始延遲",
+            "en": "Initial Delay",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "容器的記憶體限制 (Memory Limit) 設定過低，導致 Java 進程崩潰。",
+        "en": "The container's memory limit is set too low, causing the Java process to crash.",
+        "wg": []
+      },
+      {
+        "t": "應用程式缺少 `depends_on` 設定，導致相依服務未啟動。",
+        "en": "The application is missing the `depends_on` setting, causing dependent services to be unavailable.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "存活探針 (Liveness Probe) 的職責是偵測應用程式是否「活著」，如果失敗會觸發重啟。若應用程式啟動需要 45 秒，但探針在 30 秒時就開始檢查並判定失敗，容器就會陷入無限重啟迴圈。就緒探針 (Readiness Probe) 失敗只會停止發送流量，不會導致重啟。",
+      "en": "The Liveness Probe is responsible for checking if the application is 'alive'; if it fails, the container is restarted. If the app needs 45 seconds to start but the probe checks and fails at 30 seconds, it causes an infinite restart loop. A failed Readiness Probe would only stop traffic, not restart the container.",
+      "wg": [
+        {
+          "t": "無限重啟迴圈",
+          "en": "infinite restart loop",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "2",
+    "level": "Hard",
+    "keywords": "pid 1, signal handling, graceful shutdown, tini",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你發現你的容器化應用程式每次執行 `docker stop` 時，都需要等待整整 10 秒才會停止，且應用程式日誌中沒有出現你預期應該要有的「正在關閉...」訊息。這最可能是因為什麼原因？",
+        "en": "You notice that your containerized application takes exactly 10 seconds to stop every time you run `docker stop`, and the application logs do not show the 'Shutting down...' messages you expected. What is the most likely reason for this?",
+        "wg": [
+          {
+            "t": "日誌",
+            "en": "logs",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single",
+    "options": [
+      {
+        "t": "應用程式正在處理大量請求，因此忽略了停止信號。",
+        "en": "The application is processing a large number of requests and ignoring the stop signal.",
+        "wg": []
+      },
+      {
+        "t": "應用程式作為 PID 1 執行，而 Linux 核心對 PID 1 有特殊處理，預設不會轉發 SIGTERM 信號。",
+        "en": "The application is running as PID 1, and the Linux kernel treats PID 1 specially by not forwarding SIGTERM signals by default.",
+        "wg": [
+          {
+            "t": "轉發",
+            "en": "forwarding",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "Docker Daemon 忙碌，導致信號發送延遲。",
+        "en": "The Docker Daemon is busy, causing a delay in sending the signal.",
+        "wg": []
+      },
+      {
+        "t": "你使用了 `CMD` 指令而不是 `ENTRYPOINT`，導致 Docker 無法停止容器。",
+        "en": "You used the `CMD` instruction instead of `ENTRYPOINT`, preventing Docker from stopping the container.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "這是經典的 PID 1 殭屍問題。Linux 核心對 PID 1 進程有特殊保護，若該進程沒有明確註冊信號處理器，核心不會對其進行預設的信號處置（如終止）。這導致 `SIGTERM` 被忽略，Docker 等待 10 秒超時後發送 `SIGKILL` 強制殺死。解決方案是使用 `tini` 作為 init 進程。",
+      "en": "This is the classic PID 1 zombie problem. The Linux kernel protects PID 1; if it hasn't explicitly registered a signal handler, the kernel won't apply default actions (like termination). This causes `SIGTERM` to be ignored until Docker times out after 10 seconds and sends `SIGKILL`. The fix is to use `tini` as an init process.",
+      "wg": [
+        {
+          "t": "殭屍問題",
+          "en": "zombie problem",
+          "ps": "noun"
+        },
+        {
+          "t": "信號處理器",
+          "en": "signal handler",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "3",
+    "level": "Intermediate",
+    "keywords": "stateless, session, scaling, redis",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你將一個傳統 PHP 應用程式遷移到容器叢集。當你將副本數 (Replicas) 從 1 擴展到 3 後，使用者回報他們在瀏覽過程中會隨機被登出。根據「生產環境準備度」的最佳實務，應如何解決此問題？",
+        "en": "You migrated a legacy PHP application to a container cluster. After scaling the replicas from 1 to 3, users report being randomly logged out while browsing. According to 'Production Readiness' best practices, how should you resolve this?",
+        "wg": [
+          {
+            "t": "副本數",
+            "en": "Replicas",
+            "ps": "noun"
+          },
+          {
+            "t": "隨機被登出",
+            "en": "randomly logged out",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "type": "Single",
+    "options": [
+      {
+        "t": "在負載平衡器 (Load Balancer) 層級啟用「黏性會話 (Sticky Sessions)」。",
+        "en": "Enable 'Sticky Sessions' at the Load Balancer level.",
+        "wg": [
+          {
+            "t": "黏性會話",
+            "en": "Sticky Sessions",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "將會話 (Session) 資料從本地檔案移至 Redis 或 Memcached 等外部儲存。",
+        "en": "Move session data from local files to external storage like Redis or Memcached.",
+        "wg": [
+          {
+            "t": "外部儲存",
+            "en": "external storage",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "使用 `ReadWriteMany` 的共享儲存卷 (Volume) 來同步所有容器的 Session 檔案。",
+        "en": "Use a `ReadWriteMany` shared volume to sync session files across all containers.",
+        "wg": []
+      },
+      {
+        "t": "增加容器的 CPU 與記憶體資源，以避免 Session 遺失。",
+        "en": "Increase the container's CPU and memory resources to prevent session loss.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "這是違反「嚴格無狀態設計 (Strict Statelessness)」的後果。容器不應依賴本地檔案系統儲存狀態。雖然黏性會話可以暫時緩解，但它會導致負載不均且不利於自動擴展。正確的雲原生做法是將 Session 狀態外置化到 Redis 等服務。",
+      "en": "This is a consequence of violating 'Strict Statelessness'. Containers should not rely on the local filesystem for state. While sticky sessions are a temporary fix, they cause uneven load and hinder autoscaling. The correct cloud-native approach is to externalize session state to a service like Redis.",
+      "wg": [
+        {
+          "t": "嚴格無狀態設計",
+          "en": "Strict Statelessness",
+          "ps": "noun"
+        },
+        {
+          "t": "外置化",
+          "en": "externalize",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "4",
+    "level": "Intermediate",
+    "keywords": "startup order, dependency, retry logic",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在 Docker Compose 中，你習慣使用 `depends_on` 來確保資料庫先於 API 啟動。但在 Kubernetes 等分散式環境中，API Pod 啟動時可能會因為連不上資料庫而崩潰。根據手冊，最穩健的修復方式是什麼？",
+        "en": "In Docker Compose, you used `depends_on` to ensure the database starts before the API. However, in distributed environments like Kubernetes, the API Pod might crash on startup because it cannot connect to the database. According to the handbook, what is the most robust fix?",
+        "wg": [
+          {
+            "t": "分散式環境",
+            "en": "distributed environments",
+            "ps": "noun"
+          },
+          {
+            "t": "穩健的",
+            "en": "robust",
+            "ps": "adjective"
+          }
+        ]
+      }
+    ],
+    "type": "Single",
+    "options": [
+      {
+        "t": "在應用程式程式碼中實作連線重試機制 (Retry Logic)，容許資料庫暫時不可用。",
+        "en": "Implement connection retry logic within the application code to tolerate temporary database unavailability.",
+        "wg": [
+          {
+            "t": "重試機制",
+            "en": "Retry Logic",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "使用 `initContainers` 腳本來等待資料庫 IP 可以被 ping 通。",
+        "en": "Use an `initContainers` script to wait until the database IP is pingable.",
+        "wg": []
+      },
+      {
+        "t": "在 Deployment YAML 中硬編碼資料庫的 IP 位址。",
+        "en": "Hardcode the database IP address in the Deployment YAML.",
+        "wg": []
+      },
+      {
+        "t": "手動控制啟動順序，先部署資料庫，等待 5 分鐘後再部署 API。",
+        "en": "Manually control the startup order by deploying the database first and waiting 5 minutes before deploying the API.",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "在分散式系統中，依賴啟動順序是反模式 (Anti-pattern)。Pod IP 是動態的，且資料庫隨時可能重啟。應用程式應該具備韌性，透過重試邏輯 (Retry Logic) 等待資料庫就緒，而不是一連不上就崩潰。",
+      "en": "Relying on startup order is an anti-pattern in distributed systems. Pod IPs are dynamic, and databases can restart at any time. Applications should be resilient, using retry logic to wait for the database to become ready, rather than crashing immediately upon connection failure.",
+      "wg": [
+        {
+          "t": "反模式",
+          "en": "Anti-pattern",
+          "ps": "noun"
+        },
+        {
+          "t": "韌性",
+          "en": "resilience",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "5",
+    "level": "Intermediate",
+    "keywords": "graceful shutdown, sigterm, rolling update",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "當編排系統進行滾動更新 (Rolling Update) 時，會向舊容器發送 `SIGTERM` 信號。若你的應用程式收到信號後立即關閉所有連線並退出，為什麼這被視為一種反模式 (Anti-pattern)？",
+        "en": "When the orchestration system performs a Rolling Update, it sends a `SIGTERM` signal to old containers. If your application immediately closes all connections and exits upon receiving this signal, why is this considered an anti-pattern?",
+        "wg": [
+          {
+            "t": "滾動更新",
+            "en": "Rolling Update",
+            "ps": "noun"
+          },
+          {
+            "t": "立即關閉",
+            "en": "immediately closes",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "type": "Single",
+    "options": [
+      {
+        "t": "因為這會導致編排系統無法正確更新容器的狀態。",
+        "en": "Because it prevents the orchestration system from correctly updating the container status.",
+        "wg": []
+      },
+      {
+        "t": "因為這可能會中斷正在處理中的請求 (In-flight Requests)，導致使用者收到錯誤。",
+        "en": "Because it may interrupt in-flight requests, causing errors for users.",
+        "wg": [
+          {
+            "t": "正在處理中的請求",
+            "en": "In-flight Requests",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "因為這會導致資料庫鎖死。",
+        "en": "Because it causes the database to lock up.",
+        "wg": []
+      },
+      {
+        "t": "因為應用程式應該忽略 `SIGTERM` 並等待 `SIGKILL`。",
+        "en": "Because the application should ignore `SIGTERM` and wait for `SIGKILL`.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "優雅停機 (Graceful Shutdown) 的核心目標是「零中斷」。收到 `SIGTERM` 後，應用程式應停止接收新請求，但必須繼續完成已經接收且正在處理中的請求，然後才退出。立即退出會導致這些請求失敗。",
+      "en": "The core goal of Graceful Shutdown is 'zero downtime'. Upon receiving `SIGTERM`, the application should stop accepting new requests but must finish processing requests that have already been received before exiting. Exiting immediately causes these requests to fail.",
+      "wg": [
+        {
+          "t": "優雅停機",
+          "en": "Graceful Shutdown",
+          "ps": "noun"
+        },
+        {
+          "t": "零中斷",
+          "en": "zero downtime",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "6",
+    "level": "Easy",
+    "keywords": "configuration, environment variables, 12-factor",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你正在為一個 Web 伺服器建置 Docker Image。該伺服器在 Staging 和 Production 環境需要不同的 `config.json` 設定檔。根據「配置外置化」原則，下列哪種做法是正確的？",
+        "en": "You are building a Docker Image for a web server. The server requires different `config.json` files for Staging and Production environments. According to the 'Externalized Configuration' principle, which approach is correct?",
+        "wg": [
+          {
+            "t": "配置外置化",
+            "en": "Externalized Configuration",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single",
+    "options": [
+      {
+        "t": "建置兩個不同的 Image：`my-app:staging` 和 `my-app:prod`，分別將對應的設定檔燒錄進去。",
+        "en": "Build two separate images: `my-app:staging` and `my-app:prod`, baking the corresponding config files into each.",
+        "wg": [
+          {
+            "t": "燒錄",
+            "en": "baking",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "保持 Image 環境無關 (Environment Agnostic)，在執行時透過環境變數或掛載 ConfigMap 來注入配置。",
+        "en": "Keep the image Environment Agnostic and inject the configuration via Environment Variables or ConfigMaps at runtime.",
+        "wg": [
+          {
+            "t": "環境無關",
+            "en": "Environment Agnostic",
+            "ps": "adjective"
+          }
+        ]
+      },
+      {
+        "t": "在 Entrypoint 腳本中使用 `git pull` 下載最新的設定檔。",
+        "en": "Use `git pull` in the Entrypoint script to download the latest config file.",
+        "wg": []
+      },
+      {
+        "t": "將所有環境的配置都打包進 Image，並透過啟動參數選擇要使用哪一個。",
+        "en": "Package configurations for all environments into the Image and select which one to use via a startup argument.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "根據 12-Factor App 原則，程式碼與配置應分離。Image 應具備不可變性，同一個 Image 應能透過注入不同的環境變數或 ConfigMap 在不同環境中執行。為每個環境建置不同 Image 違反了「Build Once, Run Anywhere」原則。",
+      "en": "According to the 12-Factor App principles, code and configuration should be separated. The Image should be immutable; the same Image should run in different environments by injecting different Environment Variables or ConfigMaps. Building different images for each environment violates the 'Build Once, Run Anywhere' principle.",
+      "wg": [
+        {
+          "t": "不可變性",
+          "en": "immutability",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "7",
+    "level": "Intermediate",
+    "keywords": "readiness probe, liveness probe, load balancer, traffic flow",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你的應用程式依賴於外部資料庫。當資料庫暫時連線逾時，你希望負載平衡器 (Load Balancer) 暫時停止將流量轉發給該容器，但不希望容器被強制重啟（因為應用程式本身的初始化成本很高）。",
+        "en": "Your application depends on an external database. When the database connection times out temporarily, you want the Load Balancer to stop forwarding traffic to the container, but you do not want the container to be forcibly restarted (as the application initialization cost is high).",
+        "wg": [
+          {
+            "t": "負載平衡器",
+            "en": "Load Balancer",
+            "ps": "noun"
+          },
+          {
+            "t": "強制重啟",
+            "en": "forcibly restarted",
+            "ps": "verb phrase"
+          }
+        ]
+      },
+      {
+        "t": "你應該如何配置探針 (Probes)？",
+        "en": "How should you configure the probes?",
+        "wg": []
+      }
+    ],
+    "type": "Single",
+    "options": [
+      {
+        "t": "配置 Liveness Probe 來檢查資料庫連線。",
+        "en": "Configure a Liveness Probe to check the database connection.",
+        "wg": []
+      },
+      {
+        "t": "配置 Readiness Probe 來檢查資料庫連線。",
+        "en": "Configure a Readiness Probe to check the database connection.",
+        "wg": []
+      },
+      {
+        "t": "同時配置 Liveness 和 Readiness Probe 來檢查資料庫連線。",
+        "en": "Configure both Liveness and Readiness Probes to check the database connection.",
+        "wg": []
+      },
+      {
+        "t": "移除所有探針以避免編排系統干擾。",
+        "en": "Remove all probes to avoid interference from the orchestration system.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "Readiness Probe 失敗時，編排系統只會將該容器從 Service/Load Balancer 的端點列表中移除，停止發送流量，直到探針恢復成功為止，這符合題目需求。若使用 Liveness Probe 檢查資料庫，當資料庫不穩時，容器會被反覆重啟，這是不必要的且可能導致雪崩效應。",
+      "en": "When a Readiness Probe fails, the orchestration system only removes the container from the Service/Load Balancer endpoints, stopping traffic flow until the probe succeeds again, which matches the requirement. If a Liveness Probe is used to check the database, the container would be repeatedly restarted when the database is unstable, which is unnecessary and can lead to cascading failures.",
+      "wg": [
+        {
+          "t": "雪崩效應",
+          "en": "cascading failures",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "8",
+    "level": "Intermediate",
+    "keywords": "security, non-root, user instruction, least privilege",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "FROM node:18\nWORKDIR /app\nCOPY . .\nCMD [\"node\", \"server.js\"]",
+    "question": [
+      {
+        "t": "你正在審查上述用於生產環境的 Dockerfile。從安全性角度來看，這個 Dockerfile 存在什麼主要風險？",
+        "en": "You are auditing the above Dockerfile for production use. From a security perspective, what is the major risk associated with this Dockerfile?",
+        "wg": [
+          {
+            "t": "審查",
+            "en": "auditing",
+            "ps": "verb"
+          },
+          {
+            "t": "安全性角度",
+            "en": "security perspective",
+            "ps": "noun phrase"
+          }
+        ]
+      }
+    ],
+    "type": "Single",
+    "options": [
+      {
+        "t": "它使用了 `node:18` 這種過於具體的版本標籤。",
+        "en": "It uses a version tag `node:18` which is too specific.",
+        "wg": []
+      },
+      {
+        "t": "它預設以 root 使用者身份執行應用程式。",
+        "en": "It runs the application as the root user by default.",
+        "wg": []
+      },
+      {
+        "t": "它沒有包含 `EXPOSE` 指令。",
+        "en": "It does not include the `EXPOSE` instruction.",
+        "wg": []
+      },
+      {
+        "t": "它使用了 `COPY . .` 而不是 `ADD`。",
+        "en": "It uses `COPY . .` instead of `ADD`.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "Docker 容器預設以 root 身份執行。若應用程式遭入侵，攻擊者將擁有容器內的 root 權限，這增加了容器逃逸 (Container Breakout) 後對宿主機造成危害的風險。最佳實務是使用 `USER` 指令切換到非特權使用者。",
+      "en": "Docker containers run as root by default. If the application is compromised, the attacker gains root privileges inside the container, increasing the risk of harm to the host if a container breakout occurs. The best practice is to use the `USER` instruction to switch to a non-privileged user.",
+      "wg": [
+        {
+          "t": "容器逃逸",
+          "en": "Container Breakout",
+          "ps": "noun"
+        },
+        {
+          "t": "非特權使用者",
+          "en": "non-privileged user",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "9",
+    "level": "Intermediate",
+    "keywords": "multi-stage build, image size, security, build tools",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你的團隊發現生產環境的 Go 語言應用程式映像檔高達 800MB，且內部包含了編譯器 (GCC) 與原始碼。這違反了哪項生產環境準備度原則，以及應如何修正？",
+        "en": "Your team notices that the production image for a Go application is 800MB and contains the compiler (GCC) and source code. Which production readiness principle does this violate, and how should it be fixed?",
+        "wg": [
+          {
+            "t": "編譯器",
+            "en": "compiler",
+            "ps": "noun"
+          },
+          {
+            "t": "原始碼",
+            "en": "source code",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single",
+    "options": [
+      {
+        "t": "違反了「配置外置化」，應使用 Volume 掛載原始碼。",
+        "en": "Violates 'Externalized Configuration'; should use Volume to mount source code.",
+        "wg": []
+      },
+      {
+        "t": "違反了「混合構建與執行環境」反模式，應採用多階段構建 (Multi-stage Builds)。",
+        "en": "Violates the 'Mixed Build & Runtime' anti-pattern; should adopt Multi-stage Builds.",
+        "wg": [
+          {
+            "t": "多階段構建",
+            "en": "Multi-stage Builds",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "違反了「不可變性」，應在啟動時動態下載編譯器。",
+        "en": "Violates 'Immutability'; should dynamically download the compiler at startup.",
+        "wg": []
+      },
+      {
+        "t": "違反了「優雅停機」，應移除所有編譯工具。",
+        "en": "Violates 'Graceful Shutdown'; should remove all compilation tools.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "生產環境映像檔不應包含構建工具或原始碼，這會導致體積膨脹並增加攻擊面。多階段構建允許你在一個階段編譯，並僅將編譯後的二進位檔複製到最終的精簡映像檔中。",
+      "en": "Production images should not contain build tools or source code, as this causes bloat and increases the attack surface. Multi-stage builds allow you to compile in one stage and copy only the compiled binary to a final, slim image.",
+      "wg": [
+        {
+          "t": "攻擊面",
+          "en": "attack surface",
+          "ps": "noun"
+        },
+        {
+          "t": "體積膨脹",
+          "en": "bloat",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "10",
+    "level": "Easy",
+    "keywords": "logging, stdout, 12-factor, observability",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "一位開發者將應用程式設定為把日誌寫入容器內的 `/var/log/app.log` 檔案中。在容器編排環境 (如 Kubernetes) 中，為什麼這被視為一種 Anti-pattern？",
+        "en": "A developer configures the application to write logs to a file at `/var/log/app.log` inside the container. Why is this considered an anti-pattern in a container orchestration environment (like Kubernetes)?",
+        "wg": [
+          {
+            "t": "日誌",
+            "en": "logs",
+            "ps": "noun"
+          },
+          {
+            "t": "容器編排環境",
+            "en": "container orchestration environment",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single",
+    "options": [
+      {
+        "t": "因為容器內的檔案系統讀寫速度太慢。",
+        "en": "Because the file system inside the container is too slow for reading and writing.",
+        "wg": []
+      },
+      {
+        "t": "因為日誌檔案會隨著容器銷毀而遺失，且難以被集中式日誌系統收集。",
+        "en": "Because log files are lost when the container is destroyed and are difficult for centralized logging systems to collect.",
+        "wg": []
+      },
+      {
+        "t": "因為 `/var/log` 目錄在 Docker 中是唯讀的。",
+        "en": "Because the `/var/log` directory is read-only in Docker.",
+        "wg": []
+      },
+      {
+        "t": "因為這會導致 PID 1 進程崩潰。",
+        "en": "Because this will cause the PID 1 process to crash.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "根據 12-Factor App 原則，容器應將日誌視為事件串流並輸出到 `stdout`/`stderr`。寫入本地檔案會導致日誌隨容器消失，且需要額外的 Sidecar 或 Agent 進入容器內讀取檔案，增加了複雜度。",
+      "en": "According to the 12-Factor App principles, containers should treat logs as event streams and output them to `stdout`/`stderr`. Writing to local files causes logs to vanish with the container and requires additional Sidecars or Agents to read files from inside, increasing complexity.",
+      "wg": [
+        {
+          "t": "事件串流",
+          "en": "event streams",
+          "ps": "noun"
+        },
+        {
+          "t": "集中式日誌系統",
+          "en": "centralized logging systems",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "11",
+    "level": "Intermediate",
+    "keywords": "volumes, orchestration, anti-pattern, host path",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "volumes:\n  - ./src:/app/src",
+    "question": [
+      {
+        "t": "在開發環境使用 Docker Compose 時，我們常使用上述配置來實現程式碼熱重載 (Hot-reloading)。為什麼直接將此配置遷移到生產環境的多節點叢集 (Multi-node Cluster) 是不可行的？",
+        "en": "When using Docker Compose in a development environment, we often use the above configuration for code hot-reloading. Why is it not feasible to migrate this configuration directly to a production multi-node cluster?",
+        "wg": [
+          {
+            "t": "熱重載",
+            "en": "Hot-reloading",
+            "ps": "noun"
+          },
+          {
+            "t": "多節點叢集",
+            "en": "Multi-node Cluster",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single",
+    "options": [
+      {
+        "t": "因為生產環境禁止使用 YAML 格式。",
+        "en": "Because YAML format is forbidden in production environments.",
+        "wg": []
+      },
+      {
+        "t": "因為宿主機路徑掛載 (Host Path Mount) 依賴於特定節點上的檔案存在，這破壞了容器的可移植性。",
+        "en": "Because Host Path Mounts rely on files existing on a specific node, which breaks container portability.",
+        "wg": [
+          {
+            "t": "可移植性",
+            "en": "portability",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "因為這會導致容器的網路設定失敗。",
+        "en": "Because this will cause the container's network configuration to fail.",
+        "wg": []
+      },
+      {
+        "t": "因為 Docker Image 在生產環境中會自動變為唯讀。",
+        "en": "Because Docker Images automatically become read-only in production environments.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "在多節點叢集中，容器可能會被調度到任何一台機器上。若依賴 `./src` 這種宿主機路徑，當容器跑到另一台沒有該程式碼檔案的機器時就會執行失敗。生產環境應將程式碼打包進 Image 中。",
+      "en": "In a multi-node cluster, containers can be scheduled on any machine. If relying on a host path like `./src`, execution will fail when the container lands on a machine that doesn't have those code files. In production, code should be packaged inside the Image.",
+      "wg": [
+        {
+          "t": "調度",
+          "en": "scheduled",
+          "ps": "verb"
+        },
+        {
+          "t": "宿主機路徑",
+          "en": "host path",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "12",
+    "level": "Easy",
+    "keywords": "immutability, pets vs cattle, deployment, patching",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "生產環境中的某個容器發現了一個緊急 Bug。系統管理員建議直接使用 `docker exec` 進入容器修改程式碼並重啟 Process 以節省時間。根據「不可變基礎設施 (Immutable Infrastructure)」原則，為什麼這是不推薦的做法？",
+        "en": "A critical bug is found in a production container. A system administrator suggests using `docker exec` to enter the container, modify the code, and restart the process to save time. According to the 'Immutable Infrastructure' principle, why is this discouraged?",
+        "wg": [
+          {
+            "t": "不可變基礎設施",
+            "en": "Immutable Infrastructure",
+            "ps": "noun"
+          },
+          {
+            "t": "不推薦的做法",
+            "en": "discouraged practice",
+            "ps": "noun phrase"
+          }
+        ]
+      }
+    ],
+    "type": "Single",
+    "options": [
+      {
+        "t": "因為 `docker exec` 會消耗過多的 CPU 資源。",
+        "en": "Because `docker exec` consumes too much CPU resource.",
+        "wg": []
+      },
+      {
+        "t": "因為手動修改會導致「配置漂移 (Configuration Drift)」，且修改會在容器擴展或替換時遺失。",
+        "en": "Because manual modification leads to 'Configuration Drift', and changes will be lost when the container is scaled or replaced.",
+        "wg": [
+          {
+            "t": "配置漂移",
+            "en": "Configuration Drift",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "因為容器內的檔案系統無法被編輯。",
+        "en": "Because the file system inside the container cannot be edited.",
+        "wg": []
+      },
+      {
+        "t": "因為這會導致 Docker Daemon 崩潰。",
+        "en": "Because this will cause the Docker Daemon to crash.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "將容器視為「牲畜」意味著一旦啟動就不應變更。手動修補 (Patching) 會導致運行狀態與 Image 定義不一致，且當編排系統自動重啟或擴展新容器時，舊的 Bug 仍然存在。正確做法是修復程式碼、構建新 Image 並進行滾動更新。",
+      "en": "Treating containers as 'Cattle' means they should not be changed once started. Manual patching leads to inconsistency between the running state and the Image definition, and when the orchestration system automatically restarts or scales new containers, the old bug will persist. The correct approach is to fix the code, build a new Image, and perform a rolling update.",
+      "wg": [
+        {
+          "t": "手動修補",
+          "en": "Manual patching",
+          "ps": "noun"
+        },
+        {
+          "t": "滾動更新",
+          "en": "rolling update",
+          "ps": "noun"
+        }
+      ]
+    }
+  }
+]

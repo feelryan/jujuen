@@ -1,0 +1,1214 @@
+[
+  {
+    "no": "13",
+    "level": "advanced",
+    "keywords": "Docker Socket, CI/CD, Privilege Escalation, Security Risks",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "docker run -v /var/run/docker.sock:/var/run/docker.sock ...",
+    "question": [
+      {
+        "t": "在設計 CI/CD 流程時，為了讓 Jenkins Agent 容器能夠執行 Docker 指令來建置映像檔，您考慮將宿主機的 Docker Socket (`/var/run/docker.sock`) 掛載進容器中。",
+        "en": "When designing a CI/CD pipeline, to allow a Jenkins Agent container to execute Docker commands for building images, you are considering mounting the host's Docker Socket (`/var/run/docker.sock`) into the container.",
+        "wg": [
+          {
+            "t": "掛載",
+            "en": "mount",
+            "ps": "V"
+          },
+          {
+            "t": "宿主機",
+            "en": "host",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "從安全性角度來看，這種做法的主要風險是什麼？",
+        "en": "From a security perspective, what is the primary risk of this approach?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 這會導致容器內的建置過程變慢，因為 Socket I/O 效能較差。",
+        "en": "(A) It causes the build process inside the container to slow down due to poor Socket I/O performance.",
+        "wg": []
+      },
+      {
+        "t": "(B) 這等同於賦予該容器對宿主機的完整 Root 權限，因為它可以要求 Daemon 啟動一個掛載宿主機根目錄的特權容器。",
+        "en": "(B) This is equivalent to granting the container full Root privileges on the host, as it can request the Daemon to launch a privileged container mounting the host's root directory.",
+        "wg": [
+          {
+            "t": "特權容器",
+            "en": "privileged container",
+            "ps": "N"
+          },
+          {
+            "t": "根目錄",
+            "en": "root directory",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) 這會破壞 Docker 的網路隔離，導致容器可以直接存取宿主機的私有網路介面。",
+        "en": "(C) This breaks Docker's network isolation, allowing the container to directly access the host's private network interfaces.",
+        "wg": []
+      },
+      {
+        "t": "(D) 這會導致 Docker Daemon 崩潰，因為多個客戶端同時寫入 Socket 會造成競爭條件 (Race Condition)。",
+        "en": "(D) This causes the Docker Daemon to crash because multiple clients writing to the Socket simultaneously creates a Race Condition.",
+        "wg": [
+          {
+            "t": "競爭條件",
+            "en": "Race Condition",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "掛載 Docker Socket 允許容器內的程序直接與宿主機上的 Docker Daemon 通訊。由於 Daemon 以 Root 執行，容器可以發送指令啟動一個新的容器（例如使用 `-v /:/host --privileged`），進而完全控制宿主機。",
+      "en": "Mounting the Docker Socket allows processes inside the container to communicate directly with the Docker Daemon on the host. Since the Daemon runs as Root, the container can send commands to start a new container (e.g., using `-v /:/host --privileged`), thereby gaining full control over the host.",
+      "wg": [
+        {
+          "t": "通訊",
+          "en": "communicate",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "14",
+    "level": "intermediate",
+    "keywords": "AppArmor, SELinux, MAC, File Access Control",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您已經透過 Seccomp 限制了容器的系統呼叫，但現在您希望進一步實施「強制存取控制 (MAC)」，",
+        "en": "You have already restricted container system calls via Seccomp, but now you want to further implement 'Mandatory Access Control (MAC)',",
+        "wg": [
+          {
+            "t": "強制存取控制",
+            "en": "Mandatory Access Control",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "具體目標是限制容器只能寫入特定的檔案路徑（例如 `/data`），並禁止寫入其他系統目錄，即使該容器擁有檔案寫入的 Capability。",
+        "en": "with the specific goal of restricting the container to only write to specific file paths (e.g., `/data`) and forbidding writes to other system directories, even if the container has the file writing Capability.",
+        "wg": [
+          {
+            "t": "檔案路徑",
+            "en": "file paths",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "下列哪項技術最適合達成此基於路徑的防護？",
+        "en": "Which of the following technologies is best suited to achieve this path-based protection?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 使用 `--cap-drop` 移除 `DAC_OVERRIDE`。",
+        "en": "(A) Use `--cap-drop` to remove `DAC_OVERRIDE`.",
+        "wg": []
+      },
+      {
+        "t": "(B) 配置 AppArmor 或 SELinux 設定檔。",
+        "en": "(B) Configure AppArmor or SELinux profiles.",
+        "wg": []
+      },
+      {
+        "t": "(C) 啟用 User Namespaces (userns-remap)。",
+        "en": "(C) Enable User Namespaces (userns-remap).",
+        "wg": []
+      },
+      {
+        "t": "(D) 使用 `--read-only` 旗標。",
+        "en": "(D) Use the `--read-only` flag.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "AppArmor 和 SELinux 提供了基於檔案路徑或網路資源的強制存取控制 (MAC)，可以細粒度地定義哪些程式可以存取哪些檔案。Seccomp 針對系統呼叫，Capabilities 針對特權功能，而 `--read-only` 是全域性的唯讀設定，無法針對特定路徑開放寫入（除非掛載 Volume，但不如 MAC 靈活）。",
+      "en": "AppArmor and SELinux provide Mandatory Access Control (MAC) based on file paths or network resources, allowing granular definition of which programs can access which files. Seccomp targets system calls, Capabilities target privileged features, and `--read-only` is a global read-only setting that cannot selectively allow writes to specific paths (unless Volumes are mounted, but it's less flexible than MAC).",
+      "wg": [
+        {
+          "t": "細粒度",
+          "en": "granular",
+          "ps": "Adj"
+        },
+        {
+          "t": "全域性",
+          "en": "global",
+          "ps": "Adj"
+        }
+      ]
+    }
+  },
+  {
+    "no": "15",
+    "level": "intermediate",
+    "keywords": "Availability, DoS, Resource Limits, cgroups",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在多租戶環境中，您擔心某個被攻破或有 Bug 的容器會發動「分岔炸彈 (Fork Bomb)」攻擊，耗盡宿主機的 Process ID 資源，導致整個節點癱瘓。",
+        "en": "In a multi-tenant environment, you are concerned that a compromised or buggy container might launch a 'Fork Bomb' attack, exhausting the host's Process ID resources and causing the entire node to crash.",
+        "wg": [
+          {
+            "t": "多租戶",
+            "en": "multi-tenant",
+            "ps": "Adj"
+          },
+          {
+            "t": "分岔炸彈",
+            "en": "Fork Bomb",
+            "ps": "N"
+          },
+          {
+            "t": "癱瘓",
+            "en": "crash/paralyze",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "為了保障系統的可用性 (Availability)，您應該在執行容器時優先設定哪個參數？",
+        "en": "To ensure system Availability, which parameter should you prioritize setting when running the container?",
+        "wg": [
+          {
+            "t": "可用性",
+            "en": "Availability",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) `--security-opt=no-new-privileges`",
+        "en": "(A) `--security-opt=no-new-privileges`",
+        "wg": []
+      },
+      {
+        "t": "(B) `--pids-limit`",
+        "en": "(B) `--pids-limit`",
+        "wg": []
+      },
+      {
+        "t": "(C) `--cap-drop=SYS_ADMIN`",
+        "en": "(C) `--cap-drop=SYS_ADMIN`",
+        "wg": []
+      },
+      {
+        "t": "(D) `--network=none`",
+        "en": "(D) `--network=none`",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "`--pids-limit` 可以限制容器內允許建立的最大行程 (Process) 數量，直接防止 Fork Bomb 耗盡宿主機的 PID 表。這是防禦 DoS 攻擊、保障可用性的關鍵設定。",
+      "en": "`--pids-limit` restricts the maximum number of processes allowed inside a container, directly preventing a Fork Bomb from exhausting the host's PID table. This is a key setting for defending against DoS attacks and ensuring availability.",
+      "wg": [
+        {
+          "t": "耗盡",
+          "en": "exhaust",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "4",
+    "level": "intermediate",
+    "keywords": "Linux Capabilities, CAP_NET_BIND_SERVICE, Non-root, Port Binding",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您正在部署一個 Nginx 網頁伺服器容器，該服務需要監聽標準的 HTTP Port 80。",
+        "en": "You are deploying an Nginx web server container that needs to listen on the standard HTTP Port 80.",
+        "wg": [
+          {
+            "t": "監聽",
+            "en": "listen",
+            "ps": "V"
+          },
+          {
+            "t": "標準的",
+            "en": "standard",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "根據最小權限原則，您不希望容器以 Root 使用者身分執行。",
+        "en": "Following the principle of least privilege, you do not want the container to run as the Root user.",
+        "wg": [
+          {
+            "t": "最小權限原則",
+            "en": "principle of least privilege",
+            "ps": "NP"
+          }
+        ]
+      },
+      {
+        "t": "然而，在 Linux 中，低於 1024 的連接埠通常需要 Root 權限才能綁定。",
+        "en": "However, in Linux, ports below 1024 typically require Root privileges to bind.",
+        "wg": [
+          {
+            "t": "綁定",
+            "en": "bind",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "下列哪種做法最安全且符合最佳實務？",
+        "en": "Which of the following approaches is the most secure and aligns with best practices?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 使用 `--privileged` 旗標來啟動容器，並在 Dockerfile 中指定 `USER nginx`。",
+        "en": "(A) Start the container with the `--privileged` flag and specify `USER nginx` in the Dockerfile.",
+        "wg": []
+      },
+      {
+        "t": "(B) 在 Dockerfile 中將使用者設為 Root，啟動後再透過腳本降權。",
+        "en": "(B) Set the user to Root in the Dockerfile and drop privileges via a script after startup.",
+        "wg": [
+          {
+            "t": "降權",
+            "en": "drop privileges",
+            "ps": "VP"
+          }
+        ]
+      },
+      {
+        "t": "(C) 使用 `--cap-add=NET_BIND_SERVICE` 賦予特定權限，並以非 Root 使用者執行。",
+        "en": "(C) Use `--cap-add=NET_BIND_SERVICE` to grant specific privileges and run as a non-root user.",
+        "wg": [
+          {
+            "t": "賦予",
+            "en": "grant",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(D) 將容器內的 Port 80 映射到宿主機的高位 Port (如 8080)，並要求容器以 Root 執行。",
+        "en": "(D) Map Port 80 inside the container to a high port on the host (e.g., 8080) and require the container to run as Root.",
+        "wg": []
+      }
+    ],
+    "answer": "(C)",
+    "why": {
+      "t": "Linux Capabilities 允許將 Root 的權力拆解。`CAP_NET_BIND_SERVICE` 專門用於允許非 Root 行程綁定低位連接埠，這是無需給予完整 Root 權限即可達成目標的最佳解法。",
+      "en": "Linux Capabilities allow breaking down Root's power. `CAP_NET_BIND_SERVICE` is specifically designed to allow non-root processes to bind low ports, which is the best solution to achieve the goal without granting full Root privileges.",
+      "wg": [
+        {
+          "t": "拆解",
+          "en": "break down",
+          "ps": "V"
+        },
+        {
+          "t": "行程",
+          "en": "process",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "5",
+    "level": "intermediate",
+    "keywords": "Secrets Management, Dockerfile, ENV, Security Risks",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "FROM node:18\nWORKDIR /app\nCOPY . .\nENV DB_PASSWORD=SuperSecretPassword123!\nRUN npm install\nCMD [\"node\", \"server.js\"]",
+    "question": [
+      {
+        "t": "在進行程式碼審查 (Code Review) 時，您發現一位資淺工程師提交了上述的 Dockerfile。",
+        "en": "During a Code Review, you noticed that a junior engineer submitted the Dockerfile shown above.",
+        "wg": [
+          {
+            "t": "提交",
+            "en": "submit",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "雖然該映像檔只會部署在公司內部的私有 Registry，但您仍標記這是一個嚴重的安全漏洞。",
+        "en": "Although the image will only be deployed to the company's internal private Registry, you still flagged this as a critical security vulnerability.",
+        "wg": [
+          {
+            "t": "私有",
+            "en": "private",
+            "ps": "Adj"
+          },
+          {
+            "t": "漏洞",
+            "en": "vulnerability",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "主要原因是什麼？",
+        "en": "What is the primary reason?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 環境變數在容器執行時無法被應用程式讀取。",
+        "en": "(A) Environment variables cannot be read by the application during container runtime.",
+        "wg": []
+      },
+      {
+        "t": "(B) 任何有權限拉取 (Pull) 該映像檔的人，都可以透過 `docker history` 或 `docker inspect` 看到明文密碼。",
+        "en": "(B) Anyone with permission to pull the image can see the plaintext password via `docker history` or `docker inspect`.",
+        "wg": [
+          {
+            "t": "明文",
+            "en": "plaintext",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "(C) `ENV` 指令會導致映像檔體積顯著增加。",
+        "en": "(C) The `ENV` instruction causes the image size to increase significantly.",
+        "wg": []
+      },
+      {
+        "t": "(D) 在 Dockerfile 中設定密碼會導致資料庫連線逾時。",
+        "en": "(D) Setting passwords in the Dockerfile causes database connection timeouts.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "Dockerfile 中的指令會被記錄在映像檔的層級 (Layer) 歷史中。即使是私有 Registry，密碼也不應以明文形式「烘焙」進映像檔，因為這擴大了機密資訊的暴露範圍。",
+      "en": "Instructions in a Dockerfile are recorded in the image layer history. Even in a private Registry, passwords should not be 'baked' into the image in plaintext, as this expands the exposure of confidential information.",
+      "wg": [
+        {
+          "t": "烘焙",
+          "en": "bake",
+          "ps": "V"
+        },
+        {
+          "t": "暴露範圍",
+          "en": "exposure",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "6",
+    "level": "advanced",
+    "keywords": "User Namespaces, userns-remap, Container Breakout, Isolation",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您的團隊正在處理高敏感度的金融資料，資安團隊擔心「容器逃逸 (Container Breakout)」的風險。",
+        "en": "Your team is handling highly sensitive financial data, and the security team is concerned about the risk of 'Container Breakout'.",
+        "wg": [
+          {
+            "t": "高敏感度",
+            "en": "highly sensitive",
+            "ps": "Adj"
+          },
+          {
+            "t": "逃逸",
+            "en": "breakout/escape",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "假設攻擊者利用 Kernel 漏洞成功從容器內逃逸，且容器內是以 Root (UID 0) 執行。",
+        "en": "Assume an attacker successfully escapes from the container using a Kernel vulnerability, and the container is running as Root (UID 0).",
+        "wg": []
+      },
+      {
+        "t": "下列哪項機制能確保攻擊者在宿主機 (Host) 上僅擁有非特權使用者的權限？",
+        "en": "Which mechanism ensures that the attacker possesses only non-privileged user permissions on the Host?",
+        "wg": [
+          {
+            "t": "非特權使用者",
+            "en": "non-privileged user",
+            "ps": "NP"
+          }
+        ]
+      },
+      {
+        "t": "請選擇最有效的防禦層級配置。",
+        "en": "Please select the most effective defense layer configuration.",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 設定 `--read-only` 檔案系統。",
+        "en": "(A) Configure a `--read-only` filesystem.",
+        "wg": []
+      },
+      {
+        "t": "(B) 啟用 Docker Daemon 的 User Namespaces (`userns-remap`) 功能。",
+        "en": "(B) Enable the User Namespaces (`userns-remap`) feature of the Docker Daemon.",
+        "wg": []
+      },
+      {
+        "t": "(C) 在 Dockerfile 中使用 `USER 1000` 指令。",
+        "en": "(C) Use the `USER 1000` instruction in the Dockerfile.",
+        "wg": []
+      },
+      {
+        "t": "(D) 移除容器的所有 Capabilities (`--cap-drop=ALL`)。",
+        "en": "(D) Drop all container Capabilities (`--cap-drop=ALL`).",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "User Namespaces 將容器內的 UID 0 映射到宿主機的一個非特權 UID (如 nobody)。即使攻擊者逃逸，他們在宿主機上也只是普通使用者，無法進行 Root 層級的操作。",
+      "en": "User Namespaces map UID 0 inside the container to a non-privileged UID (like nobody) on the host. Even if an attacker escapes, they are just a standard user on the host and cannot perform Root-level operations.",
+      "wg": [
+        {
+          "t": "映射",
+          "en": "map",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "7",
+    "level": "advanced",
+    "keywords": "Privilege Escalation, SUID, no-new-privileges, Security Options",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "某些 Linux 執行檔 (如 `sudo` 或 `passwd`) 設定了 SUID 位元，允許使用者暫時以檔案擁有者的權限執行。",
+        "en": "Certain Linux binaries (such as `sudo` or `passwd`) have the SUID bit set, allowing users to temporarily execute with the file owner's privileges.",
+        "wg": [
+          {
+            "t": "位元",
+            "en": "bit",
+            "ps": "N"
+          },
+          {
+            "t": "暫時",
+            "en": "temporarily",
+            "ps": "Adv"
+          }
+        ]
+      },
+      {
+        "t": "攻擊者可能會利用容器內被遺忘的 SUID 程式來提升權限。",
+        "en": "Attackers might exploit forgotten SUID programs inside the container to escalate privileges.",
+        "wg": [
+          {
+            "t": "提升權限",
+            "en": "escalate privileges",
+            "ps": "VP"
+          }
+        ]
+      },
+      {
+        "t": "在啟動容器時，應加上哪個參數來徹底禁止這類權限提升行為？",
+        "en": "Which parameter should be added when starting the container to completely prevent such privilege escalation behavior?",
+        "wg": [
+          {
+            "t": "徹底",
+            "en": "completely",
+            "ps": "Adv"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) `--security-opt=no-new-privileges:true`",
+        "en": "(A) `--security-opt=no-new-privileges:true`",
+        "wg": []
+      },
+      {
+        "t": "(B) `--cap-drop=SETUID`",
+        "en": "(B) `--cap-drop=SETUID`",
+        "wg": []
+      },
+      {
+        "t": "(C) `--privileged=false`",
+        "en": "(C) `--privileged=false`",
+        "wg": []
+      },
+      {
+        "t": "(D) `--user=nobody`",
+        "en": "(D) `--user=nobody`",
+        "wg": []
+      }
+    ],
+    "answer": "(A)",
+    "why": {
+      "t": "`no-new-privileges` 是一個核心安全特性，它確保行程及其子行程無法透過 SUID/SGID 二進位檔獲得比啟動時更多的權限。這是防止內部權限提升的關鍵開關。",
+      "en": "`no-new-privileges` is a kernel security feature that ensures a process and its children cannot gain more privileges than they had at startup via SUID/SGID binaries. This is a critical switch for preventing internal privilege escalation.",
+      "wg": [
+        {
+          "t": "二進位檔",
+          "en": "binary",
+          "ps": "N"
+        },
+        {
+          "t": "關鍵開關",
+          "en": "critical switch",
+          "ps": "NP"
+        }
+      ]
+    }
+  },
+  {
+    "no": "8",
+    "level": "advanced",
+    "keywords": "Seccomp, System Calls, Kernel Isolation, Attack Surface",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您正在為一個高安全需求的微服務設計防護策略。",
+        "en": "You are designing a protection strategy for a microservice with high security requirements.",
+        "wg": [
+          {
+            "t": "防護策略",
+            "en": "protection strategy",
+            "ps": "NP"
+          }
+        ]
+      },
+      {
+        "t": "該服務只需要讀寫檔案和網路通訊，絕對不需要使用 `mount`, `reboot`, 或 `swapon` 等系統呼叫 (System Calls)。",
+        "en": "The service only needs to read/write files and communicate over the network; it absolutely does not need to use System Calls like `mount`, `reboot`, or `swapon`.",
+        "wg": []
+      },
+      {
+        "t": "除了移除 Capabilities 之外，下列哪項技術能最精確地限制容器「可以發出哪些系統呼叫」？",
+        "en": "Besides dropping Capabilities, which of the following technologies can most precisely restrict 'which system calls' a container can make?",
+        "wg": [
+          {
+            "t": "精確地",
+            "en": "precisely",
+            "ps": "Adv"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) AppArmor",
+        "en": "(A) AppArmor",
+        "wg": []
+      },
+      {
+        "t": "(B) Seccomp (Secure Computing Mode)",
+        "en": "(B) Seccomp (Secure Computing Mode)",
+        "wg": []
+      },
+      {
+        "t": "(C) SELinux",
+        "en": "(C) SELinux",
+        "wg": []
+      },
+      {
+        "t": "(D) cgroups (Control Groups)",
+        "en": "(D) cgroups (Control Groups)",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "Seccomp 就像是系統呼叫的防火牆，它允許定義一個白名單或黑名單，直接在核心層級攔截不被允許的 syscall。AppArmor/SELinux 主要側重於資源存取控制 (檔案/網路)，而 cgroups 負責資源限制 (CPU/記憶體)。",
+      "en": "Seccomp acts like a firewall for system calls, allowing the definition of a whitelist or blacklist to intercept disallowed syscalls directly at the kernel level. AppArmor/SELinux focus mainly on resource access control (files/network), while cgroups handle resource limitation (CPU/memory).",
+      "wg": [
+        {
+          "t": "攔截",
+          "en": "intercept",
+          "ps": "V"
+        },
+        {
+          "t": "側重於",
+          "en": "focus mainly on",
+          "ps": "VP"
+        }
+      ]
+    }
+  },
+  {
+    "no": "9",
+    "level": "intermediate",
+    "keywords": "Supply Chain Security, Image Signing, Admission Controller, Trusted Registry",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "為了強化軟體供應鏈安全，您希望確保 Kubernetes 叢集只允許運行「經過 CI/CD 掃描且由公司私鑰簽章」的映像檔。",
+        "en": "To harden software supply chain security, you want to ensure that the Kubernetes cluster only runs images that have been 'scanned by CI/CD and signed with the company's private key'.",
+        "wg": [
+          {
+            "t": "強化",
+            "en": "harden",
+            "ps": "V"
+          },
+          {
+            "t": "私鑰",
+            "en": "private key",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "下列哪一個元件最適合負責執行這個「驗證簽章並決定是否放行」的邏輯？",
+        "en": "Which of the following components is best suited to execute this logic of 'verifying signatures and deciding whether to admit'?",
+        "wg": [
+          {
+            "t": "放行",
+            "en": "admit/allow",
+            "ps": "V"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) Container Runtime (e.g., Docker Daemon)",
+        "en": "(A) Container Runtime (e.g., Docker Daemon)",
+        "wg": []
+      },
+      {
+        "t": "(B) Admission Controller (e.g., OPA Gatekeeper or Kyverno)",
+        "en": "(B) Admission Controller (e.g., OPA Gatekeeper or Kyverno)",
+        "wg": []
+      },
+      {
+        "t": "(C) CI Server (e.g., Jenkins)",
+        "en": "(C) CI Server (e.g., Jenkins)",
+        "wg": []
+      },
+      {
+        "t": "(D) Image Registry (e.g., Harbor)",
+        "en": "(D) Image Registry (e.g., Harbor)",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "雖然 Registry 儲存簽章，CI Server 產生簽章，但真正作為「守門員」攔截未授權部署請求的是 Kubernetes 的 Admission Controller。它能在 Pod 建立前驗證映像檔的簽章狀態。",
+      "en": "While the Registry stores signatures and the CI Server generates them, the component that acts as the 'gatekeeper' to intercept unauthorized deployment requests is the Kubernetes Admission Controller. It verifies the image signature status before the Pod is created.",
+      "wg": [
+        {
+          "t": "守門員",
+          "en": "gatekeeper",
+          "ps": "N"
+        },
+        {
+          "t": "攔截",
+          "en": "intercept",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "10",
+    "level": "intermediate",
+    "keywords": "Dockerfile, Least Privilege, USER instruction, Security Best Practices",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "FROM python:3.9-slim\nWORKDIR /app\nCOPY requirements.txt .\nRUN pip install -r requirements.txt\nCOPY . .\nCMD [\"python\", \"app.py\"]",
+    "question": [
+      {
+        "t": "請檢視上方的 Dockerfile。",
+        "en": "Please review the Dockerfile above.",
+        "wg": []
+      },
+      {
+        "t": "這是一個功能正常的 Python 應用程式構建腳本，但在安全性方面存在一個最常見的基礎缺失。",
+        "en": "This is a functional build script for a Python application, but it has a very common fundamental security deficiency.",
+        "wg": [
+          {
+            "t": "缺失",
+            "en": "deficiency/flaw",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "請問該缺失是什麼？",
+        "en": "What is that deficiency?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 使用了 `slim` 版本的基礎映像檔，缺少必要的除錯工具。",
+        "en": "(A) It uses a `slim` version of the base image, lacking necessary debugging tools.",
+        "wg": []
+      },
+      {
+        "t": "(B) 未指定 `USER` 指令，導致應用程式預設以 Root 身分執行。",
+        "en": "(B) No `USER` instruction is specified, causing the application to run as Root by default.",
+        "wg": []
+      },
+      {
+        "t": "(C) `COPY . .` 指令會複製 `.dockerignore` 檔案，造成資訊洩漏。",
+        "en": "(C) The `COPY . .` instruction copies the `.dockerignore` file, causing information leakage.",
+        "wg": []
+      },
+      {
+        "t": "(D) `pip install` 應該在 `COPY . .` 之後執行以優化快取。",
+        "en": "(D) `pip install` should be executed after `COPY . .` to optimize caching.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "Docker 容器預設使用 Root 使用者。若未顯式建立並切換至非特權使用者 (Non-root user)，一旦應用程式被攻破，攻擊者將擁有容器內的最高權限，這違反了最小權限原則。",
+      "en": "Docker containers use the Root user by default. If a non-privileged user is not explicitly created and switched to, an attacker will have the highest privileges inside the container if the application is compromised, violating the principle of least privilege.",
+      "wg": [
+        {
+          "t": "顯式",
+          "en": "explicitly",
+          "ps": "Adv"
+        },
+        {
+          "t": "違反",
+          "en": "violate",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "11",
+    "level": "intermediate",
+    "keywords": "Attack Surface, Distroless, Minimal Image, Shell",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "Google 推出的 'Distroless' 映像檔與傳統的 Alpine 或 Debian 映像檔相比，最大的安全優勢是什麼？",
+        "en": "What is the biggest security advantage of Google's 'Distroless' images compared to traditional Alpine or Debian images?",
+        "wg": [
+          {
+            "t": "優勢",
+            "en": "advantage",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "請從攻擊面 (Attack Surface) 的角度進行分析。",
+        "en": "Please analyze from the perspective of Attack Surface.",
+        "wg": [
+          {
+            "t": "攻擊面",
+            "en": "attack surface",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) Distroless 映像檔內建了防毒軟體。",
+        "en": "(A) Distroless images have built-in antivirus software.",
+        "wg": []
+      },
+      {
+        "t": "(B) Distroless 移除了 Shell、套件管理器 (apt/apk) 及其他除錯工具，使攻擊者難以進行橫向移動。",
+        "en": "(B) Distroless removes the Shell, package managers (apt/apk), and other debugging tools, making it difficult for attackers to perform lateral movement.",
+        "wg": [
+          {
+            "t": "橫向移動",
+            "en": "lateral movement",
+            "ps": "NP"
+          }
+        ]
+      },
+      {
+        "t": "(C) Distroless 映像檔自動加密所有寫入磁碟的資料。",
+        "en": "(C) Distroless images automatically encrypt all data written to disk.",
+        "wg": []
+      },
+      {
+        "t": "(D) Distroless 映像檔完全不使用 Linux Kernel，因此免疫 Kernel 漏洞。",
+        "en": "(D) Distroless images do not use the Linux Kernel at all, making them immune to Kernel vulnerabilities.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "Distroless 的設計理念是「僅包含應用程式及其依賴」。移除 Shell 和實用工具 (如 curl, wget) 意味著即使攻擊者找到了 RCE 漏洞，他們也無法輕易下載惡意程式或執行 shell 指令，從而大幅縮小了攻擊面。",
+      "en": "Distroless is designed to 'contain only the application and its dependencies'. Removing the Shell and utilities (like curl, wget) means that even if an attacker finds an RCE vulnerability, they cannot easily download malware or execute shell commands, significantly reducing the attack surface.",
+      "wg": [
+        {
+          "t": "依賴",
+          "en": "dependencies",
+          "ps": "N"
+        },
+        {
+          "t": "縮小",
+          "en": "reduce/shrink",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "12",
+    "level": "intermediate",
+    "keywords": "Availability, DoS, Resource Limits, Cgroups",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在多租戶的容器環境中，一個設計不良的應用程式可能會消耗過多的 CPU 或記憶體，導致宿主機或其他容器運作不穩定（即「吵鬧的鄰居」問題）。",
+        "en": "In a multi-tenant container environment, a poorly designed application might consume excessive CPU or memory, causing instability for the host or other containers (the 'noisy neighbor' problem).",
+        "wg": [
+          {
+            "t": "多租戶",
+            "en": "multi-tenant",
+            "ps": "Adj"
+          },
+          {
+            "t": "吵鬧的鄰居",
+            "en": "noisy neighbor",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "為了防止這種阻斷服務 (DoS) 的情況，您應該在啟動容器時配置哪項設定？",
+        "en": "To prevent this Denial of Service (DoS) scenario, which setting should you configure when starting the container?",
+        "wg": [
+          {
+            "t": "阻斷服務",
+            "en": "Denial of Service",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 設定 `--ulimit` 以限制開啟的檔案描述符數量。",
+        "en": "(A) Set `--ulimit` to restrict the number of open file descriptors.",
+        "wg": []
+      },
+      {
+        "t": "(B) 使用 `--memory` 與 `--cpus` 限制容器可使用的資源上限。",
+        "en": "(B) Use `--memory` and `--cpus` to limit the maximum resources the container can use.",
+        "wg": []
+      },
+      {
+        "t": "(C) 啟用 `--read-only` 模式以防止寫入磁碟。",
+        "en": "(C) Enable `--read-only` mode to prevent disk writes.",
+        "wg": []
+      },
+      {
+        "t": "(D) 設定 `--security-opt=no-new-privileges` 以防止行程產生子行程。",
+        "en": "(D) Set `--security-opt=no-new-privileges` to prevent processes from spawning child processes.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "限制資源 (Resource Limits) 是確保可用性 (Availability) 的關鍵安全措施。透過 Cgroups 機制設定記憶體與 CPU 上限，可以防止單一容器耗盡宿主機資源，進而影響整個系統的穩定性。",
+      "en": "Resource Limits are a key security measure for ensuring Availability. Setting memory and CPU limits via Cgroups prevents a single container from exhausting host resources and affecting the stability of the entire system.",
+      "wg": [
+        {
+          "t": "可用性",
+          "en": "Availability",
+          "ps": "N"
+        },
+        {
+          "t": "耗盡",
+          "en": "exhausting",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "13",
+    "level": "advanced",
+    "keywords": "AppArmor, SELinux, MAC, File Access Control",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您已經移除了容器的 Root 權限並捨棄了不必要的 Capabilities，但您仍希望進一步限制應用程式只能讀取 `/etc/myapp/config` 並寫入 `/var/log/myapp`，且無法存取檔案系統的其他部分。",
+        "en": "You have removed Root privileges and dropped unnecessary Capabilities, but you still want to further restrict the application to only read `/etc/myapp/config` and write to `/var/log/myapp`, without accessing other parts of the filesystem.",
+        "wg": [
+          {
+            "t": "捨棄",
+            "en": "dropped",
+            "ps": "V"
+          },
+          {
+            "t": "進一步限制",
+            "en": "further restrict",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "下列哪項技術最適合用來實作這種基於檔案路徑的強制存取控制 (MAC)？",
+        "en": "Which technology is best suited to implement this file-path based Mandatory Access Control (MAC)?",
+        "wg": [
+          {
+            "t": "強制存取控制",
+            "en": "Mandatory Access Control",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) Seccomp (Secure Computing Mode)",
+        "en": "(A) Seccomp (Secure Computing Mode)",
+        "wg": []
+      },
+      {
+        "t": "(B) AppArmor 或 SELinux",
+        "en": "(B) AppArmor or SELinux",
+        "wg": []
+      },
+      {
+        "t": "(C) Chroot Jail",
+        "en": "(C) Chroot Jail",
+        "wg": []
+      },
+      {
+        "t": "(D) Linux Capabilities",
+        "en": "(D) Linux Capabilities",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "Capabilities 控制的是「功能權限」(如綁定 Port、修改時間)，而 AppArmor/SELinux 則提供基於路徑或資源的細粒度存取控制。Seccomp 則是用於過濾系統呼叫 (Syscalls)，不直接處理檔案路徑。",
+      "en": "Capabilities control 'functional privileges' (like binding ports, changing time), whereas AppArmor/SELinux provide granular access control based on paths or resources. Seccomp is used for filtering System Calls (Syscalls) and does not directly handle file paths.",
+      "wg": [
+        {
+          "t": "細粒度",
+          "en": "granular",
+          "ps": "Adj"
+        },
+        {
+          "t": "過濾",
+          "en": "filtering",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "14",
+    "level": "intermediate",
+    "keywords": "Multi-stage Build, Attack Surface, Dockerfile, Build Tools",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "FROM golang:1.19 AS builder\nWORKDIR /app\nCOPY . .\nRUN go build -o myapp main.go\n\nFROM alpine:latest\nWORKDIR /root/\nCOPY --from=builder /app/myapp .\nCMD [\"./myapp\"]",
+    "question": [
+      {
+        "t": "參考上述的 Dockerfile，使用「多階段建置 (Multi-stage Build)」的主要安全優勢是什麼？",
+        "en": "Referring to the Dockerfile above, what is the primary security advantage of using a 'Multi-stage Build'?",
+        "wg": [
+          {
+            "t": "多階段建置",
+            "en": "Multi-stage Build",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 它會自動對最終的二進位檔案進行程式碼混淆，防止逆向工程。",
+        "en": "(A) It automatically obfuscates the final binary to prevent reverse engineering.",
+        "wg": [
+          {
+            "t": "混淆",
+            "en": "obfuscates",
+            "ps": "V"
+          },
+          {
+            "t": "逆向工程",
+            "en": "reverse engineering",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(B) 它允許在建置過程中暫時使用 Root 權限，但在執行階段強制使用非 Root 使用者。",
+        "en": "(B) It allows temporary Root privileges during the build process but enforces non-root users at runtime.",
+        "wg": []
+      },
+      {
+        "t": "(C) 它移除了編譯器、原始碼與建置工具，顯著縮小映像檔體積並減少攻擊面。",
+        "en": "(C) It removes compilers, source code, and build tools, significantly reducing image size and attack surface.",
+        "wg": [
+          {
+            "t": "攻擊面",
+            "en": "attack surface",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(D) 它會自動掃描依賴套件中的 CVE 漏洞。",
+        "en": "(D) It automatically scans for CVE vulnerabilities in dependency packages.",
+        "wg": []
+      }
+    ],
+    "answer": "(C)",
+    "why": {
+      "t": "多階段建置允許將建置環境 (包含編譯器、SDK) 與執行環境分離。最終映像檔僅包含編譯好的應用程式，攻擊者無法利用現成的編譯工具 (如 gcc, go, maven) 進行攻擊或編譯惡意程式。",
+      "en": "Multi-stage builds allow separating the build environment (containing compilers, SDKs) from the runtime environment. The final image contains only the compiled application, preventing attackers from using available build tools (like gcc, go, maven) to launch attacks or compile malware.",
+      "wg": [
+        {
+          "t": "編譯器",
+          "en": "compilers",
+          "ps": "N"
+        },
+        {
+          "t": "分離",
+          "en": "separating",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "15",
+    "level": "advanced",
+    "keywords": "Runtime Security, Falco, Anomaly Detection, Day 2 Operations",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您的團隊已經實作了映像檔掃描與簽章驗證，但在「執行階段 (Runtime)」仍可能面臨零時差攻擊 (Zero-day exploits) 的風險。",
+        "en": "Your team has implemented image scanning and signature verification, but you still face the risk of Zero-day exploits during 'Runtime'.",
+        "wg": [
+          {
+            "t": "執行階段",
+            "en": "Runtime",
+            "ps": "N"
+          },
+          {
+            "t": "零時差攻擊",
+            "en": "Zero-day exploits",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "為了偵測如「未預期的 Shell 啟動」或「敏感檔案讀取」等異常行為，您應該採用哪種機制？",
+        "en": "To detect anomalous behaviors such as 'unexpected Shell spawning' or 'sensitive file reads', which mechanism should you adopt?",
+        "wg": [
+          {
+            "t": "異常行為",
+            "en": "anomalous behaviors",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 靜態應用程式安全測試 (SAST)。",
+        "en": "(A) Static Application Security Testing (SAST).",
+        "wg": []
+      },
+      {
+        "t": "(B) 執行時安全監控工具 (如 Falco 或 Tetragon)。",
+        "en": "(B) Runtime security monitoring tools (such as Falco or Tetragon).",
+        "wg": []
+      },
+      {
+        "t": "(C) 在 Docker Daemon 設定 `userns-remap`。",
+        "en": "(C) Configure `userns-remap` in the Docker Daemon.",
+        "wg": []
+      },
+      {
+        "t": "(D) 使用 `docker trust inspect` 定期檢查簽章。",
+        "en": "(D) Use `docker trust inspect` to periodically check signatures.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "靜態掃描與簽章屬於「預防」階段。一旦容器開始運行，就需要透過監控系統呼叫 (Syscalls) 的工具 (如 Falco) 來偵測與定義行為模式不符的異常活動，這是縱深防禦的最後一道防線。",
+      "en": "Static scanning and signing belong to the 'prevention' phase. Once the container starts running, tools (like Falco) that monitor System Calls (Syscalls) are needed to detect anomalous activities that deviate from defined behavioral patterns, serving as the final line of defense in depth.",
+      "wg": [
+        {
+          "t": "縱深防禦",
+          "en": "defense in depth",
+          "ps": "N"
+        },
+        {
+          "t": "最後一道防線",
+          "en": "final line of defense",
+          "ps": "N"
+        }
+      ]
+    }
+  }
+]

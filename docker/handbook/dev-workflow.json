@@ -1,0 +1,707 @@
+[
+  {
+    "no": "1",
+    "level": "Easy",
+    "keywords": "Docker Compose, Configuration, Override Pattern",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在團隊開發中，為了保持「基礎設施即代碼」(IaC) 的核心配置一致，同時允許開發者自定義本地環境（如開啟除錯端口或掛載源碼），根據手冊中的「覆蓋模式」(Override Pattern)，下列哪種做法最為推薦？",
+        "en": "In team development, to maintain core configuration consistency for 'Infrastructure as Code' (IaC) while allowing developers to customize their local environment (e.g., opening debug ports or mounting source code), which approach is most recommended according to the 'Override Pattern' in the handbook?",
+        "wg": [
+          {
+            "t": "覆蓋模式",
+            "en": "Override Pattern",
+            "ps": "noun"
+          },
+          {
+            "t": "基礎設施即代碼",
+            "en": "Infrastructure as Code",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single",
+    "options": [
+      {
+        "t": "維護 `docker-compose.dev.yml` 與 `docker-compose.prod.yml` 兩份完全獨立的檔案，並強制開發者使用 `-f` 參數指定。",
+        "en": "Maintain two completely separate files, `docker-compose.dev.yml` and `docker-compose.prod.yml`, and force developers to use the `-f` flag to specify one.",
+        "wg": []
+      },
+      {
+        "t": "在 `docker-compose.yml` 中定義通用架構，並利用 Docker Compose 自動讀取 `docker-compose.override.yml` 的特性來合併本地配置。",
+        "en": "Define the common architecture in `docker-compose.yml` and leverage Docker Compose's ability to automatically read and merge `docker-compose.override.yml` for local configurations.",
+        "wg": []
+      },
+      {
+        "t": "所有配置都寫在單一的 `docker-compose.yml` 中，並使用大量的環境變數開關來控制是否啟用除錯模式。",
+        "en": "Put all configurations in a single `docker-compose.yml` and use extensive environment variable toggles to control whether debug mode is enabled.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "Docker Compose 預設會自動尋找並合併 `docker-compose.override.yml`。這種方式讓 `docker-compose.yml` 保持乾淨且與生產環境架構一致，而將本地特有的設定（如 Bind Mounts、Debug Ports）隔離在不需進入版控的 override 檔案中。",
+      "en": "Docker Compose automatically looks for and merges `docker-compose.override.yml` by default. This approach keeps `docker-compose.yml` clean and consistent with the production architecture, while isolating local-specific settings (like Bind Mounts, Debug Ports) in the override file which should not be version controlled.",
+      "wg": []
+    }
+  },
+  {
+    "no": "2",
+    "level": "Medium",
+    "keywords": "Networking, Service Discovery, Troubleshooting",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "services:\n  backend:\n    image: my-api\n    ports: [\"8000:8000\"]\n  frontend:\n    image: my-ui",
+    "question": [
+      {
+        "t": "你正在開發一個全端應用，前端容器 (`frontend`) 嘗試透過 HTTP 請求呼叫後端 API。你在後端容器設定了 `ports: ['8000:8000']`。當你在 `frontend` 容器內部執行 `curl http://localhost:8000` 時卻連線失敗。請問原因為何？",
+        "en": "You are developing a full-stack app where the frontend container (`frontend`) tries to make an HTTP request to the backend API. You mapped `ports: ['8000:8000']` for the backend. Why does executing `curl http://localhost:8000` inside the `frontend` container fail?",
+        "wg": [
+          {
+            "t": "連線失敗",
+            "en": "connection failed",
+            "ps": "verb phrase"
+          }
+        ]
+      }
+    ],
+    "type": "Single",
+    "options": [
+      {
+        "t": "因為 `localhost` 在容器內解析為該容器本身，而非宿主機或其他服務。應使用服務名稱 `http://backend:8000`。",
+        "en": "Because `localhost` inside a container resolves to the container itself, not the host or other services. You should use the service name `http://backend:8000`.",
+        "wg": [
+          {
+            "t": "服務名稱",
+            "en": "service name",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "因為沒有在 `frontend` 容器中暴露 8000 端口，導致請求被防火牆阻擋。",
+        "en": "Because port 8000 was not exposed in the `frontend` container, causing the request to be blocked by the firewall.",
+        "wg": []
+      },
+      {
+        "t": "因為 Docker Compose 的網路預設是不互通的，必須手動建立 `bridge` 網路。",
+        "en": "Because Docker Compose networks are isolated by default, and you must manually create a `bridge` network.",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "在 Docker 網路模型中，每個容器都有獨立的網路介面。`localhost` 指的是容器自己。要跨容器通訊，應使用 Docker Compose 提供的 DNS 解析功能，即使用目標服務的名稱（Service Name）。",
+      "en": "In the Docker networking model, each container has its own network interface. `localhost` refers to the container itself. To communicate across containers, you should use the DNS resolution provided by Docker Compose, which means using the target service name.",
+      "wg": []
+    }
+  },
+  {
+    "no": "3",
+    "level": "Medium",
+    "keywords": "Depends_on, Healthcheck, Startup Order",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "services:\n  api:\n    depends_on:\n      - db\n  db:\n    image: postgres",
+    "question": [
+      {
+        "t": "雖然你在 `docker-compose.yml` 中設定了 `depends_on: [db]`，但 `api` 服務啟動時仍然因為無法連線到資料庫而崩潰。這是因為 `depends_on` 僅保證什麼？",
+        "en": "Even though you configured `depends_on: [db]` in `docker-compose.yml`, the `api` service still crashes on startup because it cannot connect to the database. What does `depends_on` strictly guarantee?",
+        "wg": [
+          {
+            "t": "崩潰",
+            "en": "crash",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "type": "Single",
+    "options": [
+      {
+        "t": "它僅保證 `db` 容器已經開始執行 (started)，但不保證資料庫應用程式已準備好接受連線 (ready)。",
+        "en": "It only guarantees that the `db` container has started, but not that the database application is ready to accept connections.",
+        "wg": [
+          {
+            "t": "準備好",
+            "en": "ready",
+            "ps": "adjective"
+          }
+        ]
+      },
+      {
+        "t": "它保證 `db` 容器內的所有端口都已開啟並可被存取。",
+        "en": "It guarantees that all ports inside the `db` container are open and accessible.",
+        "wg": []
+      },
+      {
+        "t": "它保證 `db` 容器的 `ENTRYPOINT` 腳本已經執行完畢。",
+        "en": "It guarantees that the `ENTRYPOINT` script of the `db` container has finished executing.",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "標準的 `depends_on` 只控制容器啟動順序。資料庫初始化通常需要時間，因此需要搭配 `healthcheck` 與 `condition: service_healthy` 來確保應用層級的就緒狀態 (Wait-for-it Pattern)。",
+      "en": "Standard `depends_on` only controls container start order. Database initialization usually takes time, so it should be paired with `healthcheck` and `condition: service_healthy` to ensure application-level readiness (Wait-for-it Pattern).",
+      "wg": [
+        {
+          "t": "應用層級",
+          "en": "application-level",
+          "ps": "adjective"
+        }
+      ]
+    }
+  },
+  {
+    "no": "4",
+    "level": "Medium",
+    "keywords": "Permissions, Anti-pattern, Linux",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你在開發時使用 Bind Mount 將本機目錄掛載到容器內。容器執行後產生了一些 Log 檔案，但當你試圖在宿主機 (Host) 刪除這些檔案時，系統提示「權限不足 (Permission Denied)」。這通常是觸發了哪種 Anti-pattern？",
+        "en": "You use a Bind Mount to map a local directory into a container during development. The container generates some log files, but when you try to delete them on the Host, you get a 'Permission Denied' error. Which anti-pattern does this typically indicate?",
+        "wg": [
+          {
+            "t": "權限不足",
+            "en": "Permission Denied",
+            "ps": "phrase"
+          },
+          {
+            "t": "宿主機",
+            "en": "Host",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single",
+    "options": [
+      {
+        "t": "Root File Permission Hell：容器預設以 root 身份運行，導致生成的檔案歸屬於 root，宿主機的一般使用者無法操作。",
+        "en": "Root File Permission Hell: The container runs as root by default, causing generated files to be owned by root, which the standard host user cannot manipulate.",
+        "wg": []
+      },
+      {
+        "t": "Volume Stale：Docker 的 Volume 快取過期，導致檔案系統鎖定。",
+        "en": "Volume Stale: Docker's volume cache is expired, causing a filesystem lock.",
+        "wg": []
+      },
+      {
+        "t": "Port Conflict：端口衝突導致檔案系統被作業系統保護。",
+        "en": "Port Conflict: Port conflicts caused the operating system to protect the filesystem.",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "這是典型的 Linux 權限問題。Docker 容器內的 root 使用者在 Linux 宿主機上對應的也是 root 權限（除非設定了 User Namespace Remapping）。解決方法是在 Compose 中指定 `user` 或在 Dockerfile 中建立非 root 使用者。",
+      "en": "This is a classic Linux permission issue. The root user inside a Docker container corresponds to root privileges on a Linux host (unless User Namespace Remapping is configured). The fix is to specify `user` in Compose or create a non-root user in the Dockerfile.",
+      "wg": []
+    }
+  },
+  {
+    "no": "5",
+    "level": "Hard",
+    "keywords": "Volumes, Node.js, Best Practices",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "services:\n  app:\n    volumes:\n      - .:/app\n      - /app/node_modules  # <--- 為什麼要加這一行？",
+    "question": [
+      {
+        "t": "在 Node.js 專案的 `docker-compose.override.yml` 中，我們常看到如代碼片段中的配置：除了掛載當前目錄 `.:/app` 外，還額外掛載了一個匿名卷 `/app/node_modules`。這個技巧的主要目的是什麼？",
+        "en": "In a Node.js project's `docker-compose.override.yml`, we often see a configuration like the snippet: besides mounting the current directory `.:/app`, an additional anonymous volume `/app/node_modules` is mounted. What is the primary purpose of this trick?",
+        "wg": [
+          {
+            "t": "匿名卷",
+            "en": "anonymous volume",
+            "ps": "noun"
+          },
+          {
+            "t": "掛載",
+            "en": "mount",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "type": "Single",
+    "options": [
+      {
+        "t": "防止宿主機 (Host) 上可能為空或架構不相容的 `node_modules` 覆蓋掉容器在建置 (Build) 階段安裝好的依賴包。",
+        "en": "To prevent the host's `node_modules` (which might be empty or architecture-incompatible) from overwriting the dependencies installed inside the container during the build stage.",
+        "wg": [
+          {
+            "t": "覆蓋",
+            "en": "overwrite",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "為了讓宿主機可以存取容器內安裝的 `node_modules` 以便 IDE 進行語法提示。",
+        "en": "To allow the host to access the `node_modules` installed inside the container for IDE intellisense.",
+        "wg": []
+      },
+      {
+        "t": "為了加速 `npm install` 的執行速度。",
+        "en": "To speed up the execution of `npm install`.",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "當使用 Bind Mount (`.:/app`) 時，宿主機的目錄內容會遮蓋容器內的內容。如果宿主機沒有 `node_modules`，容器內的 `node_modules` 就會消失。使用更深層路徑的匿名卷 (`/app/node_modules`) 可以優先保留容器內該路徑的內容，不受外層 Bind Mount 影響。",
+      "en": "When using a Bind Mount (`.:/app`), the host directory contents mask the container contents. If the host lacks `node_modules`, the container's `node_modules` effectively disappears. Using a more specific anonymous volume (`/app/node_modules`) preserves the container's content at that path, overriding the outer Bind Mount.",
+      "wg": []
+    }
+  },
+  {
+    "no": "6",
+    "level": "Easy",
+    "keywords": "Volumes, Persistence, Database",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "針對資料庫容器（如 Postgres 或 MySQL）的資料持久化，手冊建議在開發環境中使用哪種類型的 Volume，以獲得較好的 I/O 效能並避免誤刪？",
+        "en": "For data persistence of database containers (like Postgres or MySQL), which type of Volume does the handbook recommend for development environments to achieve better I/O performance and avoid accidental deletion?",
+        "wg": [
+          {
+            "t": "資料持久化",
+            "en": "data persistence",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single",
+    "options": [
+      {
+        "t": "具名卷 (Named Volumes)",
+        "en": "Named Volumes",
+        "wg": []
+      },
+      {
+        "t": "綁定掛載 (Bind Mounts)",
+        "en": "Bind Mounts",
+        "wg": []
+      },
+      {
+        "t": "tmpfs 掛載 (tmpfs Mounts)",
+        "en": "tmpfs Mounts",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "雖然 Bind Mounts 對源碼熱重載很有用，但對資料庫而言，Named Volumes 通常提供更好的跨平台 I/O 效能（特別是在 Windows/Mac 上），且由 Docker 管理，較不易因開發者清理專案資料夾而意外遺失資料。",
+      "en": "While Bind Mounts are great for source code hot-reloading, for databases, Named Volumes usually offer better cross-platform I/O performance (especially on Windows/Mac) and are managed by Docker, making them less prone to accidental data loss when developers clean up project folders.",
+      "wg": []
+    }
+  },
+  {
+    "no": "7",
+    "level": "Medium",
+    "keywords": "Environment Variables, Syntax, Configuration",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "services:\n  web:\n    image: my-app\n    ports:\n      - \"${HOST_PORT:-8080}:80\"",
+    "question": [
+      {
+        "t": "在 `docker-compose.yml` 中，你看到了如上所示的端口映射配置。假設開發者的本機環境中完全沒有設定 `HOST_PORT` 環境變數（既不在 Shell 中，也不在 `.env` 檔案裡），請問執行 `docker compose up` 後，容器的 80 端口會被映射到宿主機的哪個端口？",
+        "en": "You see the port mapping configuration shown above in a `docker-compose.yml` file. Assuming the developer's local environment has absolutely no `HOST_PORT` environment variable set (neither in the Shell nor in a `.env` file), which port on the host machine will map to the container's port 80 after running `docker compose up`?",
+        "wg": [
+          {
+            "t": "映射",
+            "en": "map/mapping",
+            "ps": "verb/noun"
+          },
+          {
+            "t": "宿主機",
+            "en": "host machine",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single",
+    "options": [
+      {
+        "t": "80 端口",
+        "en": "Port 80",
+        "wg": []
+      },
+      {
+        "t": "8080 端口",
+        "en": "Port 8080",
+        "wg": []
+      },
+      {
+        "t": "隨機分配的端口",
+        "en": "A randomly assigned port",
+        "wg": []
+      },
+      {
+        "t": "啟動會失敗，因為變數未定義",
+        "en": "Startup will fail because the variable is undefined",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "根據手冊中的「環境變數層級」章節，Docker Compose 支援 Shell 參數擴展語法 `${VARIABLE:-default}`。當變數未定義或為空時，會使用 `:-` 後面的預設值（此例為 8080）。這是一種常見的最佳實務，用於提供 fallback 值。",
+      "en": "According to the 'Environment Variables Hierarchy' section in the handbook, Docker Compose supports shell parameter expansion syntax `${VARIABLE:-default}`. When the variable is undefined or empty, it uses the default value following `:-` (in this case, 8080). This is a common best practice for providing fallback values.",
+      "wg": [
+        {
+          "t": "參數擴展",
+          "en": "parameter expansion",
+          "ps": "noun"
+        },
+        {
+          "t": "預設值",
+          "en": "default value",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "8",
+    "level": "Hard",
+    "keywords": "Anti-pattern, Dockerfile, Dependencies, Cross-platform",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "# Dockerfile\nFROM node:18\nWORKDIR /app\nCOPY . .\nRUN npm install\nCMD [\"npm\", \"start\"]",
+    "question": [
+      {
+        "t": "一位使用 macOS 的開發者編寫了上述 `Dockerfile`。當他在本地構建並運行容器時一切正常，但當同樣的代碼被推送到 Linux CI 伺服器或其他開發者的 Linux 機器上構建時，應用程式卻崩潰了，錯誤訊息顯示某些 Binary 模組格式不相容。請問這最可能是觸犯了手冊中提到的哪個「反模式」(Anti-pattern)？",
+        "en": "A developer using macOS wrote the `Dockerfile` above. It builds and runs fine locally, but when the same code is pushed to a Linux CI server or another developer's Linux machine, the application crashes with binary module incompatibility errors. Which 'Anti-pattern' mentioned in the handbook is most likely the cause?",
+        "wg": [
+          {
+            "t": "反模式",
+            "en": "Anti-pattern",
+            "ps": "noun"
+          },
+          {
+            "t": "不相容",
+            "en": "incompatible",
+            "ps": "adjective"
+          }
+        ]
+      }
+    ],
+    "type": "Single",
+    "options": [
+      {
+        "t": "Root 權限地獄 (The 'Root' File Permission Hell)",
+        "en": "The 'Root' File Permission Hell",
+        "wg": []
+      },
+      {
+        "t": "複製本機依賴庫 (Copying node_modules from Host)",
+        "en": "Copying node_modules from Host",
+        "wg": []
+      },
+      {
+        "t": "在 YAML 中寫死密鑰 (Hardcoding Secrets in YAML)",
+        "en": "Hardcoding Secrets in YAML",
+        "wg": []
+      },
+      {
+        "t": "端口衝突 (Port Conflict)",
+        "en": "Port Conflict",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "問題出在 `COPY . .` 指令會將宿主機上的 `node_modules` 目錄（其中可能包含針對 macOS 編譯的 C++ 擴展或 Binary 檔案）直接複製到 Linux 容器中。這會導致二進位檔不相容。正確做法是使用 `.dockerignore` 排除 `node_modules`，讓依賴在庫容器構建階段重新安裝。",
+      "en": "The issue is that `COPY . .` copies the host's `node_modules` directory (which may contain C++ extensions or binaries compiled for macOS) directly into the Linux container. This causes binary incompatibility. The correct approach is to use `.dockerignore` to exclude `node_modules`, allowing dependencies to be re-installed during the container build phase.",
+      "wg": [
+        {
+          "t": "排除",
+          "en": "exclude",
+          "ps": "verb"
+        },
+        {
+          "t": "二進位檔",
+          "en": "binary files",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "9",
+    "level": "Easy",
+    "keywords": "Workflow, Rebuild, Docker Compose CLI",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你在開發過程中修改了 `package.json` 添加了一個新的依賴庫，隨後執行了 `docker compose up -d` 重啟服務。然而，應用程式啟動後報錯提示「找不到該模組」。根據手冊的「日常開發流程」(Daily Dev Workflow)，你漏了什麼步驟？",
+        "en": "During development, you modified `package.json` to add a new dependency, then ran `docker compose up -d` to restart the services. However, the application crashed with a 'module not found' error. According to the 'Daily Dev Workflow' in the handbook, what step did you miss?",
+        "wg": [
+          {
+            "t": "依賴庫",
+            "en": "dependency/library",
+            "ps": "noun"
+          },
+          {
+            "t": "漏了",
+            "en": "missed",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "type": "Single",
+    "options": [
+      {
+        "t": "應該先執行 `docker compose down`",
+        "en": "Should have run `docker compose down` first",
+        "wg": []
+      },
+      {
+        "t": "應該加上 `--build` 參數來強制重新構建映像檔",
+        "en": "Should have added the `--build` flag to force image rebuild",
+        "wg": []
+      },
+      {
+        "t": "應該手動進入容器執行 `npm install`",
+        "en": "Should have manually entered the container to run `npm install`",
+        "wg": []
+      },
+      {
+        "t": "應該刪除所有 Volume",
+        "en": "Should have deleted all volumes",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "當 `Dockerfile` 或依賴定義檔（如 `package.json`）發生變更時，單純執行 `up` 不會觸發重新構建（如果映像檔已存在）。必須使用 `docker compose up -d --build` 來確保依賴被更新到映像檔中。",
+      "en": "When the `Dockerfile` or dependency definition files (like `package.json`) change, simply running `up` does not trigger a rebuild (if the image already exists). You must use `docker compose up -d --build` to ensure dependencies are updated in the image.",
+      "wg": [
+        {
+          "t": "觸發",
+          "en": "trigger",
+          "ps": "verb"
+        },
+        {
+          "t": "強制",
+          "en": "force",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "10",
+    "level": "Medium",
+    "keywords": "Volumes, Cleanup, CLI, Database",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你的本地開發資料庫因為多次 Migration 失敗而導致 Schema 損壞。你希望徹底重置資料庫，使其回到初始的乾淨狀態。你執行了 `docker compose down` 然後再 `docker compose up`，但發現舊的壞資料依然存在。請問你應該改用哪個指令？",
+        "en": "Your local development database schema is corrupted due to multiple failed migrations. You want to completely reset the database to a clean initial state. You ran `docker compose down` followed by `docker compose up`, but found the old corrupted data still exists. Which command should you have used instead?",
+        "wg": [
+          {
+            "t": "徹底重置",
+            "en": "completely reset",
+            "ps": "verb phrase"
+          },
+          {
+            "t": "損壞",
+            "en": "corrupted",
+            "ps": "adjective"
+          }
+        ]
+      }
+    ],
+    "type": "Single",
+    "options": [
+      {
+        "t": "docker compose restart db",
+        "en": "docker compose restart db",
+        "wg": []
+      },
+      {
+        "t": "docker compose down --rmi all",
+        "en": "docker compose down --rmi all",
+        "wg": []
+      },
+      {
+        "t": "docker compose down -v",
+        "en": "docker compose down -v",
+        "wg": []
+      },
+      {
+        "t": "docker compose rm -f",
+        "en": "docker compose rm -f",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "標準的 `docker compose down` 僅會移除容器和網路，但會保留 Volume 以防止資料遺失。若要「徹底重置」並刪除資料庫的持久化資料，必須加上 `-v` (volumes) 參數，即 `docker compose down -v`。",
+      "en": "Standard `docker compose down` only removes containers and networks, preserving volumes to prevent data loss. To 'completely reset' and delete the database's persistent data, you must add the `-v` (volumes) flag, i.e., `docker compose down -v`.",
+      "wg": [
+        {
+          "t": "持久化資料",
+          "en": "persistent data",
+          "ps": "noun"
+        },
+        {
+          "t": "保留",
+          "en": "preserve",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "11",
+    "level": "Easy",
+    "keywords": "Troubleshooting, Ports, Anti-pattern",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "Error response from daemon: Bind for 0.0.0.0:5432 failed: port is already allocated",
+    "question": [
+      {
+        "t": "當你嘗試啟動專案時，終端機出現了如上的錯誤訊息。這通常是因為你的宿主機（Host）上已經運行了一個 Postgres 實例。根據手冊中的「反模式」與建議，下列哪種解決方式最符合最佳實務？",
+        "en": "When trying to start the project, you get the error message shown above. This is usually because a Postgres instance is already running on your host machine. According to the 'Anti-patterns' and recommendations in the handbook, which solution best aligns with best practices?",
+        "wg": [
+          {
+            "t": "已分配",
+            "en": "allocated",
+            "ps": "adjective"
+          },
+          {
+            "t": "實例",
+            "en": "instance",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single",
+    "options": [
+      {
+        "t": "強制殺死宿主機上正在運行的 Postgres 服務",
+        "en": "Force kill the running Postgres service on the host",
+        "wg": []
+      },
+      {
+        "t": "修改 `docker-compose.yml`，將容器內的 5432 端口改為其他端口",
+        "en": "Modify `docker-compose.yml` to change the container's internal port 5432 to something else",
+        "wg": []
+      },
+      {
+        "t": "使用環境變數（如 `HOST_PORT`）來動態調整宿主機的映射端口，例如 `5433:5432`",
+        "en": "Use environment variables (like `HOST_PORT`) to dynamically adjust the host mapping port, e.g., `5433:5432`",
+        "wg": []
+      },
+      {
+        "t": "移除 `ports` 區塊，只依賴容器間的內部網路通訊",
+        "en": "Remove the `ports` block and rely solely on internal container networking",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "手冊指出「硬性綁定端口」是導致「在我的機器上可以跑」問題的主因。最佳解法是避免寫死 `5432:5432`，而是透過 `.env` 定義變數（如 `HOST_PORT=5433`），讓開發者能根據自己機器的狀況調整宿主機端口，而不影響容器內部配置。",
+      "en": "The handbook identifies 'hardcoding ports' as a main cause of 'it works on my machine' issues. The best practice is to avoid hardcoding `5432:5432` and instead use variables defined in `.env` (e.g., `HOST_PORT=5433`). This allows developers to adjust the host port based on their machine's status without affecting the internal container configuration.",
+      "wg": [
+        {
+          "t": "硬性綁定",
+          "en": "hardcoding/hard binding",
+          "ps": "verb phrase"
+        },
+        {
+          "t": "調整",
+          "en": "adjust",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "12",
+    "level": "Easy",
+    "keywords": "Mental Model, Onboarding, IaC",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "根據手冊中「基礎設施即代碼的本地延伸」(IaC for Localhost) 的心智模型，對於一位新入職的開發者來說，理想的本機作業系統（Host OS）狀態應該是如何？",
+        "en": "According to the 'IaC for Localhost' mental model in the handbook, what is the ideal state of the local operating system (Host OS) for a newly onboarded developer?",
+        "wg": [
+          {
+            "t": "心智模型",
+            "en": "mental model",
+            "ps": "noun"
+          },
+          {
+            "t": "新入職",
+            "en": "newly onboarded",
+            "ps": "adjective"
+          }
+        ]
+      }
+    ],
+    "type": "Single",
+    "options": [
+      {
+        "t": "應該安裝好所有專案需要的語言 Runtime（如 Node.js, Python）以備不時之需",
+        "en": "Should have all project-required language runtimes (e.g., Node.js, Python) installed just in case",
+        "wg": []
+      },
+      {
+        "t": "應該保持乾淨，只安裝 Docker 和 IDE，所有依賴都在容器內定義",
+        "en": "Should remain clean, with only Docker and an IDE installed; all dependencies are defined within containers",
+        "wg": []
+      },
+      {
+        "t": "應該安裝與生產環境完全相同的 Linux 發行版",
+        "en": "Should have the exact same Linux distribution installed as the production environment",
+        "wg": []
+      },
+      {
+        "t": "應該手動安裝資料庫服務，以獲得比容器更好的 I/O 效能",
+        "en": "Should manually install database services to get better I/O performance than containers",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "手冊強調 Docker Compose 是本地環境的「架構藍圖」。為了實現快速入職（15分鐘內）與環境一致性，本機 OS 應保持乾淨，不需手動安裝 MySQL、Redis 或語言 Runtime，這些都應透過 YAML 聲明並在容器中運行。",
+      "en": "The handbook emphasizes that Docker Compose is the 'Architecture Blueprint' for the local environment. To achieve fast onboarding (within 15 minutes) and environment consistency, the local OS should remain clean. There is no need to manually install MySQL, Redis, or language runtimes; these should all be declared via YAML and run within containers.",
+      "wg": [
+        {
+          "t": "架構藍圖",
+          "en": "Architecture Blueprint",
+          "ps": "noun"
+        },
+        {
+          "t": "聲明",
+          "en": "declare",
+          "ps": "verb"
+        }
+      ]
+    }
+  }
+]

@@ -1,0 +1,748 @@
+[
+  {
+    "no": "1",
+    "level": "Medium",
+    "keywords": "Anti-pattern,Immutable Artifact,Build Strategy",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "steps:\n  - run: docker build -t myapp:dev --build-arg ENV=dev .\n  - run: docker build -t myapp:prod --build-arg ENV=prod .",
+    "question": [
+      {
+        "t": "某團隊的 CI 流程如上所示，針對不同環境分別執行 `docker build` 並注入不同的環境變數。請問這種做法主要違反了什麼原則，以及潛在風險為何？",
+        "en": "A team's CI process is shown above, executing `docker build` separately for different environments with different environment variables injected. What principle does this practice primarily violate, and what is the potential risk?",
+        "wg": [
+          {
+            "t": "不可變產物",
+            "en": "Immutable Artifact",
+            "ps": "noun"
+          },
+          {
+            "t": "環境變數",
+            "en": "Environment Variables",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "違反了「最小權限原則」，因為生產環境的配置被暴露在構建日誌中。",
+        "en": "Violates the 'Principle of Least Privilege' because production configurations are exposed in build logs.",
+        "wg": []
+      },
+      {
+        "t": "違反了「不可變產物」原則。Dev 與 Prod 的映像檔二進位內容不同，可能導致「在測試環境通過但在生產環境失敗」的問題。",
+        "en": "Violates the 'Immutable Artifact' principle. The binary content of Dev and Prod images differs, potentially leading to 'works in staging but fails in prod' issues.",
+        "wg": [
+          {
+            "t": "二進位內容",
+            "en": "binary content",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "這是一種標準做法，稱為「環境隔離構建」，能確保生產環境映像檔最小化。",
+        "en": "This is a standard practice called 'Environment Isolated Build', ensuring the production image is minimized.",
+        "wg": []
+      },
+      {
+        "t": "違反了「快取優化」原則，因為兩次構建無法共用任何層 (Layer)。",
+        "en": "Violates the 'Cache Optimization' principle because the two builds cannot share any layers.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "正確做法應是「一次構建，到處運行」(Build Once, Run Anywhere)。映像檔在構建後應視為不可變的 (Immutable)，環境差異應透過 Runtime 的環境變數或 ConfigMap 注入，而非在 Build time 打包進去。",
+      "en": "The correct approach is 'Build Once, Run Anywhere'. Images should be treated as immutable after building. Environmental differences should be injected via runtime environment variables or ConfigMaps, not baked in at build time.",
+      "wg": [
+        {
+          "t": "一次構建，到處運行",
+          "en": "Build Once, Run Anywhere",
+          "ps": "phrase"
+        }
+      ]
+    }
+  },
+  {
+    "no": "2",
+    "level": "Easy",
+    "keywords": "Tagging,Rollback,Production",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "apiVersion: apps/v1\nkind: Deployment\nspec:\n  template:\n    spec:\n      containers:\n      - name: my-app\n        image: my-registry.com/app:latest",
+    "question": [
+      {
+        "t": "在 Kubernetes Deployment 或生產環境配置中，直接使用 `:latest` 標籤（如上圖）被視為一種反模式 (Anti-pattern)。當生產環境發生故障需要緊急回滾 (Rollback) 時，這種做法會造成什麼具體困難？",
+        "en": "Using the `:latest` tag directly in Kubernetes Deployment or production configuration (as shown above) is considered an anti-pattern. What specific difficulty does this cause when an emergency rollback is needed due to a production failure?",
+        "wg": [
+          {
+            "t": "反模式",
+            "en": "Anti-pattern",
+            "ps": "noun"
+          },
+          {
+            "t": "回滾",
+            "en": "Rollback",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "Kubernetes 無法拉取帶有 `latest` 標籤的映像檔，因為它被視為無效標籤。",
+        "en": "Kubernetes cannot pull images with the `latest` tag because it is considered an invalid tag.",
+        "wg": []
+      },
+      {
+        "t": "`latest` 標籤會導致映像檔體積變大，增加回滾所需的下載時間。",
+        "en": "The `latest` tag causes the image size to increase, increasing the download time required for rollback.",
+        "wg": []
+      },
+      {
+        "t": "`latest` 是一個可變的指針。你無法精確知道「上一個正常運作的版本」對應的映像檔內容是什麼，導致無法準確回滾。",
+        "en": "`latest` is a mutable pointer. You cannot precisely know what image content corresponds to the 'previous working version', making accurate rollback impossible.",
+        "wg": [
+          {
+            "t": "可變的指針",
+            "en": "mutable pointer",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "使用 `latest` 會略過安全掃描步驟，導致回滾的版本可能包含漏洞。",
+        "en": "Using `latest` skips the security scan step, causing the rolled-back version to potentially contain vulnerabilities.",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "在生產環境中，標籤必須是明確且不可變的（如 Git SHA 或具體版本號）。`latest` 隨時可能被新的 Push 覆蓋，這意味著你失去了對「當前運行版本」與「歷史版本」的確定性參考。",
+      "en": "In production, tags must be explicit and immutable (like Git SHA or specific version numbers). `latest` can be overwritten by a new push at any time, meaning you lose deterministic reference to both the 'currently running version' and 'historical versions'.",
+      "wg": [
+        {
+          "t": "確定性",
+          "en": "deterministic",
+          "ps": "adjective"
+        }
+      ]
+    }
+  },
+  {
+    "no": "3",
+    "level": "Hard",
+    "keywords": "Security,Secrets,Docker History",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "FROM node:18\nCOPY .env .\nRUN npm install\nRUN rm .env\nCMD [\"node\", \"index.js\"]",
+    "question": [
+      {
+        "t": "一位資淺工程師寫了上述的 Dockerfile，試圖在安裝依賴時使用 `.env` 中的憑證，並在隨後的步驟中刪除它以保護安全。請問這種做法是否安全？為什麼？",
+        "en": "A junior engineer wrote the above Dockerfile, attempting to use credentials from `.env` during dependency installation and then deleting it in a subsequent step to secure it. Is this practice secure? Why?",
+        "wg": [
+          {
+            "t": "憑證",
+            "en": "credentials",
+            "ps": "noun"
+          },
+          {
+            "t": "依賴",
+            "en": "dependencies",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "安全。因為 `rm .env` 指令已經將檔案從最終的檔案系統中移除，駭客無法看到該檔案。",
+        "en": "Secure. Because the `rm .env` command removes the file from the final filesystem, hackers cannot see the file.",
+        "wg": []
+      },
+      {
+        "t": "不安全。雖然最終層 (Layer) 看不到該檔案，但它仍然存在於 `COPY .env .` 這一層的歷史紀錄中，可透過 `docker history` 或檢視層內容還原。",
+        "en": "Insecure. Although the file is not visible in the final layer, it still exists in the history of the `COPY .env .` layer and can be recovered via `docker history` or by inspecting layer contents.",
+        "wg": [
+          {
+            "t": "層",
+            "en": "layer",
+            "ps": "noun"
+          },
+          {
+            "t": "還原",
+            "en": "recover/restore",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "安全，只要 `.dockerignore` 中沒有包含 `.env` 即可。",
+        "en": "Secure, as long as `.env` is not included in `.dockerignore`.",
+        "wg": []
+      },
+      {
+        "t": "不安全，因為 `npm install` 會自動將環境變數上傳到 npm registry。",
+        "en": "Insecure, because `npm install` automatically uploads environment variables to the npm registry.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "Docker 映像檔是由唯讀層 (Read-only Layers) 堆疊而成的。後續的 `RUN rm` 只是在新的層中標記該檔案為刪除（Whiteout），但原始資料仍保留在先前的層中。正確做法是使用 Docker 的 `--secret` mount 功能。",
+      "en": "Docker images are built from stacked read-only layers. A subsequent `RUN rm` only marks the file as deleted (Whiteout) in a new layer, but the original data remains in the previous layer. The correct approach is to use Docker's `--secret` mount feature.",
+      "wg": [
+        {
+          "t": "唯讀層",
+          "en": "Read-only Layers",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "4",
+    "level": "Medium",
+    "keywords": "Promotion,Retag,CI/CD Workflow",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在「Image Promotion」模式中，當一個映像檔在 Staging 環境測試通過，準備發佈到 Production 時，最推薦的操作方式是什麼？",
+        "en": "In the 'Image Promotion' pattern, when an image passes testing in the Staging environment and is ready for Production release, what is the most recommended operation?",
+        "wg": [
+          {
+            "t": "映像檔晉升",
+            "en": "Image Promotion",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "使用相同的 Git Commit SHA 在 CI Server 上重新執行 `docker build`，並推送到 Production Registry。",
+        "en": "Re-run `docker build` on the CI server using the same Git Commit SHA and push to the Production Registry.",
+        "wg": []
+      },
+      {
+        "t": "直接修改 Staging 環境的 Deployment yaml，將其指向 Production 資料庫。",
+        "en": "Directly modify the Staging environment's Deployment yaml to point to the Production database.",
+        "wg": []
+      },
+      {
+        "t": "從 Registry 拉取 (Pull) 該 Staging 映像檔，重新標籤 (Retag) 為 Release 版本，然後推送 (Push) 到 Production Registry。",
+        "en": "Pull the Staging image from the Registry, Retag it as the Release version, and then Push it to the Production Registry.",
+        "wg": [
+          {
+            "t": "重新標籤",
+            "en": "Retag",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "將原始碼複製到 Production 伺服器，並在那裡執行 `docker build` 以確保環境一致性。",
+        "en": "Copy the source code to the Production server and execute `docker build` there to ensure environment consistency.",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "為了確保「所測即所得」，不應重新構建（因為編譯器版本、時間戳記或依賴項的微小變化可能導致二進位檔案不同）。Retagging 確保了在生產環境運行的 Bits 與測試環境完全一致。",
+      "en": "To ensure 'what you test is what you get', you should not rebuild (as slight changes in compiler versions, timestamps, or dependencies can lead to different binaries). Retagging ensures the bits running in production are identical to those in the test environment.",
+      "wg": [
+        {
+          "t": "所測即所得",
+          "en": "what you test is what you get",
+          "ps": "phrase"
+        }
+      ]
+    }
+  },
+  {
+    "no": "5",
+    "level": "Easy",
+    "keywords": "Context,Optimization,.dockerignore",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "Project Structure:\n├── .git/ (200MB)\n├── node_modules/ (500MB)\n├── src/ (5MB)\n├── Dockerfile\n└── package.json",
+    "question": [
+      {
+        "t": "你的專案結構如上所示。在 CI Pipeline 中執行 `docker build .` 時，發現「Sending build context to Docker daemon」這一步驟耗時極長且佔用大量頻寬。最可能的原因與解決方案是什麼？",
+        "en": "Your project structure is shown above. When running `docker build .` in the CI Pipeline, you notice the step 'Sending build context to Docker daemon' takes a very long time and consumes a lot of bandwidth. What is the most likely cause and solution?",
+        "wg": [
+          {
+            "t": "構建上下文",
+            "en": "build context",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "CI Runner 的網路速度太慢；應升級 CI 機器規格。",
+        "en": "The CI Runner's network speed is too slow; upgrade the CI machine specifications.",
+        "wg": []
+      },
+      {
+        "t": "缺少 `.dockerignore` 檔案；Docker 預設會將當前目錄下所有檔案（包含 `.git` 和 `node_modules`）傳送給 Daemon。",
+        "en": "Missing `.dockerignore` file; Docker by default sends all files in the current directory (including `.git` and `node_modules`) to the Daemon.",
+        "wg": []
+      },
+      {
+        "t": "Dockerfile 中的 `COPY` 指令寫錯了；應改為 `COPY src/ src/`。",
+        "en": "The `COPY` instruction in the Dockerfile is incorrect; it should be changed to `COPY src/ src/`.",
+        "wg": []
+      },
+      {
+        "t": "這是 Docker 的正常行為，無法優化。",
+        "en": "This is normal Docker behavior and cannot be optimized.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "Docker Client-Server 架構中，構建的第一步是將 Context（當前目錄）打包上傳給 Daemon。若未透過 `.dockerignore` 排除 `.git` 或本地的 `node_modules`，這些巨大且不必要的檔案會導致傳輸延遲。",
+      "en": "In Docker's Client-Server architecture, the first step of a build is packaging and uploading the Context (current directory) to the Daemon. If `.git` or local `node_modules` are not excluded via `.dockerignore`, these large and unnecessary files cause transmission delays.",
+      "wg": [
+        {
+          "t": "排除",
+          "en": "exclude",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "6",
+    "level": "Medium",
+    "keywords": "Multi-arch,Buildx,Cross-platform",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "開發團隊使用 Apple Silicon (ARM64) 的 MacBook 進行開發，但生產環境是 Linux x86_64 (AMD64)。為了避免「Exec format error」並確保映像檔能在兩種架構下運作，CI 流程中應採用什麼策略？",
+        "en": "The development team uses Apple Silicon (ARM64) MacBooks, but the production environment is Linux x86_64 (AMD64). To avoid 'Exec format error' and ensure the image works on both architectures, what strategy should be adopted in the CI process?",
+        "wg": [
+          {
+            "t": "架構",
+            "en": "architecture",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "分別構建兩個映像檔 `app:arm64` 和 `app:amd64`，並要求開發者手動切換。",
+        "en": "Build two separate images `app:arm64` and `app:amd64`, and require developers to switch manually.",
+        "wg": []
+      },
+      {
+        "t": "使用 `docker buildx` 構建多架構映像檔 (Multi-arch Image)，並推送到同一個 Tag 下。",
+        "en": "Use `docker buildx` to build a Multi-arch Image and push it under the same Tag.",
+        "wg": [
+          {
+            "t": "多架構映像檔",
+            "en": "Multi-arch Image",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "在 Dockerfile 中使用 QEMU 模擬器指令手動編譯程式碼。",
+        "en": "Manually compile the code using QEMU emulator instructions inside the Dockerfile.",
+        "wg": []
+      },
+      {
+        "t": "強制所有開發人員更換為 x86 架構的筆電。",
+        "en": "Force all developers to switch to x86 architecture laptops.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "`docker buildx` 支援同時構建多種架構（如 `--platform linux/amd64,linux/arm64`），並會產生一個 Manifest List，讓 Docker Client 能根據當前運行的機器架構自動拉取正確的版本。",
+      "en": "`docker buildx` supports building for multiple architectures simultaneously (e.g., `--platform linux/amd64,linux/arm64`) and generates a Manifest List, allowing the Docker Client to automatically pull the correct version based on the current machine's architecture.",
+      "wg": [
+        {
+          "t": "清單列表",
+          "en": "Manifest List",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "7",
+    "level": "Medium",
+    "keywords": "CI Caching,--cache-from,Optimization,Registry Cache",
+    "parentNo": null,
+    "images": "",
+    "codeSnippet": "",
+    "question": [
+      {
+        "t": "在 CI 環境中，每次執行 `docker build` 都會重新下載 Base Image 並重新安裝所有依賴，導致構建時間過長。",
+        "en": "In a CI environment, every `docker build` execution re-downloads the Base Image and reinstalls all dependencies, leading to excessive build times.",
+        "wg": []
+      },
+      {
+        "t": "根據手冊中的「快取優化」策略，下列哪項做法最能有效解決此問題？",
+        "en": "According to the 'CI Caching' strategy in the handbook, which of the following practices best addresses this issue?",
+        "wg": [
+          {
+            "t": "快取優化",
+            "en": "Cache Optimization",
+            "ps": "noun phrase"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "在 CI Runner 上手動執行 `docker save` 與 `docker load` 來備份映像檔。",
+        "en": "Manually execute `docker save` and `docker load` on the CI Runner to backup images.",
+        "wg": []
+      },
+      {
+        "t": "在 `docker build` 指令中使用 `--cache-from` 參數，指定從 Registry 拉取舊的映像檔作為快取來源。",
+        "en": "Use the `--cache-from` flag in the `docker build` command to specify pulling an old image from the Registry as a cache source.",
+        "wg": [
+          {
+            "t": "快取來源",
+            "en": "cache source",
+            "ps": "noun phrase"
+          }
+        ]
+      },
+      {
+        "t": "將所有依賴項的安裝指令移至 Dockerfile 的最後一行，以確保它們總是最後執行。",
+        "en": "Move all dependency installation commands to the last line of the Dockerfile to ensure they always run last.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "CI Runner 通常是無狀態的 (Stateless)，本地沒有快取層。使用 `--cache-from` 可以指示 Docker 嘗試從遠端 Registry 下載先前的映像檔層 (Layers) 來作為快取，避免重複構建未變更的部分。",
+      "en": "CI Runners are typically stateless and lack local cache layers. Using `--cache-from` instructs Docker to try downloading previous image layers from a remote Registry to use as a cache, avoiding rebuilding unchanged parts.",
+      "wg": [
+        {
+          "t": "無狀態的",
+          "en": "Stateless",
+          "ps": "adjective"
+        },
+        {
+          "t": "映像檔層",
+          "en": "image layers",
+          "ps": "noun phrase"
+        }
+      ]
+    }
+  },
+  {
+    "no": "8",
+    "level": "Medium",
+    "keywords": "Security,Image Scanning,Shift Left,Trivy",
+    "parentNo": null,
+    "images": "",
+    "codeSnippet": "",
+    "question": [
+      {
+        "t": "為了落實安全性檢查「左移 (Shift Left)」的原則，團隊決定在 CI Pipeline 中整合映像檔掃描工具（如 Trivy）。",
+        "en": "To implement the 'Shift Left' principle for security checks, the team decides to integrate an image scanning tool (like Trivy) into the CI Pipeline.",
+        "wg": [
+          {
+            "t": "左移",
+            "en": "Shift Left",
+            "ps": "verb/concept"
+          }
+        ]
+      },
+      {
+        "t": "下列哪一種設定策略最符合手冊建議的最佳實務？",
+        "en": "Which of the following configuration strategies best aligns with the best practices recommended in the handbook?",
+        "wg": []
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "在映像檔推送到 Production Registry 之後再進行掃描，以免阻擋發佈流程。",
+        "en": "Scan the image after it is pushed to the Production Registry to avoid blocking the release process.",
+        "wg": []
+      },
+      {
+        "t": "在構建後、推送前進行掃描，並設定閥值：僅當發現 `CRITICAL` 等級漏洞時才中斷 Pipeline。",
+        "en": "Scan after build but before push, setting a threshold: interrupt the Pipeline only when `CRITICAL` level vulnerabilities are found.",
+        "wg": [
+          {
+            "t": "閥值",
+            "en": "threshold",
+            "ps": "noun"
+          },
+          {
+            "t": "中斷",
+            "en": "interrupt/fail",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "僅掃描 Base Image 的漏洞，忽略應用程式依賴 (Application Dependencies) 以節省時間。",
+        "en": "Only scan the Base Image for vulnerabilities, ignoring Application Dependencies to save time.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "最佳實務是在推送前攔截風險。設定合理的閥值 (如 Critical) 可以平衡安全性與開發效率，避免因輕微漏洞頻繁中斷開發流程，同時確保嚴重漏洞不會進入生產環境。",
+      "en": "Best practice is to intercept risks before pushing. Setting a reasonable threshold (e.g., Critical) balances security and development efficiency, avoiding frequent interruptions for minor issues while ensuring severe vulnerabilities do not reach production.",
+      "wg": [
+        {
+          "t": "攔截",
+          "en": "intercept/block",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "9",
+    "level": "Easy",
+    "keywords": "Tagging Strategy,SemVer,Git SHA,Release",
+    "parentNo": null,
+    "images": "",
+    "codeSnippet": "",
+    "question": [
+      {
+        "t": "當專案發佈新版本（例如 Git Tag `v1.0.0`）時，CI Pipeline 應該如何為 Docker Image 加上標籤，以符合「健壯的標籤策略」？",
+        "en": "When a project releases a new version (e.g., Git Tag `v1.0.0`), how should the CI Pipeline tag the Docker Image to comply with a 'Robust Tagging Strategy'?",
+        "wg": [
+          {
+            "t": "健壯的",
+            "en": "robust",
+            "ps": "adjective"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "僅使用 `latest` 標籤，以確保使用者總是拉取到最新版。",
+        "en": "Use only the `latest` tag to ensure users always pull the newest version.",
+        "wg": []
+      },
+      {
+        "t": "僅使用 `v1.0.0` 標籤，因為這對人類最易讀。",
+        "en": "Use only the `v1.0.0` tag because it is the most human-readable.",
+        "wg": []
+      },
+      {
+        "t": "同時使用 `v1.0.0` (SemVer) 與 `Git Commit SHA` (不可變標識)，並可選擇性加上 `latest`。",
+        "en": "Use both `v1.0.0` (SemVer) and `Git Commit SHA` (Immutable Identifier), and optionally add `latest`.",
+        "wg": [
+          {
+            "t": "不可變標識",
+            "en": "Immutable Identifier",
+            "ps": "noun phrase"
+          }
+        ]
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "手冊強調 Git Commit SHA 是追蹤與回滾的黃金標準 (Gold Standard)，因為它是唯一且不可變的；SemVer 則是為了方便人類辨識。兩者結合才是最健壯的策略。",
+      "en": "The handbook emphasizes that the Git Commit SHA is the gold standard for tracking and rollback because it is unique and immutable; SemVer is for human readability. Combining both is the most robust strategy.",
+      "wg": [
+        {
+          "t": "黃金標準",
+          "en": "Gold Standard",
+          "ps": "noun phrase"
+        }
+      ]
+    }
+  },
+  {
+    "no": "10",
+    "level": "Easy",
+    "keywords": "Linting,Hadolint,Best Practices,Checklist",
+    "parentNo": null,
+    "images": "",
+    "codeSnippet": "",
+    "question": [
+      {
+        "t": "在 CI Pipeline 的檢查清單 (Checklist) 中，為了在構建前自動發現 Dockerfile 中的語法錯誤或非最佳實務（如使用 `sudo` 或未釘選版本），建議加入什麼步驟？",
+        "en": "In the CI Pipeline checklist, what step is recommended to automatically detect syntax errors or non-best practices (such as using `sudo` or unpinned versions) in the Dockerfile before building?",
+        "wg": [
+          {
+            "t": "未釘選版本",
+            "en": "unpinned versions",
+            "ps": "noun phrase"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "執行 `docker build --check`。",
+        "en": "Run `docker build --check`.",
+        "wg": []
+      },
+      {
+        "t": "使用 Dockerfile Linter 工具（如 `hadolint`）。",
+        "en": "Use a Dockerfile Linter tool (such as `hadolint`).",
+        "wg": [
+          {
+            "t": "語法檢查工具",
+            "en": "Linter",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "依賴 `docker push` 失敗時的回傳訊息。",
+        "en": "Rely on the error message returned when `docker push` fails.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "Linter (如 `hadolint`) 是一種靜態分析工具，能在實際執行構建前就掃描出違反最佳實務的寫法，是 CI 流程中確保品質的第一道防線。",
+      "en": "A Linter (like `hadolint`) is a static analysis tool that scans for violations of best practices before the actual build, serving as the first line of defense for quality in the CI process.",
+      "wg": [
+        {
+          "t": "靜態分析",
+          "en": "static analysis",
+          "ps": "noun phrase"
+        }
+      ]
+    }
+  },
+  {
+    "no": "11",
+    "level": "Hard",
+    "keywords": "BuildKit,Optimization,Cache Mounts,DOCKER_BUILDKIT",
+    "parentNo": null,
+    "images": "",
+    "codeSnippet": "",
+    "question": [
+      {
+        "t": "你的團隊發現 CI 流程中，每次執行 `RUN apt-get install ...` 都要重新下載所有套件，即使 Docker Layer 快取失效。",
+        "en": "Your team notices that in the CI process, every `RUN apt-get install ...` execution re-downloads all packages, even if the Docker Layer cache is invalidated.",
+        "wg": []
+      },
+      {
+        "t": "啟用 `DOCKER_BUILDKIT=1` 後，可以使用哪項功能來掛載快取目錄，以加速套件安裝過程？",
+        "en": "After enabling `DOCKER_BUILDKIT=1`, which feature can be used to mount cache directories to accelerate the package installation process?",
+        "wg": [
+          {
+            "t": "掛載",
+            "en": "mount",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "使用 `--mount=type=cache` 語法。",
+        "en": "Use the `--mount=type=cache` syntax.",
+        "wg": []
+      },
+      {
+        "t": "使用 `--cache-from` 參數。",
+        "en": "Use the `--cache-from` parameter.",
+        "wg": []
+      },
+      {
+        "t": "使用 `VOLUME` 指令。",
+        "en": "Use the `VOLUME` instruction.",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "BuildKit 支援 `--mount=type=cache`，這允許在構建過程中掛載一個持久化的快取目錄（如 `/var/cache/apt`），即使 Layer 重建，該目錄內容仍可被重複利用，大幅加快安裝速度。",
+      "en": "BuildKit supports `--mount=type=cache`, which allows mounting a persistent cache directory (like `/var/cache/apt`) during the build. Even if the layer is rebuilt, the directory content can be reused, significantly speeding up installation.",
+      "wg": [
+        {
+          "t": "持久化的",
+          "en": "persistent",
+          "ps": "adjective"
+        }
+      ]
+    }
+  },
+  {
+    "no": "12",
+    "level": "Medium",
+    "keywords": "Chain of Trust,Traceability,Git Commit,Mental Model",
+    "parentNo": null,
+    "images": "",
+    "codeSnippet": "",
+    "question": [
+      {
+        "t": "手冊中提到的「信任鏈 (Chain of Trust)」心智模型，強調每一個 Docker Image 必須能回溯到什麼資訊，才能確保生產環境的可追蹤性？",
+        "en": "The 'Chain of Trust' mental model mentioned in the handbook emphasizes that every Docker Image must be traceable to what information to ensure traceability in the production environment?",
+        "wg": [
+          {
+            "t": "信任鏈",
+            "en": "Chain of Trust",
+            "ps": "noun phrase"
+          },
+          {
+            "t": "可追蹤性",
+            "en": "traceability",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "唯一的 Git Commit SHA。",
+        "en": "A unique Git Commit SHA.",
+        "wg": []
+      },
+      {
+        "t": "構建時的時間戳記 (Timestamp)。",
+        "en": "The build timestamp.",
+        "wg": []
+      },
+      {
+        "t": "負責構建的 CI Runner ID。",
+        "en": "The ID of the CI Runner responsible for the build.",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "信任鏈的核心在於能夠精確知道目前運行的 Image 是由哪一份程式碼產生的。Git Commit SHA 是唯一且不可變的原始碼識別符，因此是追蹤的關鍵。",
+      "en": "The core of the Chain of Trust is knowing exactly which code produced the currently running Image. The Git Commit SHA is a unique and immutable source code identifier, making it the key to traceability.",
+      "wg": [
+        {
+          "t": "識別符",
+          "en": "identifier",
+          "ps": "noun"
+        }
+      ]
+    }
+  }
+]

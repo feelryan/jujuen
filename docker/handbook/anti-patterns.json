@@ -1,0 +1,886 @@
+[
+  {
+    "no": "1",
+    "level": "Easy",
+    "keywords": "Mental Model, Immutable Infrastructure, Patching",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "當生產環境中的某個容器被發現存在安全漏洞（例如 OpenSSL 需要更新）時，依據 Docker 的「不可變基礎設施」原則，下列哪種處理方式是正確的？",
+        "en": "When a security vulnerability (e.g., OpenSSL needs an update) is found in a production container, according to Docker's 'Immutable Infrastructure' principle, which of the following is the correct way to handle it?",
+        "wg": [
+          {
+            "t": "不可變基礎設施",
+            "en": "Immutable Infrastructure",
+            "ps": "noun"
+          },
+          {
+            "t": "安全漏洞",
+            "en": "security vulnerability",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single",
+    "options": [
+      {
+        "t": "使用 SSH 進入容器，執行 `apt-get upgrade` 更新套件，並重啟服務。",
+        "en": "SSH into the container, run `apt-get upgrade` to update the package, and restart the service.",
+        "wg": []
+      },
+      {
+        "t": "修改 Dockerfile 更新基礎映像檔版本，重新構建映像檔，並部署新的容器以替換舊容器。",
+        "en": "Update the base image version in the Dockerfile, rebuild the image, and deploy a new container to replace the old one.",
+        "wg": [
+          {
+            "t": "重新構建",
+            "en": "rebuild",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "使用 Ansible 或 Puppet 等配置管理工具連線到容器內進行熱修復。",
+        "en": "Use configuration management tools like Ansible or Puppet to connect to the container and perform a hotfix.",
+        "wg": []
+      },
+      {
+        "t": "掛載一個包含更新後二進位檔案的 Volume 到容器中覆蓋舊檔案。",
+        "en": "Mount a Volume containing the updated binary files into the container to overwrite the old files.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "容器應被視為「牲畜（Cattle）」而非「寵物（Pets）」。一旦容器建立，它就是不可變的（Immutable）。若需變更，應重新構建映像檔（Rebuild Image）並替換整個容器，而非在運行中的容器內進行修補，這樣才能確保環境的一致性與可重現性。",
+      "en": "Containers should be treated as 'Cattle', not 'Pets'. Once created, a container is immutable. If changes are needed, you should rebuild the image and replace the entire container rather than patching a running one. This ensures environment consistency and reproducibility.",
+      "wg": [
+        {
+          "t": "牲畜",
+          "en": "Cattle",
+          "ps": "noun"
+        },
+        {
+          "t": "寵物",
+          "en": "Pets",
+          "ps": "noun"
+        },
+        {
+          "t": "可重現性",
+          "en": "reproducibility",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "2",
+    "level": "Medium",
+    "keywords": "Anti-pattern, Fat Container, Logging, Isolation",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "FROM ubuntu:22.04\nRUN apt-get install -y nginx php-fpm supervisor\nCOPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf\nCMD [\"/usr/bin/supervisord\"]",
+    "question": [
+      {
+        "t": "一位工程師撰寫了如下的 Dockerfile，試圖在單一容器中使用 `supervisor` 同時運行 Nginx 與 PHP-FPM。這種「胖容器（Fat Container）」模式主要會帶來什麼負面後果？",
+        "en": "An engineer wrote the following Dockerfile, attempting to run both Nginx and PHP-FPM in a single container using `supervisor`. What is the primary negative consequence of this 'Fat Container' pattern?",
+        "wg": [
+          {
+            "t": "胖容器",
+            "en": "Fat Container",
+            "ps": "noun"
+          },
+          {
+            "t": "負面後果",
+            "en": "negative consequence",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single",
+    "options": [
+      {
+        "t": "映像檔構建速度會變慢，因為安裝了太多軟體。",
+        "en": "The image build speed will be slower because too much software is installed.",
+        "wg": []
+      },
+      {
+        "t": "破壞了關注點分離，導致日誌（Logs）混合難以除錯，且編排系統難以偵測單一子進程的崩潰。",
+        "en": "It breaks separation of concerns, causing mixed logs that are hard to debug, and the orchestration system struggles to detect the crash of a single sub-process.",
+        "wg": [
+          {
+            "t": "關注點分離",
+            "en": "separation of concerns",
+            "ps": "noun"
+          },
+          {
+            "t": "編排系統",
+            "en": "orchestration system",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "Supervisor 會佔用過多的 CPU 資源，導致應用程式效能下降。",
+        "en": "Supervisor will consume excessive CPU resources, causing application performance degradation.",
+        "wg": []
+      },
+      {
+        "t": "無法使用 Volume 掛載資料。",
+        "en": "Cannot use Volumes to mount data.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "「單一容器多進程」會導致 `docker logs` 輸出混亂（混合了 Nginx 和 PHP 的日誌），且若其中一個服務（如 PHP-FPM）崩潰但 Supervisor 仍活著，K8s 或 Docker Swarm 會誤判容器為健康，導致無法觸發自動重啟或修復。",
+      "en": "The 'One Container, Multiple Processes' pattern results in chaotic `docker logs` output (mixing Nginx and PHP logs). Furthermore, if one service (e.g., PHP-FPM) crashes but Supervisor remains active, K8s or Docker Swarm will incorrectly perceive the container as healthy, failing to trigger automatic restart or recovery.",
+      "wg": [
+        {
+          "t": "日誌",
+          "en": "logs",
+          "ps": "noun"
+        },
+        {
+          "t": "崩潰",
+          "en": "crash",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "3",
+    "level": "Medium",
+    "keywords": "Tags, Reproducibility, CI/CD, Rollback",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在 CI/CD 流程或 Dockerfile 中使用 `:latest` 標籤（例如 `FROM node:latest`）被稱為「標籤賭博（Tag Roulette）」。下列哪項描述最準確地解釋了其風險？",
+        "en": "Using the `:latest` tag (e.g., `FROM node:latest`) in CI/CD pipelines or Dockerfiles is referred to as 'Tag Roulette'. Which of the following descriptions most accurately explains its risk?",
+        "wg": [
+          {
+            "t": "標籤賭博",
+            "en": "Tag Roulette",
+            "ps": "noun"
+          },
+          {
+            "t": "風險",
+            "en": "risk",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single",
+    "options": [
+      {
+        "t": "`latest` 標籤的映像檔通常體積較大，會佔用更多頻寬。",
+        "en": "Images with the `latest` tag are usually larger in size and consume more bandwidth.",
+        "wg": []
+      },
+      {
+        "t": "它會導致不可重現的構建（Non-reproducible builds），今天的部署版本可能與明天不同，且發生問題時難以回滾到確切的舊版本。",
+        "en": "It leads to non-reproducible builds; the version deployed today might differ from tomorrow's, and it is difficult to rollback to a precise previous version when issues arise.",
+        "wg": [
+          {
+            "t": "不可重現的構建",
+            "en": "Non-reproducible builds",
+            "ps": "noun"
+          },
+          {
+            "t": "回滾",
+            "en": "rollback",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "Docker Hub 會限制 `latest` 標籤的拉取次數。",
+        "en": "Docker Hub limits the pull frequency for the `latest` tag.",
+        "wg": []
+      },
+      {
+        "t": "`latest` 標籤通常包含不穩定的 Beta 版程式碼。",
+        "en": "The `latest` tag usually contains unstable Beta code.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "使用 `:latest` 意味著你無法控制基礎映像檔的具體版本。當 Base Image 更新時（可能包含破壞性變更），重新構建會產生不同的結果。此外，當生產環境崩潰時，你無法輕易得知上一個「能正常運作的 latest」對應哪個 SHA Digest，導致回滾困難。",
+      "en": "Using `:latest` means you cannot control the specific version of the base image. When the Base Image updates (potentially with breaking changes), rebuilding yields different results. Additionally, when production crashes, you cannot easily identify which SHA Digest corresponded to the last 'working latest', making rollback difficult.",
+      "wg": [
+        {
+          "t": "基礎映像檔",
+          "en": "Base Image",
+          "ps": "noun"
+        },
+        {
+          "t": "破壞性變更",
+          "en": "breaking changes",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "4",
+    "level": "Hard",
+    "keywords": "Security, Layers, Image History, Secrets",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "COPY id_rsa .\nRUN git clone git@github.com:my-org/private-repo.git\nRUN rm id_rsa",
+    "question": [
+      {
+        "t": "你在 Dockerfile 中使用上述指令來拉取私有代碼庫，然後刪除私鑰。為什麼這仍然被視為嚴重的安全漏洞（Build Secrets Leakage）？",
+        "en": "You use the above commands in a Dockerfile to pull a private repository and then delete the private key. Why is this still considered a serious security vulnerability (Build Secrets Leakage)?",
+        "wg": [
+          {
+            "t": "私鑰",
+            "en": "private key",
+            "ps": "noun"
+          },
+          {
+            "t": "安全漏洞",
+            "en": "security vulnerability",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single",
+    "options": [
+      {
+        "t": "私鑰會被上傳到 Git 伺服器的日誌中。",
+        "en": "The private key will be uploaded to the Git server logs.",
+        "wg": []
+      },
+      {
+        "t": "即使在後續層刪除了檔案，該檔案仍然存在於映像檔的「歷史層（History Layer）」中，可透過 `docker history` 或還原工具提取。",
+        "en": "Even if the file is deleted in a subsequent layer, it still exists in the image's 'History Layer' and can be extracted via `docker history` or recovery tools.",
+        "wg": [
+          {
+            "t": "歷史層",
+            "en": "History Layer",
+            "ps": "noun"
+          },
+          {
+            "t": "提取",
+            "en": "extracted",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "Docker Daemon 會自動備份所有 COPY 的檔案到宿主機的 `/tmp` 目錄。",
+        "en": "The Docker Daemon automatically backs up all COPY files to the host's `/tmp` directory.",
+        "wg": []
+      },
+      {
+        "t": "`rm` 指令在 Dockerfile 中無效。",
+        "en": "The `rm` command is ineffective in a Dockerfile.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "Docker 映像檔是分層儲存的。`COPY` 指令建立了一個包含私鑰的層，`RUN rm` 只是在新的層中標記該檔案為刪除。攻擊者可以檢視映像檔的歷史層並提取出原始的私鑰檔案。正確做法是使用 BuildKit 的 `--mount=type=secret`。",
+      "en": "Docker images are stored in layers. The `COPY` command creates a layer containing the private key, and `RUN rm` merely marks the file as deleted in a new layer. Attackers can inspect the image's history layers and extract the original private key file. The correct approach is to use BuildKit's `--mount=type=secret`.",
+      "wg": [
+        {
+          "t": "分層儲存",
+          "en": "stored in layers",
+          "ps": "verb_phrase"
+        },
+        {
+          "t": "標記",
+          "en": "mark",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "5",
+    "level": "Hard",
+    "keywords": "Signal Handling, SIGTERM, Entrypoint, Shell form",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "FROM node:18\n# Shell form\nCMD npm start",
+    "question": [
+      {
+        "t": "當你使用 `docker stop` 停止上述容器時，發現它總是等待 10 秒後才被強制殺死（Killed），且應用程式沒有機會執行優雅關閉（Graceful Shutdown）。這是什麼原因造成的？",
+        "en": "When you use `docker stop` to stop the container above, you notice it always waits 10 seconds before being forcibly killed, and the application doesn't get a chance to perform a graceful shutdown. What causes this?",
+        "wg": [
+          {
+            "t": "優雅關閉",
+            "en": "Graceful Shutdown",
+            "ps": "noun"
+          },
+          {
+            "t": "強制殺死",
+            "en": "forcibly killed",
+            "ps": "verb_phrase"
+          }
+        ]
+      }
+    ],
+    "type": "Single",
+    "options": [
+      {
+        "t": "Node.js 應用程式啟動太慢。",
+        "en": "The Node.js application starts too slowly.",
+        "wg": []
+      },
+      {
+        "t": "Shell form 啟動會使 `/bin/sh` 成為 PID 1，而 shell 通常不會轉發信號（Signals）給子進程，導致應用程式收不到 `SIGTERM`。",
+        "en": "Starting with Shell form makes `/bin/sh` become PID 1, and the shell typically does not forward signals to child processes, causing the application to miss the `SIGTERM`.",
+        "wg": [
+          {
+            "t": "轉發信號",
+            "en": "forward signals",
+            "ps": "verb_phrase"
+          },
+          {
+            "t": "子進程",
+            "en": "child processes",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "Docker 預設的 stop timeout 設定錯誤。",
+        "en": "Docker's default stop timeout is misconfigured.",
+        "wg": []
+      },
+      {
+        "t": "`npm start` 指令本身不支援信號處理。",
+        "en": "The `npm start` command itself does not support signal handling.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "使用 Shell form (`CMD npm start`) 會產生 `/bin/sh -c npm start`，此時 PID 1 是 shell。Shell 不會自動將接收到的 `SIGTERM` 轉發給 `node` 進程，導致 Docker 等待超時後發送 `SIGKILL`。應改用 Exec form `CMD [\"npm\", \"start\"]` 或使用 `tini`。",
+      "en": "Using Shell form (`CMD npm start`) results in `/bin/sh -c npm start`, making the shell PID 1. The shell does not automatically forward the received `SIGTERM` to the `node` process, causing Docker to wait for the timeout before sending `SIGKILL`. You should use Exec form `CMD [\"npm\", \"start\"]` or use `tini` instead.",
+      "wg": [
+        {
+          "t": "超時",
+          "en": "timeout",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "6",
+    "level": "Medium",
+    "keywords": "Performance, Storage, Copy-on-Write, Volumes",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "為什麼將高頻率寫入的資料（如 Database files 或 Access logs）直接寫入容器的可寫層（Writable Layer），而不是掛載 Volume，被視為一種反模式？",
+        "en": "Why is writing high-frequency data (like Database files or Access logs) directly to the container's Writable Layer, instead of mounting a Volume, considered an anti-pattern?",
+        "wg": [
+          {
+            "t": "可寫層",
+            "en": "Writable Layer",
+            "ps": "noun"
+          },
+          {
+            "t": "高頻率寫入",
+            "en": "high-frequency writing",
+            "ps": "noun_phrase"
+          }
+        ]
+      }
+    ],
+    "type": "Single",
+    "options": [
+      {
+        "t": "因為容器層的大小有限制，寫滿會導致容器崩潰。",
+        "en": "Because the container layer size is limited, filling it up will cause the container to crash.",
+        "wg": []
+      },
+      {
+        "t": "容器的可寫層使用「寫入時複製（Copy-on-Write）」機制，I/O 效能遠低於 Volume，且容器刪除後資料會遺失。",
+        "en": "The container's writable layer uses a 'Copy-on-Write' mechanism, which has significantly lower I/O performance than Volumes, and data is lost when the container is deleted.",
+        "wg": [
+          {
+            "t": "寫入時複製",
+            "en": "Copy-on-Write",
+            "ps": "noun"
+          },
+          {
+            "t": "資料遺失",
+            "en": "data loss",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "這樣做會導致宿主機的檔案系統權限混亂。",
+        "en": "Doing so causes file system permission confusion on the host.",
+        "wg": []
+      },
+      {
+        "t": "Docker 不允許在容器運行時寫入檔案。",
+        "en": "Docker does not allow writing files while the container is running.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "容器的儲存驅動（Storage Driver）使用 Copy-on-Write (CoW) 技術來管理層。這對於頻繁的寫入操作會帶來顯著的 I/O 效能懲罰。此外，容器是短暫的（Ephemeral），寫在容器內的資料在容器刪除或重建時會消失。持久化資料應始終使用 Volumes 或 Bind Mounts。",
+      "en": "Container storage drivers use Copy-on-Write (CoW) technology to manage layers. This incurs a significant I/O performance penalty for frequent write operations. Additionally, containers are ephemeral; data written inside the container disappears when the container is deleted or recreated. Persistent data should always use Volumes or Bind Mounts.",
+      "wg": [
+        {
+          "t": "儲存驅動",
+          "en": "Storage Driver",
+          "ps": "noun"
+        },
+        {
+          "t": "效能懲罰",
+          "en": "performance penalty",
+          "ps": "noun"
+        },
+        {
+          "t": "短暫的",
+          "en": "Ephemeral",
+          "ps": "adjective"
+        }
+      ]
+    }
+  },
+  {
+    "no": "7",
+    "level": "Medium",
+    "keywords": "Optimization, Layers, Dockerfile Best Practices",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "FROM ubuntu:22.04\nRUN apt-get update\nRUN apt-get install -y vim\nRUN rm -rf /var/lib/apt/lists/*",
+    "question": [
+      {
+        "t": "上述 Dockerfile 雖然執行了清理指令（`rm -rf ...`），但最終產生的映像檔大小並未顯著減少。這是為什麼？",
+        "en": "Although the above Dockerfile executes a cleanup command (`rm -rf ...`), the final image size is not significantly reduced. Why is this?",
+        "wg": [
+          {
+            "t": "映像檔大小",
+            "en": "image size",
+            "ps": "noun"
+          },
+          {
+            "t": "顯著減少",
+            "en": "significantly reduced",
+            "ps": "verb_phrase"
+          }
+        ]
+      }
+    ],
+    "type": "Single",
+    "options": [
+      {
+        "t": "`rm` 指令沒有加上 `-f` 參數。",
+        "en": "The `rm` command is missing the `-f` flag.",
+        "wg": []
+      },
+      {
+        "t": "每一行 `RUN` 指令都會建立一個新的唯讀層（Read-only Layer）。檔案雖然在第三層被標記刪除，但其實體仍存在於前兩層中。",
+        "en": "Each `RUN` command creates a new read-only layer. Although the files are marked as deleted in the third layer, their actual content still exists in the previous two layers.",
+        "wg": [
+          {
+            "t": "唯讀層",
+            "en": "Read-only Layer",
+            "ps": "noun"
+          },
+          {
+            "t": "實體",
+            "en": "actual content/entity",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "Ubuntu 的基礎映像檔本身就很大。",
+        "en": "The Ubuntu base image itself is very large.",
+        "wg": []
+      },
+      {
+        "t": "Docker 快取機制導致刪除無效。",
+        "en": "The Docker caching mechanism renders the deletion ineffective.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "為了優化映像檔大小，應該將安裝與清理合併在同一個 `RUN` 指令中（使用 `&&` 連接）。一旦檔案被提交（Committed）到某一層，後續層的刪除操作只能將其「隱藏」，無法真正釋放該檔案佔用的空間。",
+      "en": "To optimize image size, installation and cleanup should be combined into a single `RUN` command (connected by `&&`). Once a file is committed to a layer, deletion operations in subsequent layers can only 'hide' it, not truly release the space occupied by that file.",
+      "wg": [
+        {
+          "t": "合併",
+          "en": "combine",
+          "ps": "verb"
+        },
+        {
+          "t": "釋放",
+          "en": "release",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "8",
+    "level": "Medium",
+    "keywords": "Security, Root Privileges, Container Escape, User Instruction",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "FROM node:18-alpine\nWORKDIR /app\nCOPY . .\nRUN npm install\nCMD [\"npm\", \"start\"]",
+    "question": [
+      {
+        "t": "上述 Dockerfile 未指定 `USER` 指令，因此應用程式將預設以 `root` 身份運行。根據反模式指南，這會帶來什麼主要的安全風險？",
+        "en": "The above Dockerfile does not specify a `USER` instruction, so the application runs as `root` by default. According to the anti-patterns guide, what is the primary security risk associated with this?",
+        "wg": [
+          {
+            "t": "預設",
+            "en": "default",
+            "ps": "adv"
+          },
+          {
+            "t": "安全風險",
+            "en": "security risk",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single",
+    "options": [
+      {
+        "t": "容器內的 root 使用者無法存取網際網路，導致應用程式無法更新。",
+        "en": "The root user inside the container cannot access the internet, preventing the application from updating.",
+        "wg": []
+      },
+      {
+        "t": "若應用程式遭到攻破，攻擊者可能藉此獲得宿主機的 Root 權限（容器逃逸）。",
+        "en": "If the application is compromised, the attacker might gain Root privileges on the host machine (Container Escape).",
+        "wg": [
+          {
+            "t": "攻破",
+            "en": "compromised",
+            "ps": "verb"
+          },
+          {
+            "t": "容器逃逸",
+            "en": "Container Escape",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "以 root 身份運行會導致 Docker 映像檔體積顯著增加。",
+        "en": "Running as root causes the Docker image size to increase significantly.",
+        "wg": []
+      },
+      {
+        "t": "這會導致容器無法被 Kubernetes 或 Docker Swarm 正確調度。",
+        "en": "This prevents the container from being properly scheduled by Kubernetes or Docker Swarm.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "預設情況下，容器內的 root 與宿主機的 root 在核心層面是相同的（儘管有 Namespace 隔離）。如果發生容器逃逸漏洞，攻擊者將直接擁有宿主機的最高權限。最佳實務是建立並切換到非特權使用者（Non-privileged User）。",
+      "en": "By default, root inside the container is the same as root on the host kernel (despite Namespace isolation). If a container escape vulnerability occurs, the attacker gains full privileges on the host. The best practice is to create and switch to a non-privileged user.",
+      "wg": [
+        {
+          "t": "非特權使用者",
+          "en": "Non-privileged User",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "9",
+    "level": "Medium",
+    "keywords": "Networking, Debugging, Localhost, Port Mapping",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "// server.js\nconst http = require('http');\n// 應用程式綁定在 localhost\nhttp.createServer().listen(3000, '127.0.0.1');",
+    "question": [
+      {
+        "t": "一位開發者將 Node.js 應用程式容器化，並使用 `docker run -p 8080:3000 my-app` 啟動。雖然容器正在運行，但他無法從宿主機瀏覽器通過 `localhost:8080` 連線。根據除錯指南，最可能的原因是什麼？",
+        "en": "A developer containerizes a Node.js app and starts it with `docker run -p 8080:3000 my-app`. Although the container is running, he cannot connect via `localhost:8080` from the host browser. According to the debugging guide, what is the most likely cause?",
+        "wg": [
+          {
+            "t": "容器化",
+            "en": "containerize",
+            "ps": "verb"
+          },
+          {
+            "t": "宿主機",
+            "en": "host machine",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single",
+    "options": [
+      {
+        "t": "容器內的防火牆預設封鎖了 3000 端口。",
+        "en": "The firewall inside the container blocks port 3000 by default.",
+        "wg": []
+      },
+      {
+        "t": "應用程式監聽的是 `127.0.0.1`，在容器內這僅代表容器本身的 Loopback 介面，外部無法存取。",
+        "en": "The application listens on `127.0.0.1`, which inside the container refers only to its own Loopback interface and is inaccessible externally.",
+        "wg": [
+          {
+            "t": "Loopback 介面",
+            "en": "Loopback interface",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "Docker 的端口映射參數寫反了，應該是 `-p 3000:8080`。",
+        "en": "The Docker port mapping arguments are reversed; it should be `-p 3000:8080`.",
+        "wg": []
+      },
+      {
+        "t": "Node.js 應用程式需要 root 權限才能綁定端口。",
+        "en": "Node.js applications require root privileges to bind ports.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "在容器環境中，`127.0.0.1` (localhost) 僅指容器內部。若要讓外部（包含宿主機透過端口映射）存取服務，應用程式必須監聽 `0.0.0.0`（所有網路介面）。",
+      "en": "In a container environment, `127.0.0.1` (localhost) refers only to the container itself. To allow external access (including from the host via port mapping), the application must listen on `0.0.0.0` (all network interfaces).",
+      "wg": [
+        {
+          "t": "所有網路介面",
+          "en": "all network interfaces",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "10",
+    "level": "Medium",
+    "keywords": "Build Cache, Layer Caching, Optimization, Instruction Order",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "FROM node:18\nWORKDIR /app\n# ❌ 次佳的順序 (Suboptimal order)\nCOPY . .\nRUN npm install\nCMD [\"npm\", \"start\"]",
+    "question": [
+      {
+        "t": "在上述 Dockerfile 中，為什麼將 `COPY . .` 放在 `RUN npm install` 之前被視為一種反模式（或效能低下的做法）？",
+        "en": "In the above Dockerfile, why is placing `COPY . .` before `RUN npm install` considered an anti-pattern (or poor performance practice)?",
+        "wg": [
+          {
+            "t": "次佳的",
+            "en": "suboptimal",
+            "ps": "adj"
+          },
+          {
+            "t": "效能低下",
+            "en": "poor performance",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single",
+    "options": [
+      {
+        "t": "這會導致 `npm install` 無法正確讀取 `package.json`。",
+        "en": "This causes `npm install` to fail reading `package.json` correctly.",
+        "wg": []
+      },
+      {
+        "t": "這會導致安全漏洞，因為原始碼被暴露在依賴安裝層之前。",
+        "en": "This causes a security vulnerability as source code is exposed before the dependency installation layer.",
+        "wg": []
+      },
+      {
+        "t": "任何原始碼的微小變動都會導致 Docker 快取失效，迫使每次構建都重新執行耗時的 `npm install`。",
+        "en": "Any minor change in source code invalidates the Docker cache, forcing the time-consuming `npm install` to run on every build.",
+        "wg": [
+          {
+            "t": "快取失效",
+            "en": "cache invalidation",
+            "ps": "noun"
+          },
+          {
+            "t": "耗時的",
+            "en": "time-consuming",
+            "ps": "adj"
+          }
+        ]
+      },
+      {
+        "t": "這會增加最終映像檔的大小，因為 `node_modules` 會被複製兩次。",
+        "en": "This increases the final image size because `node_modules` will be copied twice.",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "Docker 依賴分層快取。`COPY . .` 通常包含頻繁變動的原始碼，若放在前面，一旦程式碼變更，該層之後的所有快取（包含 `RUN npm install`）都會失效。最佳實務是先 COPY `package.json` 並安裝依賴，最後才 COPY 原始碼。",
+      "en": "Docker relies on layer caching. `COPY . .` usually contains frequently changing source code. If placed early, any code change invalidates the cache for all subsequent layers (including `RUN npm install`). Best practice is to COPY `package.json` and install dependencies first, then COPY the source code.",
+      "wg": [
+        {
+          "t": "分層快取",
+          "en": "layer caching",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "11",
+    "level": "Easy",
+    "keywords": "Build Context, .dockerignore, Performance, Daemon",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "當你執行 `docker build .` 時，發現第一步「Sending build context to Docker daemon」耗費了非常長的時間且佔用大量頻寬。根據檢查清單，你首先應該檢查什麼？",
+        "en": "When you run `docker build .`, you notice the first step \"Sending build context to Docker daemon\" takes a very long time and consumes a lot of bandwidth. According to the checklist, what should you check first?",
+        "wg": [
+          {
+            "t": "耗費",
+            "en": "consume / take",
+            "ps": "verb"
+          },
+          {
+            "t": "頻寬",
+            "en": "bandwidth",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single",
+    "options": [
+      {
+        "t": "檢查網路連線速度是否過慢。",
+        "en": "Check if the internet connection speed is too slow.",
+        "wg": []
+      },
+      {
+        "t": "檢查是否遺漏了 `.dockerignore` 檔案，導致 `node_modules`、`.git` 或其他大檔案被傳送給 Daemon。",
+        "en": "Check if a `.dockerignore` file is missing, causing `node_modules`, `.git`, or other large files to be sent to the Daemon.",
+        "wg": [
+          {
+            "t": "遺漏",
+            "en": "missing",
+            "ps": "adj"
+          }
+        ]
+      },
+      {
+        "t": "檢查 Docker Daemon 是否當機。",
+        "en": "Check if the Docker Daemon has crashed.",
+        "wg": []
+      },
+      {
+        "t": "檢查是否使用了過舊的 Base Image。",
+        "en": "Check if an outdated Base Image is being used.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "Docker Client 會將當前目錄（Context）下的所有檔案打包傳送給 Docker Daemon。若未設定 `.dockerignore` 排除不必要的檔案（如依賴庫、Git 紀錄、暫存檔），會導致構建上下文極大，拖慢構建速度。",
+      "en": "The Docker Client packages and sends all files in the current directory (Context) to the Docker Daemon. If `.dockerignore` is not configured to exclude unnecessary files (like dependencies, Git history, temp files), the build context becomes huge, slowing down the build.",
+      "wg": [
+        {
+          "t": "構建上下文",
+          "en": "build context",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "12",
+    "level": "Easy",
+    "keywords": "Pets vs Cattle, Mental Model, Troubleshooting, Disposable",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在「寵物 vs. 牲畜 (Pets vs. Cattle)」的心智模型中，當生產環境的某個應用程式容器出現記憶體洩漏或異常行為時，符合 Docker 哲學的處理方式是什麼？",
+        "en": "In the \"Pets vs. Cattle\" mental model, when an application container in production exhibits a memory leak or abnormal behavior, what is the approach consistent with Docker philosophy?",
+        "wg": [
+          {
+            "t": "心智模型",
+            "en": "mental model",
+            "ps": "noun"
+          },
+          {
+            "t": "記憶體洩漏",
+            "en": "memory leak",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single",
+    "options": [
+      {
+        "t": "像照顧寵物一樣：SSH 進入容器，安裝除錯工具，修復問題並保持容器運行。",
+        "en": "Treat it like a pet: SSH into the container, install debug tools, fix the issue, and keep the container running.",
+        "wg": []
+      },
+      {
+        "t": "像對待牲畜一樣：直接殺死並替換該容器（Kill & Respawn），事後再透過日誌分析根本原因。",
+        "en": "Treat it like cattle: Kill and replace the container immediately (Kill & Respawn), and analyze the root cause via logs later.",
+        "wg": [
+          {
+            "t": "根本原因",
+            "en": "root cause",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "立即停止所有生產環境服務，直到找到問題為止。",
+        "en": "Immediately stop all production services until the issue is found.",
+        "wg": []
+      },
+      {
+        "t": "增加該容器的 CPU 與記憶體配額，希望問題自動解決。",
+        "en": "Increase the CPU and memory quota for that container, hoping the issue resolves itself.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "Docker 容器被設計為「可隨時替換的（Disposable）」。遇到單一容器故障，標準做法是將其視為「牲畜」直接替換，而不是像修復 VM（寵物）那樣進去修補。這確保了系統的一致性與可恢復性。",
+      "en": "Docker containers are designed to be \"disposable\". When a single container fails, the standard practice is to treat it as \"cattle\" and replace it immediately, rather than patching it inside like a VM (pet). This ensures system consistency and recoverability.",
+      "wg": [
+        {
+          "t": "可隨時替換的",
+          "en": "disposable",
+          "ps": "adj"
+        }
+      ]
+    }
+  }
+]

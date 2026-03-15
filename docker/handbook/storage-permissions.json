@@ -1,0 +1,926 @@
+[
+  {
+    "no": "1",
+    "level": "Hard",
+    "keywords": "Linux Kernel, UID, GID, Permissions, Bind Mount",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "當你在 Linux Host 上執行 Docker 容器時，容器內的 `root` 使用者（UID 0）在 Bind Mount 的目錄中建立了一個檔案。為何在 Host 機器上查看該檔案時，其擁有者顯示為 `root` 而非啟動容器的使用者？",
+        "en": "When running a Docker container on a Linux Host, the `root` user (UID 0) inside the container creates a file in a Bind Mounted directory. Why does the file owner appear as `root` on the Host machine instead of the user who started the container?",
+        "wg": [
+          {
+            "t": "Bind Mount",
+            "en": "Bind Mount",
+            "ps": "noun"
+          },
+          {
+            "t": "擁有者",
+            "en": "owner",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "因為 Docker Daemon 預設會自動執行 `chown` 指令來同步權限。",
+        "en": "Because the Docker Daemon automatically executes `chown` to sync permissions by default.",
+        "wg": []
+      },
+      {
+        "t": "因為容器與 Host 共享同一個 Linux Kernel，而 Kernel 僅依據數值 ID (UID/GID) 進行權限判斷，容器內的 UID 0 對應到 Host 的 UID 0。",
+        "en": "Because the container and Host share the same Linux Kernel, which relies on numeric IDs (UID/GID) for permissions; UID 0 inside maps to UID 0 outside.",
+        "wg": [
+          {
+            "t": "數值 ID",
+            "en": "numeric ID",
+            "ps": "noun"
+          },
+          {
+            "t": "權限判斷",
+            "en": "permission check",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "這是 Docker Desktop 的特有行為，在原生 Linux 上不會發生。",
+        "en": "This is specific behavior of Docker Desktop and does not happen on native Linux.",
+        "wg": []
+      },
+      {
+        "t": "因為容器內的 `/etc/passwd` 檔案被複製到了 Host 上。",
+        "en": "Because the `/etc/passwd` file inside the container is copied to the Host.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "Docker 容器並非虛擬機，它與 Host 共享 Kernel。Linux Kernel 僅認得 UID/GID 數值，不認得使用者名稱。因此容器內的 UID 0 (root) 直接對應到 Host 的 UID 0 (root)，導致 Host 上看到的檔案擁有者也是 root。",
+      "en": "Docker containers are not VMs; they share the Kernel with the Host. The Linux Kernel only recognizes numeric UIDs/GIDs, not usernames. Therefore, UID 0 (root) inside the container maps directly to UID 0 (root) on the Host, resulting in the file being owned by root on the Host.",
+      "wg": [
+        {
+          "t": "共享",
+          "en": "share",
+          "ps": "verb"
+        },
+        {
+          "t": "對應",
+          "en": "map to",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "2",
+    "level": "Medium",
+    "keywords": "Database, Performance, Named Volume, Bind Mount, Cross-platform",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "services:\n  db:\n    image: postgres:15\n    volumes:\n      - ./data:/var/lib/postgresql/data",
+    "question": [
+      {
+        "t": "你在 macOS 或 Windows 的 Docker Desktop 環境下開發，使用了如上所示的 Bind Mount 來儲存 PostgreSQL 資料。你發現資料庫寫入效能極差。最主要的原因是什麼？",
+        "en": "You are developing on macOS or Windows using Docker Desktop and use a Bind Mount for PostgreSQL data as shown above. You notice extremely poor database write performance. What is the primary reason?",
+        "wg": [
+          {
+            "t": "寫入效能",
+            "en": "write performance",
+            "ps": "noun"
+          },
+          {
+            "t": "極差",
+            "en": "extremely poor",
+            "ps": "adjective"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "PostgreSQL 在容器環境下本身效能就較差。",
+        "en": "PostgreSQL inherently performs poorly in a containerized environment.",
+        "wg": []
+      },
+      {
+        "t": "Bind Mount 跨越了 Host OS 與 Docker 虛擬機的檔案系統邊界，導致 I/O 開銷過大。",
+        "en": "Bind Mounts cross the filesystem boundary between the Host OS and the Docker VM, causing excessive I/O overhead.",
+        "wg": [
+          {
+            "t": "檔案系統邊界",
+            "en": "filesystem boundary",
+            "ps": "noun"
+          },
+          {
+            "t": "開銷",
+            "en": "overhead",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "應該使用 `tmpfs` 來儲存資料庫資料以提升速度。",
+        "en": "You should use `tmpfs` to store database data to improve speed.",
+        "wg": []
+      },
+      {
+        "t": "沒有在 `docker-compose.yml` 中設定 CPU 限制。",
+        "en": "CPU limits were not configured in `docker-compose.yml`.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "在非 Linux 系統（如 macOS/Windows）上，Docker 運行在輕量虛擬機中。Bind Mount 需要透過網路協定或檔案系統橋接將 Host 檔案同步進 VM，這對頻繁 I/O 的資料庫來說是效能殺手。應改用由 Docker 內部管理的 Named Volume。",
+      "en": "On non-Linux systems (like macOS/Windows), Docker runs inside a lightweight VM. Bind Mounts require syncing Host files into the VM via network protocols or filesystem bridges, which is a performance killer for I/O-heavy databases. Named Volumes managed internally by Docker should be used instead.",
+      "wg": [
+        {
+          "t": "頻繁 I/O",
+          "en": "I/O-heavy",
+          "ps": "adjective"
+        },
+        {
+          "t": "效能殺手",
+          "en": "performance killer",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "3",
+    "level": "Medium",
+    "keywords": "node_modules, Anonymous Volume, Volume Trick, Bind Mount",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "volumes:\n  - .:/app\n  - /app/node_modules",
+    "question": [
+      {
+        "t": "在 Node.js 專案的 `docker-compose.yml` 中，我們常看到如上的配置。第二行 `- /app/node_modules` 的作用是什麼？",
+        "en": "In a `docker-compose.yml` for a Node.js project, we often see the configuration above. What is the purpose of the second line `- /app/node_modules`?",
+        "wg": [
+          {
+            "t": "配置",
+            "en": "configuration",
+            "ps": "noun"
+          },
+          {
+            "t": "作用",
+            "en": "purpose",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "將 Host 的 `node_modules` 強制複製到容器中。",
+        "en": "Force copy the Host's `node_modules` into the container.",
+        "wg": []
+      },
+      {
+        "t": "建立一個匿名 Volume，防止 Host 的空資料夾（或不相容的 `node_modules`）覆蓋掉容器內安裝好的套件。",
+        "en": "Create an anonymous volume to prevent the Host's empty folder (or incompatible `node_modules`) from overwriting the packages installed inside the container.",
+        "wg": [
+          {
+            "t": "匿名 Volume",
+            "en": "anonymous volume",
+            "ps": "noun"
+          },
+          {
+            "t": "覆蓋",
+            "en": "overwrite",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "讓容器內的 `node_modules` 可以被 Host 直接讀取與修改。",
+        "en": "Allow the `node_modules` inside the container to be directly read and modified by the Host.",
+        "wg": []
+      },
+      {
+        "t": "這是一個錯誤配置，應該移除。",
+        "en": "This is a misconfiguration and should be removed.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "這被稱為 'Volume Trick'。由於 Docker 掛載路徑越長（越具體）優先權越高，這個匿名 Volume 會「遮蔽」掉外層 Bind Mount (`.:/app`) 對 `/app/node_modules` 的影響，確保容器使用自己構建的依賴環境，而非 Host 的版本。",
+      "en": "This is known as the 'Volume Trick'. Since Docker prioritizes longer (more specific) mount paths, this anonymous volume 'masks' the effect of the outer Bind Mount (`.:/app`) on `/app/node_modules`, ensuring the container uses its own built dependencies instead of the Host's version.",
+      "wg": [
+        {
+          "t": "遮蔽",
+          "en": "mask",
+          "ps": "verb"
+        },
+        {
+          "t": "優先權",
+          "en": "priority",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "4",
+    "level": "Easy",
+    "keywords": "Anti-pattern, Security, Permissions, chmod",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "當開發者在 Linux 上遇到容器寫入 Host 檔案失敗的 `Permission denied` 錯誤時，以下哪種做法屬於 **Anti-pattern（反模式）**？",
+        "en": "When a developer encounters a `Permission denied` error on Linux where a container fails to write to a Host file, which of the following approaches is considered an **Anti-pattern**?",
+        "wg": [
+          {
+            "t": "反模式",
+            "en": "Anti-pattern",
+            "ps": "noun"
+          },
+          {
+            "t": "做法",
+            "en": "approach",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "在 Host 上對專案目錄執行 `chmod -R 777 .`。",
+        "en": "Run `chmod -R 777 .` on the project directory on the Host.",
+        "wg": []
+      },
+      {
+        "t": "在 `docker-compose.yml` 中設定 `user: \"${UID}:${GID}\"`。",
+        "en": "Set `user: \"${UID}:${GID}\"` in `docker-compose.yml`.",
+        "wg": []
+      },
+      {
+        "t": "使用 Entrypoint script 動態修正檔案擁有者。",
+        "en": "Use an Entrypoint script to dynamically fix file ownership.",
+        "wg": []
+      },
+      {
+        "t": "檢查並調整 Host 目錄的 Group ID 以匹配容器。",
+        "en": "Check and adjust the Group ID of the Host directory to match the container.",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "`chmod 777` 會對所有使用者開放讀寫執行權限，造成嚴重安全漏洞，且會導致 Git 追蹤到大量檔案權限變更（file mode changes），弄髒 commit history。正確做法是協調 UID/GID。",
+      "en": "`chmod 777` grants read/write/execute permissions to all users, creating severe security vulnerabilities and causing Git to track massive file mode changes, dirtying the commit history. The correct approach is to align UIDs/GIDs.",
+      "wg": [
+        {
+          "t": "安全漏洞",
+          "en": "security vulnerability",
+          "ps": "noun"
+        },
+        {
+          "t": "弄髒",
+          "en": "dirty",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "5",
+    "level": "Medium",
+    "keywords": "Database, Initialization, Entrypoint, SQL",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你希望 MySQL 或 PostgreSQL 容器在**首次啟動**並建立 Volume 時，自動執行一個 `schema.sql` 來初始化資料庫結構。你應該將該檔案掛載到容器內的哪個路徑？",
+        "en": "You want a MySQL or PostgreSQL container to automatically execute a `schema.sql` to initialize the database structure upon **first startup** when the Volume is created. To which path inside the container should you mount this file?",
+        "wg": [
+          {
+            "t": "首次啟動",
+            "en": "first startup",
+            "ps": "noun"
+          },
+          {
+            "t": "初始化",
+            "en": "initialize",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "`/var/lib/mysql` 或 `/var/lib/postgresql/data`",
+        "en": "`/var/lib/mysql` or `/var/lib/postgresql/data`",
+        "wg": []
+      },
+      {
+        "t": "`/docker-entrypoint-initdb.d/`",
+        "en": "`/docker-entrypoint-initdb.d/`",
+        "wg": []
+      },
+      {
+        "t": "`/etc/mysql/conf.d/`",
+        "en": "`/etc/mysql/conf.d/`",
+        "wg": []
+      },
+      {
+        "t": "`/usr/local/bin/`",
+        "en": "`/usr/local/bin/`",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "官方資料庫 Image（如 MySQL, Postgres）均遵循慣例：在首次啟動且資料目錄為空時，會自動執行 `/docker-entrypoint-initdb.d/` 目錄下的 `.sql` 或 `.sh` 腳本。",
+      "en": "Official database images (like MySQL, Postgres) follow a convention: upon first startup when the data directory is empty, they automatically execute `.sql` or `.sh` scripts found in the `/docker-entrypoint-initdb.d/` directory.",
+      "wg": [
+        {
+          "t": "遵循慣例",
+          "en": "follow a convention",
+          "ps": "verb"
+        },
+        {
+          "t": "資料目錄",
+          "en": "data directory",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "6",
+    "level": "Medium",
+    "keywords": "User Remapping, Development Environment, Docker Compose",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "services:\n  app:\n    image: my-app\n    user: \"${UID}:${GID}\"\n    volumes:\n      - .:/app",
+    "question": [
+      {
+        "t": "在 Linux 開發環境中，使用上述 `user: \"${UID}:${GID}\"` 配置的主要目的是什麼？",
+        "en": "In a Linux development environment, what is the primary purpose of using the configuration `user: \"${UID}:${GID}\"` shown above?",
+        "wg": [
+          {
+            "t": "主要目的",
+            "en": "primary purpose",
+            "ps": "noun"
+          },
+          {
+            "t": "配置",
+            "en": "configuration",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "提升容器的執行效能。",
+        "en": "Improve the execution performance of the container.",
+        "wg": []
+      },
+      {
+        "t": "確保容器產生的檔案在 Host 上由當前使用者擁有，避免出現需要 `sudo` 才能刪除檔案的情況。",
+        "en": "Ensure files generated by the container are owned by the current user on the Host, avoiding situations where `sudo` is needed to delete files.",
+        "wg": [
+          {
+            "t": "當前使用者",
+            "en": "current user",
+            "ps": "noun"
+          },
+          {
+            "t": "避免",
+            "en": "avoid",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "讓容器獲得 Host 的 Root 權限。",
+        "en": "Grant the container Root privileges on the Host.",
+        "wg": []
+      },
+      {
+        "t": "這是為了讓容器能夠存取 Host 的網路環境。",
+        "en": "This is to allow the container to access the Host's network environment.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "這是 User Remapping 的常見模式。透過注入 Host 使用者的 UID/GID，容器內的 Process 會以該 ID 執行，因此寫入 Bind Mount 的檔案在 Host 上會顯示為該使用者擁有，解決了權限錯亂問題。",
+      "en": "This is a common pattern for User Remapping. By injecting the Host user's UID/GID, the process inside the container runs with that ID, so files written to the Bind Mount appear as owned by that user on the Host, resolving permission mismatches.",
+      "wg": [
+        {
+          "t": "注入",
+          "en": "inject",
+          "ps": "verb"
+        },
+        {
+          "t": "權限錯亂",
+          "en": "permission mismatch",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "7",
+    "level": "Medium",
+    "keywords": "Security, Tmpfs, Secrets, Persistence",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你的應用程式在啟動時需要讀取一個包含私鑰的敏感檔案（Sensitive Key File）。",
+        "en": "Your application needs to read a sensitive key file containing a private key at startup.",
+        "wg": [
+          {
+            "t": "敏感檔案",
+            "en": "Sensitive Key File",
+            "ps": "noun phrase"
+          },
+          {
+            "t": "私鑰",
+            "en": "Private Key",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "為了安全性，你希望這個檔案僅存在於記憶體中，絕不寫入容器的可寫層（Container Layer）或 Host 的磁碟，且在容器停止後立即消失。",
+        "en": "For security, you want this file to exist only in memory, never written to the Container Layer or Host disk, and to vanish immediately when the container stops.",
+        "wg": [
+          {
+            "t": "可寫層",
+            "en": "Writable Layer",
+            "ps": "noun phrase"
+          },
+          {
+            "t": "記憶體",
+            "en": "Memory",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "你應該選擇哪種掛載策略？",
+        "en": "Which mounting strategy should you choose?",
+        "wg": []
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "使用 Bind Mount 將 Host 的金鑰檔案掛載進去",
+        "en": "Use a Bind Mount to mount the key file from the Host",
+        "wg": []
+      },
+      {
+        "t": "使用 Named Volume 來儲存該金鑰",
+        "en": "Use a Named Volume to store the key",
+        "wg": []
+      },
+      {
+        "t": "使用 `tmpfs` 掛載",
+        "en": "Use a `tmpfs` mount",
+        "wg": []
+      },
+      {
+        "t": "在 Dockerfile 中使用 `COPY` 指令將金鑰複製進映像檔",
+        "en": "Use the `COPY` instruction in the Dockerfile to copy the key into the image",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "`tmpfs` 掛載會將檔案儲存在 Host 的記憶體中，不會寫入磁碟，符合「僅存在記憶體」與「容器重啟即消失」的需求。Bind Mount 和 Named Volume 都會涉及磁碟寫入；將金鑰 `COPY` 進映像檔則是非常危險的做法，因為金鑰會永久存在於映像檔的歷史紀錄中。",
+      "en": "A `tmpfs` mount stores files in the host's system memory, never writing to the disk, which meets the requirements of 'memory only' and 'vanish on restart'. Bind Mounts and Named Volumes involve disk I/O. Copying keys into the image is a security risk as the key persists in the image history.",
+      "wg": [
+        {
+          "t": "映像檔",
+          "en": "Image",
+          "ps": "noun"
+        },
+        {
+          "t": "歷史紀錄",
+          "en": "History",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "8",
+    "level": "Easy",
+    "keywords": "Anti-pattern, Portability, Docker Compose, Paths",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "volumes:\n  - /home/john/project/data:/var/lib/mysql",
+    "question": [
+      {
+        "t": "在 Code Review 時，你發現同事提交的 `docker-compose.yml` 中包含了如上的 Volume 設定。",
+        "en": "During a Code Review, you notice a colleague submitted a `docker-compose.yml` with the Volume configuration shown above.",
+        "wg": [
+          {
+            "t": "提交",
+            "en": "Submitted",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "這被視為一種 Anti-pattern（反模式），主要原因是什麼？",
+        "en": "This is considered an Anti-pattern. What is the primary reason?",
+        "wg": [
+          {
+            "t": "反模式",
+            "en": "Anti-pattern",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "這會導致容器內的資料庫效能低落",
+        "en": "This will cause poor database performance inside the container",
+        "wg": []
+      },
+      {
+        "t": "寫死絕對路徑（Hardcoded Absolute Path）破壞了專案的可攜性",
+        "en": "Hardcoded Absolute Paths break the project's portability",
+        "wg": [
+          {
+            "t": "寫死",
+            "en": "Hardcoded",
+            "ps": "verb/adjective"
+          },
+          {
+            "t": "可攜性",
+            "en": "Portability",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "Docker 不支援掛載 Host 的使用者家目錄",
+        "en": "Docker does not support mounting the Host user's home directory",
+        "wg": []
+      },
+      {
+        "t": "這會造成容器啟動時發生 Port 衝突",
+        "en": "This will cause Port conflicts when the container starts",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "使用絕對路徑（如 `/home/john/...`）意味著這個設定檔只能在 John 的電腦上運作。其他開發者或 CI/CD 伺服器的路徑結構可能不同，導致專案無法啟動。應使用相對路徑（如 `./data`）或 Named Volume。",
+      "en": "Using absolute paths (like `/home/john/...`) means this configuration only works on John's machine. Other developers or CI/CD servers likely have different path structures, causing the project to fail. Relative paths (like `./data`) or Named Volumes should be used.",
+      "wg": [
+        {
+          "t": "絕對路徑",
+          "en": "Absolute Path",
+          "ps": "noun phrase"
+        },
+        {
+          "t": "相對路徑",
+          "en": "Relative Path",
+          "ps": "noun phrase"
+        }
+      ]
+    }
+  },
+  {
+    "no": "9",
+    "level": "Hard",
+    "keywords": "Entrypoint, Permissions, gosu, Initialization",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "#!/bin/sh\n# entrypoint.sh\n\n# 修正掛載目錄的權限\nchown -R 1000:1000 /data\n\n# 降權並執行主程式\nexec gosu 1000:1000 \"$@\"",
+    "question": [
+      {
+        "t": "有些容器應用程式需要先以 `root` 身份執行初始化任務（例如修正 Volume 的檔案權限），然後再切換為非特權使用者（Non-root User）執行主程式。",
+        "en": "Some container applications need to run initialization tasks as `root` (e.g., fixing file permissions on a Volume) before switching to a Non-root User to run the main application.",
+        "wg": [
+          {
+            "t": "非特權使用者",
+            "en": "Non-root User",
+            "ps": "noun phrase"
+          },
+          {
+            "t": "初始化任務",
+            "en": "Initialization tasks",
+            "ps": "noun phrase"
+          }
+        ]
+      },
+      {
+        "t": "這種模式通常被稱為「Fixer Pattern」。為何在這種腳本中推薦使用 `gosu` 而不是標準的 `su` 或 `sudo`？",
+        "en": "This pattern is often called the 'Fixer Pattern'. Why is `gosu` recommended in this script over standard `su` or `sudo`?",
+        "wg": []
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "`gosu` 可以自動建立不存在的使用者",
+        "en": "`gosu` can automatically create users that do not exist",
+        "wg": []
+      },
+      {
+        "t": "`gosu` 執行速度比 `sudo` 快很多",
+        "en": "`gosu` executes much faster than `sudo`",
+        "wg": []
+      },
+      {
+        "t": "`gosu` 能正確傳遞 PID 1 的訊號（Signals）並避免產生額外的 process fork",
+        "en": "`gosu` correctly passes PID 1 signals and avoids creating extra process forks",
+        "wg": [
+          {
+            "t": "訊號",
+            "en": "Signals",
+            "ps": "noun"
+          },
+          {
+            "t": "額外的",
+            "en": "Extra",
+            "ps": "adjective"
+          }
+        ]
+      },
+      {
+        "t": "`gosu` 允許在 Windows 容器上執行 Linux 指令",
+        "en": "`gosu` allows running Linux commands on Windows containers",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "`su` 和 `sudo` 的設計並非針對容器環境，它們通常會導致訊號（如 SIGTERM）無法正確傳遞給子程序，造成容器無法優雅停止（Graceful Shutdown）。`gosu` 專為容器設計，執行後會直接替換當前 process，確保主程式成為 PID 1 接收訊號。",
+      "en": "`su` and `sudo` are not designed for container environments; they often fail to propagate signals (like SIGTERM) to child processes, preventing Graceful Shutdown. `gosu` is designed for containers; it replaces the current process, ensuring the main application becomes PID 1 to receive signals.",
+      "wg": [
+        {
+          "t": "優雅停止",
+          "en": "Graceful Shutdown",
+          "ps": "noun phrase"
+        },
+        {
+          "t": "替換",
+          "en": "Replace",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "10",
+    "level": "Medium",
+    "keywords": "Troubleshooting, Permissions, Numeric ID, ls",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你正在排查一個 `Permission denied` 的問題。",
+        "en": "You are troubleshooting a `Permission denied` issue.",
+        "wg": [
+          {
+            "t": "排查",
+            "en": "Troubleshooting",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "你在容器內執行 `ls -l` 看到檔案擁有者是 `appuser`，在 Host 上執行 `ls -l` 看到擁有者是 `alice`。",
+        "en": "Inside the container, `ls -l` shows the file owner is `appuser`. On the Host, `ls -l` shows the owner is `alice`.",
+        "wg": []
+      },
+      {
+        "t": "儘管看起來都有對應的使用者，寫入依然失敗。為了找出真正的權限衝突原因，你接下來應該執行什麼指令？",
+        "en": "Even though there seem to be corresponding users, writing still fails. To find the root cause of the permission conflict, what command should you run next?",
+        "wg": [
+          {
+            "t": "衝突",
+            "en": "Conflict",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "執行 `chmod 777` 來測試是否為權限問題",
+        "en": "Run `chmod 777` to test if it is a permission issue",
+        "wg": []
+      },
+      {
+        "t": "使用 `ls -n` 查看雙方的 Numeric UID/GID 是否一致",
+        "en": "Use `ls -n` to check if the Numeric UID/GID matches on both sides",
+        "wg": [
+          {
+            "t": "一致",
+            "en": "Matches / Consistent",
+            "ps": "adjective"
+          }
+        ]
+      },
+      {
+        "t": "檢查 Host 的防火牆設定",
+        "en": "Check the Host's firewall settings",
+        "wg": []
+      },
+      {
+        "t": "重新啟動 Docker Daemon",
+        "en": "Restart the Docker Daemon",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "Linux Kernel 只認數字 ID（UID/GID）。容器內的 `appuser` 和 Host 的 `alice` 只是顯示名稱（由各自的 `/etc/passwd` 解析），它們背後的數字 ID 可能完全不同（例如容器內是 1000，Host 上是 1001），這才是導致權限拒絕的真因。`ls -n` 可以顯示原始數字 ID。",
+      "en": "The Linux Kernel only recognizes numeric IDs (UID/GID). `appuser` inside the container and `alice` on the Host are just display names (resolved by their respective `/etc/passwd`). Their underlying numeric IDs might be different (e.g., 1000 in container vs 1001 on Host), which is the real cause of permission denial. `ls -n` reveals the raw numeric IDs.",
+      "wg": [
+        {
+          "t": "數字 ID",
+          "en": "Numeric ID",
+          "ps": "noun phrase"
+        },
+        {
+          "t": "解析",
+          "en": "Resolved / Parsed",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "11",
+    "level": "Easy",
+    "keywords": "Mental Model, Ephemeral, Container Layer, Persistence",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "關於 Docker 的儲存心智模型（Mental Model），以下描述何者正確？",
+        "en": "Regarding the Docker storage Mental Model, which of the following statements is correct?",
+        "wg": [
+          {
+            "t": "心智模型",
+            "en": "Mental Model",
+            "ps": "noun phrase"
+          }
+        ]
+      },
+      {
+        "t": "特別是關於「容器可寫層（Container Layer）」與「Volume」的區別。",
+        "en": "Specifically regarding the difference between the 'Container Layer' and 'Volume'.",
+        "wg": []
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "容器刪除後，寫入 Container Layer 的資料會自動備份到 Host",
+        "en": "After a container is deleted, data written to the Container Layer is automatically backed up to the Host",
+        "wg": []
+      },
+      {
+        "t": "Container Layer 是永久儲存的，Volume 則是暫時的",
+        "en": "The Container Layer is persistent, while Volumes are temporary",
+        "wg": []
+      },
+      {
+        "t": "容器本質是「用完即丟（Ephemeral）」的，刪除容器等於刪除其 Container Layer 內的所有資料；唯有 Volume 才是保險箱",
+        "en": "Containers are essentially 'Ephemeral'; deleting a container means deleting all data in its Container Layer; only Volumes act as a safe",
+        "wg": [
+          {
+            "t": "用完即丟",
+            "en": "Ephemeral",
+            "ps": "adjective"
+          },
+          {
+            "t": "保險箱",
+            "en": "Safe / Vault",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "兩者沒有區別，資料都會永久保留",
+        "en": "There is no difference; data is preserved permanently in both",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "Docker 的核心設計理念是容器為 ephemeral（短暫的）。任何未寫入 Volume 的資料都存於容器的可寫層，當執行 `docker rm` 刪除容器時，該層與其中的資料會被一併銷毀。Volume 則是設計來獨立於容器生命週期之外持久化資料的。",
+      "en": "Docker's core design philosophy is that containers are ephemeral. Any data not written to a Volume resides in the container's writable layer. When `docker rm` is executed, that layer and its data are destroyed. Volumes are designed to persist data independently of the container's lifecycle.",
+      "wg": [
+        {
+          "t": "生命週期",
+          "en": "Lifecycle",
+          "ps": "noun"
+        },
+        {
+          "t": "銷毀",
+          "en": "Destroyed",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "12",
+    "level": "Medium",
+    "keywords": "Dockerfile, COPY, Permissions, Production",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "FROM node:18-alpine\nWORKDIR /app\nRUN adduser -D myuser\nCOPY . /app\nUSER myuser\nCMD [\"npm\", \"start\"]",
+    "question": [
+      {
+        "t": "你撰寫了如上的 Production Dockerfile。但在容器啟動後，應用程式嘗試寫入 `/app/logs` 目錄時崩潰並回報 `Permission denied`。",
+        "en": "You wrote the Production Dockerfile shown above. However, after the container starts, the application crashes with `Permission denied` when trying to write to the `/app/logs` directory.",
+        "wg": [
+          {
+            "t": "崩潰",
+            "en": "Crashes",
+            "ps": "verb"
+          },
+          {
+            "t": "回報",
+            "en": "Reports",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "這是因為 `COPY` 指令的一個預設行為導致的。你該如何修正？",
+        "en": "This is caused by a default behavior of the `COPY` instruction. How should you fix it?",
+        "wg": [
+          {
+            "t": "預設行為",
+            "en": "Default behavior",
+            "ps": "noun phrase"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "在 `CMD` 前加入 `RUN chmod 777 /app`",
+        "en": "Add `RUN chmod 777 /app` before `CMD`",
+        "wg": []
+      },
+      {
+        "t": "將 `COPY` 指令改為 `COPY --chown=myuser:myuser . /app`",
+        "en": "Change the `COPY` instruction to `COPY --chown=myuser:myuser . /app`",
+        "wg": []
+      },
+      {
+        "t": "將 `USER myuser` 移到 `COPY` 指令之前",
+        "en": "Move `USER myuser` before the `COPY` instruction",
+        "wg": []
+      },
+      {
+        "t": "使用 Bind Mount 取代 `COPY` 指令",
+        "en": "Use a Bind Mount instead of the `COPY` instruction",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "Docker 的 `COPY` 指令預設會將檔案擁有者設為 `root`，即使你已經建立了使用者。當你隨後切換 `USER myuser` 時，該使用者對 root 擁有的目錄沒有寫入權限。正確做法是在 COPY 時使用 `--chown` 參數一次到位設定權限。",
+      "en": "Docker's `COPY` instruction defaults to setting file ownership to `root`, even if you have created a user. When you subsequently switch to `USER myuser`, that user has no write permissions on the root-owned directory. The correct fix is to use the `--chown` flag during COPY to set permissions in one step.",
+      "wg": [
+        {
+          "t": "一次到位",
+          "en": "In one step / At the same time",
+          "ps": "idiom"
+        }
+      ]
+    }
+  }
+]

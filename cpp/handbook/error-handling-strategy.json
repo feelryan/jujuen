@@ -1,0 +1,817 @@
+[
+  {
+    "no": "1",
+    "level": "Intermediate",
+    "keywords": "constructor, raii, exception, best-practices",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在設計一個遵循 RAII（資源取得即初始化）慣用法的 C++ 類別時，若在建構子（Constructor）中發生資源獲取失敗（例如資料庫連線失敗），最標準的處理方式是什麼？",
+        "en": "When designing a C++ class following the RAII (Resource Acquisition Is Initialization) idiom, what is the standard way to handle a resource acquisition failure (e.g., database connection failure) inside the constructor?",
+        "wg": [
+          {
+            "t": "建構子",
+            "en": "Constructor",
+            "ps": "noun"
+          },
+          {
+            "t": "資源取得即初始化",
+            "en": "RAII",
+            "ps": "phrase"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "回傳 `nullptr` 或 `false`。",
+        "en": "Return `nullptr` or `false`.",
+        "wg": []
+      },
+      {
+        "t": "拋出例外（Throw an exception），以防止物件被建立。",
+        "en": "Throw an exception to prevent the object from being constructed.",
+        "wg": []
+      },
+      {
+        "t": "將物件標記為「無效」狀態，並依賴使用者之後呼叫 `is_valid()` 檢查。",
+        "en": "Mark the object as 'invalid' and rely on the user to call `is_valid()` later.",
+        "wg": []
+      },
+      {
+        "t": "使用 `std::expected` 作為建構子的回傳型別。",
+        "en": "Use `std::expected` as the return type of the constructor.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "建構子沒有回傳值，無法使用錯誤碼或 `std::expected`。若不拋出例外，呼叫者會得到一個「半初始化」或「殭屍狀態」的物件，這違反了 RAII 的不變性（Invariant）。拋出例外能確保物件要嘛完全初始化成功，要嘛根本不存在。",
+      "en": "Constructors do not have return values, so error codes or `std::expected` cannot be used directly. Without throwing an exception, the caller receives a 'partially initialized' or 'zombie' object, violating RAII invariants. Throwing an exception ensures the object is either fully initialized or does not exist at all.",
+      "wg": [
+        {
+          "t": "半初始化",
+          "en": "partially initialized",
+          "ps": "adjective"
+        },
+        {
+          "t": "不變性",
+          "en": "Invariant",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "2",
+    "level": "Intermediate",
+    "keywords": "std::expected, control-flow, performance, anti-pattern",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "std::expected<User, Error> find_user(int id); // vs throw UserNotFound",
+    "question": [
+      {
+        "t": "在一個高頻率呼叫的登入系統中，為什麼使用 Exception 來處理「找不到使用者」（User Not Found）通常被視為一種 Anti-pattern？",
+        "en": "In a high-frequency login system, why is using Exceptions to handle 'User Not Found' generally considered an Anti-pattern?",
+        "wg": [
+          {
+            "t": "高頻率呼叫",
+            "en": "high-frequency",
+            "ps": "adjective"
+          },
+          {
+            "t": "反模式",
+            "en": "Anti-pattern",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "因為 Exception 無法攜帶足夠的錯誤訊息。",
+        "en": "Because Exceptions cannot carry sufficient error information.",
+        "wg": []
+      },
+      {
+        "t": "因為這屬於「預期內的失敗」（Domain Error），使用 Exception 會導致控制流混亂且效能低落（Stack Unwinding 成本高）。",
+        "en": "Because this is an 'Expected Failure' (Domain Error); using Exceptions confuses control flow and degrades performance due to high Stack Unwinding costs.",
+        "wg": [
+          {
+            "t": "預期內的失敗",
+            "en": "Expected Failure",
+            "ps": "noun"
+          },
+          {
+            "t": "堆疊展開",
+            "en": "Stack Unwinding",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "因為 C++ 的 Exception 機制不是執行緒安全的。",
+        "en": "Because the C++ Exception mechanism is not thread-safe.",
+        "wg": []
+      },
+      {
+        "t": "因為 `std::expected` 是 C++98 就有的功能，比 Exception 更傳統。",
+        "en": "Because `std::expected` has been available since C++98 and is more traditional than Exceptions.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "Exception 的設計初衷是處理「意外」狀況（如硬碟損壞、記憶體不足）。對於業務邏輯中頻繁發生的「找不到資料」，應視為正常資料流的一部分。Exception 在拋出時需要進行 Stack Unwinding，其開銷遠大於 `if` 檢查或 `std::expected` 的判斷。",
+      "en": "Exceptions are designed for 'exceptional' conditions (e.g., disk failure, OOM). 'Data not found' is a common occurrence in business logic and should be treated as part of the data flow. Throwing an exception incurs Stack Unwinding overhead, which is significantly more expensive than an `if` check or `std::expected`.",
+      "wg": [
+        {
+          "t": "業務邏輯",
+          "en": "business logic",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "3",
+    "level": "Advanced",
+    "keywords": "destructor, noexcept, std::terminate, safety",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "class Logger {\npublic:\n    ~Logger() {\n        // If flush() throws, what happens?\n        flush(); \n    }\n    void flush() { throw std::runtime_error(\"Disk full\"); }\n};",
+    "question": [
+      {
+        "t": "請檢視附帶的程式碼片段。如果 `flush()` 在解構子（Destructor）中拋出例外，且該解構子是因另一個例外正在進行 Stack Unwinding 而被呼叫的，這會導致什麼後果？",
+        "en": "Review the provided code snippet. If `flush()` throws an exception inside the destructor, and this destructor is called during Stack Unwinding due to another exception, what is the consequence?",
+        "wg": [
+          {
+            "t": "解構子",
+            "en": "Destructor",
+            "ps": "noun"
+          },
+          {
+            "t": "堆疊展開",
+            "en": "Stack Unwinding",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "例外會被忽略，程式繼續執行。",
+        "en": "The exception is ignored, and the program continues.",
+        "wg": []
+      },
+      {
+        "t": "編譯器會報錯，禁止在解構子呼叫可能拋出例外的函式。",
+        "en": "The compiler will report an error, forbidding calls to potentially throwing functions in a destructor.",
+        "wg": []
+      },
+      {
+        "t": "程式會直接呼叫 `std::terminate` 並異常終止（Crash）。",
+        "en": "The program will immediately call `std::terminate` and crash.",
+        "wg": []
+      },
+      {
+        "t": "新的例外會取代舊的例外，並繼續向外傳遞。",
+        "en": "The new exception replaces the old one and continues to propagate.",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "在 C++ 中，如果解構子拋出例外，而此時系統正處於 Stack Unwinding（處理另一個例外）的過程中，C++ 執行環境會無法決定該處理哪一個例外，因此直接呼叫 `std::terminate` 結束程式。此外，C++11 後解構子預設為 `noexcept`，拋出例外也會導致 terminate。",
+      "en": "In C++, if a destructor throws an exception while the system is already performing Stack Unwinding (handling another exception), the runtime cannot decide which exception to handle and calls `std::terminate` immediately. Additionally, since C++11, destructors are `noexcept` by default, so throwing from them also triggers termination.",
+      "wg": [
+        {
+          "t": "執行環境",
+          "en": "runtime",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "4",
+    "level": "Advanced",
+    "keywords": "extern-c, boundary, noexcept, interoperability",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "extern \"C\" void my_cpp_api() {\n    // ... code that might throw ...\n}",
+    "question": [
+      {
+        "t": "當你撰寫一個供 C 語言或作業系統 Callback 呼叫的 `extern \"C\"` 函式時，關於錯誤處理最重要的原則是什麼？",
+        "en": "When writing an `extern \"C\"` function intended to be called by C code or OS callbacks, what is the most important principle regarding error handling?",
+        "wg": [
+          {
+            "t": "回呼",
+            "en": "Callback",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "必須使用 `std::expected` 來回傳錯誤。",
+        "en": "Must use `std::expected` to return errors.",
+        "wg": []
+      },
+      {
+        "t": "絕對不能讓 Exception 逃逸出該函式邊界（Must not let exceptions escape the boundary）。",
+        "en": "Must not let exceptions escape the function boundary.",
+        "wg": [
+          {
+            "t": "逃逸",
+            "en": "escape",
+            "ps": "verb"
+          },
+          {
+            "t": "邊界",
+            "en": "boundary",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "C 語言可以捕捉 C++ 的 Exception，所以不需要特別處理。",
+        "en": "C code can catch C++ exceptions, so no special handling is needed.",
+        "wg": []
+      },
+      {
+        "t": "應拋出繼承自 `std::exception` 的類別，以確保相容性。",
+        "en": "Should throw classes inheriting from `std::exception` to ensure compatibility.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "C 語言不理解 C++ 的 Exception 機制（Stack Unwinding）。若 Exception 跨越了語言邊界（逃逸到 C 程式碼中），會導致未定義行為（Undefined Behavior）或程式崩潰。必須在邊界處使用 `try-catch` 攔截所有例外並轉換為錯誤碼。",
+      "en": "C does not understand C++ exception mechanisms (Stack Unwinding). If an exception crosses the language boundary (escapes into C code), it leads to Undefined Behavior or a crash. You must catch all exceptions at the boundary using `try-catch` and convert them into error codes.",
+      "wg": [
+        {
+          "t": "未定義行為",
+          "en": "Undefined Behavior",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "5",
+    "level": "Beginner",
+    "keywords": "logic-error, bug, assert, terminate",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "針對「程式邏輯錯誤」（Logic Errors），例如 Array index out of bounds 或 Null pointer dereference，最適合的處理策略是什麼？",
+        "en": "For 'Logic Errors' such as Array index out of bounds or Null pointer dereference, what is the most appropriate handling strategy?",
+        "wg": [
+          {
+            "t": "程式邏輯錯誤",
+            "en": "Logic Errors",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "使用 `try-catch` 進行捕捉並嘗試恢復。",
+        "en": "Use `try-catch` to catch and attempt recovery.",
+        "wg": []
+      },
+      {
+        "t": "回傳 `std::optional<T>`。",
+        "en": "Return `std::optional<T>`.",
+        "wg": []
+      },
+      {
+        "t": "使用 `assert` 或直接讓程式崩潰（Terminate），因為這是 Bug。",
+        "en": "Use `assert` or let the program crash (Terminate), because this is a Bug.",
+        "wg": []
+      },
+      {
+        "t": "忽略它，依賴作業系統的保護機制。",
+        "en": "Ignore it and rely on OS protection mechanisms.",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "邏輯錯誤代表程式碼寫錯了，程式狀態已不可信。試圖捕捉或恢復這類錯誤通常會掩蓋 Bug，導致更嚴重的資料損毀。正確做法是「Fail Fast」，讓程式崩潰以便開發者修復。",
+      "en": "Logic errors indicate bugs in the code, meaning the program state is untrustworthy. Attempting to catch or recover from these usually hides the bug, leading to worse data corruption. The correct approach is to 'Fail Fast' and let the program crash so developers can fix it.",
+      "wg": [
+        {
+          "t": "快速失敗",
+          "en": "Fail Fast",
+          "ps": "phrase"
+        }
+      ]
+    }
+  },
+  {
+    "no": "6",
+    "level": "Advanced",
+    "keywords": "strong-exception-guarantee, copy-and-swap, transaction",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在 Exception Safety 中，「強異常保證」（Strong Exception Guarantee）的定義是什麼？",
+        "en": "In the context of Exception Safety, what is the definition of the 'Strong Exception Guarantee'?",
+        "wg": [
+          {
+            "t": "強異常保證",
+            "en": "Strong Exception Guarantee",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "函式保證絕不拋出任何例外（Noexcept）。",
+        "en": "The function guarantees never to throw any exceptions (Noexcept).",
+        "wg": []
+      },
+      {
+        "t": "若函式拋出例外，程式狀態會回復到呼叫前的狀態（Commit or Rollback）。",
+        "en": "If the function throws an exception, the program state rolls back to the state before the call (Commit or Rollback).",
+        "wg": [
+          {
+            "t": "提交或回滾",
+            "en": "Commit or Rollback",
+            "ps": "phrase"
+          }
+        ]
+      },
+      {
+        "t": "函式保證不會發生記憶體洩漏，但資料可能處於不一致狀態。",
+        "en": "The function guarantees no memory leaks, but data might be in an inconsistent state.",
+        "wg": []
+      },
+      {
+        "t": "函式會捕捉所有內部例外並轉換為 Error Code。",
+        "en": "The function catches all internal exceptions and converts them to Error Codes.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "強異常保證意味著操作具有「交易性」（Transactional）：要嘛完全成功，要嘛像沒發生過一樣（回復原狀）。這通常透過 Copy-and-Swap 慣用法來實現。",
+      "en": "Strong Exception Guarantee implies the operation is 'Transactional': it either succeeds completely or has no effect (rolls back). This is typically implemented using the Copy-and-Swap idiom.",
+      "wg": [
+        {
+          "t": "交易性",
+          "en": "Transactional",
+          "ps": "adjective"
+        }
+      ]
+    }
+  },
+  {
+    "no": "7",
+    "level": "Intermediate",
+    "keywords": "performance, happy-path, overhead, zero-cost-exception",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在 C++ 錯誤處理的效能權衡中，關於「異常」（Exceptions）與「回傳值」（如 `std::expected` 或 Error Codes）在「快樂路徑」（Happy Path，即無錯誤發生時）的表現，下列敘述何者正確？",
+        "en": "In the context of C++ error handling performance trade-offs, which statement is true regarding the 'Happy Path' (when no error occurs) for Exceptions versus Return-based handling (like `std::expected` or Error Codes)?",
+        "wg": [
+          {
+            "t": "快樂路徑",
+            "en": "Happy Path",
+            "ps": "noun"
+          },
+          {
+            "t": "效能權衡",
+            "en": "performance trade-offs",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "Exceptions 在快樂路徑上通常比回傳值檢查更慢，因為需要建立 Stack Frame 資訊。",
+        "en": "Exceptions are generally slower on the Happy Path than return value checks because of the need to setup Stack Frame info.",
+        "wg": []
+      },
+      {
+        "t": "Exceptions 在快樂路徑上幾乎是零成本（Zero-cost），而回傳值方式則強迫每個函式呼叫都必須進行分支檢查（Branch check）。",
+        "en": "Exceptions have nearly zero cost on the Happy Path, whereas return-based methods force a branch check on every function call.",
+        "wg": [
+          {
+            "t": "零成本",
+            "en": "Zero-cost",
+            "ps": "adjective"
+          },
+          {
+            "t": "分支檢查",
+            "en": "branch check",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "兩者在快樂路徑上的效能完全相同，差異僅在於錯誤發生時的處理速度。",
+        "en": "Both have identical performance on the Happy Path; the difference is only in how fast they handle errors.",
+        "wg": []
+      },
+      {
+        "t": "回傳值方式（如 `std::expected`）在快樂路徑上完全不需要 CPU 分支預測，因此總是比 Exceptions 快。",
+        "en": "Return-based methods (like `std::expected`) require no CPU branch prediction on the Happy Path, so they are always faster than Exceptions.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "現代 C++ 編譯器實作 Exception 時（如 Itanium ABI），在不拋出例外的情況下（Happy Path），不需要執行額外的指令來檢查錯誤，這被稱為「零成本抽象」（Zero-cost abstractions，指無錯誤時無額外 runtime overhead）。相對地，使用 `std::expected` 或 Error Codes 意味著呼叫端必須在每次函式返回後執行 `if` 檢查，這會佔用 CPU 分支預測資源並增加指令數。然而，一旦發生錯誤，Exception 的 Stack Unwinding 代價極高，而回傳值方式則相對輕量。",
+      "en": "Modern C++ compilers implement exceptions (e.g., Itanium ABI) such that there is no runtime overhead on the Happy Path (no instructions executed to check for errors), often called 'Zero-cost abstractions'. In contrast, using `std::expected` or Error Codes forces the caller to perform an `if` check after every function return, consuming CPU branch prediction resources and adding instructions. However, if an error *does* occur, the cost of Stack Unwinding for exceptions is extremely high, whereas return-based methods remain lightweight.",
+      "wg": [
+        {
+          "t": "零成本抽象",
+          "en": "Zero-cost abstractions",
+          "ps": "noun"
+        },
+        {
+          "t": "堆疊解退",
+          "en": "Stack Unwinding",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "8",
+    "level": "Intermediate",
+    "keywords": "std::expected, monadic, c++23, pyramid-of-doom",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "std::expected<Image, Error> get_image(string path) {\n  return load_file(path)\n         ._______([](auto data) { return decode_jpg(data); })\n         ._______([](auto img)  { return resize(img, 100, 100); });\n}",
+    "question": [
+      {
+        "t": "在 C++23 中使用 `std::expected` 時，為了避免傳統錯誤碼導致的「毀滅金字塔」（Pyramid of Doom，即過深的巢狀 `if`），我們通常使用哪一個 Monadic 函式來串接多個可能失敗的操作？",
+        "en": "When using `std::expected` in C++23, to avoid the 'Pyramid of Doom' (deeply nested `if`s) caused by traditional error codes, which Monadic function is typically used to chain multiple operations that might fail?",
+        "wg": [
+          {
+            "t": "毀滅金字塔",
+            "en": "Pyramid of Doom",
+            "ps": "noun"
+          },
+          {
+            "t": "串接",
+            "en": "chain",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": ".value_or()",
+        "en": ".value_or()",
+        "wg": []
+      },
+      {
+        "t": ".and_then()",
+        "en": ".and_then()",
+        "wg": []
+      },
+      {
+        "t": ".has_value()",
+        "en": ".has_value()",
+        "wg": []
+      },
+      {
+        "t": ".unwrap()",
+        "en": ".unwrap()",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "`.and_then()` 是 `std::expected` 提供的 Monadic 操作，用於「當前值存在時，將其傳遞給下一個回傳 `std::expected` 的函式」。若上一步驟失敗，則直接回傳該錯誤，跳過後續步驟。這允許我們將多個可能出錯的步驟寫成扁平的鏈式呼叫（Chaining），而非層層巢狀檢查。`.value_or()` 用於提供預設值，`.has_value()` 僅用於檢查。",
+      "en": "`.and_then()` is the Monadic operation provided by `std::expected` that invokes the next function (which also returns an `std::expected`) only if the current object holds a value. If the previous step failed, it propagates the error immediately, skipping subsequent steps. This allows chaining multiple fallible operations in a flat structure rather than nested checks. `.value_or()` is for default values, and `.has_value()` is just for checking.",
+      "wg": [
+        {
+          "t": "鏈式呼叫",
+          "en": "Chaining",
+          "ps": "noun"
+        },
+        {
+          "t": "扁平",
+          "en": "flat",
+          "ps": "adjective"
+        }
+      ]
+    }
+  },
+  {
+    "no": "9",
+    "level": "Beginner",
+    "keywords": "anti-pattern, catch-all, debugging, stability",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "try {\n    risky_operation();\n} catch (...) {\n    // ignore\n}",
+    "question": [
+      {
+        "t": "這種被稱為「Pokemon Exception Handling」（Gotta catch 'em all）的寫法，最大的潛在風險是什麼？",
+        "en": "What is the primary risk of the 'Pokemon Exception Handling' (Gotta catch 'em all) pattern shown in the snippet?",
+        "wg": [
+          {
+            "t": "潛在風險",
+            "en": "potential risk",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "會導致編譯器無法最佳化程式碼，降低執行效能。",
+        "en": "It prevents the compiler from optimizing the code, reducing execution performance.",
+        "wg": []
+      },
+      {
+        "t": "會隱藏真正的 Bug（如記憶體存取錯誤或邏輯錯誤），導致系統在不一致的狀態下繼續執行，增加除錯難度。",
+        "en": "It hides real bugs (like memory access violations or logic errors), causing the system to continue running in an inconsistent state and making debugging difficult.",
+        "wg": [
+          {
+            "t": "不一致的狀態",
+            "en": "inconsistent state",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "catch (...) 語法在 C++20 之後已被棄用，會導致編譯錯誤。",
+        "en": "The catch (...) syntax is deprecated in C++20 and will cause a compilation error.",
+        "wg": []
+      },
+      {
+        "t": "它會自動重新拋出例外，導致無窮迴圈。",
+        "en": "It automatically re-throws the exception, leading to an infinite loop.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "捕捉所有例外卻不處理（吞掉錯誤），會連同嚴重的系統錯誤或程式邏輯錯誤（在某些實作中甚至包含 SEH 錯誤）一起隱藏。這使得程式在「生病」的狀態下繼續運作，可能導致資料損毀或後續更詭異的行為，且開發者完全不知道錯誤發生的原因與位置。",
+      "en": "Catching all exceptions without handling them (swallowing errors) hides serious system errors or logic bugs. This allows the program to continue operating in a 'sick' state, potentially leading to data corruption or strange behavior later on, while leaving developers completely unaware of the cause or location of the original error.",
+      "wg": [
+        {
+          "t": "吞掉錯誤",
+          "en": "swallowing errors",
+          "ps": "verb phrase"
+        },
+        {
+          "t": "資料損毀",
+          "en": "data corruption",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "10",
+    "level": "Advanced",
+    "keywords": "move-constructor, noexcept, std::vector, optimization",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在實作自定義類別時，為什麼將「移動建構子」（Move Constructor）標記為 `noexcept` 是至關重要的？特別是當該類別會被放入 `std::vector` 時。",
+        "en": "When implementing a custom class, why is it critical to mark the 'Move Constructor' as `noexcept`? Especially when the class will be stored in a `std::vector`.",
+        "wg": [
+          {
+            "t": "移動建構子",
+            "en": "Move Constructor",
+            "ps": "noun"
+          },
+          {
+            "t": "至關重要",
+            "en": "critical",
+            "ps": "adjective"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "若沒有 `noexcept`，`std::vector` 在擴容（Reallocation）時為了維持強異常保證，會退化成使用「複製」（Copy）而非「移動」（Move），導致效能大幅下降。",
+        "en": "If not marked `noexcept`, `std::vector` will degrade to using 'Copy' instead of 'Move' during reallocation to maintain the Strong Exception Guarantee, causing a significant performance drop.",
+        "wg": [
+          {
+            "t": "擴容",
+            "en": "Reallocation",
+            "ps": "noun"
+          },
+          {
+            "t": "退化",
+            "en": "degrade",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "若沒有 `noexcept`，編譯器會拒絕編譯任何使用該類別的 `std::vector` 程式碼。",
+        "en": "If not marked `noexcept`, the compiler will refuse to compile any code using `std::vector` with that class.",
+        "wg": []
+      },
+      {
+        "t": "標記 `noexcept` 僅是為了文件可讀性，對執行期行為沒有影響。",
+        "en": "Marking `noexcept` is only for documentation readability and has no effect on runtime behavior.",
+        "wg": []
+      },
+      {
+        "t": "若移動建構子拋出例外，`std::vector` 會直接呼叫 `std::terminate` 結束程式，因此必須標記 `noexcept` 來防止拋出。",
+        "en": "If a move constructor throws, `std::vector` will immediately call `std::terminate`, so `noexcept` is required to prevent throwing.",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "`std::vector` 在擴容時需要將元素搬移到新記憶體。如果移動建構子可能拋出例外（未標記 `noexcept`），一旦搬移過程中出錯，原本的資料可能已經被破壞（部分已移動），無法回復到擴容前的狀態。為了符合「強異常保證」（Strong Exception Guarantee），`std::vector` 會透過 `std::move_if_noexcept` 檢查：若不可移動（或移動可能拋出例外），則改用複製建構子。這會導致對於 Move-only 或重型物件的效能嚴重低落。",
+      "en": "`std::vector` needs to move elements to new memory during reallocation. If the move constructor might throw (not marked `noexcept`), and an error occurs during the transfer, the original data might be corrupted (partially moved), making it impossible to roll back. To satisfy the 'Strong Exception Guarantee', `std::vector` uses `std::move_if_noexcept`: if moving is not safe (might throw), it falls back to the copy constructor. This causes severe performance degradation for move-only or heavy objects.",
+      "wg": [
+        {
+          "t": "強異常保證",
+          "en": "Strong Exception Guarantee",
+          "ps": "noun"
+        },
+        {
+          "t": "回復",
+          "en": "roll back",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "11",
+    "level": "Intermediate",
+    "keywords": "scenario, decision-making, std::expected, parsing",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "情境：你正在開發一個負責解析使用者上傳檔案（如 JSON/XML）的函式 `parse_user_input()`。由於使用者輸入經常包含格式錯誤，這類失敗是高頻率且預期內的。根據本章節的「心智模型」，最適合的錯誤處理機制為何？",
+        "en": "Scenario: You are developing a function `parse_user_input()` to parse user-uploaded files (e.g., JSON/XML). Since user input often contains format errors, failure is frequent and expected. According to the 'Mental Model' in this chapter, which error handling mechanism is most appropriate?",
+        "wg": [
+          {
+            "t": "預期內的",
+            "en": "expected",
+            "ps": "adjective"
+          },
+          {
+            "t": "高頻率",
+            "en": "frequent",
+            "ps": "adjective"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "使用 `assert`，因為格式錯誤代表程式有 Bug。",
+        "en": "Use `assert`, because format errors indicate a bug in the program.",
+        "wg": []
+      },
+      {
+        "t": "使用 Exceptions，因為解析失敗屬於「執行時期錯誤」。",
+        "en": "Use Exceptions, because parsing failure is a 'Runtime Error'.",
+        "wg": []
+      },
+      {
+        "t": "使用 `std::expected`（或 Error Codes），因為這是預期內的業務邏輯失敗，且屬於顯式資料流。",
+        "en": "Use `std::expected` (or Error Codes), because this is an expected domain failure and part of the explicit data flow.",
+        "wg": [
+          {
+            "t": "顯式資料流",
+            "en": "explicit data flow",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "使用 `std::terminate`，直接終止程式以避免處理錯誤資料。",
+        "en": "Use `std::terminate` to immediately stop the program and avoid processing bad data.",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "根據心智模型，使用者輸入錯誤屬於「預期內的失敗」（Expected Failures / Domain Errors），而非程式本身的 Bug 或不可預測的環境災難（如記憶體耗盡）。使用 Exception 會導致控制流隱晦且效能較差（針對高頻錯誤）；使用 Assert 則不合理，因為這不是開發者的錯。`std::expected` 能明確表達「解析結果可能是成功的值，也可能是錯誤碼」，強迫呼叫者處理，是最合適的選擇。",
+      "en": "According to the mental model, user input errors are 'Expected Failures / Domain Errors', not bugs in the code or unpredictable environmental disasters (like OOM). Using Exceptions creates implicit control flow and poor performance for frequent errors; using Assert is incorrect as this isn't a developer error. `std::expected` clearly expresses that 'the result might be a value or an error', forcing the caller to handle it, making it the most appropriate choice.",
+      "wg": [
+        {
+          "t": "心智模型",
+          "en": "mental model",
+          "ps": "noun"
+        },
+        {
+          "t": "隱晦",
+          "en": "implicit",
+          "ps": "adjective"
+        }
+      ]
+    }
+  },
+  {
+    "no": "12",
+    "level": "Beginner",
+    "keywords": "nodiscard, api-design, safety, best-practices",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "[[nodiscard]] std::expected<int, string> calculate();",
+    "question": [
+      {
+        "t": "在設計回傳 Error Codes 或 `std::expected` 的 API 時，為什麼加上 `[[nodiscard]]` 屬性是強烈建議的最佳實務？",
+        "en": "When designing APIs that return Error Codes or `std::expected`, why is adding the `[[nodiscard]]` attribute a strongly recommended best practice?",
+        "wg": [
+          {
+            "t": "屬性",
+            "en": "attribute",
+            "ps": "noun"
+          },
+          {
+            "t": "最佳實務",
+            "en": "best practice",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "它能提升編譯速度，因為編譯器知道回傳值會被使用。",
+        "en": "It improves compilation speed because the compiler knows the return value will be used.",
+        "wg": []
+      },
+      {
+        "t": "它能防止呼叫者「意外忽略」錯誤回傳值，若呼叫者未接收或檢查回傳值，編譯器會發出警告。",
+        "en": "It prevents the caller from 'accidentally ignoring' the error return value; the compiler will issue a warning if the return value is not captured or checked.",
+        "wg": [
+          {
+            "t": "意外忽略",
+            "en": "accidentally ignoring",
+            "ps": "verb phrase"
+          }
+        ]
+      },
+      {
+        "t": "它強制函式必須回傳值，不能回傳 void。",
+        "en": "It forces the function to return a value and prevents it from returning void.",
+        "wg": []
+      },
+      {
+        "t": "它會自動將錯誤碼轉換為 Exception 拋出。",
+        "en": "It automatically converts error codes into Exceptions.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "傳統錯誤碼最大的風險在於開發者可能忘記檢查回傳值（例如直接呼叫函式而不接結果），導致程式誤以為操作成功而繼續執行。`[[nodiscard]]` 指示編譯器：如果這個函式的回傳值被丟棄（未被指派給變數或檢查），必須發出警告。這對於 `std::expected` 或錯誤碼類型的 API 至關重要，確保了錯誤處理的強制性。",
+      "en": "The biggest risk with traditional error codes is that developers might forget to check the return value (e.g., calling the function without capturing the result), causing the program to proceed as if the operation succeeded. `[[nodiscard]]` instructs the compiler to issue a warning if the return value is discarded. This is critical for `std::expected` or error-code APIs to ensure mandatory error handling.",
+      "wg": [
+        {
+          "t": "強制性",
+          "en": "mandatory nature",
+          "ps": "noun"
+        },
+        {
+          "t": "丟棄",
+          "en": "discarded",
+          "ps": "verb"
+        }
+      ]
+    }
+  }
+]

@@ -1,0 +1,1191 @@
+[
+  {
+    "no": "7",
+    "level": "intermediate",
+    "keywords": "Multi-stage Builds, Dockerfile, Optimization, Image Size",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "FROM node:18 AS builder\nWORKDIR /app\nCOPY package*.json ./\nRUN npm ci\nCOPY . .\nRUN npm run build\n\nFROM node:18-slim\nWORKDIR /app\n# 下列指令是用於將建置產物帶入最終映像檔\nCOPY --from=builder /app /app\nCMD [\"node\", \"dist/main.js\"]",
+    "question": [
+      {
+        "t": "請檢視上方的多階段建置 Dockerfile。雖然它使用了多階段模式，但最終的映像檔體積仍然比預期大很多，且包含了不必要的檔案。",
+        "en": "Please review the multi-stage build Dockerfile above. Although it uses a multi-stage pattern, the final image size is still much larger than expected and contains unnecessary files.",
+        "wg": [
+          {
+            "t": "多階段建置",
+            "en": "multi-stage build",
+            "ps": "NP"
+          },
+          {
+            "t": "映像檔體積",
+            "en": "image size",
+            "ps": "NP"
+          }
+        ]
+      },
+      {
+        "t": "請問主要問題出在哪裡？",
+        "en": "What is the main issue?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "第二階段使用了 `node:18-slim`，應該改用 `node:18-alpine` 才能見效。",
+        "en": "The second stage uses `node:18-slim`; it should use `node:18-alpine` to be effective.",
+        "wg": []
+      },
+      {
+        "t": "`COPY --from=builder /app /app` 複製了整個工作目錄，包含了 `src`、快取與 `devDependencies`。",
+        "en": "`COPY --from=builder /app /app` copies the entire working directory, including `src`, caches, and `devDependencies`.",
+        "wg": [
+          {
+            "t": "工作目錄",
+            "en": "working directory",
+            "ps": "NP"
+          }
+        ]
+      },
+      {
+        "t": "在第一階段沒有執行 `npm cache clean --force`。",
+        "en": "`npm cache clean --force` was not executed in the first stage.",
+        "wg": []
+      },
+      {
+        "t": "CMD 指令應該使用 Shell 格式而不是 Exec 格式。",
+        "en": "The CMD instruction should use Shell form instead of Exec form.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "多階段建置的核心優勢在於「僅複製需要的產物」。指令 `COPY --from=builder /app /app` 將建置階段的所有內容（包含原始碼、TypeScript 編譯器、測試檔等）都複製到了最終映像檔，完全抵消了多階段建置的優勢。正確做法是僅複製 `dist` 資料夾與經過 `npm prune --production` 處理後的 `node_modules`。",
+      "en": "The core benefit of multi-stage builds is 'copying only necessary artifacts'. The command `COPY --from=builder /app /app` copies everything from the build stage (including source code, TypeScript compiler, test files, etc.) to the final image, completely negating the advantage. The correct approach is to copy only the `dist` folder and `node_modules` processed by `npm prune --production`.",
+      "wg": [
+        {
+          "t": "抵消",
+          "en": "negate",
+          "ps": "V"
+        },
+        {
+          "t": "產物",
+          "en": "artifact",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "8",
+    "level": "intermediate",
+    "keywords": "Security, Least Privilege, USER instruction",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您的團隊正在進行容器安全性審計。資安報告指出，目前的應用程式容器預設以 `root` 身份執行，這違反了最小權限原則。",
+        "en": "Your team is conducting a container security audit. The security report indicates that the current application containers run as `root` by default, violating the principle of least privilege.",
+        "wg": [
+          {
+            "t": "安全性審計",
+            "en": "security audit",
+            "ps": "NP"
+          },
+          {
+            "t": "最小權限原則",
+            "en": "principle of least privilege",
+            "ps": "NP"
+          }
+        ]
+      },
+      {
+        "t": "為了修復此問題，您應該在 Dockerfile 中加入什麼指令？",
+        "en": "To fix this issue, what instruction should you add to the Dockerfile?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "在 Dockerfile 末端加入 `USER node`（或其他非 root 使用者）。",
+        "en": "Add `USER node` (or another non-root user) at the end of the Dockerfile.",
+        "wg": []
+      },
+      {
+        "t": "在 `CMD` 指令中使用 `sudo` 來降級權限。",
+        "en": "Use `sudo` in the `CMD` instruction to downgrade privileges.",
+        "wg": [
+          {
+            "t": "降級",
+            "en": "downgrade",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "在建置時使用 `docker build --user 1000 .`。",
+        "en": "Use `docker build --user 1000 .` during the build process.",
+        "wg": []
+      },
+      {
+        "t": "移除 Dockerfile 中的所有 `RUN` 指令以避免權限提升。",
+        "en": "Remove all `RUN` instructions in the Dockerfile to avoid privilege escalation.",
+        "wg": []
+      }
+    ],
+    "answer": "A",
+    "why": {
+      "t": "在 Dockerfile 中使用 `USER <user>` 指令可以切換執行後續指令（如 `CMD` 或 `ENTRYPOINT`）的使用者身份。這是確保容器在執行時期不具備 root 權限的標準做法，能有效降低應用程式被攻陷後的潛在損害。",
+      "en": "Using the `USER <user>` instruction in a Dockerfile switches the user identity for subsequent instructions (like `CMD` or `ENTRYPOINT`). This is the standard practice to ensure the container does not have root privileges at runtime, effectively reducing potential damage if the application is compromised.",
+      "wg": [
+        {
+          "t": "潛在損害",
+          "en": "potential damage",
+          "ps": "NP"
+        }
+      ]
+    }
+  },
+  {
+    "no": "9",
+    "level": "advanced",
+    "keywords": "System Design, HPA, Latency, Image Size",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您負責維運一個高流量的電子商務網站。在促銷活動期間，您發現 Kubernetes 的 HPA (Horizontal Pod Autoscaler) 雖然已觸發擴展，但新 Pod 啟動並開始服務流量的延遲（Latency）過高，導致部分請求逾時。",
+        "en": "You are operating a high-traffic e-commerce site. During a promotion, you notice that while the Kubernetes HPA (Horizontal Pod Autoscaler) triggered scaling, the latency for new Pods to start and serve traffic is too high, causing some request timeouts.",
+        "wg": [
+          {
+            "t": "逾時",
+            "en": "timeout",
+            "ps": "N"
+          },
+          {
+            "t": "觸發",
+            "en": "trigger",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "經調查，節點拉取映像檔（Image Pull）佔用了大部分的啟動時間。下列哪項措施最能有效解決此瓶頸？",
+        "en": "Investigation shows that pulling the image accounts for most of the startup time. Which of the following measures is most effective in resolving this bottleneck?",
+        "wg": [
+          {
+            "t": "瓶頸",
+            "en": "bottleneck",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "增加 Kubernetes 叢集中每個節點的 CPU 資源。",
+        "en": "Increase the CPU resources for each node in the Kubernetes cluster.",
+        "wg": []
+      },
+      {
+        "t": "最佳化 Dockerfile，透過多階段建置與 Distroless 基底將映像檔體積從 1GB 縮減至 100MB 以下。",
+        "en": "Optimize the Dockerfile to reduce image size from 1GB to under 100MB using multi-stage builds and Distroless base images.",
+        "wg": []
+      },
+      {
+        "t": "將 HPA 的 CPU 使用率閾值從 50% 提高到 80%。",
+        "en": "Increase the HPA CPU utilization threshold from 50% to 80%.",
+        "wg": [
+          {
+            "t": "閾值",
+            "en": "threshold",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "在應用程式程式碼中實作更複雜的快取機制。",
+        "en": "Implement a more complex caching mechanism in the application code.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "Pod 的啟動時間包含 `T_pull_image`。對於新節點或未快取該映像檔的節點，拉取 1GB 的映像檔可能需要數十秒。大幅縮減映像檔體積直接減少了網路傳輸與解壓縮時間，是提升系統彈性（Elasticity）與擴展速度的關鍵。",
+      "en": "Pod startup time includes `T_pull_image`. For new nodes or nodes without the cached image, pulling a 1GB image can take tens of seconds. Drastically reducing the image size directly decreases network transfer and decompression time, which is key to improving system elasticity and scaling speed.",
+      "wg": [
+        {
+          "t": "解壓縮",
+          "en": "decompression",
+          "ps": "N"
+        },
+        {
+          "t": "彈性",
+          "en": "elasticity",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "10",
+    "level": "advanced",
+    "keywords": "CI/CD, Caching, Registry Cache, BuildKit",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您的 CI Pipeline 執行在臨時的（Ephemeral）Runner 上，這意味著每次建置都會在一個乾淨的環境中開始，沒有本地 Docker 快取。",
+        "en": "Your CI pipeline runs on ephemeral runners, meaning each build starts in a clean environment with no local Docker cache.",
+        "wg": [
+          {
+            "t": "臨時的",
+            "en": "ephemeral",
+            "ps": "Adj"
+          },
+          {
+            "t": "乾淨的環境",
+            "en": "clean environment",
+            "ps": "NP"
+          }
+        ]
+      },
+      {
+        "t": "這導致建置時間非常長。為了讓 CI 能夠利用先前建置的層（Layers），您應該採取什麼策略？",
+        "en": "This results in very long build times. To allow the CI to leverage layers from previous builds, what strategy should you adopt?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "在 Dockerfile 中增加更多的 `RUN` 指令以建立更多層。",
+        "en": "Add more `RUN` instructions in the Dockerfile to create more layers.",
+        "wg": []
+      },
+      {
+        "t": "使用 `--cache-from` 參數（或 BuildKit 的 `type=registry`）指定從遠端 Registry 拉取快取。",
+        "en": "Use the `--cache-from` argument (or BuildKit's `type=registry`) to specify pulling cache from a remote registry.",
+        "wg": [
+          {
+            "t": "遠端",
+            "en": "remote",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "將所有原始碼壓縮成一個 tar 檔再進行 `COPY`。",
+        "en": "Compress all source code into a single tar file before `COPY`.",
+        "wg": []
+      },
+      {
+        "t": "在 CI 腳本中執行 `docker system prune -a`。",
+        "en": "Run `docker system prune -a` in the CI script.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "在沒有本地快取的環境中，Docker 預設無法利用先前的建置層。透過 `--cache-from` 或 BuildKit 的 Registry Cache 功能，Docker 可以從 Container Registry 下載先前建置好的層中繼資料與內容，從而重用未變更的層，大幅縮短建置時間。",
+      "en": "In an environment without local cache, Docker cannot utilize previous build layers by default. By using `--cache-from` or BuildKit's Registry Cache feature, Docker can download metadata and content of previously built layers from the Container Registry, thereby reusing unchanged layers and significantly reducing build time.",
+      "wg": [
+        {
+          "t": "重用",
+          "en": "reuse",
+          "ps": "V"
+        },
+        {
+          "t": "中繼資料",
+          "en": "metadata",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "11",
+    "level": "advanced",
+    "keywords": "Distroless, Debugging, Operations, Kubernetes",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您的團隊已成功將生產環境遷移至 Google 的 `Distroless` 映像檔，大幅提升了安全性。",
+        "en": "Your team has successfully migrated the production environment to Google's `Distroless` images, significantly improving security.",
+        "wg": []
+      },
+      {
+        "t": "然而，當應用程式發生異常時，維運工程師發現無法使用 `docker exec -it <container> /bin/sh` 進入容器進行除錯。這是為什麼？以及推薦的解決方案是什麼？",
+        "en": "However, when the application malfunctions, operations engineers find they cannot use `docker exec -it <container> /bin/sh` to enter the container for debugging. Why is this, and what is the recommended solution?",
+        "wg": [
+          {
+            "t": "異常",
+            "en": "malfunction",
+            "ps": "N"
+          },
+          {
+            "t": "除錯",
+            "en": "debug",
+            "ps": "V"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "Distroless 映像檔是唯讀的；應重新建置映像檔並加入 `RW` 權限。",
+        "en": "Distroless images are read-only; you should rebuild the image and add `RW` permissions.",
+        "wg": []
+      },
+      {
+        "t": "Distroless 不包含 Shell 或其他 OS 工具；應使用 Kubernetes 的 `ephemeral debug containers` (kubectl debug) 或暫時改用 Slim 映像檔除錯。",
+        "en": "Distroless does not contain a shell or other OS tools; you should use Kubernetes `ephemeral debug containers` (kubectl debug) or temporarily switch to a Slim image for debugging.",
+        "wg": [
+          {
+            "t": "暫時",
+            "en": "temporarily",
+            "ps": "Adv"
+          }
+        ]
+      },
+      {
+        "t": "這是網路防火牆問題；應請網管人員開放 SSH 連接埠。",
+        "en": "This is a network firewall issue; ask the network administrator to open the SSH port.",
+        "wg": []
+      },
+      {
+        "t": "Distroless 使用了非標準的 Shell 路徑；應嘗試 `/bin/bash` 或 `/usr/bin/zsh`。",
+        "en": "Distroless uses a non-standard shell path; try `/bin/bash` or `/usr/bin/zsh`.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "Distroless 的設計理念是移除所有非必要的二進位檔，包括 Shell (`/bin/sh`, `/bin/bash`) 和套件管理員。這雖然提升了安全性，但也移除了傳統的除錯介面。正確的現代化除錯方式是使用 Kubernetes 的 Ephemeral Containers 功能，掛載一個帶有工具的除錯容器到目標 Pod 中。",
+      "en": "The design philosophy of Distroless is to remove all unnecessary binaries, including shells (`/bin/sh`, `/bin/bash`) and package managers. While this improves security, it also removes the traditional debugging interface. The correct modern debugging approach is to use Kubernetes Ephemeral Containers, attaching a debug container with tools to the target Pod.",
+      "wg": [
+        {
+          "t": "掛載",
+          "en": "attach/mount",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "12",
+    "level": "advanced",
+    "keywords": "Alpine, glibc, musl, Compatibility, Troubleshooting",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "開發團隊回報一個詭異的 Bug：應用程式在本地開發環境（Mac/Ubuntu）執行正常，但在生產環境的 `Alpine` 容器中，偶爾會出現 DNS 解析錯誤或執行緒（Threading）行為異常。",
+        "en": "The development team reports a strange bug: the application runs fine in the local development environment (Mac/Ubuntu), but in the production `Alpine` container, DNS resolution errors or abnormal threading behavior occasionally occur.",
+        "wg": [
+          {
+            "t": "詭異的",
+            "en": "strange/weird",
+            "ps": "Adj"
+          },
+          {
+            "t": "解析",
+            "en": "resolution",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "最可能的根本原因是什麼？",
+        "en": "What is the most likely root cause?",
+        "wg": [
+          {
+            "t": "根本原因",
+            "en": "root cause",
+            "ps": "NP"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "Alpine 的網路設定預設封鎖了 UDP 封包。",
+        "en": "Alpine's network settings block UDP packets by default.",
+        "wg": []
+      },
+      {
+        "t": "Alpine 使用 `musl libc`，其行為與大多數開發環境使用的 `glibc` 存在細微差異。",
+        "en": "Alpine uses `musl libc`, which has subtle behavioral differences from `glibc` used in most development environments.",
+        "wg": [
+          {
+            "t": "細微差異",
+            "en": "subtle difference",
+            "ps": "NP"
+          }
+        ]
+      },
+      {
+        "t": "Alpine 映像檔不支援多執行緒應用程式。",
+        "en": "Alpine images do not support multi-threaded applications.",
+        "wg": []
+      },
+      {
+        "t": "生產環境的 Kubernetes 版本過舊。",
+        "en": "The Kubernetes version in the production environment is too old.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "Alpine Linux 為了極致輕量化，使用了 `musl libc` 而非標準的 `glibc`。雖然兩者都遵循 POSIX 標準，但在邊緣情況（如 DNS 解析邏輯、執行緒堆疊大小、記憶體分配）上可能會有不同的實作行為，這常是導致「環境特定」Bug 的元兇。",
+      "en": "For extreme lightweighting, Alpine Linux uses `musl libc` instead of the standard `glibc`. Although both follow POSIX standards, they may have different implementation behaviors in edge cases (such as DNS resolution logic, thread stack size, memory allocation), which is often the culprit for 'environment-specific' bugs.",
+      "wg": [
+        {
+          "t": "元兇",
+          "en": "culprit",
+          "ps": "N"
+        },
+        {
+          "t": "邊緣情況",
+          "en": "edge case",
+          "ps": "NP"
+        }
+      ]
+    }
+  },
+  {
+    "no": "13",
+    "level": "intermediate",
+    "keywords": "Layer Mechanics, Image Size, Copy-on-Write",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "FROM ubuntu:22.04\nRUN apt-get update && apt-get install -y wget\nRUN wget https://example.com/large-file.zip\nRUN rm large-file.zip",
+    "question": [
+      {
+        "t": "請分析上方的 Dockerfile 片段。假設 `large-file.zip` 大小為 1GB。",
+        "en": "Please analyze the Dockerfile snippet above. Assume `large-file.zip` is 1GB in size.",
+        "wg": []
+      },
+      {
+        "t": "請問最終建置出來的映像檔，其體積會比基底映像檔增加多少（不計 apt 套件的微小差異）？",
+        "en": "How much will the final image size increase compared to the base image (ignoring minor differences from apt packages)?",
+        "wg": [
+          {
+            "t": "體積",
+            "en": "volume/size",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "幾乎不增加，因為檔案在最後一層被刪除了。",
+        "en": "Almost no increase, because the file was deleted in the last layer.",
+        "wg": []
+      },
+      {
+        "t": "增加約 1GB。",
+        "en": "Increase by about 1GB.",
+        "wg": []
+      },
+      {
+        "t": "增加約 2GB（下載一層，刪除一層）。",
+        "en": "Increase by about 2GB (one layer for download, one for deletion).",
+        "wg": []
+      },
+      {
+        "t": "無法確定，取決於 Docker 版本。",
+        "en": "Uncertain, depends on the Docker version.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "Docker 映像檔是分層儲存的。`RUN wget ...` 這一層會將 1GB 的檔案寫入並提交（Commit）。隨後的 `RUN rm ...` 雖然在邏輯上隱藏了該檔案（使其在容器中不可見），但無法物理刪除前一層已經存在的資料。因此，該 1GB 仍然佔用映像檔空間。",
+      "en": "Docker images are stored in layers. The `RUN wget ...` layer writes and commits the 1GB file. The subsequent `RUN rm ...` logically hides the file (making it invisible in the container) but cannot physically delete the data existing in the previous layer. Therefore, the 1GB still occupies image space.",
+      "wg": [
+        {
+          "t": "提交",
+          "en": "commit",
+          "ps": "V"
+        },
+        {
+          "t": "物理刪除",
+          "en": "physically delete",
+          "ps": "VP"
+        }
+      ]
+    }
+  },
+  {
+    "no": "14",
+    "level": "advanced",
+    "keywords": "Security, Secrets Management, BuildKit",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您需要在 Docker 建置過程中從私有 Git 儲存庫複製程式碼，這需要 SSH 私鑰。",
+        "en": "You need to clone code from a private Git repository during the Docker build process, which requires an SSH private key.",
+        "wg": [
+          {
+            "t": "私有",
+            "en": "private",
+            "ps": "Adj"
+          },
+          {
+            "t": "私鑰",
+            "en": "private key",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "為了避免將私鑰洩漏在映像檔中，下列哪種做法是 Docker 官方推薦的最佳實務？",
+        "en": "To avoid leaking the private key in the image, which of the following practices is the best practice recommended by Docker?",
+        "wg": [
+          {
+            "t": "洩漏",
+            "en": "leak",
+            "ps": "V"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "使用 `COPY id_rsa /root/.ssh/`，並在下一行立即執行 `RUN rm /root/.ssh/id_rsa`。",
+        "en": "Use `COPY id_rsa /root/.ssh/` and immediately run `RUN rm /root/.ssh/id_rsa` on the next line.",
+        "wg": []
+      },
+      {
+        "t": "使用 `ARG SSH_KEY` 將金鑰傳入，並在 `RUN` 指令中 echo 出來使用。",
+        "en": "Use `ARG SSH_KEY` to pass the key and echo it in the `RUN` instruction.",
+        "wg": []
+      },
+      {
+        "t": "使用 Docker BuildKit 的 `RUN --mount=type=ssh` 或 `--mount=type=secret` 功能。",
+        "en": "Use Docker BuildKit's `RUN --mount=type=ssh` or `--mount=type=secret` feature.",
+        "wg": []
+      },
+      {
+        "t": "將私鑰上傳到公開的網頁伺服器，在建置時用 `wget` 下載。",
+        "en": "Upload the private key to a public web server and download it with `wget` during the build.",
+        "wg": []
+      }
+    ],
+    "answer": "C",
+    "why": {
+      "t": "使用 `COPY` 或 `ARG` 都會將機密資訊殘留在映像檔的中繼資料或歷史層中。BuildKit 的 `--mount` 功能允許將機密資訊暫時掛載到建置程序中，且**不會**被持久化到最終的映像檔層中，這是最安全的做法。",
+      "en": "Using `COPY` or `ARG` leaves secret information in the image metadata or history layers. BuildKit's `--mount` feature allows secrets to be temporarily mounted into the build process and is **not** persisted in the final image layers, which is the most secure practice.",
+      "wg": [
+        {
+          "t": "持久化",
+          "en": "persist",
+          "ps": "V"
+        },
+        {
+          "t": "殘留",
+          "en": "remain/residue",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "15",
+    "level": "intermediate",
+    "keywords": "Security, Compliance, Vulnerability Management",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "資安團隊掃描了您的應用程式映像檔（基於 `node:18`，即完整的 Debian OS），發現了超過 500 個 CVE 漏洞，其中大部分來自系統套件（如 curl, tar, systemd 等）。",
+        "en": "The security team scanned your application image (based on `node:18`, i.e., full Debian OS) and found over 500 CVE vulnerabilities, mostly from system packages (like curl, tar, systemd, etc.).",
+        "wg": [
+          {
+            "t": "漏洞",
+            "en": "vulnerability",
+            "ps": "N"
+          },
+          {
+            "t": "系統套件",
+            "en": "system package",
+            "ps": "NP"
+          }
+        ]
+      },
+      {
+        "t": "在不修改應用程式程式碼的前提下，最有效大幅減少這些 CVE 數量的方法是什麼？",
+        "en": "Without modifying the application code, what is the most effective way to drastically reduce the number of these CVEs?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "手動在 Dockerfile 中執行 `apt-get upgrade` 更新所有套件。",
+        "en": "Manually run `apt-get upgrade` in the Dockerfile to update all packages.",
+        "wg": []
+      },
+      {
+        "t": "更換基底映像檔為 `node:18-slim` 或 Distroless 版本。",
+        "en": "Switch the base image to `node:18-slim` or a Distroless version.",
+        "wg": []
+      },
+      {
+        "t": "忽略低風險的 CVE，只修復高風險漏洞。",
+        "en": "Ignore low-risk CVEs and only fix high-risk vulnerabilities.",
+        "wg": []
+      },
+      {
+        "t": "安裝防毒軟體到容器中。",
+        "en": "Install antivirus software into the container.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "完整的 OS 映像檔包含數千個不必要的套件，這構成了巨大的攻擊面與維護負擔。切換至 `Slim`（移除大量非必要套件）或 `Distroless`（僅保留執行時期依賴）能直接移除產生 CVE 的來源，通常能將漏洞數量減少 90% 以上。",
+      "en": "Full OS images contain thousands of unnecessary packages, constituting a huge attack surface and maintenance burden. Switching to `Slim` (removing many non-essential packages) or `Distroless` (keeping only runtime dependencies) directly removes the source of CVEs, often reducing the number of vulnerabilities by over 90%.",
+      "wg": [
+        {
+          "t": "攻擊面",
+          "en": "attack surface",
+          "ps": "NP"
+        },
+        {
+          "t": "維護負擔",
+          "en": "maintenance burden",
+          "ps": "NP"
+        }
+      ]
+    }
+  },
+  {
+    "no": "10",
+    "level": "advanced",
+    "keywords": "Image Size, Layer Caching, Permissions, COPY instruction",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "FROM node:18\nWORKDIR /app\n\n# 假設專案原始碼大小約為 500MB\nCOPY . .\n\n# 為了安全性，將檔案擁有權更改為非 root 使用者\nRUN chown -R node:node /app\n\nUSER node\nCMD [\"node\", \"index.js\"]",
+    "question": [
+      {
+        "t": "您正在審查一位資深工程師提交的 Dockerfile（如上所示）。",
+        "en": "You are reviewing a Dockerfile submitted by a senior engineer (as shown above).",
+        "wg": []
+      },
+      {
+        "t": "雖然該映像檔功能正常且符合安全性要求（使用非 root 使用者），但您發現最終的映像檔大小異常龐大。",
+        "en": "Although the image functions correctly and meets security requirements (using a non-root user), you notice that the final image size is unusually large.",
+        "wg": [
+          {
+            "t": "異常龐大",
+            "en": "unusually large",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "根據 Docker 的分層架構原理，造成此現象的主要原因為何？",
+        "en": "Based on Docker's layered architecture principles, what is the primary reason for this phenomenon?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) `node:18` 基底映像檔本身就非常大，與 `chown` 指令無關。",
+        "en": "(A) The `node:18` base image itself is very large, unrelated to the `chown` instruction.",
+        "wg": []
+      },
+      {
+        "t": "(B) `RUN chown` 會在新的層中複製所有被修改權限的檔案，導致 `/app` 的內容在映像檔中存在兩份（一份是 root 權限，一份是 node 權限）。",
+        "en": "(B) `RUN chown` copies all files with modified permissions in a new layer, causing the contents of `/app` to exist twice in the image (once with root permissions, once with node permissions).",
+        "wg": [
+          {
+            "t": "權限",
+            "en": "permissions",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) `WORKDIR /app` 指令會建立一個隱藏的 volume，導致資料重複。",
+        "en": "(C) The `WORKDIR /app` instruction creates a hidden volume, causing data duplication.",
+        "wg": []
+      },
+      {
+        "t": "(D) Docker 無法快取 `COPY . .` 指令，因此每次建置都會增加大小。",
+        "en": "(D) Docker cannot cache the `COPY . .` instruction, so the size increases with every build.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "Docker 使用寫入時複製 (CoW) 機制。當 `RUN chown` 修改檔案的中繼資料（權限）時，它必須將這些檔案複製到新的層中。因此，500MB 的原始碼在 `COPY` 層佔用了一次空間，在 `RUN chown` 層又佔用了一次空間，導致映像檔膨脹。最佳解法是使用 `COPY --chown=node:node . .` 在複製時直接設定權限。",
+      "en": "Docker uses a Copy-on-Write (CoW) mechanism. When `RUN chown` modifies file metadata (permissions), it must copy those files into the new layer. Thus, the 500MB source code occupies space once in the `COPY` layer and again in the `RUN chown` layer, bloating the image. The best practice is to use `COPY --chown=node:node . .` to set permissions during the copy.",
+      "wg": [
+        {
+          "t": "寫入時複製",
+          "en": "Copy-on-Write",
+          "ps": "N"
+        },
+        {
+          "t": "中繼資料",
+          "en": "metadata",
+          "ps": "N"
+        },
+        {
+          "t": "膨脹",
+          "en": "bloat",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "11",
+    "level": "intermediate",
+    "keywords": "CMD instruction, Shell form, Exec form, Distroless",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "# Stage 2: Runner\nFROM gcr.io/distroless/nodejs18-debian11\nCOPY --from=builder /app /app\nWORKDIR /app\n\n# 開發者使用了字串形式 (Shell form) 的 CMD\nCMD \"node index.js\"",
+    "question": [
+      {
+        "t": "您正在將應用程式遷移至 `Distroless` 映像檔以提升安全性。",
+        "en": "You are migrating an application to `Distroless` images to enhance security.",
+        "wg": []
+      },
+      {
+        "t": "然而，當您使用上述 Dockerfile 啟動容器時，容器立即崩潰並顯示錯誤。",
+        "en": "However, when you start the container using the Dockerfile above, it crashes immediately with an error.",
+        "wg": [
+          {
+            "t": "崩潰",
+            "en": "crash",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "請問最可能的原因是什麼？",
+        "en": "What is the most likely reason?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) Distroless 映像檔不包含 Node.js 執行環境。",
+        "en": "(A) The Distroless image does not contain the Node.js runtime.",
+        "wg": []
+      },
+      {
+        "t": "(B) `CMD` 的字串形式預設會呼叫 `/bin/sh -c`，但 Distroless 映像檔中沒有 Shell。",
+        "en": "(B) The string form of `CMD` defaults to invoking `/bin/sh -c`, but there is no shell in the Distroless image.",
+        "wg": [
+          {
+            "t": "字串形式",
+            "en": "string form",
+            "ps": "N"
+          },
+          {
+            "t": "呼叫",
+            "en": "invoke",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(C) 應該使用 `ENTRYPOINT` 而不是 `CMD`。",
+        "en": "(C) You should use `ENTRYPOINT` instead of `CMD`.",
+        "wg": []
+      },
+      {
+        "t": "(D) `WORKDIR` 指令在 Distroless 中不受支援。",
+        "en": "(D) The `WORKDIR` instruction is not supported in Distroless.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "Dockerfile 中的 `CMD \"command\"`（無括號）是 Shell 形式，Docker 會嘗試以 `/bin/sh -c \"command\"` 執行它。由於 Distroless 的設計理念是移除所有非必要的二進位檔（包括 Shell），因此容器無法啟動。必須改用 JSON 陣列形式（Exec form）：`CMD [\"node\", \"index.js\"]`。",
+      "en": "`CMD \"command\"` (without brackets) in a Dockerfile is the Shell form, and Docker attempts to execute it as `/bin/sh -c \"command\"`. Since Distroless is designed to remove non-essential binaries (including the shell), the container fails to start. You must use the JSON array form (Exec form): `CMD [\"node\", \"index.js\"]`.",
+      "wg": [
+        {
+          "t": "設計理念",
+          "en": "design philosophy",
+          "ps": "N"
+        },
+        {
+          "t": "陣列形式",
+          "en": "array form",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "12",
+    "level": "advanced",
+    "keywords": "Scratch, Go, Static Linking, CGO",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "# Stage 1: Builder\nFROM golang:1.21 AS builder\nWORKDIR /app\nCOPY . .\nRUN go build -o myapp main.go\n\n# Stage 2: Runner\nFROM scratch\nCOPY --from=builder /app/myapp /myapp\nCMD [\"/myapp\"]",
+    "question": [
+      {
+        "t": "您正在為一個 Go 語言撰寫的微服務建置極小化的映像檔，使用了 `FROM scratch`。",
+        "en": "You are building a minimal image for a microservice written in Go, using `FROM scratch`.",
+        "wg": [
+          {
+            "t": "極小化",
+            "en": "minimal",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "建置過程成功，但在執行容器時出現 `exec user process caused: no such file or directory` 錯誤。",
+        "en": "The build process succeeds, but when running the container, you get the error `exec user process caused: no such file or directory`.",
+        "wg": []
+      },
+      {
+        "t": "假設 `myapp` 二進位檔確實存在於路徑中，最可能的根本原因是什麼？",
+        "en": "Assuming the `myapp` binary explicitly exists at the path, what is the most likely root cause?",
+        "wg": [
+          {
+            "t": "根本原因",
+            "en": "root cause",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 該二進位檔是動態連結的，依賴於 `scratch` 映像檔中不存在的 `glibc` 或直譯器。",
+        "en": "(A) The binary is dynamically linked and depends on `glibc` or an interpreter that does not exist in the `scratch` image.",
+        "wg": [
+          {
+            "t": "動態連結",
+            "en": "dynamically linked",
+            "ps": "Adj"
+          },
+          {
+            "t": "直譯器",
+            "en": "interpreter",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(B) `scratch` 映像檔不支援 `CMD` 指令，必須使用 `ENTRYPOINT`。",
+        "en": "(B) The `scratch` image does not support the `CMD` instruction; `ENTRYPOINT` must be used.",
+        "wg": []
+      },
+      {
+        "t": "(C) Go 語言編譯出的二進位檔無法在 Linux 容器中執行。",
+        "en": "(C) Binaries compiled by Go cannot run inside Linux containers.",
+        "wg": []
+      },
+      {
+        "t": "(D) 缺少 `USER` 指令，導致權限不足。",
+        "en": "(D) Missing `USER` instruction causes insufficient permissions.",
+        "wg": []
+      }
+    ],
+    "answer": "(A)",
+    "why": {
+      "t": "當 Go 程式使用 `net/http` 或 `os/user` 等套件時，預設可能會依賴 CGO 並動態連結系統函式庫（如 glibc）。`FROM scratch` 是一個完全空的映像檔，沒有這些函式庫。錯誤訊息 `no such file` 實際上是指找不到「動態連結器/載入器」。解決方案是在編譯時設定 `CGO_ENABLED=0` 以進行靜態連結。",
+      "en": "When Go programs use packages like `net/http` or `os/user`, they may default to using CGO and dynamically linking system libraries (like glibc). `FROM scratch` is a completely empty image without these libraries. The error `no such file` actually refers to the missing 'dynamic linker/loader'. The solution is to set `CGO_ENABLED=0` at compile time for static linking.",
+      "wg": [
+        {
+          "t": "靜態連結",
+          "en": "static linking",
+          "ps": "N"
+        },
+        {
+          "t": "載入器",
+          "en": "loader",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "13",
+    "level": "intermediate",
+    "keywords": "Distroless, Debugging, Ephemeral Containers, Operations",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您的團隊已成功將生產環境遷移至 Distroless 映像檔。",
+        "en": "Your team has successfully migrated the production environment to Distroless images.",
+        "wg": []
+      },
+      {
+        "t": "現在發生了一個生產事故，您嘗試使用 `kubectl exec -it <pod> -- /bin/sh` 進入容器進行除錯，但失敗了。",
+        "en": "Now a production incident occurs, and you try to enter the container for debugging using `kubectl exec -it <pod> -- /bin/sh`, but it fails.",
+        "wg": [
+          {
+            "t": "生產事故",
+            "en": "production incident",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "在不重新建置或更換映像檔的前提下，下列哪種方式是符合雲端原生標準的除錯方法？",
+        "en": "Without rebuilding or replacing the image, which of the following is the cloud-native standard way to debug?",
+        "wg": [
+          {
+            "t": "雲端原生",
+            "en": "cloud-native",
+            "ps": "Adj"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 使用 `kubectl cp` 將 `/bin/sh` 從本地複製到容器中。",
+        "en": "(A) Use `kubectl cp` to copy `/bin/sh` from local to the container.",
+        "wg": []
+      },
+      {
+        "t": "(B) 使用 Kubernetes 的臨時容器 (Ephemeral Containers) 功能，如 `kubectl debug`。",
+        "en": "(B) Use Kubernetes Ephemeral Containers feature, such as `kubectl debug`.",
+        "wg": [
+          {
+            "t": "臨時容器",
+            "en": "Ephemeral Containers",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) 修改 Deployment 的 YAML，將 `image` 欄位暫時改為 `ubuntu`。",
+        "en": "(C) Modify the Deployment YAML to temporarily change the `image` field to `ubuntu`.",
+        "wg": []
+      },
+      {
+        "t": "(D) SSH 進入該 Pod 所在的 Node 節點，直接存取容器的檔案系統。",
+        "en": "(D) SSH into the Node where the Pod resides and access the container's filesystem directly.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "Distroless 映像檔不包含 Shell，因此無法使用 `exec` 執行 Shell。Kubernetes 提供了「臨時容器 (Ephemeral Containers)」功能，允許您將一個包含除錯工具（如 busybox 或 custom debug image）的容器掛載到執行中的 Pod 內，共享行程命名空間，從而進行除錯而不需修改原始容器。",
+      "en": "Distroless images do not contain a shell, so you cannot use `exec` to run a shell. Kubernetes provides the 'Ephemeral Containers' feature, allowing you to attach a container with debug tools (like busybox or a custom debug image) to the running Pod, sharing the process namespace, enabling debugging without modifying the original container.",
+      "wg": [
+        {
+          "t": "共享",
+          "en": "share",
+          "ps": "V"
+        },
+        {
+          "t": "命名空間",
+          "en": "namespace",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "14",
+    "level": "advanced",
+    "keywords": "BuildKit, Secrets, Security, Dockerfile",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您需要在 Docker 建置過程中從私有 Git 儲存庫下載程式碼，這需要 SSH 私鑰。",
+        "en": "You need to download code from a private Git repository during the Docker build process, which requires an SSH private key.",
+        "wg": [
+          {
+            "t": "私鑰",
+            "en": "private key",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "為了避免將私鑰洩漏在映像檔的歷史紀錄或中繼資料中，下列哪種語法是 Docker 官方推薦的最佳實務？",
+        "en": "To avoid leaking the private key in the image history or metadata, which syntax is the best practice recommended by Docker?",
+        "wg": [
+          {
+            "t": "洩漏",
+            "en": "leak",
+            "ps": "V"
+          },
+          {
+            "t": "最佳實務",
+            "en": "best practice",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 使用 `ARG SSH_KEY` 並在建置時透過 `--build-arg` 傳入。",
+        "en": "(A) Use `ARG SSH_KEY` and pass it via `--build-arg` during build.",
+        "wg": []
+      },
+      {
+        "t": "(B) 使用 `COPY id_rsa /root/.ssh/`，執行 git clone 後再 `RUN rm /root/.ssh/id_rsa`。",
+        "en": "(B) Use `COPY id_rsa /root/.ssh/`, run git clone, and then `RUN rm /root/.ssh/id_rsa`.",
+        "wg": []
+      },
+      {
+        "t": "(C) 使用 Docker BuildKit 的 `RUN --mount=type=secret,id=ssh_key ...` 語法。",
+        "en": "(C) Use Docker BuildKit's `RUN --mount=type=secret,id=ssh_key ...` syntax.",
+        "wg": []
+      },
+      {
+        "t": "(D) 將私鑰加密後放入原始碼中，並在 Dockerfile 中解密。",
+        "en": "(D) Encrypt the private key into the source code and decrypt it in the Dockerfile.",
+        "wg": []
+      }
+    ],
+    "answer": "(C)",
+    "why": {
+      "t": "選項 (A) 和 (B) 都會導致機密資訊殘留在映像檔的層或歷史紀錄中（`docker history` 可見）。BuildKit 的 `--mount=type=secret` 允許將機密資訊暫時掛載到建置步驟中，該資訊不會被寫入最終的映像檔層，是目前最安全的做法。",
+      "en": "Options (A) and (B) both cause secrets to persist in the image layers or history (visible via `docker history`). BuildKit's `--mount=type=secret` allows secrets to be temporarily mounted into the build step; the information is not written to the final image layer, making it the most secure practice.",
+      "wg": [
+        {
+          "t": "殘留",
+          "en": "persist/remain",
+          "ps": "V"
+        },
+        {
+          "t": "掛載",
+          "en": "mount",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "15",
+    "level": "intermediate",
+    "keywords": "Immutability, Tagging, Digest, Reproducibility",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "FROM node:18-alpine\n# ... rest of the dockerfile",
+    "question": [
+      {
+        "t": "您的 CI Pipeline 昨天建置成功，但今天使用相同的程式碼卻建置失敗。",
+        "en": "Your CI pipeline succeeded yesterday, but failed today with the same code.",
+        "wg": []
+      },
+      {
+        "t": "經調查發現，`node:18-alpine` 標籤所指向的映像檔內容在 Docker Hub 上被更新了，導致相容性問題。",
+        "en": "Investigation reveals that the image content pointed to by the `node:18-alpine` tag was updated on Docker Hub, causing compatibility issues.",
+        "wg": [
+          {
+            "t": "標籤",
+            "en": "tag",
+            "ps": "N"
+          },
+          {
+            "t": "相容性",
+            "en": "compatibility",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "為了確保建置的「不可變性 (Immutability)」與可重現性，您應該如何修改 `FROM` 指令？",
+        "en": "To ensure build 'Immutability' and reproducibility, how should you modify the `FROM` instruction?",
+        "wg": [
+          {
+            "t": "不可變性",
+            "en": "immutability",
+            "ps": "N"
+          },
+          {
+            "t": "可重現性",
+            "en": "reproducibility",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 使用 `FROM node:latest` 以確保總是取得最新修復。",
+        "en": "(A) Use `FROM node:latest` to ensure you always get the latest fixes.",
+        "wg": []
+      },
+      {
+        "t": "(B) 使用映像檔摘要 (Digest)，例如 `FROM node@sha256:5b4...`。",
+        "en": "(B) Use the image digest, for example `FROM node@sha256:5b4...`.",
+        "wg": [
+          {
+            "t": "摘要",
+            "en": "digest",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) 使用 `FROM node:18.1.0-alpine` 鎖定次要版本。",
+        "en": "(C) Use `FROM node:18.1.0-alpine` to pin the minor version.",
+        "wg": [
+          {
+            "t": "鎖定",
+            "en": "pin",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(D) 在 Dockerfile 中加入 `RUN npm update`。",
+        "en": "(D) Add `RUN npm update` to the Dockerfile.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "Docker 的標籤（Tags，如 `18-alpine` 甚至 `18.1.0`）是可變的 (Mutable)，維護者可以隨時推送新內容覆蓋舊標籤。唯有使用 SHA256 摘要 (Digest) 才能保證每次拉取的基底映像檔內容完全一致，實現真正的不可變建置。",
+      "en": "Docker tags (like `18-alpine` or even `18.1.0`) are mutable; maintainers can push new content to overwrite old tags at any time. Only by using the SHA256 digest can you guarantee that the base image content pulled is exactly the same every time, achieving true immutable builds.",
+      "wg": [
+        {
+          "t": "覆蓋",
+          "en": "overwrite",
+          "ps": "V"
+        },
+        {
+          "t": "維護者",
+          "en": "maintainer",
+          "ps": "N"
+        }
+      ]
+    }
+  }
+]

@@ -1,0 +1,1135 @@
+[
+  {
+    "no": "6",
+    "level": "intermediate",
+    "keywords": "Rule of Zero, Code Refactoring, Resource Management",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "class UserGroup {\n    std::string groupName;\n    std::vector<User> members;\npublic:\n    UserGroup(const std::string& name) : groupName(name) {}\n    ~UserGroup() { members.clear(); }\n    UserGroup(const UserGroup& other) : groupName(other.groupName), members(other.members) {}\n    UserGroup& operator=(const UserGroup& other) {\n        if (this != &other) {\n            groupName = other.groupName;\n            members = other.members;\n        }\n        return *this;\n    }\n};",
+    "question": [
+      {
+        "t": "在 Code Review 過程中，您看到上述 `UserGroup` 類別的實作。",
+        "en": "During a Code Review, you encounter the implementation of the `UserGroup` class shown above.",
+        "wg": []
+      },
+      {
+        "t": "該類別僅管理標準庫容器與字串，且沒有管理任何原始指標（Raw Pointer）或非 RAII 資源。",
+        "en": "The class manages only standard library containers and strings, and does not manage any Raw Pointers or non-RAII resources.",
+        "wg": [
+          {
+            "t": "原始指標",
+            "en": "Raw Pointer",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "根據現代 C++ 的最佳實務，您應該給予什麼建議？",
+        "en": "According to modern C++ best practices, what recommendation should you give?",
+        "wg": [
+          {
+            "t": "最佳實務",
+            "en": "best practices",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "保留現狀，顯式定義解構函式與複製操作比較安全。",
+        "en": "Keep it as is; explicitly defining the destructor and copy operations is safer.",
+        "wg": []
+      },
+      {
+        "t": "移除解構函式、複製建構子與複製指派運算子，遵循「零規則（Rule of Zero）」。",
+        "en": "Remove the destructor, copy constructor, and copy assignment operator, following the 'Rule of Zero'.",
+        "wg": [
+          {
+            "t": "零規則",
+            "en": "Rule of Zero",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "應該加入 Move Constructor 與 Move Assignment Operator 以符合「五規則（Rule of 5）」。",
+        "en": "Should add Move Constructor and Move Assignment Operator to comply with the 'Rule of 5'.",
+        "wg": [
+          {
+            "t": "五規則",
+            "en": "Rule of 5",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "將 `members` 改為 `std::unique_ptr<std::vector<User>>` 以提升效能。",
+        "en": "Change `members` to `std::unique_ptr<std::vector<User>>` to improve performance.",
+        "wg": []
+      }
+    ],
+    "answer": "移除解構函式、複製建構子與複製指派運算子，遵循「零規則（Rule of Zero）」。",
+    "why": {
+      "t": "當類別僅由 RAII 相容的成員（如 `std::string`, `std::vector`）組成時，編譯器自動生成的特殊成員函式已足夠且正確。手動撰寫不僅多餘，還可能因為忘記實作 Move 操作而導致效能下降（使得該類別無法被移動）。這被稱為 Rule of Zero。",
+      "en": "When a class consists solely of RAII-compatible members (like `std::string`, `std::vector`), the compiler-generated special member functions are sufficient and correct. Writing them manually is not only redundant but can also degrade performance by accidentally suppressing Move operations (making the class non-movable). This is known as the Rule of Zero.",
+      "wg": [
+        {
+          "t": "編譯器自動生成",
+          "en": "compiler-generated",
+          "ps": "Adj"
+        },
+        {
+          "t": "多餘",
+          "en": "redundant",
+          "ps": "Adj"
+        }
+      ]
+    }
+  },
+  {
+    "no": "7",
+    "level": "intermediate",
+    "keywords": "std::move, Cast, Rvalue Reference, Runtime Overhead",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "void process(std::string data) {\n    std::string local = std::move(data);\n    // ...\n}",
+    "question": [
+      {
+        "t": "關於 `std::move` 在執行期（Runtime）的行為，下列敘述何者最為精確？",
+        "en": "Regarding the runtime behavior of `std::move`, which of the following statements is most accurate?",
+        "wg": [
+          {
+            "t": "執行期",
+            "en": "Runtime",
+            "ps": "N"
+          },
+          {
+            "t": "精確",
+            "en": "accurate",
+            "ps": "Adj"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "`std::move` 會立即釋放來源物件的記憶體並轉移給目標。",
+        "en": "`std::move` immediately releases the source object's memory and transfers it to the target.",
+        "wg": []
+      },
+      {
+        "t": "`std::move` 本質上只是一個轉型（Cast），它將變數轉型為 Rvalue Reference，本身不產生任何搬移資料的機器碼。",
+        "en": "`std::move` is essentially just a cast; it casts the variable to an Rvalue Reference and does not generate any machine code to move data itself.",
+        "wg": [
+          {
+            "t": "轉型",
+            "en": "cast",
+            "ps": "N"
+          },
+          {
+            "t": "機器碼",
+            "en": "machine code",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "`std::move` 會呼叫物件的 Move Constructor。",
+        "en": "`std::move` calls the object's Move Constructor.",
+        "wg": []
+      },
+      {
+        "t": "`std::move` 是一個特殊的系統呼叫（System Call），通知作業系統更改記憶體分頁的所有權。",
+        "en": "`std::move` is a special System Call that notifies the OS to change memory page ownership.",
+        "wg": []
+      }
+    ],
+    "answer": "`std::move` 本質上只是一個轉型（Cast），它將變數轉型為 Rvalue Reference，本身不產生任何搬移資料的機器碼。",
+    "why": {
+      "t": "`std::move` 實際上是 `static_cast<T&&>`。它僅僅是改變了編譯器對該物件的型別判斷（視為 xvalue），從而讓後續的函式呼叫（如建構子或指派運算子）能夠匹配到接受 `T&&` 的重載版本（Move Constructor/Assignment）。真正的「移動」邏輯是在這些建構子內部發生的，而非 `std::move` 本身。",
+      "en": "`std::move` is effectively `static_cast<T&&>`. It merely changes how the compiler treats the object's type (viewing it as an xvalue), allowing subsequent function calls (like constructors or assignment operators) to match the overload accepting `T&&` (Move Constructor/Assignment). The actual 'moving' logic happens inside those constructors, not within `std::move` itself.",
+      "wg": [
+        {
+          "t": "重載版本",
+          "en": "overload",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "8",
+    "level": "advanced",
+    "keywords": "shared_ptr, Thread Safety, Concurrency, Race Condition",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "// Global variable\nstd::shared_ptr<Config> globalConfig;\n\n// Thread A\nvoid updateConfig(std::shared_ptr<Config> newConfig) {\n    globalConfig = newConfig; // Assignment\n}\n\n// Thread B\nvoid readConfig() {\n    std::shared_ptr<Config> local = globalConfig; // Copy\n    // use local...\n}",
+    "question": [
+      {
+        "t": "考慮上述程式碼，其中 `Thread A` 與 `Thread B` 同時執行。",
+        "en": "Consider the code above, where `Thread A` and `Thread B` run concurrently.",
+        "wg": [
+          {
+            "t": "同時執行",
+            "en": "run concurrently",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "關於 `std::shared_ptr` 的執行緒安全性，下列何者正確？",
+        "en": "Regarding the thread safety of `std::shared_ptr`, which of the following is correct?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "程式碼是安全的，因為 `shared_ptr` 的 Reference Count 操作是 Atomic 的。",
+        "en": "The code is safe because `shared_ptr` Reference Count operations are Atomic.",
+        "wg": []
+      },
+      {
+        "t": "程式碼不安全，雖然 Control Block 是 Thread-safe，但在多執行緒下讀寫同一個 `shared_ptr` 實例本身（globalConfig）會導致 Race Condition。",
+        "en": "The code is unsafe; while the Control Block is Thread-safe, reading and writing the same `shared_ptr` instance (globalConfig) from multiple threads causes a Race Condition.",
+        "wg": [
+          {
+            "t": "實例",
+            "en": "instance",
+            "ps": "N"
+          },
+          {
+            "t": "競態條件",
+            "en": "Race Condition",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "程式碼是安全的，因為 `shared_ptr` 內部有 Mutex 保護指標的切換。",
+        "en": "The code is safe because `shared_ptr` has an internal Mutex protecting the pointer switch.",
+        "wg": []
+      },
+      {
+        "t": "只有當 `Config` 物件本身是不可變（Immutable）時，程式碼才安全。",
+        "en": "The code is safe only if the `Config` object itself is Immutable.",
+        "wg": []
+      }
+    ],
+    "answer": "程式碼不安全，雖然 Control Block 是 Thread-safe，但在多執行緒下讀寫同一個 `shared_ptr` 實例本身（globalConfig）會導致 Race Condition。",
+    "why": {
+      "t": "`std::shared_ptr` 保證「Reference Count 的增減」是 Atomic 的，但不保證「shared_ptr 物件本身」的讀寫是 Atomic 的。當 Thread A 修改 `globalConfig`（寫入 ptr 和 ref count）而 Thread B 同時讀取它時，可能會讀到不一致的狀態（例如 ptr 已改但 ref count 尚未更新），導致崩潰。需使用 `std::atomic_store` (C++11) 或 `std::atomic<std::shared_ptr>` (C++20)。",
+      "en": "`std::shared_ptr` guarantees that 'Reference Count increments/decrements' are Atomic, but it does not guarantee that read/write operations on the 'shared_ptr object itself' are Atomic. When Thread A modifies `globalConfig` (writing ptr and ref count) while Thread B reads it, an inconsistent state may be observed (e.g., ptr updated but ref count not), leading to a crash. Use `std::atomic_store` (C++11) or `std::atomic<std::shared_ptr>` (C++20).",
+      "wg": [
+        {
+          "t": "不一致的狀態",
+          "en": "inconsistent state",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "9",
+    "level": "intermediate",
+    "keywords": "weak_ptr, Circular Reference, Memory Leak, Observer Pattern",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "struct Node {\n    std::vector<std::shared_ptr<Node>> children;\n    std::shared_ptr<Node> parent; // Potential issue here\n    ~Node() { std::cout << \"Node destroyed\\n\"; }\n};\n\nvoid buildTree() {\n    auto root = std::make_shared<Node>();\n    auto child = std::make_shared<Node>();\n    root->children.push_back(child);\n    child->parent = root;\n}",
+    "question": [
+      {
+        "t": "在 `buildTree` 函式執行完畢後，預期會發生什麼事？",
+        "en": "What is expected to happen after the `buildTree` function finishes execution?",
+        "wg": []
+      },
+      {
+        "t": "您應該如何修正 `Node` 結構以避免此問題？",
+        "en": "How should you modify the `Node` structure to avoid this issue?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "記憶體正常釋放；將 `parent` 改為 `Node*`。",
+        "en": "Memory released normally; change `parent` to `Node*`.",
+        "wg": []
+      },
+      {
+        "t": "記憶體洩漏（Memory Leak）；將 `parent` 改為 `std::weak_ptr<Node>`。",
+        "en": "Memory Leak; change `parent` to `std::weak_ptr<Node>`.",
+        "wg": [
+          {
+            "t": "記憶體洩漏",
+            "en": "Memory Leak",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "程式崩潰（Crash）；將 `children` 改為 `std::vector<std::weak_ptr<Node>>`。",
+        "en": "Program Crash; change `children` to `std::vector<std::weak_ptr<Node>>`.",
+        "wg": []
+      },
+      {
+        "t": "記憶體洩漏；必須手動在 `buildTree` 結尾呼叫 `root->reset()`。",
+        "en": "Memory Leak; must manually call `root->reset()` at the end of `buildTree`.",
+        "wg": []
+      }
+    ],
+    "answer": "記憶體洩漏（Memory Leak）；將 `parent` 改為 `std::weak_ptr<Node>`。",
+    "why": {
+      "t": "Root 持有 Child 的 `shared_ptr`，Child 也持有 Root 的 `shared_ptr`，形成循環引用（Circular Reference）。當函式結束，兩個物件的 Reference Count 都仍為 1，導致解構函式永遠不會被呼叫。將反向參考（Back Reference）改為 `std::weak_ptr` 可以打破循環，因為 `weak_ptr` 不增加 Reference Count。",
+      "en": "Root holds a `shared_ptr` to Child, and Child holds a `shared_ptr` to Root, forming a Circular Reference. When the function ends, the Reference Count for both objects remains 1, so their destructors are never called. Changing the Back Reference to `std::weak_ptr` breaks the cycle because `weak_ptr` does not increment the Reference Count.",
+      "wg": [
+        {
+          "t": "循環引用",
+          "en": "Circular Reference",
+          "ps": "N"
+        },
+        {
+          "t": "反向參考",
+          "en": "Back Reference",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "10",
+    "level": "advanced",
+    "keywords": "unique_ptr, Custom Deleter, EBCO, Memory Layout",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "auto deleterLambda = [](int* p) { delete p; };\nstd::unique_ptr<int, decltype(deleterLambda)> ptr1(new int(1), deleterLambda);\n\nvoid deleterFunc(int* p) { delete p; }\nstd::unique_ptr<int, void(*)(int*)> ptr2(new int(1), deleterFunc);",
+    "question": [
+      {
+        "t": "在 64 位元系統上，比較 `ptr1` 與 `ptr2` 的物件大小（`sizeof`），下列何者通常正確？",
+        "en": "On a 64-bit system, comparing the object size (`sizeof`) of `ptr1` and `ptr2`, which of the following is generally correct?",
+        "wg": [
+          {
+            "t": "物件大小",
+            "en": "object size",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "`sizeof(ptr1)` == 8 bytes, `sizeof(ptr2)` == 16 bytes",
+        "en": "`sizeof(ptr1)` == 8 bytes, `sizeof(ptr2)` == 16 bytes",
+        "wg": []
+      },
+      {
+        "t": "`sizeof(ptr1)` == 16 bytes, `sizeof(ptr2)` == 16 bytes",
+        "en": "`sizeof(ptr1)` == 16 bytes, `sizeof(ptr2)` == 16 bytes",
+        "wg": []
+      },
+      {
+        "t": "`sizeof(ptr1)` == 8 bytes, `sizeof(ptr2)` == 8 bytes",
+        "en": "`sizeof(ptr1)` == 8 bytes, `sizeof(ptr2)` == 8 bytes",
+        "wg": []
+      },
+      {
+        "t": "`sizeof(ptr1)` == 16 bytes, `sizeof(ptr2)` == 8 bytes",
+        "en": "`sizeof(ptr1)` == 16 bytes, `sizeof(ptr2)` == 8 bytes",
+        "wg": []
+      }
+    ],
+    "answer": "`sizeof(ptr1)` == 8 bytes, `sizeof(ptr2)` == 16 bytes",
+    "why": {
+      "t": "`unique_ptr` 利用了「空基類優化（Empty Base Class Optimization, EBCO）」。無狀態的 Lambda（`ptr1`）被視為空類別，不佔用額外空間，因此 `ptr1` 大小等同於一個 Raw Pointer（8 bytes）。而函式指標（`ptr2`）本身需要佔用空間（8 bytes），加上 Raw Pointer，總共 16 bytes。",
+      "en": "`unique_ptr` leverages 'Empty Base Class Optimization (EBCO)'. A stateless Lambda (`ptr1`) is treated as an empty class and consumes no extra space, so `ptr1` is the same size as a Raw Pointer (8 bytes). A function pointer (`ptr2`), however, requires storage (8 bytes), making the total size 16 bytes when added to the Raw Pointer.",
+      "wg": [
+        {
+          "t": "空基類優化",
+          "en": "Empty Base Class Optimization",
+          "ps": "N"
+        },
+        {
+          "t": "無狀態",
+          "en": "stateless",
+          "ps": "Adj"
+        }
+      ]
+    }
+  },
+  {
+    "no": "11",
+    "level": "intermediate",
+    "keywords": "Move Semantics, std::exchange, Implementation Patterns",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "class Buffer {\n    int* data_;\n    size_t size_;\npublic:\n    // Move Constructor\n    Buffer(Buffer&& other) noexcept \n        : data_(std::exchange(other.data_, nullptr)),\n          size_(std::exchange(other.size_, 0)) \n    {}\n};",
+    "question": [
+      {
+        "t": "為什麼在 Move Constructor 中使用 `std::exchange` 是一種推薦的實作模式？",
+        "en": "Why is using `std::exchange` in a Move Constructor a recommended implementation pattern?",
+        "wg": [
+          {
+            "t": "推薦的",
+            "en": "recommended",
+            "ps": "Adj"
+          },
+          {
+            "t": "實作模式",
+            "en": "implementation pattern",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "它能自動處理記憶體釋放，避免 Memory Leak。",
+        "en": "It automatically handles memory deallocation to avoid Memory Leaks.",
+        "wg": []
+      },
+      {
+        "t": "它能確保操作的原子性（Atomicity），避免多執行緒競爭。",
+        "en": "It ensures atomicity of the operation, avoiding multi-thread contention.",
+        "wg": []
+      },
+      {
+        "t": "它簡潔地完成了「獲取舊值」與「重置來源」兩個動作，避免遺漏重置導致 Double Free。",
+        "en": "It concisely performs both 'retrieve old value' and 'reset source', preventing Double Free caused by forgetting to reset.",
+        "wg": [
+          {
+            "t": "重置",
+            "en": "reset",
+            "ps": "V"
+          },
+          {
+            "t": "簡潔地",
+            "en": "concisely",
+            "ps": "Adv"
+          }
+        ]
+      },
+      {
+        "t": "它比直接賦值（Assignment）有更好的執行效能。",
+        "en": "It has better runtime performance than direct assignment.",
+        "wg": []
+      }
+    ],
+    "answer": "它簡潔地完成了「獲取舊值」與「重置來源」兩個動作，避免遺漏重置導致 Double Free。",
+    "why": {
+      "t": "Move Semantics 的核心在於「竊取資源」並讓來源物件處於「有效但未定義（valid but unspecified）」的狀態（通常是空狀態）。`std::exchange` 可以在一行內將 `other.data_` 設為 `nullptr` 並返回其原始值，這減少了手動寫多行暫存變數的錯誤風險，特別是忘記將來源指標設為 null 會導致解構時重複釋放（Double Free）。",
+      "en": "The core of Move Semantics is 'stealing resources' and leaving the source object in a 'valid but unspecified' state (usually empty). `std::exchange` sets `other.data_` to `nullptr` and returns its original value in one line. This reduces the risk of errors from manual temporary variables, specifically forgetting to nullify the source pointer, which would lead to Double Free upon destruction.",
+      "wg": [
+        {
+          "t": "竊取資源",
+          "en": "stealing resources",
+          "ps": "V"
+        },
+        {
+          "t": "重複釋放",
+          "en": "Double Free",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "12",
+    "level": "intermediate",
+    "keywords": "shared_ptr, Performance, API Design, Reference Counting",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "void draw(std::shared_ptr<Texture> tex) {\n    tex->bind();\n    // draw something...\n}",
+    "question": [
+      {
+        "t": "在效能分析（Profiling）後，發現上述函式造成了大量的 CPU 開銷。",
+        "en": "After profiling, it was found that the above function causes significant CPU overhead.",
+        "wg": [
+          {
+            "t": "效能分析",
+            "en": "Profiling",
+            "ps": "N"
+          },
+          {
+            "t": "開銷",
+            "en": "overhead",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "若該函式不需要改變 `tex` 的所有權，最簡單且有效的優化方式為何？",
+        "en": "If this function does not need to alter the ownership of `tex`, what is the simplest and most effective optimization?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "改為 `void draw(const std::shared_ptr<Texture>& tex)`。",
+        "en": "Change to `void draw(const std::shared_ptr<Texture>& tex)`.",
+        "wg": []
+      },
+      {
+        "t": "改為 `void draw(std::unique_ptr<Texture> tex)`。",
+        "en": "Change to `void draw(std::unique_ptr<Texture> tex)`.",
+        "wg": []
+      },
+      {
+        "t": "改為 `void draw(std::weak_ptr<Texture> tex)`。",
+        "en": "Change to `void draw(std::weak_ptr<Texture> tex)`.",
+        "wg": []
+      },
+      {
+        "t": "使用 `std::move(tex)` 呼叫該函式。",
+        "en": "Call the function using `std::move(tex)`.",
+        "wg": []
+      }
+    ],
+    "answer": "改為 `void draw(const std::shared_ptr<Texture>& tex)`。",
+    "why": {
+      "t": "按值傳遞（Pass by value）`shared_ptr` 會觸發 Copy Constructor，導致 Atomic Reference Count 的增減操作。這在多執行緒環境下是昂貴的（鎖匯流排或快取同步）。若函式只是「使用」而不「持有/共享」所有權，應傳遞 `const shared_ptr&` 或直接傳遞底層資源的引用 `const Texture&`，以避免不必要的原子操作。",
+      "en": "Passing `shared_ptr` by value triggers the Copy Constructor, causing Atomic Reference Count increment/decrement. This is expensive in multi-threaded environments (bus locking or cache synchronization). If the function only 'uses' and does not 'own/share' ownership, pass `const shared_ptr&` or a reference to the underlying resource `const Texture&` to avoid unnecessary atomic operations.",
+      "wg": [
+        {
+          "t": "按值傳遞",
+          "en": "Pass by value",
+          "ps": "V"
+        },
+        {
+          "t": "原子操作",
+          "en": "atomic operations",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "13",
+    "level": "advanced",
+    "keywords": "Move Assignment, Self-assignment, Use-after-free, Bug Hunting",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "DataBuffer& operator=(DataBuffer&& other) noexcept {\n    delete[] data_;\n    data_ = other.data_;\n    other.data_ = nullptr;\n    size_ = other.size_;\n    other.size_ = 0;\n    return *this;\n}",
+    "question": [
+      {
+        "t": "上述 Move Assignment Operator 的實作存在一個嚴重缺陷。",
+        "en": "The implementation of the Move Assignment Operator above has a serious flaw.",
+        "wg": [
+          {
+            "t": "嚴重缺陷",
+            "en": "serious flaw",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "當發生 `x = std::move(x)`（自我賦值）時，會發生什麼後果？",
+        "en": "What happens when `x = std::move(x)` (self-assignment) occurs?",
+        "wg": [
+          {
+            "t": "自我賦值",
+            "en": "self-assignment",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "沒問題，編譯器會自動優化掉自我賦值。",
+        "en": "No problem; the compiler will automatically optimize away self-assignment.",
+        "wg": []
+      },
+      {
+        "t": "資源會被釋放，接著 `data_` 會指向已釋放的記憶體或 nullptr，導致資料遺失或 Use-after-free。",
+        "en": "The resource will be released, then `data_` will point to released memory or nullptr, causing data loss or Use-after-free.",
+        "wg": [
+          {
+            "t": "資料遺失",
+            "en": "data loss",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "會造成 Deadlock。",
+        "en": "It will cause a Deadlock.",
+        "wg": []
+      },
+      {
+        "t": "會拋出 `std::bad_alloc` 異常。",
+        "en": "It will throw a `std::bad_alloc` exception.",
+        "wg": []
+      }
+    ],
+    "answer": "資源會被釋放，接著 `data_` 會指向已釋放的記憶體或 nullptr，導致資料遺失或 Use-after-free。",
+    "why": {
+      "t": "若 `this == &other`，`delete[] data_` 會先刪除自己的資源（也就是 `other` 的資源）。接著 `data_ = other.data_` 會讀取到一個懸空指標（Dangling Pointer）或在某些實作中讀到垃圾值。最後 `other.data_ = nullptr` 會把自己的指標清空。結果是物件失去了資源且處於損壞狀態。必須在開頭加入 `if (this == &other) return *this;`。",
+      "en": "If `this == &other`, `delete[] data_` deletes its own resource (which is also `other`'s resource). Then `data_ = other.data_` reads a Dangling Pointer or garbage value. Finally, `other.data_ = nullptr` clears its own pointer. The result is the object loses its resource and enters a corrupted state. You must add `if (this == &other) return *this;` at the beginning.",
+      "wg": [
+        {
+          "t": "懸空指標",
+          "en": "Dangling Pointer",
+          "ps": "N"
+        },
+        {
+          "t": "損壞狀態",
+          "en": "corrupted state",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "14",
+    "level": "advanced",
+    "keywords": "System Design, HFT, Latency, unique_ptr",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在高頻交易（HFT）系統的「熱路徑（Hot Path）」設計中，為何通常建議使用 `std::unique_ptr` 配合 Memory Pool，而非 `std::shared_ptr`？",
+        "en": "In the 'Hot Path' design of High-Frequency Trading (HFT) systems, why is it usually recommended to use `std::unique_ptr` with a Memory Pool instead of `std::shared_ptr`?",
+        "wg": [
+          {
+            "t": "熱路徑",
+            "en": "Hot Path",
+            "ps": "N"
+          },
+          {
+            "t": "記憶體池",
+            "en": "Memory Pool",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "`std::unique_ptr` 佔用的記憶體空間較小。",
+        "en": "`std::unique_ptr` occupies less memory space.",
+        "wg": []
+      },
+      {
+        "t": "`std::shared_ptr` 的 Reference Counting 涉及原子操作（Atomic Operations），會導致 CPU Cache 同步開銷與潛在的鎖競爭。",
+        "en": "`std::shared_ptr`'s Reference Counting involves Atomic Operations, causing CPU Cache synchronization overhead and potential lock contention.",
+        "wg": [
+          {
+            "t": "鎖競爭",
+            "en": "lock contention",
+            "ps": "N"
+          },
+          {
+            "t": "快取同步",
+            "en": "Cache synchronization",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "`std::unique_ptr` 支援陣列操作，而 `std::shared_ptr` 不支援。",
+        "en": "`std::unique_ptr` supports array operations, while `std::shared_ptr` does not.",
+        "wg": []
+      },
+      {
+        "t": "`std::shared_ptr` 無法與 C-style API 互通。",
+        "en": "`std::shared_ptr` cannot interoperate with C-style APIs.",
+        "wg": []
+      }
+    ],
+    "answer": "`std::shared_ptr` 的 Reference Counting 涉及原子操作（Atomic Operations），會導致 CPU Cache 同步開銷與潛在的鎖競爭。",
+    "why": {
+      "t": "在極低延遲（Low Latency）系統中，原子操作（Atomic RMW）是昂貴的，因為它會鎖住 CPU 流水線或強迫 Cache Coherency 協議在核心間同步。`std::unique_ptr` 幾乎無執行期開銷（Zero Overhead），配合預先分配的 Memory Pool 可以完全避免 `new/delete` 與鎖競爭，達到確定性延遲（Deterministic Latency）。",
+      "en": "In Low Latency systems, Atomic Operations (Atomic RMW) are expensive as they stall CPU pipelines or force Cache Coherency synchronization between cores. `std::unique_ptr` has near Zero Overhead; combined with a pre-allocated Memory Pool, it completely avoids `new/delete` and lock contention, achieving Deterministic Latency.",
+      "wg": [
+        {
+          "t": "確定性延遲",
+          "en": "Deterministic Latency",
+          "ps": "N"
+        },
+        {
+          "t": "執行期開銷",
+          "en": "runtime overhead",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "15",
+    "level": "intermediate",
+    "keywords": "Smart Pointer Conversion, API Evolution, Factory Pattern",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "std::unique_ptr<Widget> createWidget();\n\nvoid consume() {\n    std::shared_ptr<Widget> ptr = createWidget(); // Is this valid?\n}",
+    "question": [
+      {
+        "t": "關於 `std::unique_ptr` 轉換為 `std::shared_ptr`，下列敘述何者正確？",
+        "en": "Regarding the conversion from `std::unique_ptr` to `std::shared_ptr`, which of the following statements is correct?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "這是合法的，且非常高效。`shared_ptr` 會接管 `unique_ptr` 持有的資源。",
+        "en": "This is valid and very efficient. `shared_ptr` takes over the resource held by `unique_ptr`.",
+        "wg": [
+          {
+            "t": "接管",
+            "en": "take over",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "這是不合法的，必須顯式呼叫 `std::move`。",
+        "en": "This is invalid; `std::move` must be explicitly called.",
+        "wg": []
+      },
+      {
+        "t": "這是合法的，但會導致 Deep Copy。",
+        "en": "This is valid but causes a Deep Copy.",
+        "wg": []
+      },
+      {
+        "t": "這是不合法的，因為兩者的 Control Block 結構不同。",
+        "en": "This is invalid because their Control Block structures are different.",
+        "wg": []
+      }
+    ],
+    "answer": "這是合法的，且非常高效。`shared_ptr` 會接管 `unique_ptr` 持有的資源。",
+    "why": {
+      "t": "`std::shared_ptr` 擁有一個接受 `std::unique_ptr&&` 的建構子。這允許工廠函式（Factory Function）返回 `unique_ptr`（表示排他性所有權），而呼叫者可以根據需求決定是否要將其升級為共享所有權（`shared_ptr`）。這是一種極佳的 API 設計模式，提供了最大的彈性。",
+      "en": "`std::shared_ptr` has a constructor that accepts `std::unique_ptr&&`. This allows Factory Functions to return `unique_ptr` (signifying exclusive ownership), while the caller can decide whether to upgrade it to shared ownership (`shared_ptr`) as needed. This is an excellent API design pattern offering maximum flexibility.",
+      "wg": [
+        {
+          "t": "工廠函式",
+          "en": "Factory Function",
+          "ps": "N"
+        },
+        {
+          "t": "彈性",
+          "en": "flexibility",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "11",
+    "level": "intermediate",
+    "keywords": "shared_ptr, Performance, Atomic Operations, Function Parameters",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "void processImage(std::shared_ptr<Image> img) {\n    // Read-only access to img attributes\n    if (img->isValid()) {\n        render(img);\n    }\n}\n\n// Called in a high-frequency loop:\nfor (const auto& img : images) {\n    processImage(img);\n}",
+    "question": [
+      {
+        "t": "在 Code Review 期間，您發現上述函式在緊湊迴圈（Tight Loop）中被頻繁呼叫。",
+        "en": "During a Code Review, you notice the above function is called frequently within a tight loop.",
+        "wg": [
+          {
+            "t": "緊湊迴圈",
+            "en": "tight loop",
+            "ps": "N"
+          },
+          {
+            "t": "頻繁",
+            "en": "frequently",
+            "ps": "Adv"
+          }
+        ]
+      },
+      {
+        "t": "雖然 `processImage` 僅讀取資料且不涉及所有權轉移，但效能分析顯示該處有顯著的 CPU 開銷。",
+        "en": "Although `processImage` only reads data and involves no ownership transfer, profiling shows significant CPU overhead there.",
+        "wg": [
+          {
+            "t": "所有權轉移",
+            "en": "ownership transfer",
+            "ps": "N"
+          },
+          {
+            "t": "效能分析",
+            "en": "profiling",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "造成此效能問題的最主要原因為何？",
+        "en": "What is the primary cause of this performance issue?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) `std::shared_ptr` 的解參考（Dereference）比原始指標慢得多。",
+        "en": "(A) Dereferencing a `std::shared_ptr` is significantly slower than a raw pointer.",
+        "wg": [
+          {
+            "t": "解參考",
+            "en": "dereference",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(B) 以傳值方式（Pass-by-value）傳遞 `shared_ptr` 會觸發原子的引用計數增減操作。",
+        "en": "(B) Passing `shared_ptr` by value triggers atomic reference count increments and decrements.",
+        "wg": [
+          {
+            "t": "傳值方式",
+            "en": "pass-by-value",
+            "ps": "N"
+          },
+          {
+            "t": "原子的",
+            "en": "atomic",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "(C) `std::shared_ptr` 在函式返回時會強制釋放記憶體，導致 Cache Miss。",
+        "en": "(C) `std::shared_ptr` forces memory deallocation upon function return, causing Cache Misses.",
+        "wg": []
+      },
+      {
+        "t": "(D) 編譯器無法對包含 Smart Pointer 的函式進行內聯（Inline）優化。",
+        "en": "(D) The compiler cannot perform inline optimization on functions containing Smart Pointers.",
+        "wg": [
+          {
+            "t": "內聯",
+            "en": "inline",
+            "ps": "Adj"
+          }
+        ]
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "當 `std::shared_ptr` 以值傳遞時，必須複製 Control Block 的指標並增加引用計數。由於引用計數必須是執行緒安全的（Thread-safe），這涉及昂貴的原子操作（Atomic Operation）。若函式僅需讀取而不參與所有權共享，應改用 `const std::shared_ptr<T>&` 或 `const T&`。",
+      "en": "When `std::shared_ptr` is passed by value, the pointer to the Control Block must be copied and the reference count incremented. Since the reference count must be thread-safe, this involves expensive Atomic Operations. If the function only needs to read and does not participate in ownership sharing, `const std::shared_ptr<T>&` or `const T&` should be used instead.",
+      "wg": [
+        {
+          "t": "執行緒安全",
+          "en": "thread-safe",
+          "ps": "Adj"
+        },
+        {
+          "t": "原子操作",
+          "en": "atomic operation",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "12",
+    "level": "advanced",
+    "keywords": "Move Assignment, std::exchange, Self-assignment, Resource Management",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "class RawBuffer {\n    char* data_;\n    size_t size_;\npublic:\n    // ... Constructors ...\n    ~RawBuffer() { delete[] data_; }\n\n    // Move Assignment Operator\n    RawBuffer& operator=(RawBuffer&& other) noexcept {\n        // MISSING CODE\n    }\n};",
+    "question": [
+      {
+        "t": "您正在實作一個管理原始記憶體的類別 `RawBuffer` 的移動賦值運算子（Move Assignment Operator）。",
+        "en": "You are implementing the Move Assignment Operator for a class `RawBuffer` that manages raw memory.",
+        "wg": [
+          {
+            "t": "移動賦值運算子",
+            "en": "Move Assignment Operator",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "為了確保正確性並防止資源洩漏或雙重釋放（Double Free），下列哪一段實作是最正確且符合現代 C++ 慣例的？",
+        "en": "To ensure correctness and prevent resource leaks or Double Frees, which of the following implementations is the most correct and follows modern C++ conventions?",
+        "wg": [
+          {
+            "t": "資源洩漏",
+            "en": "resource leak",
+            "ps": "N"
+          },
+          {
+            "t": "雙重釋放",
+            "en": "double free",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A)\nif (this != &other) {\n    data_ = other.data_;\n    size_ = other.size_;\n    other.data_ = nullptr;\n    other.size_ = 0;\n}\nreturn *this;",
+        "en": "(A) [Code Snippet A]",
+        "wg": []
+      },
+      {
+        "t": "(B)\ndelete[] data_;\ndata_ = std::exchange(other.data_, nullptr);\nsize_ = std::exchange(other.size_, 0);\nreturn *this;",
+        "en": "(B) [Code Snippet B]",
+        "wg": []
+      },
+      {
+        "t": "(C)\nif (this != &other) {\n    delete[] data_;\n    data_ = std::exchange(other.data_, nullptr);\n    size_ = std::exchange(other.size_, 0);\n}\nreturn *this;",
+        "en": "(C) [Code Snippet C]",
+        "wg": []
+      },
+      {
+        "t": "(D)\nstd::swap(data_, other.data_);\nstd::swap(size_, other.size_);\nreturn *this;",
+        "en": "(D) [Code Snippet D]",
+        "wg": []
+      }
+    ],
+    "answer": "(C)",
+    "why": {
+      "t": "選項 (C) 是最完整的實作。它首先檢查自我賦值（Self-assignment），這在移動語義中雖然罕見但可能發生（如 `swap` 實作不當）。接著釋放（delete）自己當前持有的資源，最後透過 `std::exchange` 竊取 `other` 的資源並將其置為空。選項 (A) 造成 Memory Leak（未釋放舊資源）；選項 (B) 在自我賦值時會導致 Use-after-free（先刪除自己，再從自己讀取）；選項 (D) 雖然是 Copy-and-Swap 的變體，但在 Move Assignment 中通常直接竊取資源比交換更高效（避免了 `other` 解構時刪除我們舊資源的延遲開銷，雖然 (D) 在功能上通常也是正確的，但 (C) 更符合手動管理資源的標準模式）。",
+      "en": "Option (C) is the most complete implementation. It first checks for self-assignment, which, while rare in move semantics, can happen (e.g., improper `swap`). It then releases (deletes) the currently held resource, and finally uses `std::exchange` to steal `other`'s resource and nullify it. Option (A) causes a Memory Leak (fails to release old resource); Option (B) causes Use-after-free during self-assignment (deletes itself, then reads from itself); Option (D) is a variant of Copy-and-Swap, but in Move Assignment, directly stealing is often preferred over swapping to avoid the deferred overhead of `other` destroying our old resource (though (D) is functionally correct, (C) is the standard pattern for manual resource management).",
+      "wg": [
+        {
+          "t": "自我賦值",
+          "en": "self-assignment",
+          "ps": "N"
+        },
+        {
+          "t": "竊取",
+          "en": "steal",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "13",
+    "level": "intermediate",
+    "keywords": "Rule of Five, Special Member Functions, Destructor, Move Constructor",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "class Logger {\npublic:\n    Logger() = default;\n    // User-declared destructor\n    ~Logger() {\n        std::cout << \"Logger destroyed\" << std::endl;\n    }\n    // No other special member functions declared\n};\n\nvoid func() {\n    Logger log1;\n    Logger log2 = std::move(log1); // What happens here?\n}",
+    "question": [
+      {
+        "t": "考慮上述 `Logger` 類別，開發者僅定義了一個自定義解構函式（Destructor）以輸出日誌，未定義其他特殊成員函式。",
+        "en": "Consider the `Logger` class above, where the developer has only defined a custom Destructor to log output, without defining other special member functions.",
+        "wg": [
+          {
+            "t": "特殊成員函式",
+            "en": "special member functions",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "當執行 `Logger log2 = std::move(log1);` 時，實際會發生什麼行為？",
+        "en": "When `Logger log2 = std::move(log1);` is executed, what actually happens?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 編譯錯誤，因為移動建構子（Move Constructor）已被隱式刪除（Deleted）。",
+        "en": "(A) Compilation error, because the Move Constructor is implicitly deleted.",
+        "wg": [
+          {
+            "t": "隱式刪除",
+            "en": "implicitly deleted",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(B) 呼叫隱式生成的移動建構子，執行成員逐一移動（Member-wise move）。",
+        "en": "(B) Calls the implicitly generated Move Constructor, performing a member-wise move.",
+        "wg": [
+          {
+            "t": "成員逐一移動",
+            "en": "member-wise move",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) 退化並呼叫隱式生成的複製建構子（Copy Constructor）。",
+        "en": "(C) Degrades and calls the implicitly generated Copy Constructor.",
+        "wg": [
+          {
+            "t": "退化",
+            "en": "degrade",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(D) 執行期錯誤，因為 `log1` 進入了未定義狀態。",
+        "en": "(D) Runtime error, because `log1` enters an undefined state.",
+        "wg": []
+      }
+    ],
+    "answer": "(C)",
+    "why": {
+      "t": "根據 C++ 標準，如果使用者宣告了 Destructor，編譯器將**不會**自動生成 Move Constructor 與 Move Assignment Operator。然而，為了向後相容，編譯器通常仍會生成 Copy Constructor（儘管這在 C++11 中已被標記為 deprecated）。因此，`std::move(log1)` 雖然將 `log1` 轉型為 rvalue，但在沒有 Move Constructor 的情況下，它會綁定到 Copy Constructor 的 `const Logger&` 參數，執行複製而非移動。",
+      "en": "According to the C++ standard, if a user declares a Destructor, the compiler will **not** automatically generate the Move Constructor and Move Assignment Operator. However, for backward compatibility, the compiler usually still generates the Copy Constructor (although this is deprecated in C++11). Therefore, while `std::move(log1)` casts `log1` to an rvalue, in the absence of a Move Constructor, it binds to the `const Logger&` parameter of the Copy Constructor, performing a copy instead of a move.",
+      "wg": [
+        {
+          "t": "向後相容",
+          "en": "backward compatibility",
+          "ps": "N"
+        },
+        {
+          "t": "綁定",
+          "en": "bind",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "14",
+    "level": "intermediate",
+    "keywords": "Moved-from State, std::move, Valid but Unspecified",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "std::string s1 = \"Hello Big Tech\";\nstd::string s2 = std::move(s1);\n\n// Accessing s1 here\nstd::cout << s1.size();",
+    "question": [
+      {
+        "t": "在執行上述程式碼後，關於變數 `s1` 的狀態，下列敘述何者最為精確？",
+        "en": "After executing the code above, which statement most accurately describes the state of variable `s1`?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) `s1` 保證為空字串（Empty String），`size()` 回傳 0。",
+        "en": "(A) `s1` is guaranteed to be an empty string, and `size()` returns 0.",
+        "wg": []
+      },
+      {
+        "t": "(B) `s1` 處於「有效但未指定（Valid but Unspecified）」的狀態。",
+        "en": "(B) `s1` is in a \"Valid but Unspecified\" state.",
+        "wg": [
+          {
+            "t": "有效但未指定",
+            "en": "valid but unspecified",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "(C) `s1` 包含原始字串的副本，因為 `std::string` 對短字串有優化（SSO）。",
+        "en": "(C) `s1` contains a copy of the original string because of Small String Optimization (SSO).",
+        "wg": []
+      },
+      {
+        "t": "(D) 存取 `s1` 會導致未定義行為（Undefined Behavior），程式可能崩潰。",
+        "en": "(D) Accessing `s1` results in Undefined Behavior, and the program may crash.",
+        "wg": [
+          {
+            "t": "未定義行為",
+            "en": "undefined behavior",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "C++ 標準庫規範被移動後的物件處於「有效但未指定（Valid but Unspecified）」的狀態。這意味著你不能假設它為空（雖然大多數實作確實會將其清空），但你可以安全地銷毀它或重新賦值給它。直接讀取其值（如呼叫 `size()`）雖然不會崩潰（它是 Valid 的），但結果是未知的（Unspecified），因此不應依賴特定數值。",
+      "en": "The C++ Standard Library specifies that a moved-from object is in a \"Valid but Unspecified\" state. This means you cannot assume it is empty (although most implementations do clear it), but you can safely destroy it or reassign to it. Directly reading its value (like calling `size()`) will not crash (it is Valid), but the result is unknown (Unspecified), so you should not rely on a specific value.",
+      "wg": [
+        {
+          "t": "重新賦值",
+          "en": "reassign",
+          "ps": "V"
+        },
+        {
+          "t": "依賴",
+          "en": "rely on",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "15",
+    "level": "intermediate",
+    "keywords": "Smart Pointers, Conversion, Ownership Transfer, unique_ptr, shared_ptr",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "std::unique_ptr<Widget> createWidget();\n\nvoid processWidget(std::shared_ptr<Widget> ptr);",
+    "question": [
+      {
+        "t": "您有一個工廠函式 `createWidget` 回傳 `std::unique_ptr`（代表排他性所有權），但您需要呼叫的 API `processWidget` 要求 `std::shared_ptr`。",
+        "en": "You have a factory function `createWidget` that returns a `std::unique_ptr` (representing exclusive ownership), but the API `processWidget` you need to call requires a `std::shared_ptr`.",
+        "wg": [
+          {
+            "t": "工廠函式",
+            "en": "factory function",
+            "ps": "N"
+          },
+          {
+            "t": "排他性所有權",
+            "en": "exclusive ownership",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "下列哪種做法是正確且最高效的？",
+        "en": "Which of the following approaches is correct and most efficient?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) `processWidget(createWidget());`",
+        "en": "(A) `processWidget(createWidget());`",
+        "wg": []
+      },
+      {
+        "t": "(B) `processWidget(std::make_shared<Widget>(*createWidget()));`",
+        "en": "(B) `processWidget(std::make_shared<Widget>(*createWidget()));`",
+        "wg": []
+      },
+      {
+        "t": "(C) `processWidget(createWidget().get());`",
+        "en": "(C) `processWidget(createWidget().get());`",
+        "wg": []
+      },
+      {
+        "t": "(D) 這是無法編譯的，必須修改 `createWidget` 回傳 `shared_ptr`。",
+        "en": "(D) This will not compile; `createWidget` must be modified to return `shared_ptr`.",
+        "wg": []
+      }
+    ],
+    "answer": "(A)",
+    "why": {
+      "t": "`std::shared_ptr` 擁有一個特殊的建構子，可以接受 `std::unique_ptr&&`（右值）。這允許將所有權從 Unique 轉移到 Shared，過程中會接管原始指標與 Deleter，而不需要進行額外的記憶體分配或物件複製。選項 (A) 利用了暫時物件（Rvalue）自動觸發此轉換，是最簡潔且高效的寫法。",
+      "en": "`std::shared_ptr` has a special constructor that accepts `std::unique_ptr&&` (rvalue). This allows transferring ownership from Unique to Shared, taking over the raw pointer and Deleter without requiring extra memory allocation or object copying. Option (A) leverages the temporary object (Rvalue) to automatically trigger this conversion, making it the most concise and efficient approach.",
+      "wg": [
+        {
+          "t": "接管",
+          "en": "take over",
+          "ps": "V"
+        },
+        {
+          "t": "暫時物件",
+          "en": "temporary object",
+          "ps": "N"
+        }
+      ]
+    }
+  }
+]

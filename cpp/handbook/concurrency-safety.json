@@ -1,0 +1,816 @@
+[
+  {
+    "no": "1",
+    "level": "Medium",
+    "keywords": "volatile, atomic, memory model",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "volatile bool flag = false;\nint data = 0;\n\n// Thread A\nvoid producer() {\n    data = 42;\n    flag = true;\n}\n\n// Thread B\nvoid consumer() {\n    while (!flag) { /* spin */ }\n    assert(data == 42);\n}",
+    "question": [
+      {
+        "t": "請分析上述程式碼在 C++ 多執行緒環境下的安全性與正確性。",
+        "en": "Analyze the safety and correctness of the above code in a C++ multi-threaded environment.",
+        "wg": []
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "程式碼完全正確，`volatile` 確保了變數的可見性。",
+        "en": "The code is correct; `volatile` ensures variable visibility.",
+        "wg": []
+      },
+      {
+        "t": "程式碼不安全，`volatile` 不保證原子性與記憶體順序，可能導致 Data Race 或斷言失敗。",
+        "en": "The code is unsafe; `volatile` does not guarantee atomicity or memory ordering, potentially leading to Data Races or assertion failures.",
+        "wg": [
+          {
+            "t": "記憶體順序",
+            "en": "memory ordering",
+            "ps": "noun"
+          },
+          {
+            "t": "斷言",
+            "en": "assertion",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "程式碼正確，但效能較差，應改用 `std::mutex`。",
+        "en": "The code is correct but has poor performance; `std::mutex` should be used instead.",
+        "wg": []
+      },
+      {
+        "t": "程式碼不安全，因為 `int` 類型的讀寫在 x86 上不是原子的。",
+        "en": "The code is unsafe because reading/writing `int` is not atomic on x86.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "在 C++ 標準中，`volatile` 僅禁止編譯器優化，並不提供執行緒間的同步語意（Happens-Before 關係）。Thread A 的寫入順序可能被 CPU 重排，導致 Thread B 看到 `flag=true` 時 `data` 仍未更新；或者編譯器可能重排指令。必須使用 `std::atomic` 搭配適當的記憶體順序（如 `memory_order_release` / `acquire`）來修復。",
+      "en": "In the C++ standard, `volatile` only prevents compiler optimization and does not provide inter-thread synchronization semantics (Happens-Before relationship). The write order in Thread A may be reordered by the CPU, causing Thread B to see `flag=true` while `data` is not yet updated; or the compiler might reorder instructions. `std::atomic` with appropriate memory ordering (e.g., `memory_order_release` / `acquire`) must be used to fix this.",
+      "wg": [
+        {
+          "t": "同步語意",
+          "en": "synchronization semantics",
+          "ps": "noun"
+        },
+        {
+          "t": "重排",
+          "en": "reorder",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "2",
+    "level": "Hard",
+    "keywords": "RAII, reference leak, anti-pattern",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "class Inventory {\n    std::mutex mtx_;\n    std::map<int, int> items_;\npublic:\n    int& get_item(int id) {\n        std::lock_guard<std::mutex> lock(mtx_);\n        return items_[id];\n    }\n};",
+    "question": [
+      {
+        "t": "這段程式碼存在一個嚴重的並行安全漏洞（Anti-pattern）。請問其風險為何？",
+        "en": "This code contains a serious concurrency safety vulnerability (Anti-pattern). What is the risk?",
+        "wg": [
+          {
+            "t": "並行安全漏洞",
+            "en": "concurrency safety vulnerability",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "死鎖（Deadlock）：`lock_guard` 在函式結束時釋放，可能導致死鎖。",
+        "en": "Deadlock: `lock_guard` releases at the end of the function, potentially causing a deadlock.",
+        "wg": []
+      },
+      {
+        "t": "參考洩漏（Leaking Reference）：回傳的 Reference 在鎖釋放後不再受保護，呼叫者存取時可能發生 Data Race。",
+        "en": "Leaking Reference: The returned reference is no longer protected after the lock is released, leading to potential Data Races when accessed by the caller.",
+        "wg": [
+          {
+            "t": "參考洩漏",
+            "en": "Leaking Reference",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "效能問題：每次存取都需要鎖，會導致嚴重的鎖競爭（Contention）。",
+        "en": "Performance issue: Every access requires a lock, leading to severe lock contention.",
+        "wg": []
+      },
+      {
+        "t": "編譯錯誤：`std::map` 的 `[]` 運算子不能在多執行緒環境下使用。",
+        "en": "Compilation error: The `[]` operator of `std::map` cannot be used in a multi-threaded environment.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "雖然 `get_item` 內部有加鎖，但它回傳了受保護資料的 Reference（`int&`）。當函式返回、鎖被釋放後，呼叫者（Caller）持有的這個 Reference 就失去了保護。如果此時另一個執行緒修改了 `items_`（例如導致 rehash 或刪除元素），呼叫者就會讀到髒資料或導致 Crash。",
+      "en": "Although `get_item` acquires a lock internally, it returns a reference (`int&`) to the protected data. Once the function returns and the lock is released, the reference held by the caller is no longer protected. If another thread modifies `items_` (e.g., causing a rehash or deleting elements) at this time, the caller may read dirty data or cause a crash.",
+      "wg": [
+        {
+          "t": "髒資料",
+          "en": "dirty data",
+          "ps": "noun"
+        },
+        {
+          "t": "受保護資料",
+          "en": "protected data",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "3",
+    "level": "Medium",
+    "keywords": "False Sharing, performance, hardware",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "struct ThreadStats {\n    std::atomic<int> count_a;\n    std::atomic<int> count_b;\n};\n// Thread A updates count_a frequently\n// Thread B updates count_b frequently",
+    "question": [
+      {
+        "t": "在多核 CPU 上執行上述程式碼時，發現效能遠低於預期。最可能的原因是什麼？該如何解決？",
+        "en": "When running the above code on a multi-core CPU, performance is much lower than expected. What is the most likely cause and how to fix it?",
+        "wg": [
+          {
+            "t": "多核",
+            "en": "multi-core",
+            "ps": "adjective"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "原因：False Sharing。解決：使用 `alignas(64)` 將變數強制對齊到不同的 Cache Line。",
+        "en": "Cause: False Sharing. Fix: Use `alignas(64)` to force alignment of variables to different Cache Lines.",
+        "wg": [
+          {
+            "t": "偽共享",
+            "en": "False Sharing",
+            "ps": "noun"
+          },
+          {
+            "t": "快取行",
+            "en": "Cache Line",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "原因：原子操作過慢。解決：改用 `std::mutex` 保護一般 `int`。",
+        "en": "Cause: Atomic operations are too slow. Fix: Use `std::mutex` to protect regular `int`.",
+        "wg": []
+      },
+      {
+        "t": "原因：記憶體洩漏。解決：將結構體改為 `std::shared_ptr` 管理。",
+        "en": "Cause: Memory leak. Fix: Manage the struct with `std::shared_ptr`.",
+        "wg": []
+      },
+      {
+        "t": "原因：優先權反轉。解決：調整執行緒優先級。",
+        "en": "Cause: Priority Inversion. Fix: Adjust thread priorities.",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "當兩個頻繁修改的變數位於同一個 Cache Line（通常是 64 bytes）時，不同核心的 L1/L2 Cache 會因為 MESI 協議而不斷互相失效（Invalidate），導致「偽共享」（False Sharing），引發嚴重的效能懲罰。透過 `alignas(64)` 增加 Padding 可以解決此問題。",
+      "en": "When two frequently modified variables reside in the same Cache Line (typically 64 bytes), the L1/L2 Caches of different cores will constantly invalidate each other due to the MESI protocol, causing 'False Sharing' and severe performance penalties. Adding padding via `alignas(64)` solves this problem.",
+      "wg": [
+        {
+          "t": "失效",
+          "en": "invalidate",
+          "ps": "verb"
+        },
+        {
+          "t": "效能懲罰",
+          "en": "performance penalty",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "4",
+    "level": "Medium",
+    "keywords": "Deadlock, Callback, Design Pattern",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "void EventManager::notify() {\n    std::scoped_lock lock(mtx_);\n    for (auto& cb : listeners_) {\n        cb(); // Execute external callback\n    }\n}",
+    "question": [
+      {
+        "t": "在持有鎖的情況下呼叫外部 Callback（如上圖）是一種危險的模式。請問這最容易導致什麼問題？",
+        "en": "Calling an external callback while holding a lock (as shown above) is a dangerous pattern. What problem is this most likely to cause?",
+        "wg": [
+          {
+            "t": "外部回呼",
+            "en": "external callback",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "死鎖（Deadlock）：如果 Callback 試圖重新進入此物件或獲取其他鎖，可能導致鎖順序倒置。",
+        "en": "Deadlock: If the callback tries to re-enter this object or acquire other locks, it may cause lock ordering inversion.",
+        "wg": [
+          {
+            "t": "鎖順序倒置",
+            "en": "lock ordering inversion",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "記憶體損毀：Callback 可能會刪除 `EventManager` 物件。",
+        "en": "Memory corruption: The callback might delete the `EventManager` object.",
+        "wg": []
+      },
+      {
+        "t": "Data Race：Callback 內部的操作沒有被鎖保護。",
+        "en": "Data Race: Operations inside the callback are not protected by the lock.",
+        "wg": []
+      },
+      {
+        "t": "堆疊溢位：Callback 呼叫層數過深。",
+        "en": "Stack Overflow: The callback call depth is too deep.",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "這是經典的死鎖場景。如果 `cb()` 內部試圖呼叫 `EventManager` 的其他方法（需要獲取同一個 `mtx_`，且 mutex 非遞迴），或者 `cb()` 試圖獲取另一個鎖 `L2`，而另一個執行緒剛好持有 `L2` 並等待 `mtx_`，就會發生死鎖。最佳解法是「快照模式」：在鎖內複製 listeners，釋放鎖，然後在鎖外執行回呼。",
+      "en": "This is a classic deadlock scenario. If `cb()` tries to call other methods of `EventManager` (requiring the same `mtx_`, and the mutex is non-recursive), or if `cb()` tries to acquire another lock `L2` while another thread holds `L2` and waits for `mtx_`, a deadlock occurs. The best solution is the 'Snapshot Pattern': copy listeners inside the lock, release the lock, and then execute callbacks outside the lock.",
+      "wg": [
+        {
+          "t": "快照模式",
+          "en": "Snapshot Pattern",
+          "ps": "noun"
+        },
+        {
+          "t": "遞迴",
+          "en": "recursive",
+          "ps": "adjective"
+        }
+      ]
+    }
+  },
+  {
+    "no": "5",
+    "level": "Easy",
+    "keywords": "shared_mutex, Reader-Writer Lock",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你的系統有一個全域設定檔物件，每秒有數千次讀取請求，但每天只有一次寫入更新。為了最佳化並行讀取效能，你應該選擇哪種鎖？",
+        "en": "Your system has a global configuration object with thousands of read requests per second but only one write update per day. To optimize concurrent read performance, which lock should you choose?",
+        "wg": [
+          {
+            "t": "全域設定檔",
+            "en": "global configuration",
+            "ps": "noun"
+          },
+          {
+            "t": "並行讀取",
+            "en": "concurrent read",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "`std::mutex`",
+        "en": "`std::mutex`",
+        "wg": []
+      },
+      {
+        "t": "`std::shared_mutex` (搭配 `shared_lock` 與 `unique_lock`)",
+        "en": "`std::shared_mutex` (with `shared_lock` and `unique_lock`)",
+        "wg": []
+      },
+      {
+        "t": "`std::recursive_mutex`",
+        "en": "`std::recursive_mutex`",
+        "wg": []
+      },
+      {
+        "t": "`volatile`",
+        "en": "`volatile`",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "`std::shared_mutex` 是專為「讀多寫少」場景設計的。它允許多個執行緒同時持有共享鎖（`shared_lock`）進行讀取，只有在寫入時才需要獨佔鎖（`unique_lock`），這能大幅減少讀取時的鎖競爭。",
+      "en": "`std::shared_mutex` is designed for 'read-heavy, write-rare' scenarios. It allows multiple threads to hold a shared lock (`shared_lock`) concurrently for reading, requiring an exclusive lock (`unique_lock`) only for writing, which significantly reduces lock contention during reads.",
+      "wg": [
+        {
+          "t": "獨佔鎖",
+          "en": "exclusive lock",
+          "ps": "noun"
+        },
+        {
+          "t": "鎖競爭",
+          "en": "lock contention",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "6",
+    "level": "Medium",
+    "keywords": "TSan, Tooling, Debugging",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你在 Code Review 時發現同事寫了複雜的 Lock-free 邏輯，你懷疑有 Data Race 但肉眼難以確認。在 CI/CD 流程中，最有效且自動化的檢測手段是什麼？",
+        "en": "During Code Review, you notice a colleague wrote complex Lock-free logic. You suspect a Data Race but can't confirm it visually. What is the most effective and automated detection method in the CI/CD pipeline?",
+        "wg": [
+          {
+            "t": "無鎖",
+            "en": "Lock-free",
+            "ps": "adjective"
+          },
+          {
+            "t": "肉眼",
+            "en": "visually / naked eye",
+            "ps": "adverb"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "使用 `-fsanitize=thread` (TSan) 編譯並執行測試。",
+        "en": "Compile and run tests with `-fsanitize=thread` (TSan).",
+        "wg": []
+      },
+      {
+        "t": "使用 `-O3` 開啟最高優化，看程式是否崩潰。",
+        "en": "Use `-O3` to enable maximum optimization and see if the program crashes.",
+        "wg": []
+      },
+      {
+        "t": "增加大量的 `printf` 或 Log 來追蹤變數狀態。",
+        "en": "Add extensive `printf` or logs to trace variable states.",
+        "wg": []
+      },
+      {
+        "t": "使用 `static_assert` 檢查型別大小。",
+        "en": "Use `static_assert` to check type sizes.",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "Thread Sanitizer (TSan) 是目前檢測 C++ Data Race 最有效的動態分析工具。它能在執行期間監控記憶體存取，精確指出哪兩個執行緒在沒有 Happens-Before 關係的情況下存取同一塊記憶體。單靠 Log 或優化選項很難抓出這類隨機發生的 Race Condition。",
+      "en": "Thread Sanitizer (TSan) is currently the most effective dynamic analysis tool for detecting C++ Data Races. It monitors memory access at runtime and pinpoints exactly which two threads accessed the same memory without a Happens-Before relationship. Logs or optimization flags are rarely sufficient to catch such non-deterministic Race Conditions.",
+      "wg": [
+        {
+          "t": "動態分析工具",
+          "en": "dynamic analysis tool",
+          "ps": "noun"
+        },
+        {
+          "t": "隨機發生",
+          "en": "non-deterministic / sporadic",
+          "ps": "adjective"
+        }
+      ]
+    }
+  },
+  {
+    "no": "7",
+    "level": "Medium",
+    "keywords": "Deadlock, scoped_lock, C++17, Mutex",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "std::mutex m1, m2;\n\n// Thread A\nvoid task_a() {\n    std::lock_guard<std::mutex> lk1(m1);\n    std::this_thread::sleep_for(std::chrono::milliseconds(1));\n    std::lock_guard<std::mutex> lk2(m2);\n    // ...\n}\n\n// Thread B\nvoid task_b() {\n    std::lock_guard<std::mutex> lk2(m2);\n    std::this_thread::sleep_for(std::chrono::milliseconds(1));\n    std::lock_guard<std::mutex> lk1(m1);\n    // ...\n}",
+    "question": [
+      {
+        "t": "上述程式碼在並行執行時存在經典的 Deadlock 風險（AB/BA 鎖順序問題）。在 C++17 中，解決此問題最簡潔且標準的寫法是什麼？",
+        "en": "The code above has a classic Deadlock risk (AB/BA locking order) when executed concurrently. What is the most concise and standard way to fix this in C++17?",
+        "wg": [
+          {
+            "t": "並行執行",
+            "en": "concurrent execution",
+            "ps": "verb phrase"
+          },
+          {
+            "t": "鎖順序問題",
+            "en": "locking order issue",
+            "ps": "noun phrase"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "使用 `std::recursive_mutex` 來允許重複加鎖。",
+        "en": "Use `std::recursive_mutex` to allow recursive locking.",
+        "wg": []
+      },
+      {
+        "t": "將 `lock_guard` 替換為 `std::scoped_lock(m1, m2)`。",
+        "en": "Replace `lock_guard` with `std::scoped_lock(m1, m2)`.",
+        "wg": []
+      },
+      {
+        "t": "使用 `std::atomic<bool>` 來實作自旋鎖（Spinlock）。",
+        "en": "Use `std::atomic<bool>` to implement a Spinlock.",
+        "wg": []
+      },
+      {
+        "t": "手動呼叫 `m1.lock()` 與 `m2.lock()` 並檢查回傳值。",
+        "en": "Manually call `m1.lock()` and `m2.lock()` and check return values.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "C++17 引入的 `std::scoped_lock` 能夠同時接受多個 Mutex，並使用特殊的演算法（如 Deadlock-avoidance algorithm）來安全地鎖定所有 Mutex，從而避免因獲取順序不一致導致的 Deadlock。",
+      "en": "`std::scoped_lock` introduced in C++17 can accept multiple Mutexes simultaneously and uses a special algorithm (like a Deadlock-avoidance algorithm) to safely lock all Mutexes, thereby preventing Deadlocks caused by inconsistent acquisition order.",
+      "wg": [
+        {
+          "t": "獲取順序",
+          "en": "acquisition order",
+          "ps": "noun phrase"
+        }
+      ]
+    }
+  },
+  {
+    "no": "8",
+    "level": "Easy",
+    "keywords": "Singleton, static, Thread Safety, Initialization",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "class Singleton {\npublic:\n    static Singleton& get_instance() {\n        static Singleton instance;\n        return instance;\n    }\n    // ...\n};",
+    "question": [
+      {
+        "t": "關於上述 Singleton 實作（常被稱為 Magic Statics），在 C++11 及以後的版本中，下列敘述何者正確？",
+        "en": "Regarding the Singleton implementation above (often called Magic Statics), which of the following statements is true in C++11 and later versions?",
+        "wg": [
+          {
+            "t": "實作",
+            "en": "implementation",
+            "ps": "noun"
+          },
+          {
+            "t": "敘述",
+            "en": "statement",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "這是執行緒安全的，編譯器會自動插入必要的鎖或原子操作來保證初始化只執行一次。",
+        "en": "This is thread-safe; the compiler automatically inserts necessary locks or atomic operations to ensure initialization happens only once.",
+        "wg": []
+      },
+      {
+        "t": "這是不安全的，多個執行緒可能同時進入初始化邏輯，必須手動加上 `std::mutex`。",
+        "en": "This is unsafe; multiple threads might enter the initialization logic simultaneously, so a manual `std::mutex` is required.",
+        "wg": []
+      },
+      {
+        "t": "這是不安全的，必須改用 Double-Checked Locking Pattern (DCLP) 才能保證效能與安全。",
+        "en": "This is unsafe; you must switch to the Double-Checked Locking Pattern (DCLP) to guarantee performance and safety.",
+        "wg": []
+      },
+      {
+        "t": "只有加上 `volatile` 關鍵字後，這段程式碼才是執行緒安全的。",
+        "en": "The code is thread-safe only if the `volatile` keyword is added.",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "C++11 標準規定：如果控制流同時進入宣告 `static` 區域變數的區塊，初始化保證是執行緒安全的。這被稱為 'Magic Statics'，是實作 Singleton 或單次初始化的最佳實務之一，無需手動編寫 DCLP。",
+      "en": "The C++11 standard mandates that if control flow concurrently enters the block where a `static` local variable is declared, initialization is guaranteed to be thread-safe. This is known as 'Magic Statics' and is one of the best practices for implementing Singletons or one-time initialization without manually writing DCLP.",
+      "wg": [
+        {
+          "t": "控制流",
+          "en": "control flow",
+          "ps": "noun"
+        },
+        {
+          "t": "區域變數",
+          "en": "local variable",
+          "ps": "noun phrase"
+        }
+      ]
+    }
+  },
+  {
+    "no": "9",
+    "level": "Medium",
+    "keywords": "Critical Section, Performance, I/O, Lock Contention",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "std::mutex mtx;\nstd::vector<Data> buffer;\n\nvoid process_data() {\n    std::lock_guard<std::mutex> lock(mtx);\n    // 1. 從檔案讀取大量資料 (Slow I/O)\n    auto new_data = read_from_file(\"data.txt\");\n    // 2. 更新共用 buffer\n    buffer.push_back(new_data);\n}",
+    "question": [
+      {
+        "t": "這段程式碼違反了「最小化 Critical Section」的原則。請問這會造成什麼主要後果？應如何改進？",
+        "en": "This code violates the principle of 'Minimize Critical Sections'. What is the main consequence, and how should it be improved?",
+        "wg": [
+          {
+            "t": "違反",
+            "en": "violate",
+            "ps": "verb"
+          },
+          {
+            "t": "後果",
+            "en": "consequence",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "會造成 Deadlock。應改用 `std::recursive_mutex`。",
+        "en": "It will cause a Deadlock. Should switch to `std::recursive_mutex`.",
+        "wg": []
+      },
+      {
+        "t": "會造成嚴重的鎖競爭（Lock Contention），降低系統並行度。應將 I/O 移出鎖的範圍。",
+        "en": "It will cause severe Lock Contention, reducing system concurrency. Should move I/O out of the lock's scope.",
+        "wg": [
+          {
+            "t": "鎖競爭",
+            "en": "Lock Contention",
+            "ps": "noun phrase"
+          },
+          {
+            "t": "並行度",
+            "en": "concurrency",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "會導致 Data Race。應在 `read_from_file` 內部也加上鎖。",
+        "en": "It will lead to a Data Race. Should also add a lock inside `read_from_file`.",
+        "wg": []
+      },
+      {
+        "t": "會造成記憶體洩漏。應使用 `std::shared_ptr` 管理資料。",
+        "en": "It will cause a memory leak. Should use `std::shared_ptr` to manage data.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "持有鎖的時間應盡可能短。在 Critical Section 內進行耗時的 I/O 操作會迫使其他執行緒長時間等待，大幅降低效能。正確做法是先在鎖外讀取資料，再獲取鎖進行快速的 `push_back` 操作。",
+      "en": "The time holding a lock should be as short as possible. Performing time-consuming I/O operations inside a Critical Section forces other threads to wait for a long time, significantly degrading performance. The correct approach is to read data outside the lock, then acquire the lock for the quick `push_back` operation.",
+      "wg": [
+        {
+          "t": "耗時的",
+          "en": "time-consuming",
+          "ps": "adjective"
+        }
+      ]
+    }
+  },
+  {
+    "no": "10",
+    "level": "Easy",
+    "keywords": "Mental Model, Mutex, Cooperative Locking",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "std::vector<int> shared_list;\nstd::mutex mtx;\n\nvoid safe_add(int val) {\n    std::lock_guard<std::mutex> lock(mtx);\n    shared_list.push_back(val);\n}\n\nvoid unsafe_reset() {\n    // 開發者忘記加鎖\n    shared_list.clear();\n}",
+    "question": [
+      {
+        "t": "若執行緒 A 呼叫 `safe_add`，同時執行緒 B 呼叫 `unsafe_reset`，請問 `safe_add` 中的鎖能保護資料不被破壞嗎？為什麼？",
+        "en": "If Thread A calls `safe_add` while Thread B calls `unsafe_reset`, will the lock in `safe_add` protect the data from corruption? Why?",
+        "wg": [
+          {
+            "t": "破壞",
+            "en": "corruption",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "能。因為 `mtx` 鎖住了 `shared_list` 的記憶體位址。",
+        "en": "Yes. Because `mtx` locks the memory address of `shared_list`.",
+        "wg": []
+      },
+      {
+        "t": "能。只要有一個執行緒持有鎖，其他執行緒就無法寫入該變數。",
+        "en": "Yes. As long as one thread holds the lock, other threads cannot write to that variable.",
+        "wg": []
+      },
+      {
+        "t": "不能。Mutex 是「協作式」的，它無法阻止未持有鎖的執行緒（如 `unsafe_reset`）存取資料。",
+        "en": "No. Mutexes are 'cooperative'; they cannot prevent threads that do not hold the lock (like `unsafe_reset`) from accessing the data.",
+        "wg": [
+          {
+            "t": "協作式",
+            "en": "cooperative",
+            "ps": "adjective"
+          }
+        ]
+      },
+      {
+        "t": "不能。因為 `clear()` 操作優先級高於 `push_back()`。",
+        "en": "No. Because the `clear()` operation has higher priority than `push_back()`.",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "Mutex 保護的是「不變量（Invariants）」而非程式碼區塊或記憶體硬體。它依賴所有存取者都遵守「先拿鎖再存取」的協定。如果有任何一個路徑（如 `unsafe_reset`）違反此協定，Data Race 就會發生，鎖也形同虛設。",
+      "en": "A Mutex protects 'Invariants', not code blocks or memory hardware. It relies on all accessors adhering to the 'acquire lock before access' protocol. If any path (like `unsafe_reset`) violates this protocol, a Data Race occurs, rendering the lock useless.",
+      "wg": [
+        {
+          "t": "形同虛設",
+          "en": "useless / in vain",
+          "ps": "idiom"
+        }
+      ]
+    }
+  },
+  {
+    "no": "11",
+    "level": "Hard",
+    "keywords": "atomic, memory_order, relaxed, Happens-Before",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "std::atomic<bool> ready{false};\nint payload = 0;\n\n// Thread Producer\nvoid produce() {\n    payload = 42;\n    ready.store(true, std::memory_order_relaxed);\n}\n\n// Thread Consumer\nvoid consume() {\n    while (!ready.load(std::memory_order_relaxed));\n    assert(payload == 42);\n}",
+    "question": [
+      {
+        "t": "這段程式碼試圖使用 Lock-free 方式傳遞資料。請問 `assert(payload == 42)` 是否保證永遠通過？為什麼？",
+        "en": "This code attempts to pass data using a Lock-free approach. Is `assert(payload == 42)` guaranteed to always pass? Why?",
+        "wg": [
+          {
+            "t": "保證",
+            "en": "guaranteed",
+            "ps": "verb"
+          },
+          {
+            "t": "通過",
+            "en": "pass",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "是。因為 `ready` 是 atomic，保證了可見性。",
+        "en": "Yes. Because `ready` is atomic, visibility is guaranteed.",
+        "wg": []
+      },
+      {
+        "t": "是。因為 `payload = 42` 在程式碼順序上寫在 `store` 之前。",
+        "en": "Yes. Because `payload = 42` is written before `store` in code order.",
+        "wg": []
+      },
+      {
+        "t": "否。`memory_order_relaxed` 不建立 Happens-Before 關係，Consumer 可能看到 `ready` 為 true 但 `payload` 仍為 0。",
+        "en": "No. `memory_order_relaxed` does not establish a Happens-Before relationship; the Consumer might see `ready` as true while `payload` is still 0.",
+        "wg": [
+          {
+            "t": "建立",
+            "en": "establish",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "否。因為 `int payload` 不是 atomic 型別，讀寫它本身就會崩潰。",
+        "en": "No. Because `int payload` is not an atomic type, reading/writing it will cause a crash.",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "`memory_order_relaxed` 僅保證該原子變數本身的原子性，但不保證周圍記憶體操作的順序（不提供同步或 Happens-Before 語意）。CPU 或編譯器可能會重排指令，導致 Consumer 先看到 `ready=true` 卻還沒看到 `payload=42`。應使用 `memory_order_release` 與 `acquire`。",
+      "en": "`memory_order_relaxed` only guarantees atomicity for the atomic variable itself, but not the ordering of surrounding memory operations (it provides no synchronization or Happens-Before semantics). The CPU or compiler might reorder instructions, causing the Consumer to see `ready=true` before seeing `payload=42`. `memory_order_release` and `acquire` should be used instead.",
+      "wg": [
+        {
+          "t": "重排",
+          "en": "reorder",
+          "ps": "verb"
+        },
+        {
+          "t": "語意",
+          "en": "semantics",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "12",
+    "level": "Easy",
+    "keywords": "Exception Safety, RAII, Manual Locking",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "std::mutex mtx;\n\nvoid risky_function() {\n    mtx.lock();\n    perform_task(); // 可能拋出例外 (Might throw exception)\n    mtx.unlock();\n}",
+    "question": [
+      {
+        "t": "上述程式碼採用手動鎖定管理。若 `perform_task()` 拋出例外，會發生什麼嚴重的並行安全問題？",
+        "en": "The code above uses manual lock management. If `perform_task()` throws an exception, what serious concurrency safety issue will occur?",
+        "wg": [
+          {
+            "t": "手動鎖定管理",
+            "en": "manual lock management",
+            "ps": "noun phrase"
+          },
+          {
+            "t": "拋出例外",
+            "en": "throw an exception",
+            "ps": "verb phrase"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "Data Race：其他執行緒會讀到髒資料。",
+        "en": "Data Race: Other threads will read dirty data.",
+        "wg": []
+      },
+      {
+        "t": "Deadlock：`unlock()` 被跳過，導致鎖永遠無法釋放，其他執行緒將永久卡住。",
+        "en": "Deadlock: `unlock()` is skipped, causing the lock to never be released, and other threads will be stuck forever.",
+        "wg": [
+          {
+            "t": "跳過",
+            "en": "skipped",
+            "ps": "verb"
+          },
+          {
+            "t": "永久卡住",
+            "en": "stuck forever",
+            "ps": "verb phrase"
+          }
+        ]
+      },
+      {
+        "t": "Segmentation Fault：存取了無效的記憶體。",
+        "en": "Segmentation Fault: Accessed invalid memory.",
+        "wg": []
+      },
+      {
+        "t": "False Sharing：導致 Cache Line 頻繁失效。",
+        "en": "False Sharing: Causes frequent Cache Line invalidation.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "這是手動管理鎖最常見的陷阱。當例外發生時，執行流會跳出函式，導致 `mtx.unlock()` 永遠不會被執行。正確做法是使用 RAII 包裝器（如 `std::lock_guard` 或 `std::scoped_lock`），確保在 Stack Unwinding 時自動釋放鎖。",
+      "en": "This is the most common pitfall of manual lock management. When an exception occurs, the execution flow exits the function, causing `mtx.unlock()` to never be executed. The correct approach is to use an RAII wrapper (like `std::lock_guard` or `std::scoped_lock`) to ensure the lock is automatically released during Stack Unwinding.",
+      "wg": [
+        {
+          "t": "執行流",
+          "en": "execution flow",
+          "ps": "noun"
+        },
+        {
+          "t": "陷阱",
+          "en": "pitfall",
+          "ps": "noun"
+        }
+      ]
+    }
+  }
+]

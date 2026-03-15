@@ -1,0 +1,349 @@
+[
+  {
+    "no": "chapter02-q12",
+    "level": "advanced",
+    "keywords": "Custom Allocator, Lifetime, Undefined Behavior, Arena",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "class Arena { /* ... implementation as in text ... */ };\n\ntemplate <typename T>\nstruct ArenaAllocator {\n    Arena* arena;\n    ArenaAllocator(Arena& a) : arena(&a) {}\n    // ... allocate/deallocate delegates to arena ...\n};\n\nstd::vector<int, ArenaAllocator<int>> processData() {\n    Arena localArena(1024 * 1024); // 1MB on stack\n    std::vector<int, ArenaAllocator<int>> vec((ArenaAllocator<int>(localArena)));\n    \n    vec.reserve(100);\n    vec.push_back(42);\n    \n    return vec; // Return by value (Move semantics)\n}",
+    "question": [
+      {
+        "t": "請分析上述程式碼片段中的 `processData` 函式。",
+        "en": "Please analyze the `processData` function in the code snippet above.",
+        "wg": []
+      },
+      {
+        "t": "當呼叫者（Caller）接收到回傳的 `vector` 並試圖存取或新增元素時，最可能發生什麼情況？",
+        "en": "What is most likely to happen when the caller receives the returned `vector` and attempts to access or add elements?",
+        "wg": [
+          {
+            "t": "呼叫者",
+            "en": "caller",
+            "ps": "N"
+          },
+          {
+            "t": "存取",
+            "en": "access",
+            "ps": "V"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 運作正常，因為 `vector` 支援 Move Semantics，資料所有權會被正確轉移。",
+        "en": "(A) Works correctly because `vector` supports Move Semantics, and data ownership is correctly transferred.",
+        "wg": [
+          {
+            "t": "所有權",
+            "en": "ownership",
+            "ps": "N"
+          },
+          {
+            "t": "轉移",
+            "en": "transferred",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(B) 編譯錯誤，因為 `ArenaAllocator` 是一個有狀態（Stateful）的配置器，無法被複製或移動。",
+        "en": "(B) Compilation error because `ArenaAllocator` is a stateful allocator and cannot be copied or moved.",
+        "wg": []
+      },
+      {
+        "t": "(C) 執行期未定義行為（Undefined Behavior），因為 `localArena` 在函式返回後已被銷毀，但 `vector` 的配置器仍持有指向它的指標。",
+        "en": "(C) Runtime Undefined Behavior, because `localArena` is destroyed after the function returns, but the `vector`'s allocator still holds a pointer to it.",
+        "wg": [
+          {
+            "t": "未定義行為",
+            "en": "Undefined Behavior",
+            "ps": "N"
+          },
+          {
+            "t": "銷毀",
+            "en": "destroyed",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(D) 記憶體洩漏（Memory Leak），因為 `localArena` 分配的記憶體沒有被正確釋放。",
+        "en": "(D) Memory Leak, because the memory allocated by `localArena` is not correctly freed.",
+        "wg": []
+      }
+    ],
+    "answer": "(C)",
+    "why": {
+      "t": "這是實作 Custom Allocator 時常見的生命週期陷阱。`ArenaAllocator` 內部持有 `Arena` 的指標（Reference Semantics），但 `Arena` 實體是在 `processData` 的 Stack 上建立的。當函式返回時，`localArena` 解構，導致外部的 `vector` 持有一個指向無效記憶體的 Allocator（Dangling Pointer）。",
+      "en": "This is a common lifecycle pitfall when implementing Custom Allocators. `ArenaAllocator` holds a pointer to `Arena` (Reference Semantics), but the `Arena` instance is created on the stack of `processData`. When the function returns, `localArena` is destructed, leaving the external `vector` with an allocator pointing to invalid memory (Dangling Pointer).",
+      "wg": [
+        {
+          "t": "生命週期",
+          "en": "lifecycle",
+          "ps": "N"
+        },
+        {
+          "t": "懸空指標",
+          "en": "Dangling Pointer",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "chapter02-q13",
+    "level": "intermediate",
+    "keywords": "Pointer Stability, std::list, std::vector, System Design",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您正在設計一個事件監聽系統（Event Listener System），其中 `Listener` 物件被儲存在一個容器中。",
+        "en": "You are designing an Event Listener System where `Listener` objects are stored in a container.",
+        "wg": [
+          {
+            "t": "事件監聽系統",
+            "en": "Event Listener System",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "系統的其他部分持有指向這些 `Listener` 的原始指標（Raw Pointers），且在系統運作期間，會頻繁地新增或移除 Listener。",
+        "en": "Other parts of the system hold raw pointers to these `Listener`s, and Listeners are frequently added or removed during system operation.",
+        "wg": [
+          {
+            "t": "原始指標",
+            "en": "Raw Pointers",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "為了確保這些外部指標不會因為容器內部的操作而失效（Pointer Stability），下列哪一個容器是最佳選擇？",
+        "en": "To ensure these external pointers do not become invalid due to internal container operations (Pointer Stability), which of the following containers is the best choice?",
+        "wg": [
+          {
+            "t": "失效",
+            "en": "invalid",
+            "ps": "Adj"
+          },
+          {
+            "t": "指標穩定性",
+            "en": "Pointer Stability",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) `std::vector`，並使用 `reserve()` 預留足夠空間。",
+        "en": "(A) `std::vector`, using `reserve()` to pre-allocate sufficient space.",
+        "wg": []
+      },
+      {
+        "t": "(B) `std::list`。",
+        "en": "(B) `std::list`.",
+        "wg": []
+      },
+      {
+        "t": "(C) `std::deque`。",
+        "en": "(C) `std::deque`.",
+        "wg": []
+      },
+      {
+        "t": "(D) `std::vector`，但每次新增後手動更新所有外部指標。",
+        "en": "(D) `std::vector`, but manually update all external pointers after each addition.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "`std::list` 是 Node-based 容器，其保證除了被刪除的該元素外，其他元素的記憶體位置永遠不會改變，因此指標穩定性（Pointer Stability）極高。相比之下，`std::vector` 的擴容或插入會導致元素移動；`std::deque` 雖然較穩定，但在中間插入刪除時仍會使 Iterator 失效。",
+      "en": "`std::list` is a Node-based container, guaranteeing that the memory address of elements never changes (except for the deleted element itself), offering high Pointer Stability. In contrast, `std::vector` moves elements during reallocation or insertion; `std::deque`, while more stable, still invalidates iterators upon insertion/deletion in the middle.",
+      "wg": [
+        {
+          "t": "指標穩定性",
+          "en": "Pointer Stability",
+          "ps": "N"
+        },
+        {
+          "t": "擴容",
+          "en": "reallocation",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "chapter02-q14",
+    "level": "advanced",
+    "keywords": "std::deque, Performance, Random Access, Memory Layout",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "雖然 `std::vector` 與 `std::deque` 都支援 O(1) 的隨機存取（Random Access），但在實務上 `vector` 的 `operator[]` 通常比 `deque` 快。",
+        "en": "Although both `std::vector` and `std::deque` support O(1) Random Access, in practice, `vector`'s `operator[]` is usually faster than `deque`'s.",
+        "wg": [
+          {
+            "t": "隨機存取",
+            "en": "Random Access",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "主要原因為何？",
+        "en": "What is the primary reason for this?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) `std::vector` 的元素都在 Stack 上，而 `std::deque` 的元素在 Heap 上。",
+        "en": "(A) `std::vector` elements are on the Stack, while `std::deque` elements are on the Heap.",
+        "wg": []
+      },
+      {
+        "t": "(B) `std::deque` 需要兩次指標解引用（Double Indirection）才能存取到元素，而 `vector` 僅需一次簡單的指標算術。",
+        "en": "(B) `std::deque` requires Double Indirection to access an element, whereas `vector` only needs simple pointer arithmetic.",
+        "wg": [
+          {
+            "t": "指標解引用",
+            "en": "pointer dereference",
+            "ps": "N"
+          },
+          {
+            "t": "指標算術",
+            "en": "pointer arithmetic",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) `std::deque` 為了支援多執行緒安全，在 `operator[]` 中加入了 Lock。",
+        "en": "(C) `std::deque` includes a Lock in `operator[]` to support thread safety.",
+        "wg": []
+      },
+      {
+        "t": "(D) `std::vector` 使用了特殊的 CPU 指令集進行加速。",
+        "en": "(D) `std::vector` uses special CPU instruction sets for acceleration.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "`std::deque` 內部通常由一個中央 Map（指向各個 Buffer 的指標陣列）與多個固定大小的 Buffer 組成。存取 `deque[i]` 需先計算出在哪個 Buffer（第一次解引用），再計算 Buffer 內的偏移量（第二次存取）。而 `vector` 保證記憶體連續，僅需 `base + index` 即可。",
+      "en": "`std::deque` is typically implemented as a central Map (array of pointers to buffers) and multiple fixed-size buffers. Accessing `deque[i]` requires calculating which buffer it is in (first dereference) and then the offset within that buffer (second access). `vector` guarantees contiguous memory, requiring only `base + index`.",
+      "wg": [
+        {
+          "t": "偏移量",
+          "en": "offset",
+          "ps": "N"
+        },
+        {
+          "t": "連續",
+          "en": "contiguous",
+          "ps": "Adj"
+        }
+      ]
+    }
+  },
+  {
+    "no": "chapter02-q15",
+    "level": "intermediate",
+    "keywords": "std::map, Memory Overhead, Optimization, Anti-pattern",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您正在優化一個記憶體受限的微服務，該服務需要儲存 1,000 萬組 `User ID (int64_t)` 對應 `Status (char)` 的資料。",
+        "en": "You are optimizing a memory-constrained microservice that needs to store 10 million pairs of `User ID (int64_t)` to `Status (char)`.",
+        "wg": [
+          {
+            "t": "記憶體受限",
+            "en": "memory-constrained",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "目前的實作使用 `std::map<int64_t, char>`，導致記憶體耗盡（OOM）。",
+        "en": "The current implementation uses `std::map<int64_t, char>`, causing Out of Memory (OOM) errors.",
+        "wg": [
+          {
+            "t": "記憶體耗盡",
+            "en": "Out of Memory",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "根據容器記憶體模型，造成大量記憶體浪費的主要原因為何？",
+        "en": "Based on container memory models, what is the primary cause of the massive memory waste?",
+        "wg": [
+          {
+            "t": "記憶體浪費",
+            "en": "memory waste",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) `std::map` 預設會分配過大的初始容量。",
+        "en": "(A) `std::map` allocates an excessively large initial capacity by default.",
+        "wg": []
+      },
+      {
+        "t": "(B) 每個節點（Node）除了儲存資料外，還需儲存 3 個指標（Left, Right, Parent）與顏色資訊，其開銷遠大於資料本身。",
+        "en": "(B) Each Node, in addition to data, must store 3 pointers (Left, Right, Parent) and color information, the overhead of which far exceeds the data itself.",
+        "wg": [
+          {
+            "t": "開銷",
+            "en": "overhead",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) `int64_t` 作為 Key 會導致 Hash Collision，增加額外儲存成本。",
+        "en": "(C) Using `int64_t` as a Key causes Hash Collisions, adding extra storage costs.",
+        "wg": []
+      },
+      {
+        "t": "(D) `std::map` 無法處理 `char` 型別的對齊（Alignment），導致每個 `char` 佔用 8 bytes。",
+        "en": "(D) `std::map` cannot handle `char` alignment, causing each `char` to occupy 8 bytes.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "`std::map` 通常以紅黑樹（Red-Black Tree）實作。在 64-bit 系統上，每個節點至少需要 24 bytes 的指標（3 * 8 bytes）加上顏色位元與 Padding，這對於僅存儲 9 bytes 有效資料（8 bytes Key + 1 byte Value）的場景來說，是極大的浪費（Overhead > 300%）。",
+      "en": "`std::map` is typically implemented as a Red-Black Tree. On a 64-bit system, each node requires at least 24 bytes for pointers (3 * 8 bytes) plus color bits and padding. For a scenario storing only 9 bytes of effective data (8 bytes Key + 1 byte Value), this is a huge waste (Overhead > 300%).",
+      "wg": [
+        {
+          "t": "紅黑樹",
+          "en": "Red-Black Tree",
+          "ps": "N"
+        },
+        {
+          "t": "填充",
+          "en": "Padding",
+          "ps": "N"
+        }
+      ]
+    }
+  }
+]

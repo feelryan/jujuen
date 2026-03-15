@@ -1,0 +1,1167 @@
+[
+  {
+    "no": "1",
+    "level": "advanced",
+    "keywords": "ABI, Shared Library, Memory Layout, DLL Hell",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您正在維護一個被多個客戶端應用程式使用的 C++ 共享庫 (Shared Library)。",
+        "en": "You are maintaining a C++ Shared Library used by multiple client applications.",
+        "wg": [
+          {
+            "t": "共享庫",
+            "en": "Shared Library",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "在發布新版本時，您在一個已導出的類別 (Exported Class) 的私有區段 (private section) 中增加了一個 `int m_debugCounter` 成員變數。",
+        "en": "When releasing a new version, you add an `int m_debugCounter` member variable to the private section of an exported class.",
+        "wg": [
+          {
+            "t": "已導出的類別",
+            "en": "Exported Class",
+            "ps": "N"
+          },
+          {
+            "t": "私有區段",
+            "en": "private section",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "您只更新了共享庫檔案 (.so/.dll)，但客戶端應用程式並未重新編譯。請問這會導致什麼後果？",
+        "en": "You update only the shared library file (.so/.dll), but the client applications are not recompiled. What is the likely consequence?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 應用程式可以正常運作，因為新增的是私有成員，不影響公開 API。",
+        "en": "(A) The application works fine because the added member is private and does not affect the public API.",
+        "wg": []
+      },
+      {
+        "t": "(B) 應用程式可能會崩潰 (Crash) 或出現未定義行為，因為破壞了 ABI (Application Binary Interface)。",
+        "en": "(B) The application may crash or exhibit undefined behavior because the ABI (Application Binary Interface) has been broken.",
+        "wg": [
+          {
+            "t": "未定義行為",
+            "en": "undefined behavior",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) 連結器 (Linker) 會在執行期自動調整物件大小以適應新的佈局。",
+        "en": "(C) The linker will automatically adjust the object size at runtime to accommodate the new layout.",
+        "wg": []
+      },
+      {
+        "t": "(D) 只有當該類別含有虛擬函數 (Virtual Functions) 時，才會導致崩潰。",
+        "en": "(D) A crash will occur only if the class contains Virtual Functions.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "雖然 API (原始碼合約) 看起來沒變，但新增成員變數改變了類別的記憶體佈局 (Memory Layout) 與大小 (sizeof)。舊的客戶端二進位檔仍假設舊的大小與偏移量，這會導致記憶體存取錯誤，即破壞了 ABI。",
+      "en": "Although the API (source code contract) looks unchanged, adding a member variable changes the class's memory layout and size (`sizeof`). The old client binary still assumes the old size and offsets, leading to memory access errors, which is an ABI break.",
+      "wg": [
+        {
+          "t": "記憶體佈局",
+          "en": "Memory Layout",
+          "ps": "N"
+        },
+        {
+          "t": "偏移量",
+          "en": "offset",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "2",
+    "level": "intermediate",
+    "keywords": "Pimpl, unique_ptr, Incomplete Type, Compilation Error",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "// Widget.h\n#pragma once\n#include <memory>\n\nclass Widget {\npublic:\n    Widget();\n    ~Widget() = default; // Implementation in header\n\n    void DoSomething();\n\nprivate:\n    struct Impl;\n    std::unique_ptr<Impl> m_pImpl;\n};",
+    "question": [
+      {
+        "t": "在實作 Pimpl 慣用法時，工程師撰寫了如上的標頭檔 `Widget.h`。",
+        "en": "When implementing the Pimpl idiom, an engineer wrote the header file `Widget.h` as shown above.",
+        "wg": [
+          {
+            "t": "慣用法",
+            "en": "idiom",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "當其他檔案 `#include \"Widget.h\"` 並嘗試實例化 `Widget` 時，編譯器報錯指出 `sizeof(Impl)` 未知或使用了不完整型別 (Incomplete Type)。",
+        "en": "When other files `#include \"Widget.h\"` and try to instantiate `Widget`, the compiler reports an error stating `sizeof(Impl)` is unknown or an incomplete type is used.",
+        "wg": [
+          {
+            "t": "不完整型別",
+            "en": "Incomplete Type",
+            "ps": "N"
+          },
+          {
+            "t": "實例化",
+            "en": "instantiate",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "請問該如何修正此問題？",
+        "en": "How should this issue be fixed?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 將 `std::unique_ptr` 改為 `std::shared_ptr`。",
+        "en": "(A) Change `std::unique_ptr` to `std::shared_ptr`.",
+        "wg": []
+      },
+      {
+        "t": "(B) 在 `Widget.h` 中提供 `struct Impl` 的完整定義。",
+        "en": "(B) Provide the full definition of `struct Impl` inside `Widget.h`.",
+        "wg": []
+      },
+      {
+        "t": "(C) 將 `~Widget()` 的宣告保留在標頭檔，但將其定義 (`= default`) 移至實作檔 (.cpp) 中。",
+        "en": "(C) Keep the declaration of `~Widget()` in the header, but move its definition (`= default`) to the implementation file (.cpp).",
+        "wg": []
+      },
+      {
+        "t": "(D) 移除 `~Widget()`，讓編譯器自動生成解構函數。",
+        "en": "(D) Remove `~Widget()` and let the compiler automatically generate the destructor.",
+        "wg": []
+      }
+    ],
+    "answer": "(C)",
+    "why": {
+      "t": "`std::unique_ptr` 的解構函數需要呼叫 `delete`，這要求被刪除的型別必須是完整型別 (Complete Type) 以進行 `sizeof` 檢查。在標頭檔中 `Impl` 僅是前置宣告。將解構函數定義移至 `.cpp` (此時 `Impl` 已定義) 可解決此問題。",
+      "en": "`std::unique_ptr`'s destructor calls `delete`, which requires the deleted type to be a Complete Type for `sizeof` checks. In the header, `Impl` is only a forward declaration. Moving the destructor definition to the `.cpp` (where `Impl` is fully defined) resolves this.",
+      "wg": [
+        {
+          "t": "完整型別",
+          "en": "Complete Type",
+          "ps": "N"
+        },
+        {
+          "t": "前置宣告",
+          "en": "forward declaration",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "3",
+    "level": "advanced",
+    "keywords": "CRTP, Static Polymorphism, Performance, HFT",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "template <typename Derived>\nclass MarketDataHandler {\npublic:\n    void Process(const Packet& p) {\n        static_cast<Derived*>(this)->OnPacket(p);\n    }\n};",
+    "question": [
+      {
+        "t": "在高頻交易 (HFT) 系統中，您選擇使用 CRTP (Curiously Recurring Template Pattern) 來設計封包處理器，而非傳統的虛擬函數 (Virtual Functions)。",
+        "en": "In a High-Frequency Trading (HFT) system, you choose to use CRTP (Curiously Recurring Template Pattern) to design packet processors instead of traditional Virtual Functions.",
+        "wg": [
+          {
+            "t": "高頻交易",
+            "en": "High-Frequency Trading",
+            "ps": "N"
+          },
+          {
+            "t": "封包處理器",
+            "en": "packet processor",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "請問這個設計決策的主要效能優勢為何？",
+        "en": "What is the primary performance advantage of this design decision?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 減少了編譯時間 (Compile Time)。",
+        "en": "(A) Reduces Compile Time.",
+        "wg": []
+      },
+      {
+        "t": "(B) 允許在執行期 (Runtime) 動態切換不同的處理器實作。",
+        "en": "(B) Allows dynamic switching of different processor implementations at Runtime.",
+        "wg": []
+      },
+      {
+        "t": "(C) 消除 vtable 查找開銷並允許編譯器進行函式內聯 (Inlining)。",
+        "en": "(C) Eliminates vtable lookup overhead and allows the compiler to perform function inlining.",
+        "wg": [
+          {
+            "t": "函式內聯",
+            "en": "function inlining",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(D) 減少了二進位執行檔的大小 (Binary Size)。",
+        "en": "(D) Reduces the size of the binary executable.",
+        "wg": []
+      }
+    ],
+    "answer": "(C)",
+    "why": {
+      "t": "CRTP 實現了靜態多型 (Static Polymorphism)，編譯器在編譯期就能解析函式呼叫，因此不需要 vtable 指標跳轉，且極大增加了函式內聯 (Inlining) 的機會，這對低延遲系統至關重要。",
+      "en": "CRTP implements Static Polymorphism, allowing the compiler to resolve function calls at compile time. This eliminates vtable pointer indirection and greatly increases the chances of function inlining, which is crucial for low-latency systems.",
+      "wg": [
+        {
+          "t": "靜態多型",
+          "en": "Static Polymorphism",
+          "ps": "N"
+        },
+        {
+          "t": "低延遲",
+          "en": "low-latency",
+          "ps": "Adj"
+        }
+      ]
+    }
+  },
+  {
+    "no": "4",
+    "level": "advanced",
+    "keywords": "Type Erasure, std::function, Design Patterns",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "C++ 標準庫中的 `std::function` 或 `std::any` 能夠儲存不同型別的物件，同時提供統一的介面。",
+        "en": "`std::function` or `std::any` in the C++ Standard Library can store objects of different types while providing a unified interface.",
+        "wg": [
+          {
+            "t": "統一的介面",
+            "en": "unified interface",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "這種技術被稱為「型別抹除 (Type Erasure)」。請問其內部實作通常依賴哪種機制？",
+        "en": "This technique is called 'Type Erasure'. What mechanism does its internal implementation typically rely on?",
+        "wg": [
+          {
+            "t": "型別抹除",
+            "en": "Type Erasure",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 使用 `void*` 指標並強制轉型，不保留任何型別資訊。",
+        "en": "(A) Using `void*` pointers and forced casting, without retaining any type information.",
+        "wg": []
+      },
+      {
+        "t": "(B) 結合樣板建構子 (Template Constructor) 與繼承：使用一個抽象基底類別 (Concept) 與一個樣板衍生類別 (Model) 來包裹具體型別。",
+        "en": "(B) Combining Template Constructors with inheritance: Using an abstract base class (Concept) and a templated derived class (Model) to wrap the concrete type.",
+        "wg": [
+          {
+            "t": "抽象基底類別",
+            "en": "abstract base class",
+            "ps": "N"
+          },
+          {
+            "t": "樣板衍生類別",
+            "en": "templated derived class",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) 依賴 C++ 的 RTTI (Run-Time Type Information) 機制來動態查詢型別。",
+        "en": "(C) Relying on C++'s RTTI (Run-Time Type Information) mechanism to query types dynamically.",
+        "wg": []
+      },
+      {
+        "t": "(D) 使用巨集 (Macros) 在前處理階段生成程式碼。",
+        "en": "(D) Using Macros to generate code during the preprocessing stage.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "Type Erasure 的標準實作模式是：外部類別持有 Base 指標，內部透過樣板建構子將具體型別 T 包裝在繼承自 Base 的 `Model<T>` 中。這樣外部看似抹除了型別，但內部仍透過虛擬函數保留了對 T 的操作能力。",
+      "en": "The standard implementation pattern for Type Erasure is: the external class holds a Base pointer, and internally wraps the concrete type T in a `Model<T>` (inheriting from Base) via a template constructor. This erases the type externally while retaining the ability to operate on T via virtual functions internally.",
+      "wg": [
+        {
+          "t": "具體型別",
+          "en": "concrete type",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "5",
+    "level": "intermediate",
+    "keywords": "Pimpl, Performance, Anti-pattern, Memory Fragmentation",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "Pimpl 慣用法雖然能提供 ABI 穩定性與編譯防火牆，但在某些情況下被視為反模式 (Anti-pattern)。",
+        "en": "Although the Pimpl idiom provides ABI stability and a compilation firewall, it is considered an anti-pattern in some cases.",
+        "wg": [
+          {
+            "t": "反模式",
+            "en": "anti-pattern",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "以下哪種場景**最不適合**使用 Pimpl？",
+        "en": "Which of the following scenarios is **least suitable** for using Pimpl?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 開發一個大型且依賴眾多第三方標頭檔的 UI 框架核心類別。",
+        "en": "(A) Developing a core class for a large UI framework that depends on numerous third-party headers.",
+        "wg": []
+      },
+      {
+        "t": "(B) 設計一個需要長期維持二進位兼容性的 SDK 介面。",
+        "en": "(B) Designing an SDK interface that requires long-term binary compatibility.",
+        "wg": []
+      },
+      {
+        "t": "(C) 實作一個極輕量、需大量建立且頻繁存取的幾何類別 (如 `Point3D` 或 `Vector4`)。",
+        "en": "(C) Implementing an extremely lightweight geometry class (e.g., `Point3D` or `Vector4`) that is created in large numbers and accessed frequently.",
+        "wg": [
+          {
+            "t": "幾何類別",
+            "en": "geometry class",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(D) 封裝平台相關的實作細節 (如 Windows vs Linux API)。",
+        "en": "(D) Encapsulating platform-specific implementation details (e.g., Windows vs Linux API).",
+        "wg": []
+      }
+    ],
+    "answer": "(C)",
+    "why": {
+      "t": "對於輕量級物件 (如 `Point3D`)，Pimpl 帶來的堆積分配 (Heap Allocation) 開銷與指標間接存取 (Indirection) 會嚴重影響效能，並導致記憶體碎片化與 Cache Locality 變差。",
+      "en": "For lightweight objects (like `Point3D`), the heap allocation overhead and pointer indirection introduced by Pimpl significantly impact performance, leading to memory fragmentation and poor Cache Locality.",
+      "wg": [
+        {
+          "t": "堆積分配",
+          "en": "Heap Allocation",
+          "ps": "N"
+        },
+        {
+          "t": "指標間接存取",
+          "en": "pointer indirection",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "6",
+    "level": "intermediate",
+    "keywords": "CRTP, Binary Size, Code Bloat, Template Instantiation",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "使用 CRTP (Curiously Recurring Template Pattern) 雖然能提升執行期效能，但也可能帶來副作用。",
+        "en": "While using CRTP (Curiously Recurring Template Pattern) can improve runtime performance, it may also have side effects.",
+        "wg": []
+      },
+      {
+        "t": "若在深層繼承鏈中過度使用 CRTP，最可能導致下列哪項問題？",
+        "en": "If CRTP is overused in a deep inheritance chain, which of the following problems is most likely to occur?",
+        "wg": [
+          {
+            "t": "深層繼承鏈",
+            "en": "deep inheritance chain",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 執行期記憶體洩漏 (Memory Leak)。",
+        "en": "(A) Runtime Memory Leak.",
+        "wg": []
+      },
+      {
+        "t": "(B) 程式碼膨脹 (Code Bloat) 與二進位檔變大。",
+        "en": "(B) Code Bloat and increased binary file size.",
+        "wg": [
+          {
+            "t": "程式碼膨脹",
+            "en": "Code Bloat",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) 虛擬函數表 (vtable) 過大導致查找變慢。",
+        "en": "(C) The virtual function table (vtable) becomes too large, slowing down lookups.",
+        "wg": []
+      },
+      {
+        "t": "(D) 無法使用 `static_cast` 進行轉型。",
+        "en": "(D) Inability to use `static_cast` for casting.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "CRTP 是基於樣板的，對於每一個不同的衍生類別 `Derived`，編譯器都會生成一份獨立的基底類別程式碼 (Template Instantiation)。若邏輯複雜且衍生類別眾多，會導致最終的執行檔體積顯著增加。",
+      "en": "CRTP is template-based. For each distinct `Derived` class, the compiler generates a separate copy of the base class code (Template Instantiation). If the logic is complex and there are many derived classes, this leads to a significant increase in the final executable size.",
+      "wg": [
+        {
+          "t": "樣板實例化",
+          "en": "Template Instantiation",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "7",
+    "level": "intermediate",
+    "keywords": "ABI, Class Layout, Binary Compatibility",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在不重新編譯客戶端應用程式的情況下，對已發布的 C++ 共享庫 (Shared Library) 進行以下哪項更改，最有可能導致 ABI (Application Binary Interface) 破壞？",
+        "en": "Which of the following changes to a released C++ Shared Library is most likely to cause an ABI (Application Binary Interface) break without recompiling the client application?",
+        "wg": [
+          {
+            "t": "共享庫",
+            "en": "Shared Library",
+            "ps": "N"
+          },
+          {
+            "t": "破壞",
+            "en": "break",
+            "ps": "V"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 修改一個非虛擬 (non-virtual) 成員函式的內部實作邏輯。",
+        "en": "(A) Modifying the internal implementation logic of a non-virtual member function.",
+        "wg": []
+      },
+      {
+        "t": "(B) 在類別宣告的 private 區段中新增一個 `int` 成員變數。",
+        "en": "(B) Adding a new `int` member variable to the private section of the class declaration.",
+        "wg": [
+          {
+            "t": "宣告",
+            "en": "declaration",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) 在類別中新增一個非虛擬 (non-virtual) 的靜態輔助函式。",
+        "en": "(C) Adding a new non-virtual static helper function to the class.",
+        "wg": []
+      },
+      {
+        "t": "(D) 重新命名一個 private 成員函式（該函式未被匯出）。",
+        "en": "(D) Renaming a private member function (that is not exported).",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "新增成員變數會改變類別的記憶體佈局 (Class Layout) 和大小 (Size)。如果客戶端程式碼使用舊的定義編譯，它會假設物件大小較小且成員偏移量不同，導致記憶體存取錯誤或崩潰。修改函式實作或新增非虛擬函式通常不影響現有物件的記憶體佈局。",
+      "en": "Adding a member variable changes the memory layout and size of the class. If client code was compiled with the old definition, it assumes a smaller object size and different member offsets, leading to memory access errors or crashes. Modifying function implementation or adding non-virtual functions typically does not affect the memory layout of existing objects.",
+      "wg": [
+        {
+          "t": "記憶體佈局",
+          "en": "memory layout",
+          "ps": "N"
+        },
+        {
+          "t": "偏移量",
+          "en": "offsets",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "8",
+    "level": "intermediate",
+    "keywords": "Pimpl, Rule of Five, Move Semantics, unique_ptr",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "class Widget {\npublic:\n    Widget();\n    ~Widget(); // Defined in .cpp\n    // No copy/move operations declared\n    void DoSomething();\nprivate:\n    struct Impl;\n    std::unique_ptr<Impl> pImpl;\n};",
+    "question": [
+      {
+        "t": "您正在使用 Pimpl 慣用法並撰寫了上述標頭檔。由於 `std::unique_ptr` 是僅可移動 (Move-only) 的，且您宣告了自定義解構函數，編譯器不會自動生成移動建構子。",
+        "en": "You are using the Pimpl idiom and wrote the header file above. Since `std::unique_ptr` is move-only and you declared a custom destructor, the compiler will not automatically generate the move constructor.",
+        "wg": [
+          {
+            "t": "慣用法",
+            "en": "idiom",
+            "ps": "N"
+          },
+          {
+            "t": "僅可移動",
+            "en": "Move-only",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "若您嘗試執行 `Widget w2 = std::move(w1);`，會發生什麼情況？",
+        "en": "What happens if you attempt to execute `Widget w2 = std::move(w1);`?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 編譯成功，編譯器會自動退回使用複製建構子 (Copy Constructor)。",
+        "en": "(A) Compilation succeeds; the compiler automatically falls back to the Copy Constructor.",
+        "wg": []
+      },
+      {
+        "t": "(B) 編譯失敗，因為移動操作被抑制且複製操作因 `unique_ptr` 而被刪除。",
+        "en": "(B) Compilation fails because move operations are suppressed and copy operations are deleted due to `unique_ptr`.",
+        "wg": [
+          {
+            "t": "抑制",
+            "en": "suppressed",
+            "ps": "V"
+          },
+          {
+            "t": "刪除",
+            "en": "deleted",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(C) 編譯成功，`unique_ptr` 會自動處理指標轉移。",
+        "en": "(C) Compilation succeeds; `unique_ptr` automatically handles the pointer transfer.",
+        "wg": []
+      },
+      {
+        "t": "(D) 執行期錯誤 (Runtime Error)，因為 pImpl 為空。",
+        "en": "(D) Runtime Error because pImpl is null.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "根據 C++ 規則，一旦宣告了使用者自定義的解構函數，編譯器就不會自動生成移動建構子與移動賦值運算子。嘗試移動會退回尋找複製建構子，但 `std::unique_ptr` 禁用了複製，導致編譯錯誤。必須顯式宣告 `Widget(Widget&&) = default;`。",
+      "en": "According to C++ rules, once a user-defined destructor is declared, the compiler does not automatically generate the move constructor and move assignment operator. Attempting to move falls back to looking for a copy constructor, but `std::unique_ptr` disables copying, causing a compilation error. You must explicitly declare `Widget(Widget&&) = default;`.",
+      "wg": [
+        {
+          "t": "顯式宣告",
+          "en": "explicitly declare",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "9",
+    "level": "advanced",
+    "keywords": "CRTP, static_cast, Inheritance, Safety",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "template <typename Derived>\nclass Base {\npublic:\n    void interface() {\n        // (1) How to call implementation?\n    }\n};",
+    "question": [
+      {
+        "t": "在 CRTP (Curiously Recurring Template Pattern) 中，基底類別 `Base` 需要在編譯期呼叫衍生類別 `Derived` 的實作函式 `impl()`。",
+        "en": "In CRTP (Curiously Recurring Template Pattern), the base class `Base` needs to call the implementation function `impl()` of the derived class `Derived` at compile time.",
+        "wg": [
+          {
+            "t": "基底類別",
+            "en": "base class",
+            "ps": "N"
+          },
+          {
+            "t": "衍生類別",
+            "en": "derived class",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "請問在標記 (1) 處，最正確且標準的寫法是什麼？",
+        "en": "What is the most correct and standard way to write the code at marker (1)?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) `dynamic_cast<Derived*>(this)->impl();`",
+        "en": "(A) `dynamic_cast<Derived*>(this)->impl();`",
+        "wg": []
+      },
+      {
+        "t": "(B) `static_cast<Derived*>(this)->impl();`",
+        "en": "(B) `static_cast<Derived*>(this)->impl();`",
+        "wg": []
+      },
+      {
+        "t": "(C) `(Derived*)this->impl();` (C-style cast)",
+        "en": "(C) `(Derived*)this->impl();` (C-style cast)",
+        "wg": []
+      },
+      {
+        "t": "(D) `this->impl();`",
+        "en": "(D) `this->impl();`",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "在 CRTP 中，`Base` 知道它是由 `Derived` 繼承的，因此向下轉型 (Downcasting) 是安全的。`static_cast` 在編譯期執行，沒有執行期開銷 (Runtime Overhead)。`dynamic_cast` 需要 RTTI 且有執行期成本；直接呼叫 `this->impl()` 會失敗，因為 `Base` 中沒有該函式。",
+      "en": "In CRTP, `Base` knows it is inherited by `Derived`, so downcasting is safe. `static_cast` is performed at compile time with no runtime overhead. `dynamic_cast` requires RTTI and has runtime cost; calling `this->impl()` directly will fail because the function does not exist in `Base`.",
+      "wg": [
+        {
+          "t": "向下轉型",
+          "en": "downcasting",
+          "ps": "N"
+        },
+        {
+          "t": "執行期開銷",
+          "en": "runtime overhead",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "10",
+    "level": "advanced",
+    "keywords": "Type Erasure, Design Patterns, Templates, Polymorphism",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "class AnyRunnable {\n    struct Concept { virtual void run() = 0; virtual ~Concept() = default; };\n    template<typename T> struct Model : Concept {\n        T data;\n        Model(T x) : data(std::move(x)) {}\n        void run() override { data(); }\n    };\n    std::unique_ptr<Concept> pImpl;\npublic:\n    template<typename T>\n    AnyRunnable(T x) : pImpl(std::make_unique<Model<T>>(std::move(x))) {}\n    void run() { pImpl->run(); }\n};",
+    "question": [
+      {
+        "t": "請分析上述程式碼片段。這種結合了非樣板基底類別 (`Concept`) 與樣板衍生類別 (`Model`) 的設計模式，主要用於實現什麼技術？",
+        "en": "Analyze the code snippet above. What technique is primarily implemented using this design pattern that combines a non-template base class (`Concept`) with a template derived class (`Model`)?",
+        "wg": [
+          {
+            "t": "程式碼片段",
+            "en": "code snippet",
+            "ps": "N"
+          },
+          {
+            "t": "設計模式",
+            "en": "design pattern",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) Pimpl (Pointer to Implementation)",
+        "en": "(A) Pimpl (Pointer to Implementation)",
+        "wg": []
+      },
+      {
+        "t": "(B) CRTP (Curiously Recurring Template Pattern)",
+        "en": "(B) CRTP (Curiously Recurring Template Pattern)",
+        "wg": []
+      },
+      {
+        "t": "(C) Type Erasure (型別抹除)",
+        "en": "(C) Type Erasure",
+        "wg": [
+          {
+            "t": "型別抹除",
+            "en": "Type Erasure",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(D) Abstract Factory (抽象工廠)",
+        "en": "(D) Abstract Factory",
+        "wg": []
+      }
+    ],
+    "answer": "(C)",
+    "why": {
+      "t": "這是 Type Erasure 的標準實作方式。外部類別 (`AnyRunnable`) 提供統一介面，內部透過多型 (`Concept`/`Model`) 儲存任意型別 `T`，從而在不暴露 `T` 的情況下操作它。這正是 `std::function` 或 `std::any` 的運作原理。",
+      "en": "This is the standard implementation of Type Erasure. The outer class (`AnyRunnable`) provides a unified interface, while internally using polymorphism (`Concept`/`Model`) to store any type `T`, allowing operations on it without exposing `T`. This is exactly how `std::function` or `std::any` works.",
+      "wg": [
+        {
+          "t": "統一介面",
+          "en": "unified interface",
+          "ps": "N"
+        },
+        {
+          "t": "暴露",
+          "en": "exposing",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "11",
+    "level": "intermediate",
+    "keywords": "Compilation Firewall, Build Time, Dependencies",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在一個大型 C++ 專案中，您發現修改底層 `NetworkManager` 類別的 private 成員（例如增加一個 `boost::asio::io_context` 成員），會導致專案中幾乎所有檔案都需要重新編譯。",
+        "en": "In a large C++ project, you notice that modifying a private member of the low-level `NetworkManager` class (e.g., adding a `boost::asio::io_context` member) causes almost all files in the project to recompile.",
+        "wg": [
+          {
+            "t": "底層",
+            "en": "low-level",
+            "ps": "Adj"
+          },
+          {
+            "t": "重新編譯",
+            "en": "recompile",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "這是因為該類別的標頭檔被廣泛引用。為了最有效地解決此「編譯級聯 (Compilation Cascade)」問題，您應該採取什麼策略？",
+        "en": "This is because the class header is widely included. To most effectively solve this \"Compilation Cascade\" problem, what strategy should you adopt?",
+        "wg": [
+          {
+            "t": "編譯級聯",
+            "en": "Compilation Cascade",
+            "ps": "N"
+          },
+          {
+            "t": "廣泛引用",
+            "en": "widely included",
+            "ps": "V"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 將所有 private 成員改為 public，以避免存取限制檢查。",
+        "en": "(A) Change all private members to public to avoid access control checks.",
+        "wg": []
+      },
+      {
+        "t": "(B) 使用 Pimpl 慣用法，將實作細節移至 .cpp 檔。",
+        "en": "(B) Use the Pimpl idiom to move implementation details to the .cpp file.",
+        "wg": []
+      },
+      {
+        "t": "(C) 使用 `inline` 關鍵字將所有函式實作移至標頭檔。",
+        "en": "(C) Use the `inline` keyword to move all function implementations to the header file.",
+        "wg": []
+      },
+      {
+        "t": "(D) 使用 CRTP 來靜態解析依賴。",
+        "en": "(D) Use CRTP to statically resolve dependencies.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "Pimpl (Pointer to Implementation) 能夠移除標頭檔中的實作細節依賴（如 `boost` 標頭檔）。當實作細節改變時，只有 `NetworkManager.cpp` 需要重新編譯，而引用 `NetworkManager.h` 的其他檔案不受影響，從而建立「編譯防火牆」。",
+      "en": "Pimpl (Pointer to Implementation) removes implementation detail dependencies (like `boost` headers) from the header file. When implementation details change, only `NetworkManager.cpp` needs to be recompiled, while other files including `NetworkManager.h` are unaffected, creating a \"Compilation Firewall\".",
+      "wg": [
+        {
+          "t": "實作細節",
+          "en": "implementation details",
+          "ps": "N"
+        },
+        {
+          "t": "不受影響",
+          "en": "unaffected",
+          "ps": "Adj"
+        }
+      ]
+    }
+  },
+  {
+    "no": "12",
+    "level": "advanced",
+    "keywords": "Mixins, CRTP, Composition, Design Patterns",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "template <typename Derived>\nstruct LoggingMixin {\n    void Log(const char* msg) {\n        std::cout << \"[\" << static_cast<Derived*>(this)->GetName() << \"] \" << msg << std::endl;\n    }\n};\n\nclass User : public LoggingMixin<User> {\npublic:\n    const char* GetName() { return \"User\"; }\n};",
+    "question": [
+      {
+        "t": "上述程式碼展示了使用 CRTP 實作 Mixin 模式的技巧。",
+        "en": "The code above demonstrates the technique of implementing the Mixin pattern using CRTP.",
+        "wg": [
+          {
+            "t": "技巧",
+            "en": "technique",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "與傳統的多重繼承相比，這種方式的主要優勢為何？",
+        "en": "Compared to traditional multiple inheritance, what is the main advantage of this approach?",
+        "wg": [
+          {
+            "t": "多重繼承",
+            "en": "multiple inheritance",
+            "ps": "N"
+          },
+          {
+            "t": "優勢",
+            "en": "advantage",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 允許在執行期動態更換 Mixin 的實作。",
+        "en": "(A) Allows dynamically swapping the Mixin implementation at runtime.",
+        "wg": []
+      },
+      {
+        "t": "(B) 能夠在 Mixin 中直接呼叫衍生類別的方法，且無虛擬函式開銷。",
+        "en": "(B) Ability to call derived class methods directly from the Mixin with no virtual function overhead.",
+        "wg": [
+          {
+            "t": "開銷",
+            "en": "overhead",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) 解決了菱形繼承 (Diamond Problem) 的問題。",
+        "en": "(C) Solves the Diamond Problem.",
+        "wg": [
+          {
+            "t": "菱形繼承",
+            "en": "Diamond Problem",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(D) 減少了編譯後的二進位檔案大小。",
+        "en": "(D) Reduces the compiled binary file size.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "CRTP Mixin 允許基底類別 (Mixin) 在編譯期透過 `static_cast` 存取衍生類別的成員（如 `GetName`），實現了功能的「反向注入」，同時保持了靜態繫結的效能優勢（無 vtable）。傳統繼承通常需要虛擬函式來回呼衍生類別。",
+      "en": "CRTP Mixins allow the base class (Mixin) to access derived class members (like `GetName`) at compile time via `static_cast`, achieving \"reverse injection\" of functionality while maintaining the performance benefits of static binding (no vtable). Traditional inheritance usually requires virtual functions to call back into the derived class.",
+      "wg": [
+        {
+          "t": "反向注入",
+          "en": "reverse injection",
+          "ps": "N"
+        },
+        {
+          "t": "靜態繫結",
+          "en": "static binding",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "13",
+    "level": "intermediate",
+    "keywords": "CRTP, Containers, Heterogeneous Collection, Polymorphism",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您使用 CRTP 設計了 `Shape<Circle>` 與 `Shape<Square>` 來追求極致效能。",
+        "en": "You designed `Shape<Circle>` and `Shape<Square>` using CRTP to pursue extreme performance.",
+        "wg": [
+          {
+            "t": "極致效能",
+            "en": "extreme performance",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "然而，當您試圖建立一個 `std::vector` 來同時儲存圓形與正方形時遇到了困難。這是因為：",
+        "en": "However, you encountered difficulties when trying to create a `std::vector` to store both circles and squares simultaneously. This is because:",
+        "wg": [
+          {
+            "t": "同時儲存",
+            "en": "store simultaneously",
+            "ps": "V"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) CRTP 類別沒有解構函數，無法放入容器。",
+        "en": "(A) CRTP classes do not have destructors and cannot be put into containers.",
+        "wg": []
+      },
+      {
+        "t": "(B) `Shape<Circle>` 與 `Shape<Square>` 是完全不同的型別，缺乏共同的基底型別。",
+        "en": "(B) `Shape<Circle>` and `Shape<Square>` are completely different types and lack a common base type.",
+        "wg": [
+          {
+            "t": "共同的",
+            "en": "common",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "(C) `std::vector` 不支援樣板類別。",
+        "en": "(C) `std::vector` does not support template classes.",
+        "wg": []
+      },
+      {
+        "t": "(D) CRTP 導致物件大小不固定，無法放入 vector。",
+        "en": "(D) CRTP causes object sizes to be variable, so they cannot be put into a vector.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "CRTP 是一種靜態多型，`Shape<Circle>` 和 `Shape<Square>` 在編譯器眼中是兩個互不相關的型別（就像 `int` 和 `float`）。它們沒有共同的基底類別（除非另外設計），因此無法直接放入同一個 `std::vector<T>` 中。若需異質容器，需改用 Type Erasure 或傳統虛擬繼承。",
+      "en": "CRTP is static polymorphism; `Shape<Circle>` and `Shape<Square>` are seen by the compiler as two unrelated types (like `int` and `float`). They share no common base class (unless explicitly designed), so they cannot be directly put into the same `std::vector<T>`. If a heterogeneous container is needed, Type Erasure or traditional virtual inheritance must be used.",
+      "wg": [
+        {
+          "t": "互不相關",
+          "en": "unrelated",
+          "ps": "Adj"
+        },
+        {
+          "t": "異質容器",
+          "en": "heterogeneous container",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "14",
+    "level": "advanced",
+    "keywords": "ABI, Virtual Functions, VTable, Binary Compatibility",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "class IPlugin {\npublic:\n    virtual void Initialize() = 0;\n    virtual void Shutdown() = 0;\n    // New function added here in v2.0\n    virtual void Pause() = 0; \n    virtual void Process() = 0;\n};",
+    "question": [
+      {
+        "t": "您維護一個插件介面 `IPlugin`。在 v2.0 版本中，您在 `Shutdown` 與 `Process` 之間插入了一個新的虛擬函式 `Pause`（如上圖所示）。",
+        "en": "You maintain a plugin interface `IPlugin`. In v2.0, you inserted a new virtual function `Pause` between `Shutdown` and `Process` (as shown above).",
+        "wg": [
+          {
+            "t": "插件介面",
+            "en": "plugin interface",
+            "ps": "N"
+          },
+          {
+            "t": "插入",
+            "en": "inserted",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "對於使用 v1.0 標頭檔編譯的舊插件，當主程式（使用 v2.0）呼叫 `Process()` 時，最可能發生什麼後果？",
+        "en": "For an old plugin compiled with v1.0 headers, what is the most likely consequence when the main program (using v2.0) calls `Process()`?",
+        "wg": [
+          {
+            "t": "後果",
+            "en": "consequence",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 程式正常運作，因為函式名稱是用來查找符號的。",
+        "en": "(A) The program works correctly because function names are used for symbol lookup.",
+        "wg": []
+      },
+      {
+        "t": "(B) 呼叫到錯誤的函式（可能是舊插件的 `Process` 對應到了 v2.0 的 `Pause` 槽位，或者偏移錯誤）。",
+        "en": "(B) The wrong function is called (the old plugin's `Process` might correspond to v2.0's `Pause` slot, or offsets are wrong).",
+        "wg": [
+          {
+            "t": "槽位",
+            "en": "slot",
+            "ps": "N"
+          },
+          {
+            "t": "偏移",
+            "en": "offset",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) 連結器錯誤 (Linker Error)，無法找到符號。",
+        "en": "(C) Linker Error; symbols cannot be found.",
+        "wg": []
+      },
+      {
+        "t": "(D) 編譯器會自動修正 VTable 偏移。",
+        "en": "(D) The compiler automatically corrects VTable offsets.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "虛擬函式通常透過 VTable（虛擬函式表）中的索引來呼叫。插入新函式會改變後續函式在 VTable 中的索引（偏移量）。主程式認為索引 3 是 `Process`，但舊插件的 VTable 中索引 3 可能是無效記憶體或別的函式，導致嚴重的 ABI 不兼容與執行期錯誤。",
+      "en": "Virtual functions are typically called via indices in a VTable (Virtual Table). Inserting a new function changes the indices (offsets) of subsequent functions in the VTable. The main program thinks index 3 is `Process`, but in the old plugin's VTable, index 3 might be invalid memory or another function, leading to severe ABI incompatibility and runtime errors.",
+      "wg": [
+        {
+          "t": "索引",
+          "en": "indices",
+          "ps": "N"
+        },
+        {
+          "t": "不兼容",
+          "en": "incompatibility",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "15",
+    "level": "intermediate",
+    "keywords": "Inlining, Devirtualization, Performance, CRTP",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "為什麼 CRTP (Static Polymorphism) 的函式呼叫通常比傳統的虛擬函式 (Dynamic Polymorphism) 更容易被編譯器內聯 (Inline)？",
+        "en": "Why are function calls in CRTP (Static Polymorphism) generally easier for the compiler to inline than traditional virtual functions (Dynamic Polymorphism)?",
+        "wg": [
+          {
+            "t": "內聯",
+            "en": "inline",
+            "ps": "V"
+          },
+          {
+            "t": "虛擬函式",
+            "en": "virtual functions",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 因為 CRTP 使用了 `inline` 關鍵字強制編譯器內聯。",
+        "en": "(A) Because CRTP uses the `inline` keyword to force the compiler to inline.",
+        "wg": []
+      },
+      {
+        "t": "(B) 因為 CRTP 的函式體積通常比較小。",
+        "en": "(B) Because CRTP function bodies are usually smaller.",
+        "wg": []
+      },
+      {
+        "t": "(C) 因為 CRTP 的呼叫目標在編譯期即確定，不涉及指標間接跳轉。",
+        "en": "(C) Because the call target in CRTP is determined at compile time and does not involve pointer indirection.",
+        "wg": [
+          {
+            "t": "指標間接跳轉",
+            "en": "pointer indirection",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(D) 因為虛擬函式表 (VTable) 位於堆積 (Heap) 記憶體中，存取速度慢。",
+        "en": "(D) Because the VTable is located in Heap memory, making access slow.",
+        "wg": []
+      }
+    ],
+    "answer": "(C)",
+    "why": {
+      "t": "虛擬函式通常需要透過 VTable 進行間接呼叫（執行期才能確定目標），這使得編譯器難以進行靜態分析與內聯。CRTP 使用樣板在編譯期解析型別，函式呼叫是直接的，編譯器可以完全看到被呼叫的程式碼並將其展開（Inline），消除呼叫開銷。",
+      "en": "Virtual functions usually require indirect calls via the VTable (target determined at runtime), making it hard for the compiler to perform static analysis and inlining. CRTP uses templates to resolve types at compile time; function calls are direct, allowing the compiler to fully see the called code and expand it (Inline), eliminating call overhead.",
+      "wg": [
+        {
+          "t": "間接呼叫",
+          "en": "indirect calls",
+          "ps": "N"
+        },
+        {
+          "t": "展開",
+          "en": "expand",
+          "ps": "V"
+        }
+      ]
+    }
+  }
+]
