@@ -33,15 +33,14 @@ One your branch has menu-path.json, then your banch can be presented by this url
 
 ## 徵求夥伴與AI資源
 
-- 願景
+- 規劃目標
   * 擴充中國古書內容
   * 擴充大陸國中科目
   * 擴充高中科目
   * 增加AI自動依據分支內容產生題目
   * 增加AI自動化產生各知識章節與內容
   * 增加AI Chat Bot
-  * 設計參與獎勵機制
-  * 規劃專業知識地圖
+  * 設計參與廣告獎勵機制
 
 - 聯絡信箱: info@jujuen.org
 
