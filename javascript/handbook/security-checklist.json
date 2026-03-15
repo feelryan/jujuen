@@ -1,0 +1,794 @@
+[
+  {
+    "no": "1",
+    "level": "Hard",
+    "keywords": "Prototype Pollution,Security,Object Merge",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "const merge = (target, source) => {\n  for (const key in source) {\n    if (typeof target[key] === 'object' && typeof source[key] === 'object') {\n      merge(target[key], source[key]);\n    } else {\n      target[key] = source[key];\n    }\n  }\n  return target;\n};\n\nconst payload = JSON.parse('{\"__proto__\": {\"isAdmin\": true}}');\nconst user = {};\nmerge(user, payload);",
+    "question": [
+      {
+        "t": "請分析上述程式碼片段。執行這段 `merge` 函式後，會對應用程式造成什麼樣的安全影響？",
+        "en": "Analyze the code snippet above. What is the security impact on the application after executing this `merge` function?",
+        "wg": [
+          {
+            "t": "安全影響",
+            "en": "security impact",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "僅有 `user` 物件會獲得 `isAdmin: true` 屬性，其他物件不受影響。",
+        "en": "Only the `user` object will acquire the `isAdmin: true` property; other objects remain unaffected.",
+        "wg": []
+      },
+      {
+        "t": "會導致 Stack Overflow，因為遞迴沒有終止條件。",
+        "en": "It will cause a Stack Overflow because the recursion lacks a termination condition.",
+        "wg": []
+      },
+      {
+        "t": "這會觸發原型污染（Prototype Pollution），導致應用程式中所有新建立的物件預設都擁有 `isAdmin: true`。",
+        "en": "It triggers Prototype Pollution, causing all newly created objects in the application to possess `isAdmin: true` by default.",
+        "wg": [
+          {
+            "t": "原型污染",
+            "en": "Prototype Pollution",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "程式會拋出錯誤，因為 `__proto__` 是唯讀屬性。",
+        "en": "The program will throw an error because `__proto__` is a read-only property.",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "這是典型的原型污染攻擊。攻擊者透過 JSON 中的 `__proto__` 鍵值，在遞迴合併時修改了全域的 `Object.prototype`。由於 JavaScript 的原型繼承機制，所有繼承自 `Object` 的物件（即絕大多數物件）都會受到影響，繼承這個惡意屬性。",
+      "en": "This is a classic Prototype Pollution attack. The attacker uses the `__proto__` key in the JSON to modify the global `Object.prototype` during the recursive merge. Due to JavaScript's prototypal inheritance, all objects inheriting from `Object` (which is most objects) will be affected and inherit this malicious property.",
+      "wg": [
+        {
+          "t": "全域",
+          "en": "global",
+          "ps": "adjective"
+        },
+        {
+          "t": "繼承",
+          "en": "inherit",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "2",
+    "level": "Medium",
+    "keywords": "XSS,DOM,Sanitization,Security",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "// Scenario: Displaying a user's bio from an API response\nconst userBio = \"Hello! <img src=x onerror=alert('Hacked')>\";\n\n// Approach A\ndocument.getElementById('bio').innerHTML = userBio;\n\n// Approach B\ndocument.getElementById('bio').textContent = userBio;\n\n// Approach C\nimport DOMPurify from 'dompurify';\ndocument.getElementById('bio').innerHTML = DOMPurify.sanitize(userBio);",
+    "question": [
+      {
+        "t": "針對上述三種處理使用者輸入（User Input）的方式，下列敘述何者最為正確且安全？",
+        "en": "Regarding the three approaches for handling User Input above, which statement is the most correct and secure?",
+        "wg": [
+          {
+            "t": "使用者輸入",
+            "en": "User Input",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "Approach A 是安全的，因為現代瀏覽器會自動阻擋 `onerror` 事件。",
+        "en": "Approach A is secure because modern browsers automatically block `onerror` events.",
+        "wg": []
+      },
+      {
+        "t": "Approach B 是最安全的，但無法渲染任何 HTML 格式；若需支援 Rich Text，Approach C 是最佳實務。",
+        "en": "Approach B is the most secure but cannot render any HTML formatting; if Rich Text support is needed, Approach C is the best practice.",
+        "wg": [
+          {
+            "t": "最佳實務",
+            "en": "best practice",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "Approach C 是多餘的，應該自行撰寫 Regex 來過濾 `<script>` 標籤即可。",
+        "en": "Approach C is redundant; you should just write your own Regex to filter out `<script>` tags.",
+        "wg": []
+      },
+      {
+        "t": "Approach A 與 B 都有 XSS 風險，只有 C 是安全的。",
+        "en": "Both Approach A and B have XSS risks; only C is secure.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "Approach A 使用 `innerHTML` 直接插入未經處理的字串，會導致 XSS。Approach B 使用 `textContent` 會將所有內容視為純文字，最安全但無法顯示格式。若必須顯示 HTML（如粗體、連結），Approach C 使用 `DOMPurify` 進行消毒（Sanitization）是標準做法。自行撰寫 Regex (選項 3) 是反模式，極易被繞過。",
+      "en": "Approach A uses `innerHTML` to insert raw strings, leading to XSS. Approach B uses `textContent`, treating everything as plain text, which is the safest but cannot display formatting. If HTML rendering is required (e.g., bold, links), Approach C using `DOMPurify` for sanitization is the standard practice. Writing custom Regex (Option 3) is an anti-pattern and easily bypassed.",
+      "wg": [
+        {
+          "t": "消毒",
+          "en": "Sanitization",
+          "ps": "noun"
+        },
+        {
+          "t": "反模式",
+          "en": "anti-pattern",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "3",
+    "level": "Medium",
+    "keywords": "ReDoS,Node.js,Performance,Regex",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "const unsafeRegex = /^([a-zA-Z0-9]+\\s?)+$/;\nconst input = \"A\".repeat(50000) + \"!\";\nunsafeRegex.test(input);",
+    "question": [
+      {
+        "t": "在 Node.js 環境中執行上述程式碼，最可能發生什麼後果？",
+        "en": "What is the most likely consequence of executing the above code in a Node.js environment?",
+        "wg": [
+          {
+            "t": "後果",
+            "en": "consequence",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "程式會立即回傳 `false`，因為字串結尾是 `!`。",
+        "en": "The program will immediately return `false` because the string ends with `!`.",
+        "wg": []
+      },
+      {
+        "t": "會拋出 `SyntaxError`，因為 Regex 語法錯誤。",
+        "en": "It will throw a `SyntaxError` due to incorrect Regex syntax.",
+        "wg": []
+      },
+      {
+        "t": "會導致 Event Loop 被阻塞（Blocking），CPU 使用率飆升，伺服器無法處理其他請求。",
+        "en": "It will cause the Event Loop to be blocked, CPU usage to spike, and the server unable to handle other requests.",
+        "wg": [
+          {
+            "t": "阻塞",
+            "en": "Blocking",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "Node.js 會自動偵測並終止這個 Regex 執行，拋出 Timeout Error。",
+        "en": "Node.js will automatically detect and terminate this Regex execution, throwing a Timeout Error.",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "這是典型的 ReDoS（Regular Expression Denial of Service）攻擊。由於 Regex 包含巢狀量詞（Nested Quantifiers），當字串幾乎匹配但在最後一個字元失敗時，Regex 引擎會進行災難性的回溯（Catastrophic Backtracking），導致時間複雜度呈指數級上升，進而卡死 Node.js 的單執行緒 Event Loop。",
+      "en": "This is a typical ReDoS (Regular Expression Denial of Service) attack. Because the Regex contains nested quantifiers, when the string almost matches but fails at the last character, the Regex engine performs catastrophic backtracking. This causes the time complexity to rise exponentially, blocking Node.js's single-threaded Event Loop.",
+      "wg": [
+        {
+          "t": "巢狀量詞",
+          "en": "Nested Quantifiers",
+          "ps": "noun"
+        },
+        {
+          "t": "災難性的回溯",
+          "en": "Catastrophic Backtracking",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "4",
+    "level": "Medium",
+    "keywords": "CSP,Security Header,XSS",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "關於 Content Security Policy (CSP) 的設定與除錯，下列哪一項敘述是**錯誤**的？",
+        "en": "Regarding the configuration and debugging of Content Security Policy (CSP), which of the following statements is **incorrect**?",
+        "wg": [
+          {
+            "t": "設定",
+            "en": "configuration",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "CSP 是防禦 XSS 的最後一道防線，透過限制瀏覽器只能載入受信任來源的資源。",
+        "en": "CSP acts as the last line of defense against XSS by restricting the browser to load resources only from trusted sources.",
+        "wg": []
+      },
+      {
+        "t": "設定 `script-src 'self' 'unsafe-inline'` 是非常安全的做法，因為它只允許來自同源的內聯腳本（Inline Script）。",
+        "en": "Setting `script-src 'self' 'unsafe-inline'` is a very secure practice because it only allows inline scripts from the same origin.",
+        "wg": [
+          {
+            "t": "內聯腳本",
+            "en": "Inline Script",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "若要允許 Google Analytics 等第三方腳本，必須將其網域加入 CSP 白名單中。",
+        "en": "To allow third-party scripts like Google Analytics, you must add their domains to the CSP whitelist.",
+        "wg": []
+      },
+      {
+        "t": "CSP 可以透過 HTTP Header `Content-Security-Policy` 進行設定。",
+        "en": "CSP can be configured via the HTTP Header `Content-Security-Policy`.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "`unsafe-inline` 正是 CSP 試圖避免的主要風險之一。一旦啟用 `unsafe-inline`，攻擊者只要能注入 `<script>...</script>` 標籤或 `javascript:` 連結，瀏覽器就會執行，這使得 CSP 對抗 XSS 的效力大打折扣。正確做法應使用 Nonce 或 Hash 來允許特定的 Inline Script。",
+      "en": "`unsafe-inline` is exactly one of the main risks CSP tries to avoid. Once `unsafe-inline` is enabled, if an attacker can inject `<script>...</script>` tags or `javascript:` links, the browser will execute them, significantly reducing CSP's effectiveness against XSS. The correct approach is to use a Nonce or Hash to allow specific Inline Scripts.",
+      "wg": [
+        {
+          "t": "大打折扣",
+          "en": "significantly reduce / compromise",
+          "ps": "verb phrase"
+        }
+      ]
+    }
+  },
+  {
+    "no": "5",
+    "level": "Easy",
+    "keywords": "Data Structures,Security,Map vs Object",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "// Goal: Store user-provided keys and values safely\n\n// Option A\nconst store = {};\nstore[userKey] = userValue;\n\n// Option B\nconst store = new Map();\nstore.set(userKey, userValue);\n\n// Option C\nconst store = Object.create(Object.prototype);\nstore[userKey] = userValue;",
+    "question": [
+      {
+        "t": "當你需要建立一個 Key-Value 儲存結構，且 Key 來自不可信的使用者輸入時，為什麼 Option B (`Map`) 優於 Option A (`Plain Object`)？",
+        "en": "When you need to create a Key-Value storage structure where Keys come from untrusted user input, why is Option B (`Map`) superior to Option A (`Plain Object`)?",
+        "wg": [
+          {
+            "t": "不可信的",
+            "en": "untrusted",
+            "ps": "adjective"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "`Map` 的讀寫效能總是比 `Object` 快。",
+        "en": "`Map` always has faster read/write performance than `Object`.",
+        "wg": []
+      },
+      {
+        "t": "`Map` 可以自動將資料序列化為 JSON。",
+        "en": "`Map` can automatically serialize data into JSON.",
+        "wg": []
+      },
+      {
+        "t": "`Map` 沒有原型鏈（Prototype Chain）污染的風險，且 Key 不會與預設屬性（如 `toString`）衝突。",
+        "en": "`Map` does not have the risk of Prototype Chain pollution, and Keys will not conflict with default properties (like `toString`).",
+        "wg": [
+          {
+            "t": "衝突",
+            "en": "conflict",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "`Map` 只能儲存字串作為 Key，這限制了攻擊面。",
+        "en": "`Map` can only store strings as Keys, which limits the attack surface.",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "Plain Object (`{}`) 繼承自 `Object.prototype`，這意味著它帶有 `__proto__`, `toString` 等內建屬性。如果攻擊者將 Key 設為 `__proto__`，可能會導致原型污染；設為 `toString` 則可能導致程式崩潰。`Map` 是專為 Key-Value 設計的結構，將資料與結構分離，避免了這些鍵值衝突與污染問題。",
+      "en": "Plain Objects (`{}`) inherit from `Object.prototype`, meaning they carry built-in properties like `__proto__` and `toString`. If an attacker sets the Key to `__proto__`, it can cause prototype pollution; setting it to `toString` might crash the program. `Map` is a structure designed specifically for Key-Value pairs, separating data from structure, thus avoiding these key collisions and pollution issues.",
+      "wg": [
+        {
+          "t": "內建屬性",
+          "en": "built-in properties",
+          "ps": "noun"
+        },
+        {
+          "t": "分離",
+          "en": "separate",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "6",
+    "level": "Medium",
+    "keywords": "JWT,Authentication,Security Anti-pattern",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "// Frontend Code\nconst token = localStorage.getItem('token');\nconst payload = JSON.parse(atob(token.split('.')[1]));\n\nif (payload.isAdmin) {\n  showAdminDashboard();\n}",
+    "question": [
+      {
+        "t": "這段前端程式碼根據 JWT 的 payload 決定是否顯示管理員介面。請指出這種做法的主要安全隱憂。",
+        "en": "This frontend code decides whether to show the admin dashboard based on the JWT payload. Identify the main security concern with this approach.",
+        "wg": [
+          {
+            "t": "隱憂",
+            "en": "concern / hidden worry",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "使用 `atob` 解碼 Base64 效能太差。",
+        "en": "Using `atob` to decode Base64 has poor performance.",
+        "wg": []
+      },
+      {
+        "t": "前端的檢查僅是為了使用者體驗（UX），若後端 API 沒有獨立驗證 Token 簽章與權限，攻擊者可輕易偽造 Token 存取資料。",
+        "en": "Frontend checks are only for User Experience (UX); if the backend API does not independently verify the Token signature and permissions, attackers can easily forge Tokens to access data.",
+        "wg": [
+          {
+            "t": "偽造",
+            "en": "forge",
+            "ps": "verb"
+          },
+          {
+            "t": "簽章",
+            "en": "signature",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "JWT 不應該存放在 `localStorage`，這會直接導致 CSRF 攻擊。",
+        "en": "JWT should not be stored in `localStorage` as this directly leads to CSRF attacks.",
+        "wg": []
+      },
+      {
+        "t": "`JSON.parse` 容易受到原型污染攻擊。",
+        "en": "`JSON.parse` is vulnerable to prototype pollution attacks.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "前端程式碼是不可信的，使用者可以任意修改前端邏輯或手動發送 API 請求。雖然在前端解碼 JWT 檢查 `isAdmin` 可以控制 UI 顯示，但這不能作為安全控制。真正的安全性依賴於後端在收到請求時，驗證 JWT 的簽章（Signature）是否有效以及該用戶是否具備操作權限。",
+      "en": "Frontend code is untrusted; users can arbitrarily modify frontend logic or manually send API requests. While decoding JWT on the frontend to check `isAdmin` helps with UI control, it cannot serve as a security control. True security relies on the backend verifying the JWT signature's validity and the user's permissions upon receiving a request.",
+      "wg": [
+        {
+          "t": "依賴於",
+          "en": "rely on",
+          "ps": "verb phrase"
+        }
+      ]
+    }
+  },
+  {
+    "no": "7",
+    "level": "Medium",
+    "keywords": "Supply Chain, npm, Security, Dependencies",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在現代 JavaScript 開發中，「供應鏈風險（Supply Chain Risk）」是不可忽視的一環。下列哪一種做法最能有效降低惡意程式碼透過 `node_modules` 進入生產環境的風險？",
+        "en": "In modern JavaScript development, 'Supply Chain Risk' is a crucial aspect. Which of the following practices is most effective in mitigating the risk of malicious code entering production via `node_modules`?",
+        "wg": [
+          {
+            "t": "供應鏈風險",
+            "en": "Supply Chain Risk",
+            "ps": "noun phrase"
+          },
+          {
+            "t": "惡意程式碼",
+            "en": "malicious code",
+            "ps": "noun phrase"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "僅使用每週下載量超過 100 萬次的熱門套件，因為多人使用代表絕對安全。",
+        "en": "Only use popular packages with over 1 million weekly downloads, as high usage implies absolute security.",
+        "wg": []
+      },
+      {
+        "t": "在 CI/CD 流程中執行 `npm audit`，鎖定 `package-lock.json`，並使用工具（如 Snyk 或 Dependabot）監控依賴漏洞。",
+        "en": "Run `npm audit` in CI/CD, lock versions with `package-lock.json`, and use tools (like Snyk or Dependabot) to monitor dependency vulnerabilities.",
+        "wg": [
+          {
+            "t": "依賴漏洞",
+            "en": "dependency vulnerabilities",
+            "ps": "noun phrase"
+          }
+        ]
+      },
+      {
+        "t": "將 `node_modules` 資料夾直接 commit 到 Git 版控中，以確保檔案不會被篡改。",
+        "en": "Commit the `node_modules` folder directly to Git version control to ensure files are not tampered with.",
+        "wg": []
+      },
+      {
+        "t": "撰寫單元測試（Unit Tests）來檢查所有第三方套件的內部程式碼邏輯。",
+        "en": "Write Unit Tests to verify the internal logic of all third-party packages.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "選項 B 是業界標準做法。`npm audit` 與鎖定檔能確保版本一致並偵測已知漏洞，自動化工具則能持續監控新風險。選項 A 是錯誤的，熱門套件也可能被植入惡意程式碼；選項 C 會導致儲存庫過大且無法解決上游污染問題；選項 D 不切實際，開發者無法測試所有依賴的內部邏輯。",
+      "en": "Option B is the industry standard. `npm audit` and lockfiles ensure version consistency and detect known vulnerabilities, while automated tools provide continuous monitoring. Option A is incorrect as popular packages can still be compromised. Option C bloats the repository and doesn't solve upstream pollution. Option D is impractical as developers cannot test the internal logic of all dependencies.",
+      "wg": []
+    }
+  },
+  {
+    "no": "8",
+    "level": "Medium",
+    "keywords": "XSS, LocalStorage, Cookies, Security, Authentication",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在設計 SPA（單頁應用程式）的驗證機制時，為什麼安全檢查清單通常建議將敏感的 Access Token 儲存在 `HttpOnly Cookie`，而非 `localStorage`？",
+        "en": "When designing authentication for an SPA (Single Page Application), why does the security checklist generally recommend storing sensitive Access Tokens in `HttpOnly Cookies` rather than `localStorage`?",
+        "wg": [
+          {
+            "t": "敏感的",
+            "en": "sensitive",
+            "ps": "adjective"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "因為 `localStorage` 的儲存空間比 Cookie 小，無法存放較長的 JWT 字串。",
+        "en": "Because `localStorage` has less storage capacity than Cookies and cannot store long JWT strings.",
+        "wg": []
+      },
+      {
+        "t": "因為 `localStorage` 的資料在瀏覽器關閉後會自動消失，不適合保持登入狀態。",
+        "en": "Because data in `localStorage` is automatically cleared when the browser closes, making it unsuitable for persistent login.",
+        "wg": []
+      },
+      {
+        "t": "因為 `localStorage` 可以被頁面上執行的任何 JavaScript 讀取，若網站存在 XSS 漏洞，Token 極易被竊取。",
+        "en": "Because `localStorage` can be read by any JavaScript running on the page. If the site has an XSS vulnerability, the Token is easily stolen.",
+        "wg": [
+          {
+            "t": "竊取",
+            "en": "stolen",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "因為 `HttpOnly Cookie` 傳輸速度比 `localStorage` 快，能提升 API 回應效能。",
+        "en": "Because `HttpOnly Cookies` have faster transmission speeds than `localStorage`, improving API response performance.",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "這是 XSS 防禦的關鍵決策。`localStorage` 對 JavaScript 是完全開放的，一旦發生 XSS，攻擊者可輕易讀取 Token。設定為 `HttpOnly` 的 Cookie 無法被客戶端 JavaScript（如 `document.cookie`）存取，即使發生 XSS，攻擊者也無法直接竊取 Token 內容。",
+      "en": "This is a critical decision for XSS defense. `localStorage` is fully accessible to JavaScript, so if XSS occurs, attackers can easily read the Token. `HttpOnly` Cookies cannot be accessed by client-side JavaScript (e.g., `document.cookie`), so even with XSS, the attacker cannot directly steal the Token content.",
+      "wg": [
+        {
+          "t": "客戶端",
+          "en": "client-side",
+          "ps": "adjective"
+        }
+      ]
+    }
+  },
+  {
+    "no": "9",
+    "level": "Easy",
+    "keywords": "Frontend Security, HTML, Phishing, Tabnabbing",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "<!-- User provided link in a React component -->\n<a href={props.website} target=\"_blank\">\n  Visit Website\n</a>",
+    "question": [
+      {
+        "t": "上述程式碼存在一個常見的前端安全隱憂。當使用者點擊連結開啟新分頁時，新頁面可以透過 `window.opener` 控制原頁面（例如將原頁面導向釣魚網站）。請問應如何修正？",
+        "en": "The code snippet above contains a common frontend security risk. When a user clicks the link to open a new tab, the new page can control the original page via `window.opener` (e.g., redirecting it to a phishing site). How should this be fixed?",
+        "wg": [
+          {
+            "t": "釣魚網站",
+            "en": "phishing site",
+            "ps": "noun phrase"
+          },
+          {
+            "t": "導向",
+            "en": "redirect",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "移除 `target=\"_blank\"`，強制在當前頁面開啟連結。",
+        "en": "Remove `target=\"_blank\"` to force opening the link in the current page.",
+        "wg": []
+      },
+      {
+        "t": "加入 `rel=\"noopener noreferrer\"` 屬性。",
+        "en": "Add the `rel=\"noopener noreferrer\"` attribute.",
+        "wg": []
+      },
+      {
+        "t": "使用 JavaScript 的 `window.open(url)` 來取代 `<a>` 標籤。",
+        "en": "Use JavaScript's `window.open(url)` to replace the `<a>` tag.",
+        "wg": []
+      },
+      {
+        "t": "在連結點擊事件中加入 `e.preventDefault()`。",
+        "en": "Add `e.preventDefault()` in the link click event.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "這是被稱為 Reverse Tabnabbing 的攻擊手法。加入 `rel=\"noopener noreferrer\"` 可以切斷新頁面與原頁面的連結（`window.opener` 會變成 null），防止惡意頁面操縱原視窗。",
+      "en": "This is known as a Reverse Tabnabbing attack. Adding `rel=\"noopener noreferrer\"` severs the link between the new page and the original page (`window.opener` becomes null), preventing the malicious page from manipulating the original window.",
+      "wg": [
+        {
+          "t": "操縱",
+          "en": "manipulating",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "10",
+    "level": "Medium",
+    "keywords": "Backend Security, SQL Injection, Node.js, Database",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "const userId = req.body.id;\n// Vulnerable SQL query construction\nconst query = `SELECT * FROM users WHERE id = '${userId}'`;\ndb.execute(query);",
+    "question": [
+      {
+        "t": "即便使用了 ES6 的 Template Literal（樣板字面值），上述 Node.js 後端程式碼仍然存在嚴重的安全漏洞。請問該漏洞是什麼？以及正確的修復方式為何？",
+        "en": "Even with ES6 Template Literals, the Node.js backend code above still has a critical security vulnerability. What is the vulnerability, and what is the correct fix?",
+        "wg": [
+          {
+            "t": "樣板字面值",
+            "en": "Template Literal",
+            "ps": "noun phrase"
+          },
+          {
+            "t": "修復方式",
+            "en": "fix / remediation",
+            "ps": "noun phrase"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "漏洞是 XSS；應使用 `encodeURIComponent(userId)` 對輸入進行編碼。",
+        "en": "The vulnerability is XSS; use `encodeURIComponent(userId)` to encode the input.",
+        "wg": []
+      },
+      {
+        "t": "漏洞是 SQL Injection；應使用參數化查詢（Parameterized Queries），如 `db.execute('SELECT * FROM users WHERE id = ?', [userId])`。",
+        "en": "The vulnerability is SQL Injection; use Parameterized Queries, like `db.execute('SELECT * FROM users WHERE id = ?', [userId])`.",
+        "wg": [
+          {
+            "t": "參數化查詢",
+            "en": "Parameterized Queries",
+            "ps": "noun phrase"
+          }
+        ]
+      },
+      {
+        "t": "漏洞是 Prototype Pollution；應檢查 `userId` 是否包含 `__proto__`。",
+        "en": "The vulnerability is Prototype Pollution; check if `userId` contains `__proto__`.",
+        "wg": []
+      },
+      {
+        "t": "漏洞是 Command Injection；應使用 `child_process.execFile` 代替。",
+        "en": "The vulnerability is Command Injection; use `child_process.execFile` instead.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "這是典型的 SQL Injection。Template Literal 只是語法糖，本質上仍是字串串接。攻擊者可以輸入 `' OR '1'='1` 來繞過驗證。唯一安全的做法是使用資料庫驅動程式提供的「參數化查詢」，讓資料庫引擎將輸入視為純資料而非指令。",
+      "en": "This is a classic SQL Injection. Template Literals are just syntactic sugar and essentially perform string concatenation. An attacker can input `' OR '1'='1` to bypass validation. The only secure method is to use 'Parameterized Queries' provided by the database driver, ensuring the database engine treats the input as pure data, not code.",
+      "wg": [
+        {
+          "t": "語法糖",
+          "en": "syntactic sugar",
+          "ps": "noun phrase"
+        },
+        {
+          "t": "字串串接",
+          "en": "string concatenation",
+          "ps": "noun phrase"
+        }
+      ]
+    }
+  },
+  {
+    "no": "11",
+    "level": "Medium",
+    "keywords": "Input Validation, Security Pattern, Zod, Regex",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "關於輸入驗證（Input Validation），為什麼使用 Schema Validation 函式庫（如 Zod, Joi）通常比「自行撰寫 Regex 過濾黑名單關鍵字（如 <script>）」更安全且更佳？",
+        "en": "Regarding Input Validation, why is using a Schema Validation library (like Zod, Joi) generally considered safer and better than 'writing custom Regex to filter blocklisted keywords (like <script>)'?",
+        "wg": [
+          {
+            "t": "黑名單",
+            "en": "blocklist / blacklist",
+            "ps": "noun"
+          },
+          {
+            "t": "過濾",
+            "en": "filter",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "因為 Regex 執行速度太慢，會導致 ReDoS 攻擊。",
+        "en": "Because Regex execution is too slow and can lead to ReDoS attacks.",
+        "wg": []
+      },
+      {
+        "t": "因為黑名單永遠列不完（攻擊者可用各種編碼繞過），而 Schema Validation 採用「白名單」策略，只接受符合預期結構與型別的資料。",
+        "en": "Because blocklists are never exhaustive (attackers can bypass them with various encodings), whereas Schema Validation adopts a 'whitelist' strategy, accepting only data that matches the expected structure and type.",
+        "wg": [
+          {
+            "t": "白名單",
+            "en": "whitelist / allowlist",
+            "ps": "noun"
+          },
+          {
+            "t": "繞過",
+            "en": "bypass",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "因為 Zod 可以自動修復惡意的 SQL Injection 字串，而 Regex 無法做到。",
+        "en": "Because Zod can automatically fix malicious SQL Injection strings, while Regex cannot.",
+        "wg": []
+      },
+      {
+        "t": "因為自行撰寫的 Regex 無法在瀏覽器端執行，只能在後端運作。",
+        "en": "Because custom Regex cannot run in the browser and only works on the backend.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "這是「Sanitize Everything Fallacy」的反模式。試圖過濾所有壞東西（黑名單）極難成功，因為攻擊手法層出不窮。Schema Validation 定義了資料「應該長什麼樣子」（白名單），不符合的直接拒絕，這是更嚴謹且安全的防禦策略。",
+      "en": "This relates to the 'Sanitize Everything Fallacy' anti-pattern. Trying to filter out all bad things (blocklisting) is rarely successful because attack vectors are constantly evolving. Schema Validation defines what the data 'should look like' (allowlisting) and rejects anything else, which is a stricter and safer defense strategy.",
+      "wg": [
+        {
+          "t": "反模式",
+          "en": "anti-pattern",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "12",
+    "level": "Easy",
+    "keywords": "Anti-pattern, eval, Security, JSON",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "// Parsing a non-standard JSON string from an external API\nconst data = eval('(' + responseString + ')');",
+    "question": [
+      {
+        "t": "在 Code Review 中，你發現同事使用了 `eval()` 來解析格式不標準的 JSON 字串。為什麼這被視為極度危險的做法（Anti-pattern），以及應建議改用什麼方式？",
+        "en": "During a Code Review, you notice a colleague using `eval()` to parse a non-standard JSON string. Why is this considered an extremely dangerous practice (Anti-pattern), and what should you suggest instead?",
+        "wg": [
+          {
+            "t": "極度危險",
+            "en": "extremely dangerous",
+            "ps": "adjective phrase"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "危險是因為 `eval` 效能極差；應建議改用 `new Function()`。",
+        "en": "Dangerous because `eval` has poor performance; suggest using `new Function()` instead.",
+        "wg": []
+      },
+      {
+        "t": "危險是因為 `eval` 會執行字串中的任意程式碼，若 `responseString` 包含惡意指令，系統將被入侵；應建議改用安全的 Parser 或修正資料來源格式。",
+        "en": "Dangerous because `eval` executes arbitrary code in the string. If `responseString` contains malicious commands, the system will be compromised; suggest using a secure Parser or fixing the data source format.",
+        "wg": [
+          {
+            "t": "任意程式碼",
+            "en": "arbitrary code",
+            "ps": "noun phrase"
+          },
+          {
+            "t": "入侵",
+            "en": "compromised",
+            "ps": "verb/adjective"
+          }
+        ]
+      },
+      {
+        "t": "危險是因為 `eval` 無法處理 Unicode 字元；應建議使用 `JSON.stringify()`。",
+        "en": "Dangerous because `eval` cannot handle Unicode characters; suggest using `JSON.stringify()`.",
+        "wg": []
+      },
+      {
+        "t": "危險是因為 `eval` 在嚴格模式（Strict Mode）下會拋出錯誤；應建議移除 `'use strict'`。",
+        "en": "Dangerous because `eval` throws errors in Strict Mode; suggest removing `'use strict'`.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "`eval()` 會將字串當作 JavaScript 程式碼執行。如果輸入資料來自不可信來源，攻擊者可以注入惡意程式碼（RCE）。`new Function` 也有類似風險。正確做法是使用標準的 `JSON.parse`，若格式非標準，應使用專門的 Parser 庫而非執行它。",
+      "en": "`eval()` executes the string as JavaScript code. If the input comes from an untrusted source, attackers can inject malicious code (RCE). `new Function` carries similar risks. The correct approach is to use standard `JSON.parse`. If the format is non-standard, use a dedicated parser library instead of executing it.",
+      "wg": [
+        {
+          "t": "不可信來源",
+          "en": "untrusted source",
+          "ps": "noun phrase"
+        }
+      ]
+    }
+  }
+]

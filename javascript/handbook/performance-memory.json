@@ -1,0 +1,808 @@
+[
+  {
+    "no": "1",
+    "level": "Hard",
+    "keywords": "Memory Leak,DOM,Detached DOM Tree,GC",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "const parent = document.getElementById('parent-list'); // <ul>\nconst child = document.getElementById('first-item');   // <li> inside <ul>\n\n// Action: Remove parent from the document\ndocument.body.removeChild(parent);\n\n// We clear the reference to parent, but keep child\nparent = null;\nconsole.log(child); // We still hold this reference",
+    "question": [
+      {
+        "t": "請分析上述程式碼。雖然 `parent` 變數已被設為 `null`，且該 DOM 樹已從文件中移除，但變數 `child` 仍然被保留。請問此時記憶體中的狀況為何？",
+        "en": "Analyze the code above. Although the `parent` variable is set to `null` and the DOM tree is removed from the document, the `child` variable is still retained. What is the status of the memory at this point?",
+        "wg": [
+          {
+            "t": "分離的 DOM 樹",
+            "en": "Detached DOM Tree",
+            "ps": "noun"
+          },
+          {
+            "t": "引用",
+            "en": "reference",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "只有 `child` (<li>) 節點會佔用記憶體，父節點 `<ul>` 會被回收。",
+        "en": "Only the `child` (<li>) node occupies memory; the parent `<ul>` is garbage collected.",
+        "wg": []
+      },
+      {
+        "t": "整個被移除的 DOM 樹（包含 `<ul>` 及其所有子節點）都無法被回收，因為 `child` 引用了父節點。",
+        "en": "The entire removed DOM tree (including `<ul>` and all its children) cannot be garbage collected because `child` references the parent.",
+        "wg": []
+      },
+      {
+        "t": "只有 `child` 和 `parent` 會保留在記憶體中，其他兄弟節點 (siblings) 會被回收。",
+        "en": "Only `child` and `parent` remain in memory; other sibling nodes are garbage collected.",
+        "wg": []
+      },
+      {
+        "t": "瀏覽器會自動偵測 `parent` 已從 DOM 移除，強制回收所有相關節點，`child` 變數會變成 undefined。",
+        "en": "The browser automatically detects `parent` is removed from DOM and forces GC on all related nodes; the `child` variable becomes undefined.",
+        "wg": []
+      }
+    ],
+    "answer": "整個被移除的 DOM 樹（包含 `<ul>` 及其所有子節點）都無法被回收，因為 `child` 引用了父節點。",
+    "why": {
+      "t": "這是典型的「分離 DOM 樹 (Detached DOM Tree)」記憶體洩漏。DOM 節點之間是雙向連結的（子節點透過 `parentNode` 指向父節點）。只要你持有樹中「任何一個」節點的引用，Garbage Collector 就無法回收整棵樹，導致原本應該釋放的大量記憶體（如父容器與其他兄弟節點）持續被佔用。",
+      "en": "This is a classic 'Detached DOM Tree' memory leak. DOM nodes are doubly linked (children point to parents via `parentNode`). As long as you hold a reference to *any* node in the tree, the Garbage Collector cannot reclaim the entire tree. This causes the memory for the whole structure (including the parent container and other siblings) to remain occupied.",
+      "wg": [
+        {
+          "t": "雙向連結",
+          "en": "doubly linked",
+          "ps": "adjective"
+        },
+        {
+          "t": "記憶體洩漏",
+          "en": "memory leak",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "2",
+    "level": "Medium",
+    "keywords": "Reflow,Layout Thrashing,Performance,DOM",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "// Scenario: We want to increase the width of all elements by 10px\nconst elements = document.querySelectorAll('.box');\n\nfor (let i = 0; i < elements.length; i++) {\n  const width = elements[i].offsetWidth;  // Read\n  elements[i].style.width = (width + 10) + 'px'; // Write\n}",
+    "question": [
+      {
+        "t": "上述程式碼在處理大量元素時會導致嚴重的效能問題。請問這個現象的專有名詞是什麼？其底層原因為何？",
+        "en": "The code above causes severe performance issues when handling many elements. What is the technical term for this phenomenon, and what is the underlying cause?",
+        "wg": [
+          {
+            "t": "效能問題",
+            "en": "performance issues",
+            "ps": "noun"
+          },
+          {
+            "t": "底層原因",
+            "en": "underlying cause",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "Memory Leak (記憶體洩漏)：因為迴圈建立了過多的 Closure。",
+        "en": "Memory Leak: Because the loop creates too many closures.",
+        "wg": []
+      },
+      {
+        "t": "Event Bubbling (事件冒泡)：修改樣式觸發了過多的事件監聽器。",
+        "en": "Event Bubbling: Style changes trigger too many event listeners.",
+        "wg": []
+      },
+      {
+        "t": "Layout Thrashing (佈局抖動)：交錯的讀取與寫入強迫瀏覽器在每次迴圈都執行同步 Reflow。",
+        "en": "Layout Thrashing: Interleaved reads and writes force the browser to perform a synchronous Reflow in every iteration.",
+        "wg": [
+          {
+            "t": "佈局抖動",
+            "en": "Layout Thrashing",
+            "ps": "noun"
+          },
+          {
+            "t": "同步重排",
+            "en": "synchronous Reflow",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "Stack Overflow (堆疊溢位)：遞迴深度過深導致。",
+        "en": "Stack Overflow: Caused by excessive recursion depth.",
+        "wg": []
+      }
+    ],
+    "answer": "Layout Thrashing (佈局抖動)：交錯的讀取與寫入強迫瀏覽器在每次迴圈都執行同步 Reflow。",
+    "why": {
+      "t": "當你在迴圈中先讀取佈局屬性（如 `offsetWidth`，這需要最新的 Layout 資訊），緊接著修改樣式（這會讓 Layout 失效），瀏覽器為了在下一次迴圈讀取到正確數值，被迫立即執行「強制同步佈局 (Forced Synchronous Layout)」。這種反覆的計算稱為 Layout Thrashing。",
+      "en": "When you read a layout property (like `offsetWidth`, which requires up-to-date layout info) and immediately modify styles (which invalidates the layout) inside a loop, the browser is forced to perform a 'Forced Synchronous Layout' to ensure the next read gets the correct value. This repetitive calculation is called Layout Thrashing.",
+      "wg": [
+        {
+          "t": "強制同步佈局",
+          "en": "Forced Synchronous Layout",
+          "ps": "noun"
+        },
+        {
+          "t": "失效",
+          "en": "invalidate",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "3",
+    "level": "Advanced",
+    "keywords": "V8,Hidden Classes,Optimization,Deoptimization",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "class Point {\n  constructor(x, y) {\n    this.x = x;\n    this.y = y;\n  }\n}\n\nconst p1 = new Point(1, 2);\ndelete p1.x; // <--- Critical Operation",
+    "question": [
+      {
+        "t": "在 V8 引擎的最佳化機制中，執行 `delete p1.x` 會對物件 `p1` 的存取效能產生什麼負面影響？",
+        "en": "In the context of V8 engine optimization, what negative impact does executing `delete p1.x` have on the access performance of object `p1`?",
+        "wg": [
+          {
+            "t": "最佳化機制",
+            "en": "optimization mechanism",
+            "ps": "noun"
+          },
+          {
+            "t": "負面影響",
+            "en": "negative impact",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "沒有影響，V8 會自動壓縮記憶體空間。",
+        "en": "No impact; V8 automatically compacts the memory space.",
+        "wg": []
+      },
+      {
+        "t": "會導致 `p1` 退化為「字典模式 (Dictionary Mode)」，失去 Hidden Classes 的快速查找優勢。",
+        "en": "It causes `p1` to degrade into 'Dictionary Mode', losing the fast lookup advantage of Hidden Classes.",
+        "wg": [
+          {
+            "t": "字典模式",
+            "en": "Dictionary Mode",
+            "ps": "noun"
+          },
+          {
+            "t": "快速查找",
+            "en": "fast lookup",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "會觸發全域的 Garbage Collection，導致主執行緒暫停。",
+        "en": "It triggers a global Garbage Collection, causing the main thread to pause.",
+        "wg": []
+      },
+      {
+        "t": "只會影響 `p1.y` 的數值，不會影響存取速度。",
+        "en": "It only affects the value of `p1.y` but does not affect access speed.",
+        "wg": []
+      }
+    ],
+    "answer": "會導致 `p1` 退化為「字典模式 (Dictionary Mode)」，失去 Hidden Classes 的快速查找優勢。",
+    "why": {
+      "t": "V8 引擎依賴「隱藏類別 (Hidden Classes)」來加速屬性存取。當你使用 `delete` 運算子移除屬性時，會改變物件的形狀 (Shape)，導致 V8 無法共用 Hidden Class，通常會將該物件降級為雜湊表式的「字典模式」，大幅降低屬性存取速度。建議將屬性設為 `null` 或 `undefined` 來代替 `delete`。",
+      "en": "The V8 engine relies on 'Hidden Classes' to accelerate property access. When you use the `delete` operator to remove a property, it changes the object's Shape. This prevents V8 from sharing Hidden Classes and typically degrades the object to a hash-table-based 'Dictionary Mode', significantly slowing down property access. It is recommended to set properties to `null` or `undefined` instead of using `delete`.",
+      "wg": [
+        {
+          "t": "隱藏類別",
+          "en": "Hidden Classes",
+          "ps": "noun"
+        },
+        {
+          "t": "降級",
+          "en": "degrade",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "4",
+    "level": "Medium",
+    "keywords": "WeakMap,Memory Management,GC",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "let el = document.getElementById('btn');\nconst cache = new WeakMap();\n\n// Store metadata associated with the DOM element\ncache.set(el, { clicks: 0 });\n\n// Later in the app...\nel.remove();\nel = null;\n// No other references to the DOM element exist",
+    "question": [
+      {
+        "t": "為什麼在關聯 DOM 元素與額外資料時，使用 `WeakMap` 比使用普通 `Map` 或物件更好？",
+        "en": "Why is using `WeakMap` better than using a regular `Map` or object when associating extra data with DOM elements?",
+        "wg": [
+          {
+            "t": "關聯",
+            "en": "associating",
+            "ps": "verb"
+          },
+          {
+            "t": "額外資料",
+            "en": "extra data",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "WeakMap 的讀寫效能比 Map 快兩倍。",
+        "en": "WeakMap has 2x faster read/write performance than Map.",
+        "wg": []
+      },
+      {
+        "t": "WeakMap 支援字串作為 Key，使用上更靈活。",
+        "en": "WeakMap supports strings as Keys, making it more flexible.",
+        "wg": []
+      },
+      {
+        "t": "當 Key (DOM 元素) 被回收時，WeakMap 中的 Value 也會自動被 GC 回收，避免 Memory Leak。",
+        "en": "When the Key (DOM element) is garbage collected, the Value in the WeakMap is also automatically GC'd, preventing memory leaks.",
+        "wg": [
+          {
+            "t": "自動被回收",
+            "en": "automatically GC'd",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "WeakMap 可以被序列化 (JSON.stringify)，方便儲存到 LocalStorage。",
+        "en": "WeakMap can be serialized (JSON.stringify) for easy storage in LocalStorage.",
+        "wg": []
+      }
+    ],
+    "answer": "當 Key (DOM 元素) 被回收時，WeakMap 中的 Value 也會自動被 GC 回收，避免 Memory Leak。",
+    "why": {
+      "t": "WeakMap 對其 Key 持有的是「弱引用 (Weak Reference)」。這意味著如果該 Key (這裡是 DOM 元素) 在程式其他地方都沒有被引用，GC 就會回收它，同時 WeakMap 也會自動釋放對應的 Value。若是使用普通 Map，Map 本身會強引用 Key，導致 DOM 元素即使從文件中移除也無法被回收。",
+      "en": "WeakMap holds a 'Weak Reference' to its Keys. This means if the Key (here, the DOM element) is not referenced anywhere else in the program, the GC will reclaim it, and the WeakMap will automatically release the corresponding Value. With a regular Map, the Map itself holds a strong reference to the Key, preventing the DOM element from being collected even after removal from the document.",
+      "wg": [
+        {
+          "t": "弱引用",
+          "en": "Weak Reference",
+          "ps": "noun"
+        },
+        {
+          "t": "強引用",
+          "en": "strong reference",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "5",
+    "level": "Medium",
+    "keywords": "Chrome DevTools,Memory Leak,Debugging,Workflow",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在使用 Chrome DevTools 排查記憶體洩漏時，通常會使用「三快照法 (3-Snapshot Technique)」。請問在比較 Snapshot 3 (操作並強制 GC 後) 與 Snapshot 1 (基準狀態) 時，我們主要尋找的是什麼？",
+        "en": "When investigating memory leaks using Chrome DevTools, the '3-Snapshot Technique' is often used. When comparing Snapshot 3 (after action and forced GC) with Snapshot 1 (base state), what are we primarily looking for?",
+        "wg": [
+          {
+            "t": "排查",
+            "en": "investigate",
+            "ps": "verb"
+          },
+          {
+            "t": "基準狀態",
+            "en": "base state",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "尋找所有被分配的字串變數。",
+        "en": "Looking for all allocated string variables.",
+        "wg": []
+      },
+      {
+        "t": "尋找 Snapshot 1 與 2 之間新增，但在 Snapshot 3 依然存在的物件 (Objects allocated between Snapshot 1 and 2)。",
+        "en": "Looking for objects allocated between Snapshot 1 and 2 that still exist in Snapshot 3.",
+        "wg": []
+      },
+      {
+        "t": "尋找最大的陣列，無論它何時被建立。",
+        "en": "Looking for the largest arrays, regardless of when they were created.",
+        "wg": []
+      },
+      {
+        "t": "尋找 CPU 使用率最高的函式。",
+        "en": "Looking for the function with the highest CPU usage.",
+        "wg": []
+      }
+    ],
+    "answer": "尋找 Snapshot 1 與 2 之間新增，但在 Snapshot 3 依然存在的物件 (Objects allocated between Snapshot 1 and 2)。",
+    "why": {
+      "t": "三快照法的邏輯是：Snapshot 1 是起點，執行操作後（Snapshot 2），再執行強制 GC（Snapshot 3）。理論上，操作結束並 GC 後，記憶體應回到接近 Snapshot 1 的狀態。如果過濾器顯示有物件是在「Snapshot 1 與 2 之間產生」且「在 Snapshot 3 仍存活」，這些通常就是洩漏的物件。",
+      "en": "The logic of the 3-Snapshot Technique is: Snapshot 1 is the baseline. After performing actions (Snapshot 2) and forcing GC (Snapshot 3), memory should theoretically return to a state close to Snapshot 1. If the filter shows objects that were 'allocated between Snapshot 1 and 2' and are 'still alive in Snapshot 3', these are typically the leaked objects.",
+      "wg": [
+        {
+          "t": "存活",
+          "en": "alive/survive",
+          "ps": "verb"
+        },
+        {
+          "t": "過濾器",
+          "en": "filter",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "6",
+    "level": "Medium",
+    "keywords": "Closure, Memory Leak, Event Listener, Timer",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "function setupHandler() {\n  const largeData = new Array(1000000).fill('data');\n  \n  setInterval(() => {\n    // 這裡並沒有直接使用 largeData\n    console.log('Tick');\n  }, 1000);\n}",
+    "question": [
+      {
+        "t": "執行 `setupHandler()` 後，即使該函式執行完畢，`largeData` 佔用的記憶體空間通常仍無法被回收。",
+        "en": "After executing `setupHandler()`, the memory occupied by `largeData` usually cannot be collected even after the function finishes execution.",
+        "wg": []
+      },
+      {
+        "t": "請問造成此現象的主要原因為何？",
+        "en": "What is the primary reason for this phenomenon?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "因為 `largeData` 被宣告為 `const`，常數變數永遠不會被回收。",
+        "en": "Because `largeData` is declared as `const`, and constant variables are never collected.",
+        "wg": []
+      },
+      {
+        "t": "因為 `setInterval` 的回呼函式形成了一個閉包 (Closure)，它捕捉了 `setupHandler` 的整個詞法環境 (Lexical Environment)。",
+        "en": "Because the callback function of `setInterval` forms a closure, which captures the entire lexical environment of `setupHandler`.",
+        "wg": [
+          {
+            "t": "閉包",
+            "en": "Closure",
+            "ps": "noun"
+          },
+          {
+            "t": "詞法環境",
+            "en": "Lexical Environment",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "因為 `setInterval` 會自動將所有變數提升 (Hoist) 到全域物件中。",
+        "en": "Because `setInterval` automatically hoists all variables to the global object.",
+        "wg": []
+      },
+      {
+        "t": "這是 V8 引擎的一個已知 Bug，與程式碼邏輯無關。",
+        "en": "This is a known bug in the V8 engine and is unrelated to the code logic.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "在許多 JavaScript 引擎實作中，只要閉包 (Closure) 存活（此處由 `setInterval` 保持活躍），它所屬的整個 Scope（包含 `largeData`）都可能被保留，即使該變數未被顯式使用。",
+      "en": "In many JavaScript engine implementations, as long as a closure is alive (kept active here by `setInterval`), the entire scope it belongs to (including `largeData`) may be retained, even if the variable is not explicitly used.",
+      "wg": [
+        {
+          "t": "保留",
+          "en": "retained",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "7",
+    "level": "Medium",
+    "keywords": "GC, Reachability, Circular Reference, Mental Model",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "function createCycle() {\n  const objA = {};\n  const objB = {};\n  objA.other = objB;\n  objB.other = objA;\n  return 'Done';\n}\n\ncreateCycle();",
+    "question": [
+      {
+        "t": "在 `createCycle` 函式執行完畢後，`objA` 與 `objB` 互相引用 (Circular Reference)。",
+        "en": "After the `createCycle` function finishes execution, `objA` and `objB` reference each other (Circular Reference).",
+        "wg": [
+          {
+            "t": "互相引用",
+            "en": "reference each other",
+            "ps": "verb phrase"
+          }
+        ]
+      },
+      {
+        "t": "根據現代瀏覽器 GC 的「可觸及性 (Reachability)」演算法，這兩個物件會發生什麼事？",
+        "en": "According to the 'Reachability' algorithm of modern browser GCs, what will happen to these two objects?",
+        "wg": [
+          {
+            "t": "可觸及性",
+            "en": "Reachability",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "因為它們互相引用，引用計數 (Reference Count) 不為零，導致記憶體洩漏。",
+        "en": "Because they reference each other, the reference count is not zero, causing a memory leak.",
+        "wg": []
+      },
+      {
+        "t": "它們會被回收，因為從根 (Roots) 出發無法觸及這兩個物件。",
+        "en": "They will be collected because they are unreachable from the Roots.",
+        "wg": [
+          {
+            "t": "根",
+            "en": "Roots",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "它們會被保留，直到頁面重新整理為止。",
+        "en": "They will be retained until the page is refreshed.",
+        "wg": []
+      },
+      {
+        "t": "只有 `objA` 會被回收，`objB` 會因為被 `objA` 引用而保留。",
+        "en": "Only `objA` will be collected; `objB` will be retained because it is referenced by `objA`.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "現代 GC 使用「標記清除 (Mark-and-Sweep)」或類似演算法，判斷標準是「是否能從 Roots (如 Window) 連到該物件」。",
+      "en": "Modern GCs use 'Mark-and-Sweep' or similar algorithms, where the criterion is 'whether the object can be reached from Roots (like Window)'.",
+      "wg": []
+    }
+  },
+  {
+    "no": "8",
+    "level": "Medium",
+    "keywords": "DOM, Performance, Batch Updates, DocumentFragment",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "const list = document.getElementById('list');\nconst fragment = document.createDocumentFragment();\n\nfor (let i = 0; i < 1000; i++) {\n  const li = document.createElement('li');\n  li.textContent = `Item ${i}`;\n  fragment.appendChild(li);\n}\n\nlist.appendChild(fragment);",
+    "question": [
+      {
+        "t": "為什麼使用 `DocumentFragment` 進行批次更新，比在迴圈中直接執行 `list.appendChild(li)` 效能更好？",
+        "en": "Why does using `DocumentFragment` for batch updates perform better than executing `list.appendChild(li)` directly inside the loop?",
+        "wg": [
+          {
+            "t": "批次更新",
+            "en": "batch updates",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "因為 `DocumentFragment` 會自動壓縮 HTML 內容。",
+        "en": "Because `DocumentFragment` automatically compresses the HTML content.",
+        "wg": []
+      },
+      {
+        "t": "因為 `DocumentFragment` 存在於記憶體中而非 DOM 樹上，操作它不會觸發瀏覽器的 Reflow 與 Repaint。",
+        "en": "Because `DocumentFragment` exists in memory rather than the DOM tree, manipulating it does not trigger browser Reflow and Repaint.",
+        "wg": [
+          {
+            "t": "存在於",
+            "en": "exists in",
+            "ps": "verb phrase"
+          }
+        ]
+      },
+      {
+        "t": "因為 `DocumentFragment` 是多執行緒執行的，不會阻塞主執行緒。",
+        "en": "Because `DocumentFragment` is executed in a multi-threaded manner and does not block the main thread.",
+        "wg": []
+      },
+      {
+        "t": "因為它使用了 `WeakMap` 來管理節點引用。",
+        "en": "Because it uses `WeakMap` to manage node references.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "直接操作 DOM 就像「過橋」繳過路費，頻繁操作會導致效能低落；`DocumentFragment` 允許我們在記憶體中組裝好再一次性「過橋」，將 Reflow 次數降為一次。",
+      "en": "Directly manipulating the DOM is like 'crossing a bridge' and paying a toll; frequent operations degrade performance. `DocumentFragment` allows us to assemble everything in memory and 'cross the bridge' once, reducing Reflows to a single occurrence.",
+      "wg": [
+        {
+          "t": "過路費",
+          "en": "toll",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "9",
+    "level": "Medium",
+    "keywords": "Virtualization, DOM, Performance, Rendering",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在處理長列表 (Long List) 時，使用「虛擬化 (Virtualization)」技術的主要效能優勢為何？",
+        "en": "When dealing with long lists, what is the primary performance advantage of using 'Virtualization' techniques?",
+        "wg": [
+          {
+            "t": "虛擬化",
+            "en": "Virtualization",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "它可以將資料儲存在 LocalStorage 中，減少網路請求。",
+        "en": "It can store data in LocalStorage, reducing network requests.",
+        "wg": []
+      },
+      {
+        "t": "它將 DOM 節點數量控制在可見範圍內（如 20 個），大幅降低樣式計算 (Style Recalculation) 與記憶體消耗。",
+        "en": "It keeps the number of DOM nodes within the visible range (e.g., 20), significantly reducing Style Recalculation and memory consumption.",
+        "wg": [
+          {
+            "t": "樣式計算",
+            "en": "Style Recalculation",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "它會自動將列表渲染轉移到 Web Worker 執行。",
+        "en": "It automatically offloads list rendering to a Web Worker.",
+        "wg": []
+      },
+      {
+        "t": "它能防止 V8 引擎對物件形狀進行 Deoptimization。",
+        "en": "It prevents the V8 engine from deoptimizing object shapes.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "DOM 節點過多會拖慢瀏覽器的 Layout 與 Paint 過程。虛擬化確保只有使用者看得到的元素才存在於 DOM 中，保持 DOM 輕量。",
+      "en": "Too many DOM nodes slow down the browser's Layout and Paint processes. Virtualization ensures that only elements visible to the user exist in the DOM, keeping it lightweight.",
+      "wg": [
+        {
+          "t": "輕量",
+          "en": "lightweight",
+          "ps": "adjective"
+        }
+      ]
+    }
+  },
+  {
+    "no": "10",
+    "level": "Advanced",
+    "keywords": "Chrome DevTools, Memory Leak, Debugging, Retainers",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在使用 Chrome DevTools 的 Memory 面板分析 Heap Snapshot 時，「Retainers (保留者)」區塊提供的資訊有什麼作用？",
+        "en": "When analyzing a Heap Snapshot in Chrome DevTools' Memory panel, what is the purpose of the information provided in the 'Retainers' section?",
+        "wg": [
+          {
+            "t": "保留者",
+            "en": "Retainers",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "顯示該物件佔用的記憶體大小（包含其屬性）。",
+        "en": "Shows the memory size occupied by the object (including its properties).",
+        "wg": []
+      },
+      {
+        "t": "顯示該物件是由哪段程式碼 (Source Code Line) 建立的。",
+        "en": "Shows which line of source code created the object.",
+        "wg": []
+      },
+      {
+        "t": "顯示哪些物件或變數正在引用當前選取的物件，導致它無法被 GC 回收。",
+        "en": "Shows which objects or variables are referencing the currently selected object, preventing it from being collected by GC.",
+        "wg": [
+          {
+            "t": "引用",
+            "en": "referencing",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "顯示該物件被 GC 回收的預估時間。",
+        "en": "Shows the estimated time when the object will be collected by GC.",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "Retainers 視圖展示了物件的引用鏈 (Reference Chain)。要修復記憶體洩漏，你需要透過此視圖找出是誰（例如某個全域變數或閉包）在「抓著」該物件不放。",
+      "en": "The Retainers view shows the object's reference chain. To fix a memory leak, you need to use this view to identify who (e.g., a global variable or closure) is 'holding onto' the object.",
+      "wg": [
+        {
+          "t": "引用鏈",
+          "en": "Reference Chain",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "11",
+    "level": "Medium",
+    "keywords": "Web Worker, Main Thread, Performance, Optimization",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "當網頁需要進行繁重的計算（如大型陣列排序或圖像處理）時，為了避免畫面凍結 (UI Freeze)，最佳的優化策略是什麼？",
+        "en": "When a web page needs to perform heavy calculations (such as sorting large arrays or image processing), what is the best optimization strategy to avoid UI freezing?",
+        "wg": [
+          {
+            "t": "畫面凍結",
+            "en": "UI Freeze",
+            "ps": "noun"
+          },
+          {
+            "t": "繁重的計算",
+            "en": "heavy calculations",
+            "ps": "noun phrase"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "使用 `setTimeout(..., 0)` 將計算延後執行。",
+        "en": "Use `setTimeout(..., 0)` to defer the execution of the calculation.",
+        "wg": []
+      },
+      {
+        "t": "將計算邏輯移至 Web Worker 中執行，以避免阻塞主執行緒 (Main Thread)。",
+        "en": "Move the calculation logic to a Web Worker to avoid blocking the Main Thread.",
+        "wg": [
+          {
+            "t": "阻塞",
+            "en": "blocking",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "使用 `requestAnimationFrame` 來分割計算。",
+        "en": "Use `requestAnimationFrame` to split the calculation.",
+        "wg": []
+      },
+      {
+        "t": "使用 CSS 的 `will-change` 屬性來加速計算。",
+        "en": "Use the CSS `will-change` property to accelerate the calculation.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "主執行緒負責處理 DOM 渲染與 JS 執行。若 JS 計算過久，會卡住渲染導致頁面無回應。Web Worker 運行在背景執行緒，是處理純計算任務的最佳場所。",
+      "en": "The main thread handles DOM rendering and JS execution. If JS calculations take too long, rendering is blocked, causing the page to become unresponsive. Web Workers run on a background thread and are the best place for pure calculation tasks.",
+      "wg": [
+        {
+          "t": "背景執行緒",
+          "en": "background thread",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "12",
+    "level": "Easy",
+    "keywords": "Anti-pattern, Global Variables, Strict Mode, Memory Leak",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "function processData() {\n  // 忘記宣告變數關鍵字 (var/let/const)\n  tempData = \"This is a leak\";\n}",
+    "question": [
+      {
+        "t": "在非嚴格模式 (Non-strict mode) 下執行上述程式碼，會產生什麼副作用？",
+        "en": "What side effect occurs when executing the above code in non-strict mode?",
+        "wg": [
+          {
+            "t": "副作用",
+            "en": "side effect",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "`tempData` 會變成全域物件 (Window) 的屬性，導致它無法被自動回收，形成記憶體洩漏。",
+        "en": "`tempData` becomes a property of the global object (Window), causing it to not be automatically collected, resulting in a memory leak.",
+        "wg": [
+          {
+            "t": "全域物件",
+            "en": "global object",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "程式會拋出 `ReferenceError` 並停止執行。",
+        "en": "The program will throw a `ReferenceError` and stop execution.",
+        "wg": []
+      },
+      {
+        "t": "`tempData` 會被視為該函式的私有變數，函式結束後自動銷毀。",
+        "en": "`tempData` will be treated as a private variable of the function and automatically destroyed after the function ends.",
+        "wg": []
+      },
+      {
+        "t": "瀏覽器會自動將其轉換為 `let tempData`。",
+        "en": "The browser will automatically convert it to `let tempData`.",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "這是一種常見的反模式 (Anti-pattern)。意外的全域變數會一直存在於 `window` 上，成為 GC 的根 (Root)，導致其佔用的記憶體永遠無法釋放。",
+      "en": "This is a common anti-pattern. Accidental global variables persist on `window`, becoming a GC Root, causing the memory they occupy to never be released.",
+      "wg": [
+        {
+          "t": "反模式",
+          "en": "anti-pattern",
+          "ps": "noun"
+        }
+      ]
+    }
+  }
+]

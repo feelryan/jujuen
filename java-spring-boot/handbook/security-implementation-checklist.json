@@ -1,0 +1,875 @@
+[
+  {
+    "no": "1",
+    "level": "Medium",
+    "keywords": "WebSecurityCustomizer, permitAll, Security Headers, Monitoring",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "public void configure(WebSecurity web) {\n    web.ignoring().requestMatchers(\"/public/**\");\n}",
+    "question": [
+      {
+        "t": "一位開發者為了提升效能，在 `WebSecurityCustomizer` 中使用 `ignoring()` 來設定公開的 API 端點（如上方程式碼所示）。這種做法有什麼潛在的安全隱患？",
+        "en": "A developer uses `ignoring()` in `WebSecurityCustomizer` to configure public API endpoints for performance reasons (as shown in the code snippet). What is the potential security risk of this approach?",
+        "wg": [
+          {
+            "t": "公開的 API 端點",
+            "en": "public API endpoints",
+            "ps": "noun phrase"
+          },
+          {
+            "t": "潛在的安全隱患",
+            "en": "potential security risk",
+            "ps": "noun phrase"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "沒有隱患，這是設定靜態資源與公開 API 的標準做法。",
+        "en": "No risk; this is the standard way to configure static resources and public APIs.",
+        "wg": []
+      },
+      {
+        "t": "這會導致請求完全繞過 Spring Security 過濾器鏈，因此該端點將失去安全 Header（如 HSTS）保護且無法被安全過濾器記錄日誌。",
+        "en": "It causes the request to completely bypass the Spring Security Filter Chain, meaning the endpoint loses security headers (like HSTS) and cannot be logged by security filters.",
+        "wg": [
+          {
+            "t": "過濾器鏈",
+            "en": "Filter Chain",
+            "ps": "noun"
+          },
+          {
+            "t": "繞過",
+            "en": "bypass",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "這會導致 CSRF Token 生成失敗，讓公開端點容易受到攻擊。",
+        "en": "It causes CSRF token generation to fail, leaving public endpoints vulnerable to attacks.",
+        "wg": []
+      },
+      {
+        "t": "這會導致 `AuthenticationManager` 無法初始化，進而影響其他受保護的端點。",
+        "en": "It causes the `AuthenticationManager` to fail initialization, affecting other protected endpoints.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "使用 `web.ignoring()` 會讓請求完全繞過 Security Filter Chain。雖然這對靜態資源（如 CSS/JS）是可接受的，但對於 API 端點，這意味著失去了 Spring Security 提供的安全 Header（如 X-Content-Type-Options, HSTS）以及相關的監控日誌。正確做法是在 `SecurityFilterChain` 中使用 `.permitAll()`。",
+      "en": "Using `web.ignoring()` causes the request to completely bypass the Security Filter Chain. While acceptable for static resources (like CSS/JS), for API endpoints, this means losing security headers provided by Spring Security (e.g., X-Content-Type-Options, HSTS) and relevant monitoring logs. The correct approach is to use `.permitAll()` within the `SecurityFilterChain`.",
+      "wg": [
+        {
+          "t": "靜態資源",
+          "en": "static resources",
+          "ps": "noun phrase"
+        }
+      ]
+    }
+  },
+  {
+    "no": "2",
+    "level": "Hard",
+    "keywords": "CORS, CSRF, Troubleshooting, Configuration",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你的前端應用程式（部署在 `app.com`）試圖呼叫後端 API（部署在 `api.com`）時收到了瀏覽器的 CORS 錯誤。後端工程師決定在 Spring Security 配置中加入 `.csrf(csrf -> csrf.disable())` 來解決此問題。請問這個修正有效嗎？為什麼？",
+        "en": "Your frontend application (deployed at `app.com`) receives a browser CORS error when trying to call the backend API (at `api.com`). The backend engineer decides to add `.csrf(csrf -> csrf.disable())` to the Spring Security configuration to fix this. Is this fix effective, and why?",
+        "wg": [
+          {
+            "t": "修正",
+            "en": "fix",
+            "ps": "noun"
+          },
+          {
+            "t": "有效",
+            "en": "effective",
+            "ps": "adjective"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "有效。CORS 錯誤通常是因為 CSRF Token 驗證失敗引起的，禁用 CSRF 即可解決。",
+        "en": "Effective. CORS errors are usually caused by CSRF token validation failures, so disabling CSRF solves it.",
+        "wg": []
+      },
+      {
+        "t": "無效。CORS 與 CSRF 是不同的機制。必須配置 `.cors()` 並提供正確的 `CorsConfigurationSource` 才能解決跨域問題。",
+        "en": "Ineffective. CORS and CSRF are different mechanisms. You must configure `.cors()` and provide a valid `CorsConfigurationSource` to resolve cross-origin issues.",
+        "wg": [
+          {
+            "t": "跨域問題",
+            "en": "cross-origin issues",
+            "ps": "noun phrase"
+          }
+        ]
+      },
+      {
+        "t": "有效，但僅限於 GET 請求。POST 請求仍然會失敗。",
+        "en": "Effective, but only for GET requests. POST requests will still fail.",
+        "wg": []
+      },
+      {
+        "t": "無效。必須將 `SessionCreationPolicy` 設為 `STATELESS` 才能解決 CORS 問題。",
+        "en": "Ineffective. You must set `SessionCreationPolicy` to `STATELESS` to resolve CORS issues.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "這是常見的誤解。CORS (Cross-Origin Resource Sharing) 是瀏覽器限制跨域存取的機制，需要後端回傳特定的 Header (如 `Access-Control-Allow-Origin`)。CSRF (Cross-Site Request Forgery) 則是防範偽造請求的攻擊。禁用 CSRF 並不會加入 CORS Header，因此無法解決 CORS 錯誤。",
+      "en": "This is a common misconception. CORS (Cross-Origin Resource Sharing) is a browser mechanism restricting cross-origin access, requiring the backend to return specific headers (like `Access-Control-Allow-Origin`). CSRF (Cross-Site Request Forgery) prevents forged request attacks. Disabling CSRF does not add CORS headers and thus cannot resolve CORS errors.",
+      "wg": [
+        {
+          "t": "常見的誤解",
+          "en": "common misconception",
+          "ps": "noun phrase"
+        },
+        {
+          "t": "偽造請求",
+          "en": "forged request",
+          "ps": "noun phrase"
+        }
+      ]
+    }
+  },
+  {
+    "no": "3",
+    "level": "Medium",
+    "keywords": "JWT, Filter Order, Architecture",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "http.addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);",
+    "question": [
+      {
+        "t": "在實作基於 JWT 的無狀態驗證時，為什麼通常建議將自定義的 `JwtAuthenticationFilter` 放置在 `UsernamePasswordAuthenticationFilter` 之前（如程式碼所示）？",
+        "en": "When implementing JWT-based stateless authentication, why is it recommended to place the custom `JwtAuthenticationFilter` before the `UsernamePasswordAuthenticationFilter` (as shown in the code)?",
+        "wg": [
+          {
+            "t": "無狀態驗證",
+            "en": "stateless authentication",
+            "ps": "noun phrase"
+          },
+          {
+            "t": "放置",
+            "en": "place",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "為了確保在執行標準的使用者名稱/密碼登入邏輯之前，先檢查請求是否已攜帶有效的 Token，若有則直接設定 Authentication。",
+        "en": "To ensure that before executing standard username/password login logic, the request is checked for a valid Token, and if present, Authentication is set directly.",
+        "wg": [
+          {
+            "t": "攜帶",
+            "en": "carry/contain",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "因為 `UsernamePasswordAuthenticationFilter` 會強制建立 Session，必須在其之前攔截以防止 Session 建立。",
+        "en": "Because `UsernamePasswordAuthenticationFilter` forces session creation, it must be intercepted beforehand to prevent session creation.",
+        "wg": []
+      },
+      {
+        "t": "這只是慣例，實際上順序並不影響功能，因為 Spring Security 會自動偵測 Token。",
+        "en": "This is just a convention; the order does not actually affect functionality because Spring Security automatically detects the Token.",
+        "wg": []
+      },
+      {
+        "t": "為了讓 JWT Filter 能夠處理登入失敗後的異常轉譯。",
+        "en": "To allow the JWT Filter to handle exception translation after a login failure.",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "Spring Security 的過濾器鏈是有順序的。如果請求攜帶了 JWT，我們希望在系統嘗試進行預設的表單登入（或匿名身分確認）之前，先驗證 Token 並將身分資訊填入 `SecurityContext`。這樣後續的過濾器就會視該請求為「已驗證」，而不會觸發登入流程或拒絕存取。",
+      "en": "The Spring Security filter chain is ordered. If a request carries a JWT, we want to validate the token and populate the `SecurityContext` before the system attempts default form login (or anonymous authentication). This way, subsequent filters treat the request as 'authenticated' without triggering the login flow or denying access.",
+      "wg": [
+        {
+          "t": "觸發",
+          "en": "trigger",
+          "ps": "verb"
+        },
+        {
+          "t": "拒絕存取",
+          "en": "deny access",
+          "ps": "verb phrase"
+        }
+      ]
+    }
+  },
+  {
+    "no": "4",
+    "level": "Medium",
+    "keywords": "Exception Handling, REST API, UX",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "當前端 React 應用程式呼叫你的 Spring Boot API 且 JWT Token 已過期時，前端收到了 HTTP 200 OK 以及一個 HTML 登入頁面的原始碼。這是什麼原因造成的，應如何修復？",
+        "en": "When a frontend React application calls your Spring Boot API with an expired JWT token, it receives an HTTP 200 OK and the source code of an HTML login page. What causes this, and how should it be fixed?",
+        "wg": [
+          {
+            "t": "過期",
+            "en": "expired",
+            "ps": "adjective"
+          },
+          {
+            "t": "原始碼",
+            "en": "source code",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "這是 Spring Security 的預設行為。應實作 `AuthenticationEntryPoint` 來回傳 401 狀態碼與 JSON 錯誤訊息。",
+        "en": "This is Spring Security's default behavior. You should implement `AuthenticationEntryPoint` to return a 401 status code and a JSON error message.",
+        "wg": [
+          {
+            "t": "預設行為",
+            "en": "default behavior",
+            "ps": "noun phrase"
+          }
+        ]
+      },
+      {
+        "t": "這是因為前端沒有正確處理 Redirect。前端應自動解析 HTML 並重新導向。",
+        "en": "This is because the frontend did not handle the Redirect correctly. The frontend should automatically parse the HTML and redirect.",
+        "wg": []
+      },
+      {
+        "t": "這是因為 `SessionCreationPolicy` 被設為 `STATELESS`，導致系統無法記憶使用者狀態。",
+        "en": "This is because `SessionCreationPolicy` is set to `STATELESS`, causing the system to fail to remember user state.",
+        "wg": []
+      },
+      {
+        "t": "這是因為沒有配置 CORS，導致瀏覽器自動將 401 轉換為 200。",
+        "en": "This is because CORS is not configured, causing the browser to automatically convert 401 to 200.",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "Spring Security 預設在驗證失敗時會導向至 `/login` 頁面（對於瀏覽器友善）。但在純 API 場景下，這是不正確的行為。必須自定義 `AuthenticationEntryPoint`，明確地回傳 HTTP 401 狀態碼與 JSON 格式的錯誤內容，讓前端能程式化地處理（例如跳轉回登入畫面或刷新 Token）。",
+      "en": "Spring Security defaults to redirecting to a `/login` page upon authentication failure (browser-friendly). However, in a pure API scenario, this is incorrect behavior. You must customize the `AuthenticationEntryPoint` to explicitly return an HTTP 401 status code and JSON error content, allowing the frontend to handle it programmatically (e.g., redirecting to login or refreshing the token).",
+      "wg": [
+        {
+          "t": "程式化地處理",
+          "en": "handle programmatically",
+          "ps": "verb phrase"
+        }
+      ]
+    }
+  },
+  {
+    "no": "5",
+    "level": "Medium",
+    "keywords": "Stateless, Configuration, CSRF",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在建置一個完全無狀態（Stateless）的 REST API 時，下列哪一組 Spring Security 配置是必要且正確的？",
+        "en": "When building a completely stateless REST API, which of the following Spring Security configurations is necessary and correct?",
+        "wg": [
+          {
+            "t": "完全無狀態",
+            "en": "completely stateless",
+            "ps": "adjective phrase"
+          },
+          {
+            "t": "必要且正確",
+            "en": "necessary and correct",
+            "ps": "adjective phrase"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "`sessionCreationPolicy(STATELESS)` 並且 `csrf().disable()`",
+        "en": "`sessionCreationPolicy(STATELESS)` and `csrf().disable()`",
+        "wg": []
+      },
+      {
+        "t": "`sessionCreationPolicy(IF_REQUIRED)` 並且 `csrf().disable()`",
+        "en": "`sessionCreationPolicy(IF_REQUIRED)` and `csrf().disable()`",
+        "wg": []
+      },
+      {
+        "t": "`sessionCreationPolicy(STATELESS)` 並且啟用 CSRF 保護",
+        "en": "`sessionCreationPolicy(STATELESS)` and enable CSRF protection",
+        "wg": []
+      },
+      {
+        "t": "`sessionCreationPolicy(ALWAYS)` 並且 `httpBasic()`",
+        "en": "`sessionCreationPolicy(ALWAYS)` and `httpBasic()`",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "對於無狀態 API（如使用 JWT），伺服器不應建立或依賴 Session，因此需設為 `STATELESS`。此外，由於不使用瀏覽器的 Session Cookie 進行驗證，CSRF 攻擊向量不存在，因此應禁用 CSRF 以簡化配置並避免不必要的 Token 檢查。",
+      "en": "For stateless APIs (e.g., using JWT), the server should not create or rely on sessions, so it must be set to `STATELESS`. Additionally, since browser session cookies are not used for authentication, the CSRF attack vector does not exist, so CSRF should be disabled to simplify configuration and avoid unnecessary token checks.",
+      "wg": [
+        {
+          "t": "攻擊向量",
+          "en": "attack vector",
+          "ps": "noun phrase"
+        }
+      ]
+    }
+  },
+  {
+    "no": "6",
+    "level": "Hard",
+    "keywords": "Role-based Access Control, Troubleshooting, Prefix",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": ".requestMatchers(\"/admin/**\").hasRole(\"ADMIN\")",
+    "question": [
+      {
+        "t": "你的資料庫中有一個使用者，其角色欄位值為 `ADMIN`。但在 Spring Security 配置中使用 `.hasRole(\"ADMIN\")` 進行權限控管時，該使用者卻收到 403 Forbidden。最可能的原因是什麼？",
+        "en": "You have a user in your database with a role field value of `ADMIN`. However, when using `.hasRole(\"ADMIN\")` in Spring Security configuration for access control, the user receives a 403 Forbidden. What is the most likely reason?",
+        "wg": [
+          {
+            "t": "權限控管",
+            "en": "access control",
+            "ps": "noun phrase"
+          },
+          {
+            "t": "最可能的原因",
+            "en": "most likely reason",
+            "ps": "noun phrase"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "Spring Security 的 `hasRole` 預設預期權限字串包含 `ROLE_` 前綴（例如 `ROLE_ADMIN`）。",
+        "en": "Spring Security's `hasRole` expects the authority string to contain the `ROLE_` prefix by default (e.g., `ROLE_ADMIN`).",
+        "wg": [
+          {
+            "t": "前綴",
+            "en": "prefix",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "資料庫中的 `ADMIN` 必須全小寫才能匹配。",
+        "en": "The `ADMIN` in the database must be all lowercase to match.",
+        "wg": []
+      },
+      {
+        "t": "應該使用 `.hasAuthority(\"ADMIN\")` 而非 `.hasRole(\"ADMIN\")`，這兩者在 Spring Security 中完全無法互通。",
+        "en": "You should use `.hasAuthority(\"ADMIN\")` instead of `.hasRole(\"ADMIN\")`; the two are completely incompatible in Spring Security.",
+        "wg": []
+      },
+      {
+        "t": "因為沒有啟用 `@EnableMethodSecurity`，導致配置無效。",
+        "en": "Because `@EnableMethodSecurity` is not enabled, causing the configuration to be invalid.",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "Spring Security區分 `Role` 與 `Authority`。`hasRole('ADMIN')` 會自動在檢查時加上 `ROLE_` 前綴，因此它預期 `SecurityContext` 中的權限是 `ROLE_ADMIN`。如果資料庫僅存 `ADMIN` 且載入時未補上前綴，驗證就會失敗。解決方案是資料庫改存 `ROLE_ADMIN`，或在載入 UserDetails 時手動加上前綴。",
+      "en": "Spring Security distinguishes between `Role` and `Authority`. `hasRole('ADMIN')` automatically appends the `ROLE_` prefix during the check, so it expects the authority in `SecurityContext` to be `ROLE_ADMIN`. If the database only stores `ADMIN` and the prefix is not added during loading, validation will fail. The solution is to store `ROLE_ADMIN` in the database or manually add the prefix when loading UserDetails.",
+      "wg": [
+        {
+          "t": "區分",
+          "en": "distinguish",
+          "ps": "verb"
+        },
+        {
+          "t": "手動加上",
+          "en": "manually add/append",
+          "ps": "verb phrase"
+        }
+      ]
+    }
+  },
+  {
+    "no": "7",
+    "level": "Medium",
+    "keywords": "PasswordEncoder, Migration, Security Best Practices",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你的系統目前使用 SHA-256 雜湊演算法儲存使用者密碼，但為了符合新的安全合規要求，你需要將新註冊使用者的密碼改為使用 BCrypt 儲存，同時不能強制現有使用者立即重設密碼（即系統需同時支援驗證舊格式與新格式）。",
+        "en": "Your system currently stores user passwords using the SHA-256 hashing algorithm. To meet new security compliance requirements, you need to switch to BCrypt for new users without forcing existing users to reset their passwords immediately (the system must support validating both old and new formats).",
+        "wg": [
+          {
+            "t": "雜湊演算法",
+            "en": "hashing algorithm",
+            "ps": "noun"
+          },
+          {
+            "t": "合規要求",
+            "en": "compliance requirements",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "在 Spring Security 中，下列哪一種做法是解決此問題的標準最佳實務？",
+        "en": "In Spring Security, which of the following is the standard best practice to solve this problem?",
+        "wg": []
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "實作兩個不同的 `AuthenticationProvider`，一個負責 SHA-256，另一個負責 BCrypt，並同時註冊它們。",
+        "en": "Implement two different `AuthenticationProvider` beans, one for SHA-256 and another for BCrypt, and register both.",
+        "wg": []
+      },
+      {
+        "t": "使用 `DelegatingPasswordEncoder`，並設定預設編碼為 `bcrypt`，同時在 map 中保留 `sha256` 的支援。",
+        "en": "Use `DelegatingPasswordEncoder`, setting the default encoding to `bcrypt` while keeping `sha256` support in the map.",
+        "wg": []
+      },
+      {
+        "t": "在 `UserDetailsService` 中手動判斷密碼長度，若是 64 字元則使用 SHA-256 驗證，否則使用 BCrypt。",
+        "en": "Manually check the password length in `UserDetailsService`; use SHA-256 validation if it is 64 characters, otherwise use BCrypt.",
+        "wg": []
+      },
+      {
+        "t": "這是無法達成的，Spring Security 的 `PasswordEncoder` Bean 全域只能有一個實例，必須強制遷移資料庫。",
+        "en": "This is not achievable. Spring Security allows only one global `PasswordEncoder` bean instance, so database migration is mandatory.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "Spring Security 提供了 `DelegatingPasswordEncoder` 來解決密碼演算法遷移的問題。它透過在密碼雜湊值前加上前綴（如 `{bcrypt}` 或 `{sha256}`）來識別該使用哪種演算法進行驗證，這允許系統同時並存多種加密格式。",
+      "en": "Spring Security provides `DelegatingPasswordEncoder` to solve password algorithm migration issues. It identifies which algorithm to use for validation by adding a prefix (like `{bcrypt}` or `{sha256}`) to the password hash, allowing multiple encryption formats to coexist in the system.",
+      "wg": [
+        {
+          "t": "前綴",
+          "en": "prefix",
+          "ps": "noun"
+        },
+        {
+          "t": "並存",
+          "en": "coexist",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "8",
+    "level": "Medium",
+    "keywords": "Method Security, @PreAuthorize, Configuration",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "@RestController\n@RequestMapping(\"/api/orders\")\npublic class OrderController {\n    @GetMapping\n    @PreAuthorize(\"hasRole('ADMIN')\")\n    public List<Order> getAllOrders() {\n        return orderService.findAll();\n    }\n}",
+    "question": [
+      {
+        "t": "開發者在 Controller 的方法上添加了 `@PreAuthorize(\"hasRole('ADMIN')\")` 註解（如上方程式碼所示），但在測試時發現，即使是不具備 ADMIN 權限的使用者也能成功呼叫此 API 並取得資料。",
+        "en": "A developer added the `@PreAuthorize(\"hasRole('ADMIN')\")` annotation to a Controller method (as shown in the code above), but during testing, it was found that users without ADMIN privileges could still successfully call this API and retrieve data.",
+        "wg": [
+          {
+            "t": "註解",
+            "en": "annotation",
+            "ps": "noun"
+          },
+          {
+            "t": "權限",
+            "en": "privileges",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "最可能導致此安全漏洞的原因是什麼？",
+        "en": "What is the most likely cause of this security vulnerability?",
+        "wg": []
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "Spring Security 配置類別中遺漏了 `@EnableMethodSecurity` 註解。",
+        "en": "The `@EnableMethodSecurity` annotation is missing in the Spring Security configuration class.",
+        "wg": []
+      },
+      {
+        "t": "`@PreAuthorize` 只能用於 Service 層，不能用於 Controller 層。",
+        "en": "`@PreAuthorize` can only be used in the Service layer, not in the Controller layer.",
+        "wg": []
+      },
+      {
+        "t": "資料庫中的角色名稱沒有加上 `ROLE_` 前綴，導致比對失敗。",
+        "en": "The role name in the database lacks the `ROLE_` prefix, causing the match to fail.",
+        "wg": []
+      },
+      {
+        "t": "必須同時在 `SecurityFilterChain` 中配置 `.requestMatchers(...).hasRole(...)` 才能生效。",
+        "en": "You must also configure `.requestMatchers(...).hasRole(...)` in the `SecurityFilterChain` for it to take effect.",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "預設情況下，Spring Security 的方法層級安全（Method Security）是關閉的。若要使 `@PreAuthorize`、`@PostAuthorize` 等註解生效，必須在配置類別上明確加上 `@EnableMethodSecurity`（舊版為 `@EnableGlobalMethodSecurity`）。",
+      "en": "By default, Method Security in Spring Security is disabled. To make annotations like `@PreAuthorize` and `@PostAuthorize` effective, you must explicitly add `@EnableMethodSecurity` (or `@EnableGlobalMethodSecurity` in older versions) to the configuration class.",
+      "wg": [
+        {
+          "t": "方法層級安全",
+          "en": "Method Security",
+          "ps": "noun"
+        },
+        {
+          "t": "生效",
+          "en": "effective",
+          "ps": "adjective"
+        }
+      ]
+    }
+  },
+  {
+    "no": "9",
+    "level": "Hard",
+    "keywords": "Exception Handling, Architecture, Filter Chain",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你在專案中定義了一個全域異常處理器 `@ControllerAdvice` 來捕獲所有 `RuntimeException` 並回傳 JSON 格式錯誤。",
+        "en": "You have defined a global exception handler `@ControllerAdvice` in your project to catch all `RuntimeException`s and return JSON formatted errors.",
+        "wg": [
+          {
+            "t": "全域異常處理器",
+            "en": "global exception handler",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "然而，當你的自定義 `JwtAuthenticationFilter` 在驗證 Token 失敗並拋出 `JwtException`（繼承自 RuntimeException）時，前端卻收到了一個標準的 Tomcat 錯誤頁面，而非你預期的 JSON 回應。這是為什麼？",
+        "en": "However, when your custom `JwtAuthenticationFilter` fails to validate a token and throws a `JwtException` (which extends RuntimeException), the frontend receives a standard Tomcat error page instead of your expected JSON response. Why is this?",
+        "wg": [
+          {
+            "t": "繼承自",
+            "en": "extends",
+            "ps": "verb phrase"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "`@ControllerAdvice` 是基於 AOP 實作的，它只能捕獲 `DispatcherServlet` 之後（即 Controller 層）拋出的異常，無法捕獲 Filter Chain 中的異常。",
+        "en": "`@ControllerAdvice` is based on AOP and can only catch exceptions thrown after the `DispatcherServlet` (i.e., the Controller layer); it cannot catch exceptions in the Filter Chain.",
+        "wg": [
+          {
+            "t": "捕獲",
+            "en": "catch",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "自定義 Filter 的順序錯誤，必須放在 `ExceptionTranslationFilter` 之後才能被捕獲。",
+        "en": "The order of the custom Filter is incorrect; it must be placed after `ExceptionTranslationFilter` to be caught.",
+        "wg": []
+      },
+      {
+        "t": "Spring Security 的異常必須繼承自 `AuthenticationException` 才能被處理，`JwtException` 不符合此條件。",
+        "en": "Spring Security exceptions must extend `AuthenticationException` to be handled; `JwtException` does not meet this criterion.",
+        "wg": []
+      },
+      {
+        "t": "需要在 `application.properties` 中設定 `server.error.include-message=always`。",
+        "en": "You need to set `server.error.include-message=always` in `application.properties`.",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "Spring Security 的 Filter Chain 執行於 Servlet 容器層級，早於 Spring MVC 的 `DispatcherServlet`。因此，位於 MVC 層內的 `@ControllerAdvice` 無法捕獲 Filter 中拋出的異常。正確做法是實作 `AuthenticationEntryPoint` 來處理驗證失敗。",
+      "en": "The Spring Security Filter Chain executes at the Servlet container level, before Spring MVC's `DispatcherServlet`. Therefore, `@ControllerAdvice`, which resides within the MVC layer, cannot catch exceptions thrown in Filters. The correct approach is to implement an `AuthenticationEntryPoint` to handle authentication failures.",
+      "wg": [
+        {
+          "t": "容器層級",
+          "en": "container level",
+          "ps": "noun"
+        },
+        {
+          "t": "早於",
+          "en": "before / prior to",
+          "ps": "preposition"
+        }
+      ]
+    }
+  },
+  {
+    "no": "10",
+    "level": "Medium",
+    "keywords": "CORS, Security Best Practices, Configuration",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "CorsConfiguration config = new CorsConfiguration();\nconfig.setAllowedOrigins(List.of(\"*\"));\nconfig.setAllowCredentials(true);\nconfig.setAllowedMethods(List.of(\"GET\", \"POST\"));",
+    "question": [
+      {
+        "t": "在進行程式碼審查（Code Review）時，你發現同事提交了上述的 CORS 配置程式碼，意圖允許所有來源的前端應用程式存取 API 並攜帶 Cookie。",
+        "en": "During a Code Review, you notice a colleague submitted the CORS configuration code above, intending to allow frontend applications from any origin to access the API and send cookies.",
+        "wg": [
+          {
+            "t": "程式碼審查",
+            "en": "Code Review",
+            "ps": "noun"
+          },
+          {
+            "t": "來源",
+            "en": "origin",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "這段配置有什麼問題？",
+        "en": "What is the problem with this configuration?",
+        "wg": []
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "這是一個無效且不安全的配置。瀏覽器安全規範禁止在 `AllowCredentials` 為 `true` 時使用萬用字元 `*` 作為 `AllowedOrigins`。",
+        "en": "This is an invalid and insecure configuration. Browser security specifications forbid using the wildcard `*` for `AllowedOrigins` when `AllowCredentials` is set to `true`.",
+        "wg": [
+          {
+            "t": "萬用字元",
+            "en": "wildcard",
+            "ps": "noun"
+          },
+          {
+            "t": "規範",
+            "en": "specifications",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "這段配置是合法的，但 `AllowedMethods` 必須包含 `OPTIONS` 才能通過 Pre-flight 請求。",
+        "en": "This configuration is valid, but `AllowedMethods` must include `OPTIONS` to pass the Pre-flight request.",
+        "wg": []
+      },
+      {
+        "t": "這段配置是合法的，但會導致 CSRF 防護失效。",
+        "en": "This configuration is valid, but it will cause CSRF protection to fail.",
+        "wg": []
+      },
+      {
+        "t": "應該使用 `addAllowedOriginPattern(\"*\")` 來取代 `setAllowedOrigins`，其他部分正確。",
+        "en": "You should use `addAllowedOriginPattern(\"*\")` instead of `setAllowedOrigins`, but the rest is correct.",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "根據 CORS 規範，當回應標頭 `Access-Control-Allow-Credentials` 為 `true` 時，`Access-Control-Allow-Origin` 不能是 `*`，必須是明確的單一 Origin。瀏覽器會直接阻擋此類回應。若需支援多個來源且攜帶憑證，需動態回傳請求的 Origin 或使用 `AllowedOriginPatterns`。",
+      "en": "According to the CORS specification, when the `Access-Control-Allow-Credentials` header is `true`, `Access-Control-Allow-Origin` cannot be `*`; it must be a specific single Origin. Browsers will block such responses. To support multiple origins with credentials, you must dynamically return the request's Origin or use `AllowedOriginPatterns`.",
+      "wg": [
+        {
+          "t": "憑證",
+          "en": "credentials",
+          "ps": "noun"
+        },
+        {
+          "t": "阻擋",
+          "en": "block",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "11",
+    "level": "Hard",
+    "keywords": "Concurrency, SecurityContext, ThreadLocal",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "@Service\npublic class ReportService {\n    @Async\n    public void generateReport() {\n        // Returns null here\n        Authentication auth = SecurityContextHolder.getContext().getAuthentication();\n        // ...\n    }\n}",
+    "question": [
+      {
+        "t": "你的應用程式中有一個使用 `@Async` 執行的非同步方法（如上方程式碼）。當你呼叫此方法時，發現 `SecurityContextHolder.getContext().getAuthentication()` 總是回傳 `null`，即使使用者已登入。",
+        "en": "Your application has an asynchronous method executed using `@Async` (as shown in the code above). When you call this method, you find that `SecurityContextHolder.getContext().getAuthentication()` always returns `null`, even if the user is logged in.",
+        "wg": [
+          {
+            "t": "非同步",
+            "en": "asynchronous",
+            "ps": "adjective"
+          }
+        ]
+      },
+      {
+        "t": "這是因為 Spring Security 的心智模型（Mental Model）中，預設的 Context 儲存策略是什麼？",
+        "en": "This happens because, in the Spring Security Mental Model, what is the default Context storage strategy?",
+        "wg": [
+          {
+            "t": "儲存策略",
+            "en": "storage strategy",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "它是基於 `ThreadLocal` 的，因此身分驗證資訊不會自動傳遞到新的執行緒中。",
+        "en": "It is based on `ThreadLocal`, so authentication information is not automatically propagated to new threads.",
+        "wg": [
+          {
+            "t": "傳遞",
+            "en": "propagated",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "它是基於 `HttpSession` 的，而 `@Async` 方法不屬於 HTTP 請求的一部分。",
+        "en": "It is based on `HttpSession`, and `@Async` methods are not part of the HTTP request.",
+        "wg": []
+      },
+      {
+        "t": "它是基於 `RequestScope` 的，非同步方法執行時 Request 可能已經結束。",
+        "en": "It is based on `RequestScope`, and the Request might have already ended when the async method executes.",
+        "wg": []
+      },
+      {
+        "t": "它是基於 `InheritableThreadLocal` 的，但被 Spring Boot 的預設配置關閉了。",
+        "en": "It is based on `InheritableThreadLocal`, but it is disabled by Spring Boot's default configuration.",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "`SecurityContextHolder` 預設使用 `ThreadLocal` 策略，這意味著安全上下文（Security Context）僅存在於處理請求的當前執行緒中。當使用 `@Async` 啟動新執行緒時，該 Context 不會自動複製過去。解決方案包括設定 `MODE_INHERITABLETHREADLOCAL` 或使用 `DelegatingSecurityContextExecutor`。",
+      "en": "`SecurityContextHolder` uses the `ThreadLocal` strategy by default, meaning the Security Context only exists in the current thread processing the request. When a new thread is started using `@Async`, the Context is not automatically copied over. Solutions include setting `MODE_INHERITABLETHREADLOCAL` or using `DelegatingSecurityContextExecutor`.",
+      "wg": [
+        {
+          "t": "安全上下文",
+          "en": "Security Context",
+          "ps": "noun"
+        },
+        {
+          "t": "複製",
+          "en": "copied",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "12",
+    "level": "Medium",
+    "keywords": "Architecture, AuthenticationManager, Customization",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你需要實作一個特殊的登入需求：使用者的帳號密碼不是儲存在資料庫，而是需要透過呼叫一個舊有的 Mainframe 系統 API 進行驗證。",
+        "en": "You need to implement a specific login requirement: user credentials are not stored in a database but must be validated by calling a legacy Mainframe system API.",
+        "wg": [
+          {
+            "t": "舊有的",
+            "en": "legacy",
+            "ps": "adjective"
+          },
+          {
+            "t": "驗證",
+            "en": "validated",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "根據 Spring Security 的架構（Authentication vs Authorization），你應該實作下列哪一個元件來處理「驗證使用者是誰」的邏輯？",
+        "en": "Based on the Spring Security architecture (Authentication vs Authorization), which component should you implement to handle the logic of 'verifying who the user is'?",
+        "wg": [
+          {
+            "t": "元件",
+            "en": "component",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "實作一個自定義的 `AuthenticationProvider`。",
+        "en": "Implement a custom `AuthenticationProvider`.",
+        "wg": []
+      },
+      {
+        "t": "實作一個自定義的 `SecurityFilterChain`。",
+        "en": "Implement a custom `SecurityFilterChain`.",
+        "wg": []
+      },
+      {
+        "t": "實作一個自定義的 `AccessDecisionManager`。",
+        "en": "Implement a custom `AccessDecisionManager`.",
+        "wg": []
+      },
+      {
+        "t": "在 Controller 中直接呼叫 Mainframe API，驗證成功後手動發放 JWT。",
+        "en": "Call the Mainframe API directly in the Controller, and manually issue a JWT upon successful validation.",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "在 Spring Security 架構中，`AuthenticationManager` 負責協調驗證，而實際的驗證邏輯（如檢查密碼、呼叫外部系統）是由 `AuthenticationProvider` 執行的。這是封裝「Authentication (Who are you?)」邏輯的正確位置，能確保與框架的其他部分（如事件發布、成功/失敗處理）整合。",
+      "en": "In the Spring Security architecture, `AuthenticationManager` coordinates authentication, while the actual validation logic (like checking passwords or calling external systems) is performed by `AuthenticationProvider`. This is the correct place to encapsulate 'Authentication (Who are you?)' logic, ensuring integration with other parts of the framework (like event publishing and success/failure handling).",
+      "wg": [
+        {
+          "t": "協調",
+          "en": "coordinates",
+          "ps": "verb"
+        },
+        {
+          "t": "封裝",
+          "en": "encapsulate",
+          "ps": "verb"
+        }
+      ]
+    }
+  }
+]

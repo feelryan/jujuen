@@ -1,0 +1,833 @@
+[
+  {
+    "no": "1",
+    "level": "Intermediate",
+    "keywords": "HikariCP, Connection Pooling, Performance Tuning, Context Switching",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "spring:\n  datasource:\n    hikari:\n      maximum-pool-size: 100\n      minimum-idle: 10",
+    "question": [
+      {
+        "t": "你的團隊正在部署一個 Spring Boot 應用程式，後端資料庫伺服器配備 4 vCPU。開發人員為了確保高併發下的效能，將 HikariCP 的 `maximum-pool-size` 設定為 100（如上方程式碼所示）。根據效能優化指南，這樣的設定最可能導致什麼後果？",
+        "en": "Your team is deploying a Spring Boot application backed by a database server with 4 vCPUs. To ensure performance under high concurrency, a developer sets the HikariCP `maximum-pool-size` to 100 (as shown in the code snippet). According to the performance optimization guide, what is the most likely consequence of this configuration?",
+        "wg": [
+          {
+            "t": "連線池",
+            "en": "Connection Pool",
+            "ps": "noun"
+          },
+          {
+            "t": "高併發",
+            "en": "High Concurrency",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "這是一個合理的設定，因為更多的連線數能直接提升資料庫的吞吐量。",
+        "en": "This is a reasonable setting because more connections directly increase database throughput.",
+        "wg": []
+      },
+      {
+        "t": "設定過大，會導致 CPU 在大量連線間頻繁進行環境切換 (Context Switching)，反而降低效能。",
+        "en": "The setting is too large, causing the CPU to perform frequent Context Switching between connections, which actually degrades performance.",
+        "wg": [
+          {
+            "t": "環境切換",
+            "en": "Context Switching",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "設定過小，應該將 `minimum-idle` 也提升至 100 以避免連線建立的開銷。",
+        "en": "The setting is too small; `minimum-idle` should also be raised to 100 to avoid connection creation overhead.",
+        "wg": []
+      },
+      {
+        "t": "這會導致 `StackOverflowError`，因為 HikariCP 無法管理超過 50 個連線。",
+        "en": "This will cause a `StackOverflowError` because HikariCP cannot manage more than 50 connections.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "根據指南中的「黃金公式」，對於 4 vCPU 的資料庫，最佳連線池大小通常落在 10 到 20 之間（Core * 2 到 Core * 4）。過大的連線池會導致 CPU 時間浪費在執行緒排程與環境切換上，而非實際處理查詢，這是一個常見的誤區。",
+      "en": "According to the 'Golden Formula' in the guide, the optimal pool size for a 4 vCPU database typically falls between 10 and 20 (Core * 2 to Core * 4). An excessively large pool causes CPU time to be wasted on thread scheduling and context switching rather than actually processing queries, which is a common misconception.",
+      "wg": [
+        {
+          "t": "黃金公式",
+          "en": "The Formula",
+          "ps": "noun"
+        },
+        {
+          "t": "執行緒排程",
+          "en": "Thread Scheduling",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "2",
+    "level": "Intermediate",
+    "keywords": "Caching Strategy, Cache-Aside, Data Consistency, Spring Cache",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "@Transactional\npublic void updateProductPrice(Long id, BigDecimal newPrice) {\n    Product product = repository.findById(id).orElseThrow();\n    product.setPrice(newPrice);\n    repository.save(product);\n    // Missing Cache Logic Here\n}",
+    "question": [
+      {
+        "t": "在實作 Cache-Aside 模式時，當我們更新了資料庫中的資料（如上方程式碼），為了確保資料一致性並避免競爭條件 (Race Condition)，下列哪一種快取操作策略是最佳實務？",
+        "en": "When implementing the Cache-Aside pattern, after updating data in the database (as shown in the code), which of the following cache operation strategies is the best practice to ensure data consistency and avoid race conditions?",
+        "wg": [
+          {
+            "t": "競爭條件",
+            "en": "Race Condition",
+            "ps": "noun"
+          },
+          {
+            "t": "最佳實務",
+            "en": "Best Practice",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "使用 `@CachePut` 將新的價格直接更新到快取中。",
+        "en": "Use `@CachePut` to directly update the new price into the cache.",
+        "wg": []
+      },
+      {
+        "t": "使用 `@CacheEvict` 刪除該快取項目，讓下一次讀取時重新從資料庫載入。",
+        "en": "Use `@CacheEvict` to remove the cache entry, letting the next read reload it from the database.",
+        "wg": [
+          {
+            "t": "刪除",
+            "en": "Evict",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "不需做任何動作，Redis 會自動感知資料庫變更。",
+        "en": "No action is needed; Redis will automatically detect database changes.",
+        "wg": []
+      },
+      {
+        "t": "先更新快取，再更新資料庫，以確保讀取效能。",
+        "en": "Update the cache first, then the database, to ensure read performance.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "在 Cache-Aside 模式中，寫入策略應為「先寫 DB，後刪除 Cache」。若使用 `@CachePut`（更新快取），在併發寫入的情況下，可能會發生 A 執行緒先更新 DB 但後更新 Cache，導致 Cache 存留了舊值或髒資料。刪除 (Evict) 是一種更安全的方式，強迫下一次讀取回源 (Source of Truth)。",
+      "en": "In the Cache-Aside pattern, the write strategy should be 'Write DB, then Evict Cache'. Using `@CachePut` (updating cache) can lead to race conditions where concurrent writes cause the cache to hold stale or dirty data. Eviction is safer as it forces the next read to fetch from the Source of Truth.",
+      "wg": [
+        {
+          "t": "髒資料",
+          "en": "Dirty Data",
+          "ps": "noun"
+        },
+        {
+          "t": "回源",
+          "en": "Fetch from Source",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "3",
+    "level": "Advanced",
+    "keywords": "Thundering Herd, Cache Stampede, Spring Boot, Performance",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "@Cacheable(value = \"hot_products\", key = \"#root.methodName\")\npublic List<ProductDTO> getHotProducts() {\n    // Expensive DB query taking 2 seconds\n    return repository.findTop100BySales();\n}",
+    "question": [
+      {
+        "t": "你的系統有一個「熱銷商品」清單，快取過期時間設為 10 分鐘。監控顯示每當快取過期時，資料庫 CPU 會瞬間飆升，甚至導致連線逾時。這種現象被稱為「快取擊穿 (Thundering Herd)」。在不引入額外基礎設施（如分散式鎖服務）的情況下，Spring Cache 提供了哪個屬性來最簡單地緩解此問題？",
+        "en": "Your system has a 'Hot Products' list with a cache expiration of 10 minutes. Monitoring shows that whenever the cache expires, the database CPU spikes instantly, causing connection timeouts. This phenomenon is known as the 'Thundering Herd' problem. Without introducing extra infrastructure (like a distributed lock service), which Spring Cache attribute provides the simplest way to mitigate this?",
+        "wg": [
+          {
+            "t": "快取擊穿",
+            "en": "Thundering Herd / Cache Stampede",
+            "ps": "noun"
+          },
+          {
+            "t": "緩解",
+            "en": "Mitigate",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "設定 `unless = \"#result == null\"`",
+        "en": "Set `unless = \"#result == null\"`",
+        "wg": []
+      },
+      {
+        "t": "設定 `sync = true`",
+        "en": "Set `sync = true`",
+        "wg": []
+      },
+      {
+        "t": "設定 `condition = \"#id > 100\"`",
+        "en": "Set `condition = \"#id > 100\"`",
+        "wg": []
+      },
+      {
+        "t": "使用 `@CachePut` 代替 `@Cacheable`",
+        "en": "Use `@CachePut` instead of `@Cacheable`",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "設定 `sync = true` 會在 Spring 本地端 (Application Server) 對該 Cache Key 加鎖。當多個執行緒同時發現快取失效時，只有一個執行緒會去執行 DB 查詢，其他執行緒會等待該查詢完成並從快取讀取結果，從而避免了成千上萬個請求同時穿透到資料庫。",
+      "en": "Setting `sync = true` applies a local lock on the Cache Key within the Spring Application Server. When multiple threads detect a cache miss simultaneously, only one thread will execute the DB query, while others wait for it to complete and read the result from the cache, preventing thousands of requests from hitting the database at once.",
+      "wg": [
+        {
+          "t": "加鎖",
+          "en": "Lock",
+          "ps": "verb"
+        },
+        {
+          "t": "穿透",
+          "en": "Penetrate / Hit",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "4",
+    "level": "Beginner",
+    "keywords": "Anti-pattern, Serialization, Hibernate, LazyInitializationException",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "@Entity\npublic class User {\n    @OneToMany(fetch = FetchType.LAZY)\n    private List<Order> orders;\n}\n\n// In Service\n@Cacheable(\"users\")\npublic User getUser(Long id) { ... }",
+    "question": [
+      {
+        "t": "一位初階工程師直接在回傳 Hibernate Entity 的方法上加上了 `@Cacheable` 註解（如上方程式碼）。在執行時，這可能會導致 `LazyInitializationException` 或序列化錯誤。根據手冊中的 Anti-patterns，正確的修正方式是什麼？",
+        "en": "A junior engineer added the `@Cacheable` annotation directly to a method returning a Hibernate Entity (as shown in the code). At runtime, this may cause `LazyInitializationException` or serialization errors. According to the Anti-patterns in the handbook, what is the correct fix?",
+        "wg": [
+          {
+            "t": "實體",
+            "en": "Entity",
+            "ps": "noun"
+          },
+          {
+            "t": "修正方式",
+            "en": "Fix / Solution",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "將 `FetchType.LAZY` 改為 `FetchType.EAGER`。",
+        "en": "Change `FetchType.LAZY` to `FetchType.EAGER`.",
+        "wg": []
+      },
+      {
+        "t": "在 Entity 類別上實作 `Serializable` 介面即可。",
+        "en": "Simply implement the `Serializable` interface on the Entity class.",
+        "wg": []
+      },
+      {
+        "t": "永遠只快取 DTO (Data Transfer Object)，將 Entity 轉換為 DTO 後再進行快取。",
+        "en": "Always cache DTOs (Data Transfer Objects) only; convert the Entity to a DTO before caching.",
+        "wg": [
+          {
+            "t": "轉換",
+            "en": "Convert",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "增加 Redis 的記憶體配置。",
+        "en": "Increase the memory allocation for Redis.",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "直接快取 Entity 是反模式 (Anti-pattern)。Entity 通常包含與 DB Session 綁定的 Lazy Loading 代理物件或循環參照，這會導致序列化失敗或在反序列化後使用時拋出異常。最佳實務是將資料轉換為單純的 DTO (POJO) 再存入快取。",
+      "en": "Caching Entities directly is an anti-pattern. Entities often contain Lazy Loading proxies bound to a DB Session or circular references, leading to serialization failures or exceptions upon usage after deserialization. The best practice is to convert data into simple DTOs (POJOs) before caching.",
+      "wg": [
+        {
+          "t": "反模式",
+          "en": "Anti-pattern",
+          "ps": "noun"
+        },
+        {
+          "t": "循環參照",
+          "en": "Circular Reference",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "5",
+    "level": "Intermediate",
+    "keywords": "HikariCP, Timeout, Thread Starvation, Fail Fast",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "spring:\n  datasource:\n    hikari:\n      connection-timeout: 30000 # Default 30 seconds",
+    "question": [
+      {
+        "t": "你的應用程式伺服器在高負載時出現「執行緒飢餓 (Thread Starvation)」現象，導致整個伺服器無回應。經排查發現是因為資料庫回應變慢，導致大量執行緒卡在等待資料庫連線。根據手冊建議，你應該如何調整 HikariCP 的 `connection-timeout`？",
+        "en": "Your application server is experiencing 'Thread Starvation' under high load, causing the entire server to become unresponsive. Investigation reveals that slow database responses are causing many threads to get stuck waiting for database connections. According to the handbook, how should you adjust HikariCP's `connection-timeout`?",
+        "wg": [
+          {
+            "t": "執行緒飢餓",
+            "en": "Thread Starvation",
+            "ps": "noun"
+          },
+          {
+            "t": "無回應",
+            "en": "Unresponsive",
+            "ps": "adjective"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "增加到 60000ms，給予資料庫更多時間恢復。",
+        "en": "Increase it to 60000ms to give the database more time to recover.",
+        "wg": []
+      },
+      {
+        "t": "減少到 2000ms - 5000ms，採取「快速失敗 (Fail Fast)」策略。",
+        "en": "Decrease it to 2000ms - 5000ms to adopt a 'Fail Fast' strategy.",
+        "wg": [
+          {
+            "t": "快速失敗",
+            "en": "Fail Fast",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "保持預設值，這是 Spring Boot 團隊的最佳建議。",
+        "en": "Keep the default value; it is the best recommendation from the Spring Boot team.",
+        "wg": []
+      },
+      {
+        "t": "設定為 0，代表無限等待直到取得連線。",
+        "en": "Set it to 0, meaning wait indefinitely until a connection is acquired.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "預設的 30 秒等待時間過長。當資料庫變慢時，應用程式執行緒會被長時間佔用等待連線，導致連鎖反應使整個服務癱瘓。將超時設定縮短為 2-5 秒可以讓請求快速失敗，釋放執行緒資源去處理其他請求，這是保護應用程式穩定性的關鍵設定。",
+      "en": "The default 30-second wait is too long. When the database slows down, application threads are tied up waiting for connections, causing a cascading failure that can paralyze the service. Shortening the timeout to 2-5 seconds allows requests to fail fast, freeing up thread resources for other requests, which is crucial for application stability.",
+      "wg": [
+        {
+          "t": "連鎖反應",
+          "en": "Cascading Failure",
+          "ps": "noun"
+        },
+        {
+          "t": "癱瘓",
+          "en": "Paralyze",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "6",
+    "level": "Intermediate",
+    "keywords": "Redis, Serialization, Debugging, Interoperability",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在使用 `redis-cli` 或 GUI 工具檢查 Redis 資料時，你發現 Key 的值是一串無法閱讀的亂碼（如 `\\xac\\xed\\x00\\x05...`）。這通常是因為使用了 Spring Boot 預設的哪種序列化方式？為了提高可讀性與跨語言相容性，建議更換為何者？",
+        "en": "When inspecting Redis data using `redis-cli` or a GUI tool, you find that the Key values are unreadable garbled text (like `\\xac\\xed\\x00\\x05...`). This is usually caused by which default Spring Boot serialization method? To improve readability and cross-language compatibility, what is the recommended replacement?",
+        "wg": [
+          {
+            "t": "亂碼",
+            "en": "Garbled Text / Gibberish",
+            "ps": "noun"
+          },
+          {
+            "t": "跨語言相容性",
+            "en": "Cross-language Compatibility",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "預設使用 `StringRedisSerializer`；建議更換為 `JdkSerializationRedisSerializer`。",
+        "en": "Default is `StringRedisSerializer`; recommended replacement is `JdkSerializationRedisSerializer`.",
+        "wg": []
+      },
+      {
+        "t": "預設使用 `JdkSerializationRedisSerializer`；建議更換為 JSON Serializer (如 `GenericJackson2JsonRedisSerializer`)。",
+        "en": "Default is `JdkSerializationRedisSerializer`; recommended replacement is a JSON Serializer (e.g., `GenericJackson2JsonRedisSerializer`).",
+        "wg": []
+      },
+      {
+        "t": "預設使用 `Jackson2JsonRedisSerializer`；建議更換為 Protobuf。",
+        "en": "Default is `Jackson2JsonRedisSerializer`; recommended replacement is Protobuf.",
+        "wg": []
+      },
+      {
+        "t": "這是 Redis 的加密功能，無法更改。",
+        "en": "This is a Redis encryption feature and cannot be changed.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "Spring Boot 的 `RedisTemplate` 預設使用 JDK 序列化，這會產生 Java 特有的二進位格式，其他語言無法讀取且難以除錯。手冊建議改用 JSON 序列化（如 Jackson），不僅人類可讀，也能讓其他語言的服務輕鬆存取該資料。",
+      "en": "Spring Boot's `RedisTemplate` defaults to JDK serialization, which produces a Java-specific binary format that is unreadable by other languages and hard to debug. The handbook recommends switching to JSON serialization (like Jackson), which is human-readable and allows services in other languages to access the data easily.",
+      "wg": [
+        {
+          "t": "二進位格式",
+          "en": "Binary Format",
+          "ps": "noun"
+        },
+        {
+          "t": "除錯",
+          "en": "Debug",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "7",
+    "level": "Intermediate",
+    "keywords": "Caching Strategy, Data Consistency, Decision Tree, Anti-pattern",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你的團隊正在開發一個高頻交易系統的「帳戶餘額」模組。該模組的特性是：寫入頻率極高（每秒數千次變更），且對資料一致性有「強一致性 (Strong Consistency)」的嚴格要求。",
+        "en": "Your team is developing an 'Account Balance' module for a high-frequency trading system. The characteristics of this module are: extremely high write frequency (thousands of changes per second) and a strict requirement for 'Strong Consistency'.",
+        "wg": [
+          {
+            "t": "強一致性",
+            "en": "Strong Consistency",
+            "ps": "noun"
+          },
+          {
+            "t": "寫入頻率",
+            "en": "Write Frequency",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "根據快取決策流程，下列哪項策略最適合此場景？",
+        "en": "According to the caching decision tree, which of the following strategies is most suitable for this scenario?",
+        "wg": []
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "使用 Redis 的 Write-Through 模式來確保快取與資料庫同步。",
+        "en": "Use Redis Write-Through pattern to ensure cache and database synchronization.",
+        "wg": []
+      },
+      {
+        "t": "使用 Cache-Aside 模式，並設定極短的 TTL（例如 1 秒）。",
+        "en": "Use Cache-Aside pattern and set an extremely short TTL (e.g., 1 second).",
+        "wg": []
+      },
+      {
+        "t": "不使用快取，直接讀寫資料庫。",
+        "en": "Do not use caching; read and write directly to the database.",
+        "wg": []
+      },
+      {
+        "t": "使用 @CachePut 註解來確保每次寫入都更新快取。",
+        "en": "Use the @CachePut annotation to ensure the cache is updated with every write.",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "當資料變更頻率極高且要求強一致性時，引入快取會帶來巨大的同步成本與髒讀風險，且快取命中率極低（資料剛寫入即失效）。根據決策流程，此時應選擇不使用快取。",
+      "en": "When data change frequency is extremely high and strong consistency is required, introducing caching incurs huge synchronization costs and risks of dirty reads, while the cache hit rate remains very low (data invalidates immediately after write). According to the decision tree, caching should not be used in this case.",
+      "wg": [
+        {
+          "t": "髒讀",
+          "en": "Dirty Read",
+          "ps": "noun"
+        },
+        {
+          "t": "命中率",
+          "en": "Hit Rate",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "8",
+    "level": "Intermediate",
+    "keywords": "Local Cache, Caffeine, Data Locality, Performance",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你需要為一個「國家代碼與名稱對照表」實作快取。這份資料的特性是：資料量小（僅幾百筆）、全域共用、幾乎永遠不會變更，但讀取非常頻繁。",
+        "en": "You need to implement caching for a 'Country Code to Name Mapping'. The characteristics of this data are: small size (only a few hundred entries), globally shared, almost never changes, but read very frequently.",
+        "wg": [
+          {
+            "t": "對照表",
+            "en": "Mapping / Lookup Table",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "目前的架構使用 Redis，但你希望能進一步消除網路延遲。下列哪種方案最符合「資料局部性 (Data Locality)」原則？",
+        "en": "The current architecture uses Redis, but you want to further eliminate network latency. Which of the following solutions best fits the 'Data Locality' principle?",
+        "wg": [
+          {
+            "t": "資料局部性",
+            "en": "Data Locality",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "增加 Redis 的 Replica 節點數量。",
+        "en": "Increase the number of Redis Replica nodes.",
+        "wg": []
+      },
+      {
+        "t": "使用 Caffeine 或 Guava 實作本地快取 (Local Cache/L1)。",
+        "en": "Use Caffeine or Guava to implement Local Cache (L1).",
+        "wg": []
+      },
+      {
+        "t": "將 HikariCP 的連線池大小調大。",
+        "en": "Increase the HikariCP connection pool size.",
+        "wg": []
+      },
+      {
+        "t": "在 Redis 中啟用持久化 (Persistence) 功能。",
+        "en": "Enable persistence features in Redis.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "對於單機存取、資料量小且幾乎不變更的資料，使用本地快取 (Local Cache) 可以完全消除網路 I/O 開銷，提供最快的存取速度，符合 L1 快取的分層防禦策略。",
+      "en": "For data that is accessed locally, small in size, and rarely changes, using a Local Cache eliminates network I/O overhead entirely, providing the fastest access speed, which aligns with the L1 cache layered defense strategy.",
+      "wg": [
+        {
+          "t": "分層防禦",
+          "en": "Layered Defense",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "9",
+    "level": "Intermediate",
+    "keywords": "HikariCP, Connection Pooling, Performance Tuning, Configuration",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在檢視生產環境的 `application.yml` 時，你發現 HikariCP 的設定如下：`maximum-pool-size: 20`，`minimum-idle: 5`。",
+        "en": "While reviewing the production `application.yml`, you notice the HikariCP configuration is: `maximum-pool-size: 20`, `minimum-idle: 5`.",
+        "wg": []
+      },
+      {
+        "t": "根據效能優化指南，建議將 `minimum-idle` 修改為與 `maximum-pool-size` 相同的值（即固定池大小）。這樣做的主要目的是什麼？",
+        "en": "According to the performance optimization guide, it is recommended to change `minimum-idle` to match `maximum-pool-size` (Fixed Pool Size). What is the primary purpose of doing this?",
+        "wg": [
+          {
+            "t": "固定池大小",
+            "en": "Fixed Pool Size",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "避免在流量波動時，因動態建立與銷毀連線而產生的效能開銷。",
+        "en": "To avoid the performance overhead caused by dynamically creating and destroying connections during traffic fluctuations.",
+        "wg": [
+          {
+            "t": "流量波動",
+            "en": "Traffic Fluctuations",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "確保資料庫連線永遠不會逾時 (Timeout)。",
+        "en": "To ensure database connections never timeout.",
+        "wg": []
+      },
+      {
+        "t": "強迫 HikariCP 使用更少的記憶體。",
+        "en": "To force HikariCP to use less memory.",
+        "wg": []
+      },
+      {
+        "t": "增加資料庫允許的最大併發連線數。",
+        "en": "To increase the maximum concurrent connections allowed by the database.",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "建立資料庫連線是非常昂貴的操作。設定固定池大小可以讓連線保持在「已發動」狀態，避免在流量高峰時還需花時間建立連線，從而提供更穩定的回應時間。",
+      "en": "Creating database connections is a very expensive operation. Setting a fixed pool size keeps connections in a 'ready' state, avoiding the time cost of creating connections during traffic spikes, thus providing more stable response times.",
+      "wg": [
+        {
+          "t": "昂貴的操作",
+          "en": "Expensive Operation",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "10",
+    "level": "Advanced",
+    "keywords": "Cache Avalanche, TTL, Jitter, Performance",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你的系統有一個排程任務，會在每天凌晨 00:00 更新並快取 50,000 筆商品資料，TTL 設為 1 小時。監控顯示每天凌晨 01:00 資料庫的 CPU 會瞬間飆高，導致服務不穩。",
+        "en": "Your system has a scheduled task that updates and caches 50,000 product records at 00:00 daily, with a TTL of 1 hour. Monitoring shows that the database CPU spikes instantly at 01:00 every day, causing service instability.",
+        "wg": [
+          {
+            "t": "排程任務",
+            "en": "Scheduled Task",
+            "ps": "noun"
+          },
+          {
+            "t": "瞬間飆高",
+            "en": "Spike Instantly",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "這種現象通常被稱為「快取雪崩 (Cache Avalanche)」。下列哪種做法最能有效解決此問題？",
+        "en": "This phenomenon is commonly known as 'Cache Avalanche'. Which of the following practices is most effective in solving this problem?",
+        "wg": [
+          {
+            "t": "快取雪崩",
+            "en": "Cache Avalanche",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "將 TTL 延長為 24 小時。",
+        "en": "Extend the TTL to 24 hours.",
+        "wg": []
+      },
+      {
+        "t": "在設定 TTL 時加入隨機抖動 (Random Jitter)，例如 1 小時 ± 10 分鐘。",
+        "en": "Add Random Jitter when setting TTL, for example, 1 hour ± 10 minutes.",
+        "wg": [
+          {
+            "t": "隨機抖動",
+            "en": "Random Jitter",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "在 @Cacheable 中使用 sync=true 屬性。",
+        "en": "Use the sync=true attribute in @Cacheable.",
+        "wg": []
+      },
+      {
+        "t": "增加資料庫的 CPU 核心數。",
+        "en": "Increase the number of CPU cores for the database.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "問題的根源在於大量 Key 在「同一時間」過期，導致請求同時穿透到資料庫。加入隨機抖動 (Jitter) 可以將過期時間分散開來，平滑資料庫的負載。",
+      "en": "The root cause is that a large number of keys expire at the 'same time', causing requests to penetrate to the database simultaneously. Adding Random Jitter disperses the expiration times, smoothing out the load on the database.",
+      "wg": [
+        {
+          "t": "平滑",
+          "en": "Smooth out",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "11",
+    "level": "Intermediate",
+    "keywords": "Redis, Memory Management, Eviction Policy, Operations",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "維運團隊報告 Redis 伺服器的記憶體使用率已達到 100%，且應用程式開始出現隨機遺失快取資料的現象（即使 Key 尚未過期）。",
+        "en": "The operations team reports that the Redis server's memory usage has reached 100%, and the application is starting to experience random loss of cached data (even if keys haven't expired yet).",
+        "wg": [
+          {
+            "t": "隨機遺失",
+            "en": "Random Loss",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "這最可能是因為觸發了 Redis 的什麼機制？且應優先檢查哪項設定？",
+        "en": "This is most likely triggered by which Redis mechanism? And which setting should be checked first?",
+        "wg": []
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "觸發了 Eviction Policy (淘汰策略)；應檢查 maxmemory-policy 設定。",
+        "en": "Triggered the Eviction Policy; should check the maxmemory-policy setting.",
+        "wg": [
+          {
+            "t": "淘汰策略",
+            "en": "Eviction Policy",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "觸發了 TTL 過期機制；應檢查 default TTL 設定。",
+        "en": "Triggered the TTL expiration mechanism; should check the default TTL setting.",
+        "wg": []
+      },
+      {
+        "t": "觸發了 Persistence Snapshotting；應檢查 RDB 設定。",
+        "en": "Triggered Persistence Snapshotting; should check RDB settings.",
+        "wg": []
+      },
+      {
+        "t": "觸發了 Network Throttling；應檢查頻寬限制。",
+        "en": "Triggered Network Throttling; should check bandwidth limits.",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "當 Redis 記憶體達到 `maxmemory` 上限時，會根據設定的 Eviction Policy (如 `volatile-lru` 或 `allkeys-lru`) 強制刪除部分 Key 以騰出空間。這是導致未過期資料消失的主因。",
+      "en": "When Redis memory reaches the `maxmemory` limit, it forces the deletion of some keys based on the configured Eviction Policy (such as `volatile-lru` or `allkeys-lru`) to free up space. This is the main cause of unexpired data disappearing.",
+      "wg": [
+        {
+          "t": "騰出空間",
+          "en": "Free up space",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "12",
+    "level": "Advanced",
+    "keywords": "Spring Boot, Configuration, TTL, RedisCacheManager",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "```java\n@Bean\npublic RedisCacheManagerBuilderCustomizer redisCacheManagerBuilderCustomizer() {\n    return (builder) -> builder\n        .withCacheConfiguration(\"otp_code\",\n            RedisCacheConfiguration.defaultCacheConfig().entryTtl(Duration.ofMinutes(5)))\n        .withCacheConfiguration(\"product_detail\",\n            RedisCacheConfiguration.defaultCacheConfig().entryTtl(Duration.ofHours(24)));\n}\n```",
+    "question": [
+      {
+        "t": "你的專案需要針對不同的快取名稱 (Cache Name) 設定不同的過期時間 (TTL)：例如 `otp_code` 只能存活 5 分鐘，而 `product_detail` 需要存活 24 小時。",
+        "en": "Your project needs to set different Time-To-Live (TTL) for different Cache Names: for example, `otp_code` should live for 5 minutes, while `product_detail` needs to live for 24 hours.",
+        "wg": []
+      },
+      {
+        "t": "參考上方程式碼，這是 Spring Boot 中實作此需求的標準做法。請問這段程式碼主要是在客製化哪個元件？",
+        "en": "Referring to the code above, this is the standard way to implement this requirement in Spring Boot. Which component is this code primarily customizing?",
+        "wg": [
+          {
+            "t": "客製化",
+            "en": "Customizing",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "RedisCacheManager",
+        "en": "RedisCacheManager",
+        "wg": []
+      },
+      {
+        "t": "RedisTemplate",
+        "en": "RedisTemplate",
+        "wg": []
+      },
+      {
+        "t": "CacheResolver",
+        "en": "CacheResolver",
+        "wg": []
+      },
+      {
+        "t": "KeyGenerator",
+        "en": "KeyGenerator",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "在 Spring Boot 中，`RedisCacheManager` 負責管理 Cache 的生命週期與配置。透過 `RedisCacheManagerBuilderCustomizer`，我們可以針對特定的 Cache Name 覆寫預設的 `RedisCacheConfiguration` (包含 TTL)。",
+      "en": "In Spring Boot, `RedisCacheManager` is responsible for managing the lifecycle and configuration of caches. Through `RedisCacheManagerBuilderCustomizer`, we can override the default `RedisCacheConfiguration` (including TTL) for specific Cache Names.",
+      "wg": [
+        {
+          "t": "覆寫",
+          "en": "Override",
+          "ps": "verb"
+        }
+      ]
+    }
+  }
+]

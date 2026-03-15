@@ -1,0 +1,799 @@
+[
+  {
+    "no": "1",
+    "level": "Easy",
+    "keywords": "Mental Model,ControllerAdvice,Architecture",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在 REST API 的異常處理設計中，手冊提到了「邊界上的交通指揮官」這一心智模型。請問 `@ControllerAdvice` 的主要職責是什麼？",
+        "en": "In the design of REST API exception handling, the handbook mentions the mental model of a 'Traffic Cop at the Edge'. What is the primary responsibility of `@ControllerAdvice`?",
+        "wg": [
+          {
+            "t": "邊界",
+            "en": "boundary",
+            "ps": "noun"
+          },
+          {
+            "t": "職責",
+            "en": "responsibility",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "負責在每個 Controller 方法中捕捉 `try-catch` 並記錄 Log。",
+        "en": "Responsible for catching `try-catch` in every Controller method and logging it.",
+        "wg": []
+      },
+      {
+        "t": "攔截從 Service 或 Repository 層拋出的異常，並將其轉換為標準的 HTTP 回應。",
+        "en": "Intercept exceptions thrown from the Service or Repository layers and translate them into standardized HTTP responses.",
+        "wg": [
+          {
+            "t": "攔截",
+            "en": "intercept",
+            "ps": "verb"
+          },
+          {
+            "t": "轉換",
+            "en": "translate",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "直接修復資料庫連線錯誤，確保請求成功。",
+        "en": "Directly fix database connection errors to ensure the request succeeds.",
+        "wg": []
+      },
+      {
+        "t": "僅負責處理 HTTP 200 成功請求的格式化。",
+        "en": "Only responsible for formatting successful HTTP 200 requests.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "`@ControllerAdvice` 扮演全域處理器的角色，負責攔截所有未處理的異常並統一轉換格式，避免在每個 Controller 重複寫 `try-catch`。它無法自動修復底層錯誤，也不僅限於處理成功請求。",
+      "en": "`@ControllerAdvice` acts as a global handler, responsible for intercepting all unhandled exceptions and unifying the format, avoiding repetitive `try-catch` blocks in every Controller. It cannot automatically fix underlying errors and is not limited to handling successful requests.",
+      "wg": [
+        {
+          "t": "全域處理器",
+          "en": "global handler",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "2",
+    "level": "Medium",
+    "keywords": "Anti-pattern,HTTP Status,Monitoring",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "{\n  \"code\": 200,\n  \"body\": {\n    \"error\": \"true\",\n    \"message\": \"User not found\"\n  }\n}",
+    "question": [
+      {
+        "t": "某個舊系統的 API 在發生錯誤時回傳上述 JSON，且 HTTP Status Code 為 `200 OK`。根據手冊中的「反模式（Anti-patterns）」章節，為什麼這種做法被認為是糟糕的？",
+        "en": "A legacy system API returns the above JSON with an HTTP Status Code of `200 OK` when an error occurs. According to the 'Anti-patterns' section in the handbook, why is this considered bad practice?",
+        "wg": [
+          {
+            "t": "反模式",
+            "en": "anti-pattern",
+            "ps": "noun"
+          },
+          {
+            "t": "糟糕的",
+            "en": "bad practice",
+            "ps": "noun phrase"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "因為 JSON 格式不符合 RFC 7807 標準，導致前端無法解析。",
+        "en": "Because the JSON format does not comply with the RFC 7807 standard, causing frontend parsing failures.",
+        "wg": []
+      },
+      {
+        "t": "這會破壞 HTTP 協定的語意，並導致監控工具（如 Prometheus）無法正確統計錯誤率。",
+        "en": "It breaks HTTP protocol semantics and prevents monitoring tools (like Prometheus) from correctly tracking error rates.",
+        "wg": [
+          {
+            "t": "語意",
+            "en": "semantics",
+            "ps": "noun"
+          },
+          {
+            "t": "統計",
+            "en": "track/calculate",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "因為 200 OK 的回應速度比 404 Not Found 慢。",
+        "en": "Because a 200 OK response is slower than a 404 Not Found response.",
+        "wg": []
+      },
+      {
+        "t": "因為這樣會洩漏 Stack Trace 給駭客。",
+        "en": "Because this leaks the Stack Trace to hackers.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "回傳 200 OK 代表請求成功，若內容是錯誤訊息，會混淆 HTTP 語意。監控系統通常依賴 Status Code (4xx/5xx) 來觸發警報，若全回傳 200，系統將無法察覺異常。",
+      "en": "Returning 200 OK implies the request was successful. If the content is an error message, it confuses HTTP semantics. Monitoring systems rely on Status Codes (4xx/5xx) to trigger alerts; if everything returns 200, the system remains unaware of anomalies.",
+      "wg": [
+        {
+          "t": "混淆",
+          "en": "confuse",
+          "ps": "verb"
+        },
+        {
+          "t": "觸發警報",
+          "en": "trigger alerts",
+          "ps": "verb phrase"
+        }
+      ]
+    }
+  },
+  {
+    "no": "3",
+    "level": "Medium",
+    "keywords": "Security,Stack Trace,Production",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "關於生產環境（Production）的異常處理安全規範，下列哪一項被手冊稱為「大忌（The Cardinal Sin）」？",
+        "en": "Regarding exception handling security standards in Production, which of the following is referred to as 'The Cardinal Sin' in the handbook?",
+        "wg": [
+          {
+            "t": "大忌",
+            "en": "cardinal sin",
+            "ps": "noun phrase"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "回傳自定義的錯誤代碼（如 `USR-001`）。",
+        "en": "Returning custom error codes (e.g., `USR-001`).",
+        "wg": []
+      },
+      {
+        "t": "在 API 回應中包含完整的 Stack Trace（堆疊追蹤）。",
+        "en": "Including the full Stack Trace in the API response.",
+        "wg": [
+          {
+            "t": "堆疊追蹤",
+            "en": "stack trace",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "使用 `ProblemDetail` 物件來封裝錯誤。",
+        "en": "Using the `ProblemDetail` object to encapsulate errors.",
+        "wg": []
+      },
+      {
+        "t": "將 500 錯誤記錄在 Log 檔案中。",
+        "en": "Logging 500 errors to a log file.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "洩漏 Stack Trace 會暴露系統架構、套件版本與程式碼路徑，這為駭客提供了攻擊指引。生產環境應將 `server.error.include-stacktrace` 設為 `never`。",
+      "en": "Leaking Stack Traces exposes system architecture, library versions, and code paths, providing a guide for attackers. In production, `server.error.include-stacktrace` should be set to `never`.",
+      "wg": [
+        {
+          "t": "暴露",
+          "en": "expose",
+          "ps": "verb"
+        },
+        {
+          "t": "攻擊指引",
+          "en": "guide for attackers",
+          "ps": "noun phrase"
+        }
+      ]
+    }
+  },
+  {
+    "no": "4",
+    "level": "Medium",
+    "keywords": "Spring Boot 3,RFC 7807,ProblemDetail",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "ProblemDetail pd = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, \"User not found\");\npd.setTitle(\"Resource Missing\");\npd.setProperty(\"customCode\", \"ERR-404\");",
+    "question": [
+      {
+        "t": "Spring Boot 3 引入了對 RFC 7807 的原生支援。請問上述程式碼片段使用了哪個類別來標準化錯誤回應？",
+        "en": "Spring Boot 3 introduced native support for RFC 7807. Which class is used in the code snippet above to standardize the error response?",
+        "wg": [
+          {
+            "t": "原生支援",
+            "en": "native support",
+            "ps": "noun phrase"
+          },
+          {
+            "t": "標準化",
+            "en": "standardize",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "`ResponseEntity`",
+        "en": "`ResponseEntity`",
+        "wg": []
+      },
+      {
+        "t": "`ProblemDetail`",
+        "en": "`ProblemDetail`",
+        "wg": []
+      },
+      {
+        "t": "`ApiError`",
+        "en": "`ApiError`",
+        "wg": []
+      },
+      {
+        "t": "`GlobalException`",
+        "en": "`GlobalException`",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "`ProblemDetail` 是 Spring Boot 3 為了實作 IETF RFC 7807 標準而引入的新類別，它包含 `type`, `title`, `status`, `detail`, `instance` 等標準欄位，並允許透過 `setProperty` 擴充自定義欄位。",
+      "en": "`ProblemDetail` is the new class introduced in Spring Boot 3 to implement the IETF RFC 7807 standard. It includes standard fields like `type`, `title`, `status`, `detail`, `instance`, and allows custom extensions via `setProperty`.",
+      "wg": [
+        {
+          "t": "擴充",
+          "en": "extend/extension",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "5",
+    "level": "Hard",
+    "keywords": "Layered Architecture,Exception Translation,Best Practices",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "根據「分層異常轉換（Layered Exception Translation）」的最佳實務，當 Repository 層發生 SQL 連線錯誤時，理想的處理流程應為何？",
+        "en": "According to the best practice of 'Layered Exception Translation', what is the ideal handling flow when a SQL connection error occurs in the Repository layer?",
+        "wg": [
+          {
+            "t": "分層異常轉換",
+            "en": "layered exception translation",
+            "ps": "noun phrase"
+          },
+          {
+            "t": "處理流程",
+            "en": "handling flow",
+            "ps": "noun phrase"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "Repository 直接拋出 `SQLException` -> Controller 捕捉並回傳 500。",
+        "en": "Repository throws `SQLException` directly -> Controller catches it and returns 500.",
+        "wg": []
+      },
+      {
+        "t": "Repository 捕捉錯誤並回傳 `null` -> Service 判斷 `null` 並回傳錯誤訊息。",
+        "en": "Repository catches the error and returns `null` -> Service checks for `null` and returns an error message.",
+        "wg": []
+      },
+      {
+        "t": "Repository 拋出 DataAccess 異常 -> Service 轉換為具業務語意的 `BusinessException` -> Global Handler 轉換為 HTTP 回應。",
+        "en": "Repository throws DataAccess exception -> Service translates it to a semantic `BusinessException` -> Global Handler translates it to an HTTP response.",
+        "wg": [
+          {
+            "t": "業務語意",
+            "en": "business semantics",
+            "ps": "noun phrase"
+          }
+        ]
+      },
+      {
+        "t": "Repository 直接呼叫 `System.exit(1)` 重啟應用程式。",
+        "en": "Repository directly calls `System.exit(1)` to restart the application.",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "最佳實務是避免底層技術異常（如 SQL 錯誤）直接穿透到上層。Service 層應拋出具備業務意義的異常（如 `InventoryShortageException`），最後由全域處理器統一轉為 HTTP 格式。",
+      "en": "The best practice is to prevent low-level technical exceptions (like SQL errors) from leaking to upper layers. The Service layer should throw exceptions with business meaning (e.g., `InventoryShortageException`), which are finally converted to HTTP format by the global handler.",
+      "wg": [
+        {
+          "t": "穿透",
+          "en": "leak/penetrate",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "6",
+    "level": "Medium",
+    "keywords": "Validation,Bean Validation,Exception Type",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "@PostMapping\npublic void create(@Valid @RequestBody UserDTO user) { ... }",
+    "question": [
+      {
+        "t": "當上述 Controller 方法中的 `UserDTO` 驗證失敗（例如必填欄位為空）時，Spring Boot 預設會拋出哪種異常？你需要為此異常設定全域處理器以回傳 400 Bad Request。",
+        "en": "When the `UserDTO` validation fails (e.g., a required field is empty) in the Controller method above, which exception does Spring Boot throw by default? You need to configure a global handler for this exception to return 400 Bad Request.",
+        "wg": [
+          {
+            "t": "驗證失敗",
+            "en": "validation fails",
+            "ps": "verb phrase"
+          },
+          {
+            "t": "預設",
+            "en": "by default",
+            "ps": "adverb"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "`NullPointerException`",
+        "en": "`NullPointerException`",
+        "wg": []
+      },
+      {
+        "t": "`MethodArgumentNotValidException`",
+        "en": "`MethodArgumentNotValidException`",
+        "wg": []
+      },
+      {
+        "t": "`IllegalArgumentException`",
+        "en": "`IllegalArgumentException`",
+        "wg": []
+      },
+      {
+        "t": "`ConstraintViolationException`",
+        "en": "`ConstraintViolationException`",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "當使用 `@Valid` 驗證 `@RequestBody` 失敗時，Spring MVC 會拋出 `MethodArgumentNotValidException`。若是驗證 `@RequestParam` 或 `@PathVariable`，則通常拋出 `ConstraintViolationException`。",
+      "en": "When `@Valid` validation on `@RequestBody` fails, Spring MVC throws `MethodArgumentNotValidException`. If validating `@RequestParam` or `@PathVariable`, it typically throws `ConstraintViolationException`.",
+      "wg": []
+    }
+  },
+  {
+    "no": "7",
+    "level": "Medium",
+    "keywords": "Logging,Catch-All,Best Practices",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "@ExceptionHandler(Exception.class)\npublic ResponseEntity<Object> handleAll(Exception ex) {\n    return ResponseEntity.internalServerError().build();\n}",
+    "question": [
+      {
+        "t": "上述的「Catch-All」全域異常處理器有一個嚴重的缺失，這會導致生產環境發生問題時難以排查。請問缺失是什麼？",
+        "en": "The 'Catch-All' global exception handler above has a critical flaw that makes troubleshooting in production difficult. What is the flaw?",
+        "wg": [
+          {
+            "t": "缺失",
+            "en": "flaw/deficiency",
+            "ps": "noun"
+          },
+          {
+            "t": "排查",
+            "en": "troubleshoot",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "沒有回傳 JSON 格式。",
+        "en": "It does not return JSON format.",
+        "wg": []
+      },
+      {
+        "t": "沒有記錄錯誤日誌（Logging），導致異常被「吞掉」。",
+        "en": "It does not log the error (Logging), causing the exception to be 'swallowed'.",
+        "wg": [
+          {
+            "t": "吞掉",
+            "en": "swallowed",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "應該回傳 200 OK 而不是 500。",
+        "en": "It should return 200 OK instead of 500.",
+        "wg": []
+      },
+      {
+        "t": "方法名稱不應該叫 `handleAll`。",
+        "en": "The method name should not be `handleAll`.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "對於未知的 500 錯誤，必須在伺服器端記錄 ERROR 等級的 Log（包含 Stack Trace），否則開發者將無法得知錯誤發生的原因。直接回傳回應而不記錄 Log 是「盲飛（Flying Blind）」的行為。",
+      "en": "For unknown 500 errors, an ERROR level log (including Stack Trace) MUST be recorded on the server side; otherwise, developers will not know the cause of the error. Returning a response without logging is 'Flying Blind'.",
+      "wg": [
+        {
+          "t": "盲飛",
+          "en": "flying blind",
+          "ps": "idiom"
+        }
+      ]
+    }
+  },
+  {
+    "no": "8",
+    "level": "Easy",
+    "keywords": "Code Maintenance,Magic Strings,Refactoring",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "throw new BusinessException(\"User not found\", \"ERR-999\");",
+    "question": [
+      {
+        "t": "在程式碼中直接寫死（Hardcode）錯誤訊息與代碼（如上述片段）被稱為「魔術字串（Magic Strings）」。手冊建議使用什麼方式來改善這個問題？",
+        "en": "Hardcoding error messages and codes directly in the code (as in the snippet above) is known as 'Magic Strings'. What does the handbook recommend to improve this?",
+        "wg": [
+          {
+            "t": "寫死",
+            "en": "hardcode",
+            "ps": "verb"
+          },
+          {
+            "t": "改善",
+            "en": "improve",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "使用 Enum 或常數類別來集中管理錯誤代碼與訊息。",
+        "en": "Use Enums or Constant classes to centrally manage error codes and messages.",
+        "wg": [
+          {
+            "t": "集中管理",
+            "en": "centrally manage",
+            "ps": "verb phrase"
+          }
+        ]
+      },
+      {
+        "t": "將錯誤訊息寫在資料庫中，每次拋出異常時查詢。",
+        "en": "Store error messages in the database and query them every time an exception is thrown.",
+        "wg": []
+      },
+      {
+        "t": "使用隨機生成的 UUID 作為錯誤代碼。",
+        "en": "Use randomly generated UUIDs as error codes.",
+        "wg": []
+      },
+      {
+        "t": "完全移除錯誤代碼，只回傳 HTTP Status。",
+        "en": "Remove error codes entirely and only return HTTP Status.",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "使用 Enum 或常數類別可以避免拼字錯誤，便於維護，並且更容易支援多國語言（i18n）。分散的魔術字串會導致維護噩夢。",
+      "en": "Using Enums or Constant classes prevents typos, facilitates maintenance, and makes supporting internationalization (i18n) easier. Scattered magic strings lead to a maintenance nightmare.",
+      "wg": [
+        {
+          "t": "維護噩夢",
+          "en": "maintenance nightmare",
+          "ps": "noun phrase"
+        }
+      ]
+    }
+  },
+  {
+    "no": "9",
+    "level": "Medium",
+    "keywords": "Spring MVC, JSON, Exception Handling, HTTP 400",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "POST /api/users\nContent-Type: application/json\n\n{\n  \"username\": \"john_doe\",\n  \"email\": \"john@example.com\" \n  // Missing closing brace '}'",
+    "question": [
+      {
+        "t": "當客戶端發送上述格式錯誤的 JSON 請求（Malformed JSON）時，Spring Boot 預設會拋出下列哪一個異常？且根據標準，應回傳哪個 HTTP 狀態碼？",
+        "en": "When a client sends the malformed JSON request shown above, which exception does Spring Boot throw by default? And according to standards, which HTTP status code should be returned?",
+        "wg": [
+          {
+            "t": "格式錯誤的",
+            "en": "malformed",
+            "ps": "adj."
+          },
+          {
+            "t": "拋出",
+            "en": "throw",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "MethodArgumentNotValidException, 400 Bad Request",
+        "en": "MethodArgumentNotValidException, 400 Bad Request",
+        "wg": []
+      },
+      {
+        "t": "HttpMessageNotReadableException, 400 Bad Request",
+        "en": "HttpMessageNotReadableException, 400 Bad Request",
+        "wg": []
+      },
+      {
+        "t": "JsonParseException, 500 Internal Server Error",
+        "en": "JsonParseException, 500 Internal Server Error",
+        "wg": []
+      },
+      {
+        "t": "NoResourceFoundException, 404 Not Found",
+        "en": "NoResourceFoundException, 404 Not Found",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "當 Request Body 的 JSON 語法錯誤（無法解析）時，Spring 會拋出 `HttpMessageNotReadableException`，這屬於客戶端錯誤，應回傳 400。`MethodArgumentNotValidException` 是發生在 JSON 格式正確但欄位驗證（如 `@NotNull`）失敗時。",
+      "en": "When the JSON in the Request Body has a syntax error (cannot be parsed), Spring throws `HttpMessageNotReadableException`. This is a client-side error and should return 400. `MethodArgumentNotValidException` occurs when the JSON format is correct but field validation (e.g., `@NotNull`) fails.",
+      "wg": [
+        {
+          "t": "語法錯誤",
+          "en": "syntax error",
+          "ps": "noun"
+        },
+        {
+          "t": "解析",
+          "en": "parse",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "10",
+    "level": "Medium",
+    "keywords": "Spring Boot 3, ProblemDetail, Extension, RFC 7807",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(\n    HttpStatus.BAD_REQUEST, \n    \"Validation Failed\"\n);\n\n// TODO: Add a custom field \"traceId\" with value \"abc-123\"",
+    "question": [
+      {
+        "t": "在 Spring Boot 3 中使用 `ProblemDetail` 實作 RFC 7807 時，若需要加入標準欄位以外的自定義屬性（如 `traceId`），應使用下列哪個方法？",
+        "en": "When implementing RFC 7807 using `ProblemDetail` in Spring Boot 3, which method should be used to add custom properties (such as `traceId`) beyond the standard fields?",
+        "wg": [
+          {
+            "t": "自定義屬性",
+            "en": "custom properties",
+            "ps": "noun"
+          },
+          {
+            "t": "實作",
+            "en": "implementing",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "problemDetail.addAttribute(\"traceId\", \"abc-123\");",
+        "en": "problemDetail.addAttribute(\"traceId\", \"abc-123\");",
+        "wg": []
+      },
+      {
+        "t": "problemDetail.put(\"traceId\", \"abc-123\");",
+        "en": "problemDetail.put(\"traceId\", \"abc-123\");",
+        "wg": []
+      },
+      {
+        "t": "problemDetail.setProperty(\"traceId\", \"abc-123\");",
+        "en": "problemDetail.setProperty(\"traceId\", \"abc-123\");",
+        "wg": []
+      },
+      {
+        "t": "problemDetail.setExtension(\"traceId\", \"abc-123\");",
+        "en": "problemDetail.setExtension(\"traceId\", \"abc-123\");",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "Spring Boot 3 的 `ProblemDetail` 類別提供了 `setProperty(String name, Object value)` 方法來加入擴充欄位。這些欄位在序列化為 JSON 時，會與 title, status 等標準欄位並列顯示。",
+      "en": "The `ProblemDetail` class in Spring Boot 3 provides the `setProperty(String name, Object value)` method to add extension fields. These fields are serialized alongside standard fields like title and status in the JSON output.",
+      "wg": [
+        {
+          "t": "擴充欄位",
+          "en": "extension fields",
+          "ps": "noun"
+        },
+        {
+          "t": "序列化",
+          "en": "serialize",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "11",
+    "level": "Easy",
+    "keywords": "Configuration, Security, Production, Stack Trace",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "根據手冊的安全檢查清單（Security Checklist），為了防止在生產環境洩漏系統內部資訊，你應該在 `application.properties` 中如何設定 `server.error.include-stacktrace`？",
+        "en": "According to the Security Checklist in the handbook, how should you configure `server.error.include-stacktrace` in `application.properties` to prevent leaking internal system information in production?",
+        "wg": [
+          {
+            "t": "洩漏",
+            "en": "leaking",
+            "ps": "verb"
+          },
+          {
+            "t": "內部資訊",
+            "en": "internal information",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "server.error.include-stacktrace=always",
+        "en": "server.error.include-stacktrace=always",
+        "wg": []
+      },
+      {
+        "t": "server.error.include-stacktrace=on-trace-param",
+        "en": "server.error.include-stacktrace=on-trace-param",
+        "wg": []
+      },
+      {
+        "t": "server.error.include-stacktrace=never",
+        "en": "server.error.include-stacktrace=never",
+        "wg": []
+      },
+      {
+        "t": "server.error.include-stacktrace=admin-only",
+        "en": "server.error.include-stacktrace=admin-only",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "手冊明確指出，在生產環境中應將此屬性設為 `never`，以避免將 Stack Trace 暴露給 API 使用者，這是防止資訊洩漏的基本安全實務。",
+      "en": "The handbook explicitly states that this property should be set to `never` in production environments to avoid exposing stack traces to API consumers, which is a fundamental security practice to prevent information leakage.",
+      "wg": [
+        {
+          "t": "暴露",
+          "en": "exposing",
+          "ps": "verb"
+        },
+        {
+          "t": "實務",
+          "en": "practice",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "12",
+    "level": "Easy",
+    "keywords": "Mental Model, API Contract, Consistency, Frontend",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "如果前端開發者抱怨：「我必須針對 User API 寫一套錯誤解析邏輯，又要針對 Order API 寫另一套，因為它們回傳的錯誤格式長得不一樣。」根據手冊中「契約精神（The Contract）」的心智模型，這代表了什麼？",
+        "en": "If a frontend developer complains: \"I have to write one error parsing logic for the User API and another for the Order API because their error response formats look different.\" According to the \"The Contract\" mental model in the handbook, what does this indicate?",
+        "wg": [
+          {
+            "t": "抱怨",
+            "en": "complain",
+            "ps": "verb"
+          },
+          {
+            "t": "解析邏輯",
+            "en": "parsing logic",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "這是前端開發者的責任，他們應該適應後端的變化。",
+        "en": "This is the frontend developer's responsibility; they should adapt to backend changes.",
+        "wg": []
+      },
+      {
+        "t": "這是後端設計的失敗，因為違反了 API 錯誤回應的一致性契約。",
+        "en": "This is a failure of backend design because it violates the consistency contract of API error responses.",
+        "wg": []
+      },
+      {
+        "t": "這是正常的微服務架構現象，不同服務本來就該有不同格式。",
+        "en": "This is a normal phenomenon in microservices architecture; different services should have different formats.",
+        "wg": []
+      },
+      {
+        "t": "這表示需要引入 GraphQL 來解決問題。",
+        "en": "This indicates that GraphQL needs to be introduced to solve the problem.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "手冊強調 REST API 是一種契約，失敗的請求必須有定義好且一致的格式。如果前端需要針對不同 Endpoint 寫不同的錯誤處理邏輯，這就是後端設計的失敗。",
+      "en": "The handbook emphasizes that a REST API is a contract, and failed requests must have a well-defined and consistent format. If the frontend needs to write different error handling logic for different endpoints, the backend design has failed.",
+      "wg": [
+        {
+          "t": "一致的",
+          "en": "consistent",
+          "ps": "adj."
+        },
+        {
+          "t": "違反",
+          "en": "violate",
+          "ps": "verb"
+        }
+      ]
+    }
+  }
+]

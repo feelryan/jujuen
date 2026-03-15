@@ -1,0 +1,1298 @@
+[
+  {
+    "no": "1",
+    "level": "intermediate",
+    "keywords": "Kubernetes, Liveness Probe, Readiness Probe, Cascading Failure",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "livenessProbe:\n  httpGet:\n    path: /actuator/health\n    port: 8080\n  # Assuming /actuator/health checks DB connectivity by default",
+    "question": [
+      {
+        "t": "您正在審查一個 Spring Boot 微服務的 Kubernetes 部署設定，該服務依賴於關聯式資料庫。",
+        "en": "You are reviewing the Kubernetes deployment configuration for a Spring Boot microservice that depends on a relational database.",
+        "wg": [
+          {
+            "t": "部署設定",
+            "en": "deployment configuration",
+            "ps": "NP"
+          },
+          {
+            "t": "關聯式資料庫",
+            "en": "relational database",
+            "ps": "NP"
+          }
+        ]
+      },
+      {
+        "t": "您發現 `livenessProbe` 被設定為檢查包含資料庫連線狀態的 `/actuator/health` 端點。",
+        "en": "You notice that the `livenessProbe` is configured to check the `/actuator/health` endpoint, which includes database connection status.",
+        "wg": [
+          {
+            "t": "端點",
+            "en": "endpoint",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "這種配置在資料庫暫時無法連線時，最可能導致什麼後果？",
+        "en": "What is the most likely consequence of this configuration when the database is temporarily unreachable?",
+        "wg": [
+          {
+            "t": "暫時",
+            "en": "temporarily",
+            "ps": "Adv"
+          },
+          {
+            "t": "無法連線",
+            "en": "unreachable",
+            "ps": "Adj"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 系統將正確運作，因為應用程式會在資料庫恢復後自動重新連線。",
+        "en": "(A) The system will function correctly because the application will automatically reconnect once the database recovers.",
+        "wg": []
+      },
+      {
+        "t": "(B) Kubernetes 會頻繁重啟 Pod，導致級聯故障並加重資料庫負擔。",
+        "en": "(B) Kubernetes will frequently restart the Pod, causing cascading failures and increasing the load on the database.",
+        "wg": [
+          {
+            "t": "級聯故障",
+            "en": "cascading failures",
+            "ps": "NP"
+          },
+          {
+            "t": "重啟",
+            "en": "restart",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(C) Load Balancer 會停止將流量發送給該實例，直到資料庫恢復。",
+        "en": "(C) The Load Balancer will stop sending traffic to the instance until the database recovers.",
+        "wg": []
+      },
+      {
+        "t": "(D) 應用程式會進入唯讀模式以保護資料完整性。",
+        "en": "(D) The application will enter read-only mode to protect data integrity.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "Liveness Probe 的目的是檢查應用程式是否崩潰（例如 Deadlock）。若將 DB 連線檢查放入 Liveness，當 DB 不可用時，K8s 會判定 App 已死並重啟它。重啟無法解決 DB 問題，反而會因為啟動時的連線風暴導致 DB 壓力更大（級聯故障）。應將依賴檢查放入 Readiness Probe。",
+      "en": "The purpose of a Liveness Probe is to check if the application has crashed (e.g., Deadlock). If a DB check is included in Liveness, K8s will restart the app when the DB is unavailable. Restarting does not fix the DB issue and can cause a connection storm during startup, worsening the DB load (Cascading Failure). Dependency checks should be placed in the Readiness Probe.",
+      "wg": [
+        {
+          "t": "連線風暴",
+          "en": "connection storm",
+          "ps": "NP"
+        },
+        {
+          "t": "依賴檢查",
+          "en": "dependency check",
+          "ps": "NP"
+        }
+      ]
+    }
+  },
+  {
+    "no": "2",
+    "level": "advanced",
+    "keywords": "Micrometer, Prometheus, Cardinality, Tags",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "Timer.builder(\"http.requests\")\n    .tag(\"method\", request.getMethod())\n    .tag(\"status\", String.valueOf(response.getStatus()))\n    .tag(\"userId\", user.getId()) // Potential issue here\n    .register(registry);",
+    "question": [
+      {
+        "t": "在 Code Review 過程中，您發現一位工程師使用 Micrometer 記錄 API 請求時間，並將 `userId` 作為 Tag 加入指標中。",
+        "en": "During a Code Review, you notice an engineer using Micrometer to record API request times and adding `userId` as a Tag to the metric.",
+        "wg": [
+          {
+            "t": "指標",
+            "en": "metric",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "若該系統使用 Prometheus 作為後端，這種做法會引發什麼嚴重的維運風險？",
+        "en": "If the system uses Prometheus as the backend, what serious operational risk does this practice pose?",
+        "wg": [
+          {
+            "t": "維運風險",
+            "en": "operational risk",
+            "ps": "NP"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 執行緒阻塞：記錄大量 Tag 會導致請求處理延遲。",
+        "en": "(A) Thread Blocking: Recording a large number of Tags causes request processing delays.",
+        "wg": [
+          {
+            "t": "執行緒阻塞",
+            "en": "thread blocking",
+            "ps": "NP"
+          }
+        ]
+      },
+      {
+        "t": "(B) 基數爆炸：無限增長的 Tag 組合會耗盡監控系統的記憶體。",
+        "en": "(B) Cardinality Explosion: Unbounded Tag combinations will exhaust the monitoring system's memory.",
+        "wg": [
+          {
+            "t": "基數爆炸",
+            "en": "cardinality explosion",
+            "ps": "NP"
+          },
+          {
+            "t": "耗盡",
+            "en": "exhaust",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(C) 資料不一致：Prometheus 無法處理字串類型的 Tag。",
+        "en": "(C) Data Inconsistency: Prometheus cannot handle String type Tags.",
+        "wg": []
+      },
+      {
+        "t": "(D) 安全漏洞：`userId` 會被明文寫入應用程式日誌中。",
+        "en": "(D) Security Vulnerability: `userId` will be written to application logs in plain text.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "Prometheus 是時間序列資料庫，會為每一組獨特的 Tag 組合（如 `userId=1`, `userId=2`...）建立一個新的時間序列。由於 `userId` 的數量是無限的（Unbounded），這會導致「基數爆炸」（Cardinality Explosion），迅速耗盡 Prometheus 的記憶體並導致其崩潰。",
+      "en": "Prometheus is a Time Series Database that creates a new time series for every unique combination of Tags (e.g., `userId=1`, `userId=2`...). Since the number of `userIds` is unbounded, this leads to 'Cardinality Explosion', rapidly exhausting Prometheus's memory and causing it to crash.",
+      "wg": [
+        {
+          "t": "時間序列",
+          "en": "time series",
+          "ps": "NP"
+        },
+        {
+          "t": "無限的",
+          "en": "unbounded",
+          "ps": "Adj"
+        }
+      ]
+    }
+  },
+  {
+    "no": "3",
+    "level": "intermediate",
+    "keywords": "Spring Boot 3, Distributed Tracing, Sleuth, Migration",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您的團隊正在將微服務從 Spring Boot 2.7 升級到 Spring Boot 3.x。",
+        "en": "Your team is upgrading microservices from Spring Boot 2.7 to Spring Boot 3.x.",
+        "wg": []
+      },
+      {
+        "t": "原本使用 `spring-cloud-starter-sleuth` 來處理分散式追蹤，但在升級後發現該依賴已不再支援。",
+        "en": "You were using `spring-cloud-starter-sleuth` for distributed tracing, but found that this dependency is no longer supported after the upgrade.",
+        "wg": [
+          {
+            "t": "分散式追蹤",
+            "en": "distributed tracing",
+            "ps": "NP"
+          },
+          {
+            "t": "不再支援",
+            "en": "no longer supported",
+            "ps": "AdjP"
+          }
+        ]
+      },
+      {
+        "t": "為了維持追蹤功能並符合 Spring Boot 3 的標準，您應該替換為哪個核心專案？",
+        "en": "To maintain tracing functionality and align with Spring Boot 3 standards, which core project should you switch to?",
+        "wg": [
+          {
+            "t": "符合",
+            "en": "align with",
+            "ps": "V"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) Spring Cloud Tracing",
+        "en": "(A) Spring Cloud Tracing",
+        "wg": []
+      },
+      {
+        "t": "(B) Micrometer Tracing",
+        "en": "(B) Micrometer Tracing",
+        "wg": []
+      },
+      {
+        "t": "(C) Spring Boot Admin",
+        "en": "(C) Spring Boot Admin",
+        "wg": []
+      },
+      {
+        "t": "(D) Log4j2 Tracing Bridge",
+        "en": "(D) Log4j2 Tracing Bridge",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "在 Spring Boot 3.x 中，Spring Cloud Sleuth 專案已停止維護，其核心功能被遷移並整合到了 Micrometer Tracing 中。這使得 Metrics 與 Tracing 統一在 Micrometer 的 API 下。",
+      "en": "In Spring Boot 3.x, the Spring Cloud Sleuth project is no longer maintained, and its core functionality has been migrated and integrated into Micrometer Tracing. This unifies Metrics and Tracing under the Micrometer API.",
+      "wg": [
+        {
+          "t": "遷移",
+          "en": "migrated",
+          "ps": "V"
+        },
+        {
+          "t": "整合",
+          "en": "integrated",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "4",
+    "level": "intermediate",
+    "keywords": "Logging, MDC, Trace ID, Debugging",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "logging.pattern.level=%5p [${spring.application.name:},%X{traceId:-},%X{spanId:-}]",
+    "question": [
+      {
+        "t": "在分散式系統中排查問題時，能夠將同一請求跨越多個服務的日誌串聯起來至關重要。",
+        "en": "When troubleshooting in a distributed system, it is crucial to correlate logs for the same request across multiple services.",
+        "wg": [
+          {
+            "t": "排查",
+            "en": "troubleshoot",
+            "ps": "V"
+          },
+          {
+            "t": "串聯",
+            "en": "correlate",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "在 Spring Boot 搭配 Micrometer Tracing 的架構下，Trace ID 是透過什麼機制被加入到日誌輸出中的？",
+        "en": "In an architecture using Spring Boot with Micrometer Tracing, by what mechanism is the Trace ID added to the log output?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 透過 AOP 攔截每個方法並手動列印。",
+        "en": "(A) By intercepting every method via AOP and manually printing it.",
+        "wg": [
+          {
+            "t": "攔截",
+            "en": "intercepting",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(B) 透過注入 MDC (Mapped Diagnostic Context) 並配置日誌 Pattern。",
+        "en": "(B) By injecting into MDC (Mapped Diagnostic Context) and configuring the log Pattern.",
+        "wg": [
+          {
+            "t": "注入",
+            "en": "injecting",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(C) 透過 Actuator 的 `/logfile` 端點自動聚合。",
+        "en": "(C) By automatically aggregating via the Actuator `/logfile` endpoint.",
+        "wg": [
+          {
+            "t": "聚合",
+            "en": "aggregating",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(D) 透過 Sidecar 容器在網路層封包中讀取。",
+        "en": "(D) By reading from network packets via a Sidecar container.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "Micrometer Tracing (以及過去的 Sleuth) 會自動將 Trace ID 與 Span ID 放入 SLF4J 的 MDC 中。只要在 `logging.pattern` 中設定 `%X{traceId}`，日誌框架（如 Logback）就會自動將其輸出，實現日誌關聯。",
+      "en": "Micrometer Tracing (and formerly Sleuth) automatically places the Trace ID and Span ID into the SLF4J MDC. As long as `%X{traceId}` is configured in the `logging.pattern`, the logging framework (e.g., Logback) will automatically output it, achieving log correlation.",
+      "wg": [
+        {
+          "t": "日誌關聯",
+          "en": "log correlation",
+          "ps": "NP"
+        }
+      ]
+    }
+  },
+  {
+    "no": "5",
+    "level": "intermediate",
+    "keywords": "Security, Actuator, Configuration, Best Practices",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "management.endpoints.web.exposure.include=*",
+    "question": [
+      {
+        "t": "您在檢查生產環境的 `application.properties` 時發現了上述設定。",
+        "en": "You discover the above configuration while checking the `application.properties` in the production environment.",
+        "wg": []
+      },
+      {
+        "t": "這項設定最主要的安全隱憂是什麼？",
+        "en": "What is the primary security concern with this configuration?",
+        "wg": [
+          {
+            "t": "安全隱憂",
+            "en": "security concern",
+            "ps": "NP"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 它會導致應用程式記憶體洩漏。",
+        "en": "(A) It will cause application memory leaks.",
+        "wg": []
+      },
+      {
+        "t": "(B) 它暴露了所有 Actuator 端點，可能洩漏環境變數（含密碼）或允許未經授權的 Shutdown。",
+        "en": "(B) It exposes all Actuator endpoints, potentially leaking environment variables (including passwords) or allowing unauthorized Shutdown.",
+        "wg": [
+          {
+            "t": "暴露",
+            "en": "exposes",
+            "ps": "V"
+          },
+          {
+            "t": "未經授權的",
+            "en": "unauthorized",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "(C) 它會關閉所有的健康檢查探針。",
+        "en": "(C) It will disable all health check probes.",
+        "wg": []
+      },
+      {
+        "t": "(D) 它會強制開啟 Debug 級別的日誌記錄。",
+        "en": "(D) It will force Debug level logging to be enabled.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "使用 `*` 會暴露所有端點，包括 `/env` (可能含 API Keys/DB 密碼)、`/heapdump` (含記憶體資料) 與 `/shutdown`。在生產環境中，應採「最小權限原則」，僅明確列出需要的端點（如 `health`, `prometheus`）。",
+      "en": "Using `*` exposes all endpoints, including `/env` (potentially containing API Keys/DB passwords), `/heapdump` (containing memory data), and `/shutdown`. In production, the 'Principle of Least Privilege' should be applied, explicitly listing only necessary endpoints (e.g., `health`, `prometheus`).",
+      "wg": [
+        {
+          "t": "最小權限原則",
+          "en": "Principle of Least Privilege",
+          "ps": "NP"
+        }
+      ]
+    }
+  },
+  {
+    "no": "6",
+    "level": "advanced",
+    "keywords": "Micrometer, Timer, Programmatic Instrumentation, @Timed",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "public void processOrder(Order order) {\n    validate(order);\n    // You need to measure the execution time of this specific block\n    // and add a tag based on the payment result (success/failure)\n    PaymentStatus status = paymentService.charge(order);\n    // ...\n    saveToDatabase(order, status);\n}",
+    "question": [
+      {
+        "t": "您正在維護一個 Spring Boot 訂單服務，並希望針對 `processOrder` 方法中的「支付邏輯區塊」進行效能監控。",
+        "en": "You are maintaining a Spring Boot order service and want to monitor the performance of the 'payment logic block' within the `processOrder` method.",
+        "wg": [
+          {
+            "t": "效能監控",
+            "en": "performance monitoring",
+            "ps": "NP"
+          },
+          {
+            "t": "區塊",
+            "en": "block",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "此外，您需要根據執行後的 `PaymentStatus` 動態地為該指標添加 Tag（例如 `status=SUCCESS` 或 `status=FAILED`）。",
+        "en": "Additionally, you need to dynamically add a Tag to the metric based on the `PaymentStatus` after execution (e.g., `status=SUCCESS` or `status=FAILED`).",
+        "wg": [
+          {
+            "t": "動態地",
+            "en": "dynamically",
+            "ps": "Adv"
+          }
+        ]
+      },
+      {
+        "t": "下列哪種實作方式最適合此需求？",
+        "en": "Which of the following implementations is best suited for this requirement?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 在 `processOrder` 方法上使用 `@Timed(extraTags = {\"status\", \"...\"})` 註解。",
+        "en": "(A) Use the `@Timed(extraTags = {\"status\", \"...\"})` annotation on the `processOrder` method.",
+        "wg": []
+      },
+      {
+        "t": "(B) 使用 `Timer.builder()` 配合 `register(meterRegistry)` 進行程式化埋點，並在邏輯結束後記錄時間與 Tags。",
+        "en": "(B) Use `Timer.builder()` with `register(meterRegistry)` for programmatic instrumentation, and record the time and Tags after the logic completes.",
+        "wg": [
+          {
+            "t": "程式化埋點",
+            "en": "programmatic instrumentation",
+            "ps": "NP"
+          }
+        ]
+      },
+      {
+        "t": "(C) 使用 `Counter.builder()` 來計算支付次數，並利用 AOP 攔截器來計算時間。",
+        "en": "(C) Use `Counter.builder()` to count payments and use an AOP interceptor to calculate time.",
+        "wg": []
+      },
+      {
+        "t": "(D) 使用 `@Observed` 註解並配置自定義的 `ObservationConvention`。",
+        "en": "(D) Use the `@Observed` annotation and configure a custom `ObservationConvention`.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "`@Timed` 僅能監控整個方法的執行時間，且難以根據方法內部的區域變數（如 `PaymentStatus`）動態決定 Tag 值。使用 `Timer.builder()` 進行程式化埋點提供了最高的靈活性，允許針對特定程式碼區塊計時並動態賦予 Tags。",
+      "en": "`@Timed` can only monitor the execution time of the entire method and makes it difficult to dynamically determine Tag values based on local variables (like `PaymentStatus`) inside the method. Using `Timer.builder()` for programmatic instrumentation offers the highest flexibility, allowing timing of specific code blocks and dynamic assignment of Tags.",
+      "wg": [
+        {
+          "t": "區域變數",
+          "en": "local variables",
+          "ps": "NP"
+        },
+        {
+          "t": "靈活性",
+          "en": "flexibility",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "7",
+    "level": "intermediate",
+    "keywords": "Distributed Tracing, Sampling, Cost Optimization, Spring Boot 3",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "management.tracing.sampling.probability=1.0",
+    "question": [
+      {
+        "t": "您的團隊負責一個高流量的電子商務平台，最近啟用了分散式追蹤（Distributed Tracing）。",
+        "en": "Your team is responsible for a high-traffic e-commerce platform and recently enabled Distributed Tracing.",
+        "wg": [
+          {
+            "t": "高流量",
+            "en": "high-traffic",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "維運團隊回報追蹤後端（如 Jaeger 或 Zipkin）的儲存成本過高，且網路頻寬佔用顯著。",
+        "en": "The operations team reports that the storage costs for the tracing backend (like Jaeger or Zipkin) are excessive, and network bandwidth usage is significant.",
+        "wg": [
+          {
+            "t": "儲存成本",
+            "en": "storage costs",
+            "ps": "NP"
+          },
+          {
+            "t": "頻寬",
+            "en": "bandwidth",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "在不完全關閉追蹤功能的前提下，您應該優先調整哪個設定來解決此問題？",
+        "en": "Without completely disabling the tracing feature, which setting should you prioritize adjusting to resolve this issue?",
+        "wg": [
+          {
+            "t": "優先",
+            "en": "prioritize",
+            "ps": "V"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 將 `management.tracing.sampling.probability` 調低（例如 0.1）。",
+        "en": "(A) Lower `management.tracing.sampling.probability` (e.g., to 0.1).",
+        "wg": [
+          {
+            "t": "調低",
+            "en": "lower",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(B) 移除所有 Log 中的 Trace ID 與 Span ID。",
+        "en": "(B) Remove Trace IDs and Span IDs from all Logs.",
+        "wg": []
+      },
+      {
+        "t": "(C) 將 Trace 傳送模式改為同步（Synchronous）。",
+        "en": "(C) Change the Trace transmission mode to Synchronous.",
+        "wg": []
+      },
+      {
+        "t": "(D) 僅在發生 Exception 時才產生 Trace ID。",
+        "en": "(D) Only generate a Trace ID when an Exception occurs.",
+        "wg": []
+      }
+    ],
+    "answer": "(A)",
+    "why": {
+      "t": "在高流量系統中，對所有請求進行 100% 採樣（probability=1.0）會產生巨大的成本。降低採樣率（Sampling Rate）是標準的最佳實務，它允許您透過統計樣本來觀察系統行為，同時大幅降低資源消耗。",
+      "en": "In high-traffic systems, sampling 100% of requests (probability=1.0) incurs massive costs. Lowering the Sampling Rate is a standard best practice, allowing you to observe system behavior through statistical samples while significantly reducing resource consumption.",
+      "wg": [
+        {
+          "t": "採樣率",
+          "en": "sampling rate",
+          "ps": "N"
+        },
+        {
+          "t": "統計樣本",
+          "en": "statistical samples",
+          "ps": "NP"
+        }
+      ]
+    }
+  },
+  {
+    "no": "8",
+    "level": "intermediate",
+    "keywords": "Micrometer, Gauge, Counter, Metrics Types",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您需要監控一個內部 `BlockingQueue` 的當前堆積數量（Current Size），以便了解系統是否發生阻塞。",
+        "en": "You need to monitor the current size of an internal `BlockingQueue` to understand if the system is experiencing congestion.",
+        "wg": [
+          {
+            "t": "堆積數量",
+            "en": "backlog size / current size",
+            "ps": "NP"
+          },
+          {
+            "t": "阻塞",
+            "en": "congestion",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "該數值會隨著時間上下波動。請問您應該選擇哪種 Micrometer 指標類型？",
+        "en": "This value fluctuates up and down over time. Which Micrometer metric type should you choose?",
+        "wg": [
+          {
+            "t": "波動",
+            "en": "fluctuate",
+            "ps": "V"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) Counter",
+        "en": "(A) Counter",
+        "wg": []
+      },
+      {
+        "t": "(B) Timer",
+        "en": "(B) Timer",
+        "wg": []
+      },
+      {
+        "t": "(C) Gauge",
+        "en": "(C) Gauge",
+        "wg": []
+      },
+      {
+        "t": "(D) DistributionSummary",
+        "en": "(D) DistributionSummary",
+        "wg": []
+      }
+    ],
+    "answer": "(C)",
+    "why": {
+      "t": "`Gauge` 專門用於記錄某個時間點的狀態數值（如 Queue 大小、記憶體使用量、執行緒數），其值可增可減。`Counter` 僅適用於單調遞增的事件（如請求總數）。",
+      "en": "`Gauge` is specifically designed to record a state value at a point in time (e.g., Queue size, memory usage, thread count), where the value can go up or down. `Counter` is only suitable for monotonically increasing events (e.g., total request count).",
+      "wg": [
+        {
+          "t": "單調遞增",
+          "en": "monotonically increasing",
+          "ps": "Adj"
+        }
+      ]
+    }
+  },
+  {
+    "no": "9",
+    "level": "intermediate",
+    "keywords": "Latency, Percentiles, Golden Signals, Monitoring",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "客戶投訴您的 API 偶爾回應非常緩慢，導致超時。",
+        "en": "Customers are complaining that your API is occasionally very slow, causing timeouts.",
+        "wg": [
+          {
+            "t": "偶爾",
+            "en": "occasionally",
+            "ps": "Adv"
+          },
+          {
+            "t": "超時",
+            "en": "timeout",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "然而，您檢查監控儀表板上的「平均回應時間（Average Latency）」卻顯示一切正常（約 200ms）。",
+        "en": "However, when you check the 'Average Latency' on your monitoring dashboard, it shows everything is normal (around 200ms).",
+        "wg": []
+      },
+      {
+        "t": "這最可能是什麼原因造成的？",
+        "en": "What is the most likely cause of this?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 監控系統的採樣率太高，導致數據失真。",
+        "en": "(A) The sampling rate of the monitoring system is too high, causing data distortion.",
+        "wg": []
+      },
+      {
+        "t": "(B) 平均值掩蓋了長尾延遲（Long-tail Latency），您應該檢查 P95 或 P99 百分位數。",
+        "en": "(B) Averages hide long-tail latency; you should check P95 or P99 percentiles.",
+        "wg": [
+          {
+            "t": "掩蓋",
+            "en": "hide/mask",
+            "ps": "V"
+          },
+          {
+            "t": "長尾延遲",
+            "en": "long-tail latency",
+            "ps": "NP"
+          }
+        ]
+      },
+      {
+        "t": "(C) Micrometer 無法準確記錄超過 1 秒的請求。",
+        "en": "(C) Micrometer cannot accurately record requests longer than 1 second.",
+        "wg": []
+      },
+      {
+        "t": "(D) 這是網路層的問題，應用層監控無法偵測。",
+        "en": "(D) This is a network layer issue that application layer monitoring cannot detect.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "平均值（Mean）極易受到極端值的影響或掩蓋少數的極端情況。在效能監控中，P95 或 P99（第 95/99 百分位數）更能反映出「最慢的那部分請求」的體驗，這通常是使用者抱怨的來源。",
+      "en": "The Mean is easily affected by outliers or can mask a small number of extreme cases. In performance monitoring, P95 or P99 (95th/99th percentiles) better reflect the experience of the 'slowest requests', which is usually the source of user complaints.",
+      "wg": [
+        {
+          "t": "極端值",
+          "en": "outliers",
+          "ps": "N"
+        },
+        {
+          "t": "百分位數",
+          "en": "percentiles",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "10",
+    "level": "intermediate",
+    "keywords": "Logging, 12 Factor App, Containerization, Best Practices",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您正在將一個傳統的 Spring Boot 應用程式遷移到 Kubernetes 環境。",
+        "en": "You are migrating a legacy Spring Boot application to a Kubernetes environment.",
+        "wg": [
+          {
+            "t": "遷移",
+            "en": "migrating",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "原本的應用程式配置為將日誌寫入本地檔案 `/var/log/myapp/application.log`。",
+        "en": "The original application was configured to write logs to a local file `/var/log/myapp/application.log`.",
+        "wg": []
+      },
+      {
+        "t": "根據雲原生（Cloud Native）與 12-Factor App 的最佳實務，您應該如何調整日誌輸出？",
+        "en": "According to Cloud Native and 12-Factor App best practices, how should you adjust the log output?",
+        "wg": [
+          {
+            "t": "最佳實務",
+            "en": "best practices",
+            "ps": "NP"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 繼續寫入檔案，並使用 Sidecar 容器定期備份該檔案。",
+        "en": "(A) Continue writing to the file and use a Sidecar container to periodically back up the file.",
+        "wg": []
+      },
+      {
+        "t": "(B) 修改 Logback/Log4j2 設定，將日誌輸出到標準輸出（Stdout/Stderr），由基礎設施收集。",
+        "en": "(B) Modify Logback/Log4j2 configuration to output logs to standard output (Stdout/Stderr) for infrastructure collection.",
+        "wg": [
+          {
+            "t": "標準輸出",
+            "en": "standard output",
+            "ps": "NP"
+          },
+          {
+            "t": "基礎設施",
+            "en": "infrastructure",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) 在應用程式內直接整合 Elasticsearch SDK，將日誌透過網路發送。",
+        "en": "(C) Integrate the Elasticsearch SDK directly within the application to send logs over the network.",
+        "wg": []
+      },
+      {
+        "t": "(D) 關閉所有應用程式日誌，改用 Tracing 系統取代。",
+        "en": "(D) Disable all application logs and replace them with a Tracing system.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "在容器化環境中，應用程式應將日誌視為事件串流（Event Stream）並輸出到 Stdout/Stderr。這允許容器調度平台（如 K8s）透過 DaemonSet（如 Fluentd, Promtail）統一收集、處理並轉發日誌，實現應用程式與日誌儲存的解耦。",
+      "en": "In a containerized environment, applications should treat logs as event streams and output them to Stdout/Stderr. This allows the container orchestration platform (like K8s) to uniformly collect, process, and forward logs via DaemonSets (e.g., Fluentd, Promtail), decoupling the application from log storage.",
+      "wg": [
+        {
+          "t": "事件串流",
+          "en": "event stream",
+          "ps": "NP"
+        },
+        {
+          "t": "解耦",
+          "en": "decoupling",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "11",
+    "level": "intermediate",
+    "keywords": "Micrometer, Facade Pattern, Architecture, Monitoring Backend",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您的公司決定將監控後端從 Prometheus 更換為 Datadog。",
+        "en": "Your company has decided to switch the monitoring backend from Prometheus to Datadog.",
+        "wg": [
+          {
+            "t": "監控後端",
+            "en": "monitoring backend",
+            "ps": "NP"
+          }
+        ]
+      },
+      {
+        "t": "您的 Spring Boot 應用程式目前使用 Micrometer 進行埋點。請問這項遷移通常需要對應用程式程式碼（Java Code）進行多大程度的修改？",
+        "en": "Your Spring Boot application currently uses Micrometer for instrumentation. How much modification to the application code (Java Code) does this migration typically require?",
+        "wg": [
+          {
+            "t": "埋點",
+            "en": "instrumentation",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 需要重寫所有 `Timer` 和 `Counter` 的建立邏輯，因為 Datadog API 與 Prometheus 不同。",
+        "en": "(A) Need to rewrite all `Timer` and `Counter` creation logic because the Datadog API differs from Prometheus.",
+        "wg": []
+      },
+      {
+        "t": "(B) 幾乎不需要修改 Java 程式碼，只需更換 Micrometer 的依賴（Dependency）並調整 `application.properties` 設定。",
+        "en": "(B) Almost no Java code modification is needed; only need to swap the Micrometer dependency and adjust `application.properties`.",
+        "wg": [
+          {
+            "t": "依賴",
+            "en": "dependency",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) 需要手動實作一個 Adapter 模式來轉換指標格式。",
+        "en": "(C) Need to manually implement an Adapter pattern to convert metric formats.",
+        "wg": []
+      },
+      {
+        "t": "(D) 必須移除 Micrometer，改用 Datadog 提供的 Java Agent。",
+        "en": "(D) Must remove Micrometer and switch to the Java Agent provided by Datadog.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "Micrometer 的設計理念即為「度量的 Facade（外觀模式）」，類似於 SLF4J 之於日誌。應用程式依賴於 Micrometer 的核心抽象介面，而具體的實作（Registry）由依賴注入決定。因此，更換後端通常只需更改依賴與配置。",
+      "en": "Micrometer is designed as a 'Facade for metrics', similar to SLF4J for logging. The application depends on Micrometer's core abstract interfaces, while the specific implementation (Registry) is determined by dependency injection. Therefore, switching backends typically only requires changing dependencies and configuration.",
+      "wg": [
+        {
+          "t": "外觀模式",
+          "en": "Facade pattern",
+          "ps": "NP"
+        },
+        {
+          "t": "依賴注入",
+          "en": "dependency injection",
+          "ps": "NP"
+        }
+      ]
+    }
+  },
+  {
+    "no": "12",
+    "level": "advanced",
+    "keywords": "Spring Boot 3, Observation API, Unified Monitoring, Micrometer",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "Observation.createNotStarted(\"order.create\", registry)\n    .lowCardinalityKeyValue(\"orderType\", \"VIP\")\n    .observe(() -> orderService.create(order));",
+    "question": [
+      {
+        "t": "在 Spring Boot 3.x 中，您希望對一段關鍵業務邏輯同時進行「效能度量 (Metrics)」與「分散式追蹤 (Tracing)」。",
+        "en": "In Spring Boot 3.x, you want to perform both 'Metrics' and 'Distributed Tracing' on a critical piece of business logic.",
+        "wg": [
+          {
+            "t": "分散式追蹤",
+            "en": "Distributed Tracing",
+            "ps": "N"
+          },
+          {
+            "t": "效能度量",
+            "en": "Metrics",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "為了避免重複撰寫 Timer 與 Span 的程式碼，並確保兩者 metadata (Tags/Baggage) 的一致性，下列哪種實作方式是 Spring Boot 3 推薦的最佳實務？",
+        "en": "To avoid writing duplicate code for Timer and Span, and to ensure consistency of metadata (Tags/Baggage), which implementation is the recommended best practice in Spring Boot 3?",
+        "wg": [
+          {
+            "t": "最佳實務",
+            "en": "best practice",
+            "ps": "N"
+          },
+          {
+            "t": "一致性",
+            "en": "consistency",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 分別注入 `MeterRegistry` 與 `Tracer`，並手動建立 Timer 與 Span。",
+        "en": "(A) Inject `MeterRegistry` and `Tracer` separately, and manually create Timer and Span.",
+        "wg": []
+      },
+      {
+        "t": "(B) 使用 Micrometer 的 `Observation` API 來統一處理。",
+        "en": "(B) Use Micrometer's `Observation` API to handle it in a unified way.",
+        "wg": [
+          {
+            "t": "統一處理",
+            "en": "handle in a unified way",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(C) 僅使用 `@Timed` 註解，因為它會自動產生 Span。",
+        "en": "(C) Use only the `@Timed` annotation, as it automatically generates a Span.",
+        "wg": []
+      },
+      {
+        "t": "(D) 使用 Spring AOP 攔截器自行實作 Log 輸出。",
+        "en": "(D) Use Spring AOP interceptors to implement custom Log output.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "Spring Boot 3 引入了 Micrometer Observation API 作為核心抽象。單一的 `Observation` 物件可以同時產生 Metrics (Timer/Counter) 與 Traces (Span)，並統一管理 Tags 與 Context，這是取代舊版分別操作 Metrics 與 Sleuth 的標準做法。",
+      "en": "Spring Boot 3 introduced the Micrometer Observation API as a core abstraction. A single `Observation` object can generate both Metrics (Timer/Counter) and Traces (Span) simultaneously, while unifying Tags and Context management. This is the standard approach replacing the old way of operating Metrics and Sleuth separately.",
+      "wg": [
+        {
+          "t": "核心抽象",
+          "en": "core abstraction",
+          "ps": "N"
+        },
+        {
+          "t": "取代",
+          "en": "replace",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "13",
+    "level": "intermediate",
+    "keywords": "Logging, Structured Logging, JSON, Log Aggregation",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您的團隊使用 ELK (Elasticsearch, Logstash, Kibana) 進行日誌聚合。",
+        "en": "Your team uses ELK (Elasticsearch, Logstash, Kibana) for log aggregation.",
+        "wg": [
+          {
+            "t": "日誌聚合",
+            "en": "log aggregation",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "目前開發人員使用字串串接方式記錄日誌（例如 `log.info(\"Order \" + orderId + \" failed\")`），這導致在 Kibana 中難以針對特定 `orderId` 進行精確過濾或統計。",
+        "en": "Currently, developers use string concatenation for logging (e.g., `log.info(\"Order \" + orderId + \" failed\")`), making it difficult to precisely filter or aggregate by a specific `orderId` in Kibana.",
+        "wg": [
+          {
+            "t": "字串串接",
+            "en": "string concatenation",
+            "ps": "N"
+          },
+          {
+            "t": "精確過濾",
+            "en": "precisely filter",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "為了提升生產環境的可觀測性與查詢效率，您應該推動下列哪項改進？",
+        "en": "To improve observability and query efficiency in the production environment, which improvement should you advocate for?",
+        "wg": [
+          {
+            "t": "查詢效率",
+            "en": "query efficiency",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 實作結構化日誌 (Structured Logging)，將日誌輸出為 JSON 格式。",
+        "en": "(A) Implement Structured Logging to output logs in JSON format.",
+        "wg": [
+          {
+            "t": "結構化日誌",
+            "en": "Structured Logging",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(B) 在 Logstash 中編寫更複雜的 Grok pattern (Regex) 來解析日誌。",
+        "en": "(B) Write more complex Grok patterns (Regex) in Logstash to parse the logs.",
+        "wg": []
+      },
+      {
+        "t": "(C) 增加日誌級別至 DEBUG 以獲取更多細節。",
+        "en": "(C) Increase the log level to DEBUG to capture more details.",
+        "wg": []
+      },
+      {
+        "t": "(D) 將日誌寫入關聯式資料庫而非檔案。",
+        "en": "(D) Write logs to a relational database instead of files.",
+        "wg": []
+      }
+    ],
+    "answer": "(A)",
+    "why": {
+      "t": "結構化日誌 (JSON) 讓日誌聚合系統能夠直接解析欄位 (如 `{\"orderId\": \"123\", \"message\": \"failed\"}`)，無需依賴脆弱且耗能的正則表達式 (Regex)。這大幅提升了索引效能與查詢靈活性。",
+      "en": "Structured Logging (JSON) allows log aggregation systems to directly parse fields (e.g., `{\"orderId\": \"123\", \"message\": \"failed\"}`), eliminating the need for fragile and expensive Regular Expressions (Regex). This significantly improves indexing performance and query flexibility.",
+      "wg": [
+        {
+          "t": "脆弱",
+          "en": "fragile",
+          "ps": "Adj"
+        },
+        {
+          "t": "索引效能",
+          "en": "indexing performance",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "14",
+    "level": "advanced",
+    "keywords": "Prometheus, Histogram, SLO, Buckets",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "management.metrics.distribution.sla.http.server.requests=100ms, 200ms, 500ms",
+    "question": [
+      {
+        "t": "您的服務有一個嚴格的 SLO (Service Level Objective)：99% 的請求必須在 200ms 內完成。",
+        "en": "Your service has a strict SLO (Service Level Objective): 99% of requests must complete within 200ms.",
+        "wg": [
+          {
+            "t": "嚴格",
+            "en": "strict",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "您使用 Prometheus 進行監控，但發現預設的 Histogram Bucket 分佈（如 .1, .25, .5 ...）無法精確反映 200ms 的邊界，導致 P99 計算不準確。",
+        "en": "You are using Prometheus for monitoring but find that the default Histogram Bucket distribution (e.g., .1, .25, .5 ...) cannot precisely reflect the 200ms boundary, leading to inaccurate P99 calculations.",
+        "wg": [
+          {
+            "t": "邊界",
+            "en": "boundary",
+            "ps": "N"
+          },
+          {
+            "t": "不準確",
+            "en": "inaccurate",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "您應該如何在 Spring Boot 中修正此問題？",
+        "en": "How should you correct this issue in Spring Boot?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 在 Grafana 中使用 `rate()` 函數進行平滑處理。",
+        "en": "(A) Use the `rate()` function in Grafana for smoothing.",
+        "wg": []
+      },
+      {
+        "t": "(B) 設定 `management.metrics.distribution.sla` 屬性，明確定義包含 200ms 的 Bucket 邊界。",
+        "en": "(B) Configure the `management.metrics.distribution.sla` property to explicitly define Bucket boundaries including 200ms.",
+        "wg": [
+          {
+            "t": "明確定義",
+            "en": "explicitly define",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(C) 改用 `Gauge` 來記錄每個請求的延遲時間。",
+        "en": "(C) Switch to using a `Gauge` to record the latency of each request.",
+        "wg": []
+      },
+      {
+        "t": "(D) 增加 Prometheus 的 Scrape Interval 頻率。",
+        "en": "(D) Increase the frequency of the Prometheus Scrape Interval.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "Prometheus 的 Histogram 依賴預先定義的 Bucket 來估算分位數 (Quantiles)。若 Bucket 邊界（如 0.25s）大於 SLO 目標（0.2s），計算結果將是插值估算而非精確值。透過 Spring Boot 的 SLA 配置，可以強制 Micrometer 產生特定邊界的 Bucket，確保 SLO 監控的準確性。",
+      "en": "Prometheus Histograms rely on predefined Buckets to estimate Quantiles. If the Bucket boundary (e.g., 0.25s) is larger than the SLO target (0.2s), the result will be an interpolated estimate rather than an exact value. Configuring SLA properties in Spring Boot forces Micrometer to generate Buckets with specific boundaries, ensuring the accuracy of SLO monitoring.",
+      "wg": [
+        {
+          "t": "插值估算",
+          "en": "interpolated estimate",
+          "ps": "N"
+        },
+        {
+          "t": "準確性",
+          "en": "accuracy",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "15",
+    "level": "intermediate",
+    "keywords": "Push vs Pull, Prometheus, Pushgateway, Network Security",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您的 Spring Boot 應用程式部署在一個高安全性的網路區域（DMZ），該區域的防火牆規則「禁止所有傳入連線 (Inbound Connections)」，但允許傳出連線。",
+        "en": "Your Spring Boot application is deployed in a high-security network zone (DMZ) where firewall rules 'block all Inbound Connections' but allow Outbound connections.",
+        "wg": [
+          {
+            "t": "傳入連線",
+            "en": "Inbound Connections",
+            "ps": "N"
+          },
+          {
+            "t": "傳出連線",
+            "en": "Outbound connections",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "標準的 Prometheus 架構採用 Pull 模式（Server 主動連線 App），因此無法運作。在不改變防火牆規則的前提下，您應採取何種架構調整？",
+        "en": "The standard Prometheus architecture uses a Pull model (Server connects to App), so it won't work. Without changing firewall rules, what architectural adjustment should you make?",
+        "wg": [
+          {
+            "t": "前提",
+            "en": "premise",
+            "ps": "N"
+          },
+          {
+            "t": "架構調整",
+            "en": "architectural adjustment",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 使用 Prometheus Pushgateway 或改用支援 Push 模式的監控後端（如 Datadog/New Relic）。",
+        "en": "(A) Use Prometheus Pushgateway or switch to a monitoring backend that supports Push model (e.g., Datadog/New Relic).",
+        "wg": [
+          {
+            "t": "監控後端",
+            "en": "monitoring backend",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(B) 將 Metrics 寫入本地日誌檔案，再由 Filebeat 傳送。",
+        "en": "(B) Write Metrics to local log files and send them via Filebeat.",
+        "wg": []
+      },
+      {
+        "t": "(C) 停用 Metrics 監控，僅依賴分散式追蹤。",
+        "en": "(C) Disable Metrics monitoring and rely solely on Distributed Tracing.",
+        "wg": []
+      },
+      {
+        "t": "(D) 在應用程式內部實作一個長輪詢 (Long Polling) 機制。",
+        "en": "(D) Implement a Long Polling mechanism inside the application.",
+        "wg": []
+      }
+    ],
+    "answer": "(A)",
+    "why": {
+      "t": "當無法接受 Inbound 連線時，必須將監控模式從 Pull 轉為 Push。應用程式可以主動將指標推送到位於安全區域外的 Pushgateway，或者直接推送到 SaaS 監控服務（它們通常透過 HTTPS Outbound 接收資料）。",
+      "en": "When Inbound connections are not accepted, the monitoring model must switch from Pull to Push. The application can actively push metrics to a Pushgateway located outside the secure zone, or directly to a SaaS monitoring service (which typically receives data via HTTPS Outbound).",
+      "wg": [
+        {
+          "t": "主動",
+          "en": "actively",
+          "ps": "Adv"
+        },
+        {
+          "t": "位於",
+          "en": "located",
+          "ps": "V"
+        }
+      ]
+    }
+  }
+]
