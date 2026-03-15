@@ -1,0 +1,886 @@
+[
+  {
+    "no": "1",
+    "level": "Medium",
+    "keywords": "Derived State, useEffect, Anti-Pattern",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "function UserList({ users, filterText }) {\n  const [filteredUsers, setFilteredUsers] = useState([]);\n\n  // 🔴 Anti-pattern\n  useEffect(() => {\n    setFilteredUsers(\n      users.filter(user => user.name.includes(filterText))\n    );\n  }, [users, filterText]);\n\n  return <ul>{filteredUsers.map(u => <li key={u.id}>{u.name}</li>)}</ul>;\n}",
+    "question": [
+      {
+        "t": "請檢視上方的程式碼片段。這是一個常見的 React 反模式。請問這段程式碼主要的問題是什麼，以及最佳的修正方式為何？",
+        "en": "Review the code snippet above. This is a common React anti-pattern. What is the main issue with this code, and what is the best way to fix it?",
+        "wg": [
+          {
+            "t": "反模式",
+            "en": "anti-pattern",
+            "ps": "noun"
+          },
+          {
+            "t": "修正方式",
+            "en": "fix / solution",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "問題是 useEffect 缺少依賴項目；應將依賴陣列留空以只執行一次。",
+        "en": "The issue is missing dependencies in useEffect; the dependency array should be empty to run only once.",
+        "wg": []
+      },
+      {
+        "t": "問題是冗餘的狀態 (Redundant State)；應移除 useEffect 與 state，直接在 render 過程中計算 `filteredUsers`。",
+        "en": "The issue is Redundant State; remove the useEffect and state, and calculate `filteredUsers` directly during render.",
+        "wg": [
+          {
+            "t": "冗餘的狀態",
+            "en": "Redundant State",
+            "ps": "noun phrase"
+          }
+        ]
+      },
+      {
+        "t": "問題是效能低落；應該使用 `useLayoutEffect` 來避免畫面閃爍。",
+        "en": "The issue is poor performance; `useLayoutEffect` should be used to prevent screen flickering.",
+        "wg": []
+      },
+      {
+        "t": "問題是資料流向錯誤；應該將過濾邏輯移至後端 API。",
+        "en": "The issue is incorrect data flow; the filtering logic should be moved to the backend API.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "這違反了「衍生狀態計算」原則。`filteredUsers` 可以完全由 `users` 和 `filterText` 計算得出，因此不應存入 State。使用 `useEffect` 同步 State 會導致不必要的額外 Render（一次是 props 改變，一次是 effect 更新 state），且容易產生不同步的 Bug。正確做法是直接在組件主體中計算變數（若計算昂貴可搭配 `useMemo`）。",
+      "en": "This violates the 'Derived State Calculation' principle. `filteredUsers` can be fully calculated from `users` and `filterText`, so it should not be stored in State. Using `useEffect` to sync state causes unnecessary extra renders (one for prop change, one for state update) and is prone to desynchronization bugs. The correct approach is to calculate the variable directly in the component body (using `useMemo` if the calculation is expensive).",
+      "wg": [
+        {
+          "t": "衍生狀態",
+          "en": "Derived State",
+          "ps": "noun phrase"
+        },
+        {
+          "t": "不同步",
+          "en": "desynchronization",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "2",
+    "level": "Hard",
+    "keywords": "Component Definition, Lifecycle, Performance, Focus Loss",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "function Form() {\n  const [text, setText] = useState('');\n\n  // 🔴 Defined inside the parent\n  function InputField() {\n    return <input value={text} onChange={e => setText(e.target.value)} />;\n  }\n\n  return (\n    <div>\n      <InputField />\n      <p>You typed: {text}</p>\n    </div>\n  );\n}",
+    "question": [
+      {
+        "t": "使用者回報在使用上述 `Form` 組件時，每輸入一個字元，輸入框就會失去焦點 (Lose Focus)。請問造成此現象的根本原因是什麼？",
+        "en": "Users report that when using the `Form` component above, the input field loses focus after every character typed. What is the root cause of this phenomenon?",
+        "wg": [
+          {
+            "t": "失去焦點",
+            "en": "lose focus",
+            "ps": "verb phrase"
+          },
+          {
+            "t": "根本原因",
+            "en": "root cause",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "因為 `InputField` 沒有使用 `React.memo` 包覆，導致過度渲染。",
+        "en": "Because `InputField` is not wrapped in `React.memo`, causing excessive re-renders.",
+        "wg": []
+      },
+      {
+        "t": "因為 `onChange` 事件處理器沒有使用 `useCallback`，導致函數參考改變。",
+        "en": "Because the `onChange` handler does not use `useCallback`, causing the function reference to change.",
+        "wg": []
+      },
+      {
+        "t": "因為 `InputField` 在 `Form` 內部定義，每次 `Form` 渲染時 `InputField` 都會被視為全新的組件，導致 React 執行 Unmount 後再 Remount。",
+        "en": "Because `InputField` is defined inside `Form`, it is treated as a brand new component on every `Form` render, causing React to Unmount and then Remount it.",
+        "wg": [
+          {
+            "t": "全新的組件",
+            "en": "brand new component",
+            "ps": "noun phrase"
+          },
+          {
+            "t": "卸載",
+            "en": "Unmount",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "因為 `input` 的 `value` 屬性綁定了 state，這在 React 中是不允許的。",
+        "en": "Because the `value` prop of the input is bound to state, which is not allowed in React.",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "這是「在組件內定義組件 (Defining Components Inside Components)」的反模式。當 `Form` 狀態改變並重新渲染時，`InputField` 函數會被重新建立。對 React 而言，這是一個與上一次渲染完全不同的組件類型，因此它會銷毀（Unmount）舊的實例並掛載（Mount）新的實例。DOM 節點被替換導致了焦點丟失與內部狀態重置。",
+      "en": "This is the 'Defining Components Inside Components' anti-pattern. When `Form` state changes and re-renders, the `InputField` function is recreated. To React, this looks like a completely different component type from the previous render, so it destroys (Unmounts) the old instance and mounts a new one. The replacement of the DOM node causes the loss of focus and reset of internal state.",
+      "wg": [
+        {
+          "t": "實例",
+          "en": "instance",
+          "ps": "noun"
+        },
+        {
+          "t": "銷毀",
+          "en": "destroy / unmount",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "3",
+    "level": "Medium",
+    "keywords": "useEffect Chain, Event Handlers, Data Flow",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你正在開發一個表單，當使用者變更「類別 (Category)」時，需要自動重置「子選項 (Sub-option)」為預設值。以下哪種實作方式最符合 React 的最佳實務？",
+        "en": "You are developing a form where changing the 'Category' should automatically reset the 'Sub-option' to a default value. Which implementation best aligns with React best practices?",
+        "wg": [
+          {
+            "t": "最佳實務",
+            "en": "best practices",
+            "ps": "noun"
+          },
+          {
+            "t": "重置",
+            "en": "reset",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "使用 `useEffect` 監聽 `category` 狀態的變化，當其改變時呼叫 `setSubOption(default)`。",
+        "en": "Use `useEffect` to watch for changes in `category` state, and call `setSubOption(default)` when it changes.",
+        "wg": []
+      },
+      {
+        "t": "在 `handleCategoryChange` 事件處理器中，同時呼叫 `setCategory(newVal)` 與 `setSubOption(default)`。",
+        "en": "In the `handleCategoryChange` event handler, call both `setCategory(newVal)` and `setSubOption(default)`.",
+        "wg": [
+          {
+            "t": "事件處理器",
+            "en": "event handler",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "將 `subOption` 存入 `useRef`，並在 render 過程中直接修改它。",
+        "en": "Store `subOption` in a `useRef` and modify it directly during the render phase.",
+        "wg": []
+      },
+      {
+        "t": "建立一個 Context，讓 `SubOption` 組件自行監聽全域的 `category` 變化。",
+        "en": "Create a Context and let the `SubOption` component listen to global `category` changes itself.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "最佳實務是將邏輯放在觸發變化的源頭（Event Handler）。使用 `useEffect` 會導致「Effect Chain」，即第一次 render 更新 category，觸發 effect 後再進行第二次 render 更新 subOption。直接在事件處理器中更新兩個狀態，React (18+) 會自動進行批次處理 (Batching)，效能更好且資料流更清晰。",
+      "en": "The best practice is to place logic at the source of the change (Event Handler). Using `useEffect` creates an 'Effect Chain', causing a first render for the category update, followed by the effect triggering a second render for the subOption update. Updating both states in the event handler allows React (18+) to batch updates, resulting in better performance and clearer data flow.",
+      "wg": [
+        {
+          "t": "批次處理",
+          "en": "batching / batch updates",
+          "ps": "noun"
+        },
+        {
+          "t": "源頭",
+          "en": "source",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "4",
+    "level": "Medium",
+    "keywords": "Prop Drilling, Composition, Context",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "function Dashboard({ user }) {\n  return <Layout user={user} />;\n}\nfunction Layout({ user }) {\n  return <Header user={user} />;\n}\nfunction Header({ user }) {\n  return <UserInfo user={user} />;\n}",
+    "question": [
+      {
+        "t": "上述程式碼展示了 Prop Drilling（屬性鑽探）的問題。若我們不想引入 Context API，根據 Handbook 建議，最適合的重構模式是下列何者？",
+        "en": "The code above demonstrates the Prop Drilling issue. If we do not want to introduce the Context API, which refactoring pattern is most recommended according to the Handbook?",
+        "wg": [
+          {
+            "t": "屬性鑽探",
+            "en": "Prop Drilling",
+            "ps": "noun"
+          },
+          {
+            "t": "重構模式",
+            "en": "refactoring pattern",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "Component Composition (組件組合)：將 `UserInfo` 在 `Dashboard` 層級建立，並透過 props (如 `children` 或 `slots`) 傳遞下去。",
+        "en": "Component Composition: Create `UserInfo` at the `Dashboard` level and pass it down via props (like `children` or `slots`).",
+        "wg": [
+          {
+            "t": "組件組合",
+            "en": "Component Composition",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "Global Variable (全域變數)：將 user 存放在 window 物件中。",
+        "en": "Global Variable: Store the user in the window object.",
+        "wg": []
+      },
+      {
+        "t": "Higher-Order Component (高階組件)：使用 HOC 自動注入 props。",
+        "en": "Higher-Order Component: Use HOC to automatically inject props.",
+        "wg": []
+      },
+      {
+        "t": "Redux：引入 Redux 來管理全域狀態。",
+        "en": "Redux: Introduce Redux to manage global state.",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "Handbook 強調解決 Prop Drilling 的優雅方式是「改變組件結構」而非急著用 Context。透過 Component Composition (Lift Content Up)，中間層組件 (`Layout`, `Header`) 只需要傳遞 `ReactNode` (如 `children` 或 `slot` props)，而不需要知道具體的資料內容 (`user`)，這能有效解耦。",
+      "en": "The Handbook emphasizes that the elegant way to solve Prop Drilling is 'changing component structure' rather than rushing to Context. Through Component Composition (Lift Content Up), intermediate components (`Layout`, `Header`) only need to pass `ReactNode` (like `children` or `slot` props) without knowing the specific data content (`user`), effectively decoupling them.",
+      "wg": [
+        {
+          "t": "解耦",
+          "en": "decouple",
+          "ps": "verb"
+        },
+        {
+          "t": "中間層",
+          "en": "intermediate layer",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "5",
+    "level": "Easy",
+    "keywords": "Render Phase, Side Effects, Purity",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "function Profile({ user }) {\n  if (!user) {\n    // 🔴 Side effect in render\n    window.location.href = '/login';\n    return null;\n  }\n  return <div>{user.name}</div>;\n}",
+    "question": [
+      {
+        "t": "為什麼在組件的 Render 過程中直接執行 `window.location.href = ...` 是被嚴格禁止的？",
+        "en": "Why is executing `window.location.href = ...` directly during the component's Render phase strictly forbidden?",
+        "wg": [
+          {
+            "t": "嚴格禁止",
+            "en": "strictly forbidden",
+            "ps": "adjective phrase"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "因為這會導致 React 拋出語法錯誤。",
+        "en": "Because this will cause React to throw a syntax error.",
+        "wg": []
+      },
+      {
+        "t": "因為 Render 必須是純粹的 (Pure)；副作用應放在 `useEffect` 或事件處理器中，否則可能在 React 的並發渲染或測試中導致不可預期的行為。",
+        "en": "Because Render must be Pure; side effects should be placed in `useEffect` or event handlers, otherwise it may cause unpredictable behavior during React's concurrent rendering or testing.",
+        "wg": [
+          {
+            "t": "純粹的",
+            "en": "Pure",
+            "ps": "adjective"
+          },
+          {
+            "t": "並發渲染",
+            "en": "concurrent rendering",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "因為這樣會導致瀏覽器當機。",
+        "en": "Because this will cause the browser to crash.",
+        "wg": []
+      },
+      {
+        "t": "因為 `window` 物件在 React 組件中無法存取。",
+        "en": "Because the `window` object is not accessible within React components.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "React 的 Render 階段必須是純函數 (Pure Function)，這意味著給定相同的 props/state，必須回傳相同的 JSX，且不能改變外部狀態。在 Render 中執行副作用（如導航、修改 DOM）會破壞此規則，特別是在 React 的 Strict Mode 或 Concurrent Features 下，Render 函數可能會被多次呼叫，導致副作用被執行多次。",
+      "en": "React's Render phase must be a Pure Function, meaning given the same props/state, it must return the same JSX and cannot modify external state. Executing side effects (like navigation or DOM modification) in Render breaks this rule. Especially under React's Strict Mode or Concurrent Features, the Render function may be invoked multiple times, causing the side effect to execute multiple times.",
+      "wg": [
+        {
+          "t": "純函數",
+          "en": "Pure Function",
+          "ps": "noun"
+        },
+        {
+          "t": "外部狀態",
+          "en": "external state",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "6",
+    "level": "Medium",
+    "keywords": "God Components, Refactoring, Custom Hooks",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你遇到一個「上帝組件 (God Component)」，該檔案超過 500 行，同時處理表單驗證、API 資料獲取以及複雜的 UI 邏輯。根據 Handbook，下列哪項是拆解此組件的首選策略？",
+        "en": "You encounter a 'God Component' that is over 500 lines long and handles form validation, API data fetching, and complex UI logic simultaneously. According to the Handbook, what is the preferred strategy for breaking down this component?",
+        "wg": [
+          {
+            "t": "上帝組件",
+            "en": "God Component",
+            "ps": "noun"
+          },
+          {
+            "t": "首選策略",
+            "en": "preferred strategy",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "將所有 `useState` 和 `useEffect` 邏輯抽離至 Custom Hooks (如 `useFormLogic`, `useDataFetching`)，並將 UI 拆分為子組件。",
+        "en": "Extract all `useState` and `useEffect` logic into Custom Hooks (e.g., `useFormLogic`, `useDataFetching`), and split the UI into sub-components.",
+        "wg": [
+          {
+            "t": "抽離",
+            "en": "extract",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "將組件轉換為 Class Component 以便更好地組織生命週期方法。",
+        "en": "Convert the component to a Class Component to better organize lifecycle methods.",
+        "wg": []
+      },
+      {
+        "t": "使用 `React.memo` 包覆整個組件以提升效能，暫時不進行拆分。",
+        "en": "Wrap the entire component with `React.memo` to improve performance, without splitting it for now.",
+        "wg": []
+      },
+      {
+        "t": "將所有輔助函數移到組件外部定義，但保留所有 State 在組件內部。",
+        "en": "Move all helper functions outside the component definition, but keep all State inside the component.",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "上帝組件的特徵是職責過多。解決方案是「關注點分離 (Separation of Concerns)」。Custom Hooks 允許我們將「邏輯」從 UI 中抽離並複用；而將 UI 拆分為子組件則能讓視圖層更清晰。這兩者結合是重構大型組件的標準路徑。",
+      "en": "The characteristic of a God Component is having too many responsibilities. The solution is 'Separation of Concerns'. Custom Hooks allow us to extract and reuse 'logic' from the UI, while splitting the UI into sub-components makes the view layer clearer. Combining these two is the standard path for refactoring large components.",
+      "wg": [
+        {
+          "t": "關注點分離",
+          "en": "Separation of Concerns",
+          "ps": "noun phrase"
+        },
+        {
+          "t": "複用",
+          "en": "reuse",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "7",
+    "level": "Medium",
+    "keywords": "useEffect, Dependencies, Linter, Stale Closure",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "useEffect(() => {\n  console.log('Current count:', count);\n}, []); // eslint-disable-line react-hooks/exhaustive-deps",
+    "question": [
+      {
+        "t": "開發者為了避免 `useEffect` 在 `count` 變更時重新執行，使用了 `eslint-disable-line` 來忽略依賴檢查。請問這種做法主要會導致什麼潛在問題？",
+        "en": "A developer uses `eslint-disable-line` to ignore dependency checks in `useEffect` to prevent it from re-running when `count` changes. What is the main potential issue with this approach?",
+        "wg": [
+          {
+            "t": "依賴檢查",
+            "en": "dependency checks",
+            "ps": "noun"
+          },
+          {
+            "t": "忽略",
+            "en": "ignore / suppress",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "會導致 React 拋出 Runtime Error。",
+        "en": "It will cause React to throw a Runtime Error.",
+        "wg": []
+      },
+      {
+        "t": "會產生 Stale Closure（陳舊閉包），導致 Effect 內部讀取到的 `count` 永遠是初始值。",
+        "en": "It creates a Stale Closure, causing the `count` inside the Effect to always be the initial value.",
+        "wg": [
+          {
+            "t": "陳舊閉包",
+            "en": "Stale Closure",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "會導致組件陷入無限渲染迴圈。",
+        "en": "It will cause the component to enter an infinite render loop.",
+        "wg": []
+      },
+      {
+        "t": "這是一種效能優化的合法手段，沒有副作用。",
+        "en": "This is a valid performance optimization technique with no side effects.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "根據 Handbook 的「State & Effects 審查」，依賴陣列必須誠實。若對 React 撒謊（隱藏依賴），Effect 閉包內的變數將不會更新（Stale Closure），導致邏輯錯誤。這不是合法的優化手段。",
+      "en": "According to the 'State & Effects Review' in the Handbook, the dependency array must be honest. Lying to React (hiding dependencies) prevents variables inside the Effect closure from updating (Stale Closure), leading to logic errors. This is not a valid optimization technique.",
+      "wg": [
+        {
+          "t": "誠實",
+          "en": "honest",
+          "ps": "adjective"
+        },
+        {
+          "t": "閉包",
+          "en": "closure",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "8",
+    "level": "Hard",
+    "keywords": "Referential Equality, Infinite Loop, useEffect, Performance",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "function SearchResults({ query }) {\n  // 每次 render 都會建立一個全新的物件參考\n  const options = { headers: { 'Authorization': 'Bearer token' } };\n\n  useEffect(() => {\n    fetchData(query, options);\n  }, [query, options]); \n\n  return <div>...</div>;\n}",
+    "question": [
+      {
+        "t": "上述程式碼存在一個嚴重的效能陷阱。請問這段程式碼在執行時會發生什麼狀況？",
+        "en": "The code above contains a serious performance pitfall. What will happen when this code runs?",
+        "wg": [
+          {
+            "t": "效能陷阱",
+            "en": "performance pitfall",
+            "ps": "noun"
+          },
+          {
+            "t": "物件參考",
+            "en": "object reference",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "fetchData 會因為 options 格式錯誤而失敗。",
+        "en": "fetchData will fail due to malformed options.",
+        "wg": []
+      },
+      {
+        "t": "useEffect 只會在組件掛載 (Mount) 時執行一次。",
+        "en": "useEffect will only run once when the component mounts.",
+        "wg": []
+      },
+      {
+        "t": "若 fetchData 更新了 State，將導致無限渲染迴圈 (Infinite Render Loop)。",
+        "en": "If fetchData updates the State, it will cause an Infinite Render Loop.",
+        "wg": [
+          {
+            "t": "無限渲染迴圈",
+            "en": "Infinite Render Loop",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "React 會自動偵測 options 內容未變，而跳過 Effect 執行。",
+        "en": "React will automatically detect that the content of options hasn't changed and skip the Effect execution.",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "在 JavaScript 中，`{}` 每次都會建立新的記憶體參考。因此 `options` 在每次 Render 時都是「新」的，導致 `useEffect` 認為依賴已變更而重新執行。若 Effect 內部又觸發 Re-render（例如設定 State），就會形成無限迴圈。解決方案是使用 `useMemo` 或將物件移出組件。",
+      "en": "In JavaScript, `{}` creates a new memory reference every time. Thus, `options` is 'new' on every render, causing `useEffect` to think dependencies have changed and re-run. If the Effect triggers a re-render (e.g., setting state), it forms an infinite loop. The solution is to use `useMemo` or move the object outside the component.",
+      "wg": [
+        {
+          "t": "記憶體參考",
+          "en": "memory reference",
+          "ps": "noun"
+        },
+        {
+          "t": "移出組件",
+          "en": "move outside the component",
+          "ps": "verb phrase"
+        }
+      ]
+    }
+  },
+  {
+    "no": "9",
+    "level": "Medium",
+    "keywords": "Source of Truth, Anti-Pattern, State Mirroring",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "function UserProfile({ user }) {\n  // Anti-Pattern: Mirroring props in state\n  const [email, setEmail] = useState(user.email);\n\n  return <input value={email} onChange={e => setEmail(e.target.value)} />;\n}",
+    "question": [
+      {
+        "t": "為什麼將 Props 複製到 State (Mirroring Props in State) 通常被視為一種反模式？",
+        "en": "Why is copying Props into State (Mirroring Props in State) generally considered an anti-pattern?",
+        "wg": [
+          {
+            "t": "複製",
+            "en": "copy / mirror",
+            "ps": "verb"
+          },
+          {
+            "t": "反模式",
+            "en": "anti-pattern",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "因為 `useState` 的初始值設定非常消耗效能。",
+        "en": "Because setting the initial value of `useState` is very performance-intensive.",
+        "wg": []
+      },
+      {
+        "t": "因為這會導致資料來源 (Source of Truth) 不一致。當父組件更新 `user` prop 時，子組件的 `email` state 不會自動更新。",
+        "en": "Because it leads to inconsistent Source of Truth. When the parent updates the `user` prop, the child's `email` state will not automatically update.",
+        "wg": [
+          {
+            "t": "資料來源",
+            "en": "Source of Truth",
+            "ps": "noun"
+          },
+          {
+            "t": "不一致",
+            "en": "inconsistent",
+            "ps": "adjective"
+          }
+        ]
+      },
+      {
+        "t": "因為 React 禁止在 `useState` 中使用物件屬性。",
+        "en": "Because React forbids using object properties in `useState`.",
+        "wg": []
+      },
+      {
+        "t": "因為這會導致 Input 失去焦點 (Focus Loss)。",
+        "en": "Because this will cause the Input to lose focus.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "`useState(initialValue)` 僅在組件首次 Mount 時讀取初始值。若父組件傳入新的 `user.email`，子組件的 `email` state 仍會保留舊值，導致 UI 與資料不同步。除非你的目的是「只初始化一次（不受後續 prop 影響）」，否則應直接使用 prop 或受控組件模式。",
+      "en": "`useState(initialValue)` only reads the initial value when the component first mounts. If the parent passes a new `user.email`, the child's `email` state will retain the old value, causing UI desynchronization. Unless the intent is 'initialize only once (ignore subsequent props)', you should use props directly or the controlled component pattern.",
+      "wg": [
+        {
+          "t": "受控組件",
+          "en": "controlled component",
+          "ps": "noun"
+        },
+        {
+          "t": "不同步",
+          "en": "desynchronization",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "10",
+    "level": "Hard",
+    "keywords": "Race Conditions, Data Fetching, useEffect",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "useEffect(() => {\n  // 假設 fetchUser 是一個非同步 API 呼叫\n  fetchUser(id).then(data => setUser(data));\n}, [id]);",
+    "question": [
+      {
+        "t": "在上述 Effect 中，如果 `id` 快速從 1 變更為 2，可能會發生「競態條件 (Race Condition)」。請問具體後果為何？",
+        "en": "In the Effect above, if `id` changes rapidly from 1 to 2, a 'Race Condition' might occur. What is the specific consequence?",
+        "wg": [
+          {
+            "t": "競態條件",
+            "en": "Race Condition",
+            "ps": "noun"
+          },
+          {
+            "t": "後果",
+            "en": "consequence",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "瀏覽器會崩潰，因為同時發出了兩個請求。",
+        "en": "The browser will crash because two requests were made simultaneously.",
+        "wg": []
+      },
+      {
+        "t": "React 會自動取消前一個請求，確保資料正確。",
+        "en": "React will automatically cancel the previous request to ensure data correctness.",
+        "wg": []
+      },
+      {
+        "t": "如果請求 1 (id=1) 比請求 2 (id=2) 晚回應，UI 最終會錯誤地顯示 id=1 的資料，儘管當前 id 是 2。",
+        "en": "If request 1 (id=1) responds later than request 2 (id=2), the UI will incorrectly display data for id=1, even though the current id is 2.",
+        "wg": [
+          {
+            "t": "晚回應",
+            "en": "responds later",
+            "ps": "verb phrase"
+          }
+        ]
+      },
+      {
+        "t": "useEffect 會拋出錯誤，因為在未完成的 Promise 上呼叫了 setState。",
+        "en": "useEffect will throw an error because setState was called on an unfinished Promise.",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "這就是典型的 Race Condition。網路請求的回應順序無法保證。若舊的請求比新的請求晚回來，舊資料就會覆蓋新資料。解決方案是使用 Cleanup function 設置 `ignore` 標記，或使用 React Query 等具備自動取消功能的工具。",
+      "en": "This is a typical Race Condition. The order of network responses is not guaranteed. If an old request returns later than a new one, the old data will overwrite the new data. The solution is to use a Cleanup function to set an `ignore` flag, or use tools like React Query that handle automatic cancellation.",
+      "wg": [
+        {
+          "t": "覆蓋",
+          "en": "overwrite",
+          "ps": "verb"
+        },
+        {
+          "t": "自動取消",
+          "en": "automatic cancellation",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "11",
+    "level": "Medium",
+    "keywords": "Imperative, Declarative, Refs, Mental Model",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "// Parent Component\nconst handleReset = () => {\n  // ❌ Imperative: Manually calling a method on child\n  formRef.current.resetForm();\n};",
+    "question": [
+      {
+        "t": "根據 React 的「宣告式 (Declarative)」心智模型，為什麼上述使用 `ref` 強制呼叫子組件方法的做法被視為反模式？",
+        "en": "According to React's 'Declarative' mental model, why is using `ref` to force a method call on a child component considered an anti-pattern?",
+        "wg": [
+          {
+            "t": "宣告式",
+            "en": "Declarative",
+            "ps": "adjective"
+          },
+          {
+            "t": "強制呼叫",
+            "en": "force a call",
+            "ps": "verb phrase"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "因為 `ref` 的效能比 Props 差。",
+        "en": "Because `ref` has worse performance than Props.",
+        "wg": []
+      },
+      {
+        "t": "因為這破壞了單向資料流。正確做法應是改變 State (如傳遞 `key` 或 `resetTrigger` prop)，讓子組件響應變化。",
+        "en": "Because it breaks the unidirectional data flow. The correct approach is to change State (e.g., passing a `key` or `resetTrigger` prop) and let the child component react to the change.",
+        "wg": [
+          {
+            "t": "單向資料流",
+            "en": "unidirectional data flow",
+            "ps": "noun"
+          },
+          {
+            "t": "響應變化",
+            "en": "react to change",
+            "ps": "verb phrase"
+          }
+        ]
+      },
+      {
+        "t": "因為 `useImperativeHandle` 已經被 React 官方棄用。",
+        "en": "Because `useImperativeHandle` has been deprecated by React.",
+        "wg": []
+      },
+      {
+        "t": "因為這樣會導致父組件無法 Render。",
+        "en": "Because this prevents the parent component from rendering.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "React 的核心哲學是 `UI = f(State)`。你應該透過改變 State 來驅動 UI 更新，而不是像 jQuery 時代那樣手動去操作實例。命令式寫法會讓資料流變得難以追蹤，且組件間耦合度過高。",
+      "en": "React's core philosophy is `UI = f(State)`. You should drive UI updates by changing State, not by manually manipulating instances like in the jQuery era. Imperative code makes data flow hard to trace and creates tight coupling between components.",
+      "wg": [
+        {
+          "t": "耦合度",
+          "en": "coupling",
+          "ps": "noun"
+        },
+        {
+          "t": "驅動",
+          "en": "drive / trigger",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "12",
+    "level": "Medium",
+    "keywords": "Refactoring, Custom Hooks, Separation of Concerns",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "function UserDashboard() {\n  // 500 lines of code mixing:\n  // 1. Window resize listener\n  // 2. Form validation logic\n  // 3. API data fetching\n  // ...\n}",
+    "question": [
+      {
+        "t": "當你需要重構上述的「上帝組件 (God Component)」時，根據 Handbook 建議，最佳的拆分策略是什麼？",
+        "en": "When you need to refactor the 'God Component' above, what is the best splitting strategy according to the Handbook?",
+        "wg": [
+          {
+            "t": "拆分策略",
+            "en": "splitting strategy",
+            "ps": "noun"
+          },
+          {
+            "t": "上帝組件",
+            "en": "God Component",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "依照生命週期拆分：將所有 `useEffect` 放在一個檔案，所有 `useState` 放在另一個檔案。",
+        "en": "Split by lifecycle: Put all `useEffect` in one file and all `useState` in another.",
+        "wg": []
+      },
+      {
+        "t": "依照業務關注點 (Concern) 拆分：將相關邏輯抽取為 Custom Hooks (如 `useWindowSize`, `useUserForm`)。",
+        "en": "Split by business concern: Extract related logic into Custom Hooks (e.g., `useWindowSize`, `useUserForm`).",
+        "wg": [
+          {
+            "t": "業務關注點",
+            "en": "business concern",
+            "ps": "noun"
+          },
+          {
+            "t": "抽取",
+            "en": "extract",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "將所有邏輯移至 Redux 或 Context，讓組件只負責 Render。",
+        "en": "Move all logic to Redux or Context, leaving the component responsible only for rendering.",
+        "wg": []
+      },
+      {
+        "t": "使用 Higher-Order Components (HOC) 來包裹每一個功能。",
+        "en": "Use Higher-Order Components (HOC) to wrap each feature.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "Custom Hooks 是 React 復用邏輯的最佳機制。它允許你將「相關的程式碼」（例如監聽視窗大小所需的 state 和 effect）放在一起，而不是被迫分散在不同的生命週期方法中。這符合「關注點分離」原則。",
+      "en": "Custom Hooks are the best mechanism for reusing logic in React. They allow you to keep 'related code' (e.g., state and effects needed for window resizing) together, rather than forcing them apart into different lifecycle methods. This aligns with the 'Separation of Concerns' principle.",
+      "wg": [
+        {
+          "t": "復用邏輯",
+          "en": "reuse logic",
+          "ps": "verb phrase"
+        },
+        {
+          "t": "關注點分離",
+          "en": "Separation of Concerns",
+          "ps": "noun"
+        }
+      ]
+    }
+  }
+]

@@ -1,0 +1,1233 @@
+[
+  {
+    "no": "1",
+    "level": "advanced",
+    "keywords": "Memory Fragmentation, RSS, jemalloc, Active Defragmentation",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "used_memory_human: 10.00G\nused_memory_rss_human: 15.00G\nmem_fragmentation_ratio: 1.5",
+    "question": [
+      {
+        "t": "您正在調查一個 Redis 生產環境實例的記憶體問題，並觀察到上述的 `INFO memory` 輸出。",
+        "en": "You are investigating a memory issue in a production Redis instance and observe the `INFO memory` output above.",
+        "wg": []
+      },
+      {
+        "t": "雖然 `used_memory` 尚未達到設定的 `maxmemory` 上限，但作業系統層級的記憶體監控顯示該行程佔用了過多資源。",
+        "en": "Although `used_memory` has not reached the configured `maxmemory` limit, OS-level memory monitoring shows the process is consuming excessive resources.",
+        "wg": [
+          {
+            "t": "過多",
+            "en": "excessive",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "請問下列哪項分析與行動建議最為恰當？",
+        "en": "Which of the following analysis and action recommendations is most appropriate?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) Redis 發生了記憶體洩漏 (Memory Leak)，應立即重啟實例以釋放 RSS。",
+        "en": "(A) Redis has a memory leak; the instance should be restarted immediately to release RSS.",
+        "wg": [
+          {
+            "t": "記憶體洩漏",
+            "en": "memory leak",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(B) 這是正常的 Swap 現象，應增加 Swap 空間以避免 OOM Killer。",
+        "en": "(B) This is normal swapping behavior; increase Swap space to avoid the OOM Killer.",
+        "wg": []
+      },
+      {
+        "t": "(C) 存在嚴重的記憶體碎片化 (Fragmentation)。若 Redis 版本 >= 4.0，應啟用 `activedefrag` 並監控 CPU 使用率。",
+        "en": "(C) Severe memory fragmentation exists. If Redis version >= 4.0, enable `activedefrag` and monitor CPU usage.",
+        "wg": [
+          {
+            "t": "碎片化",
+            "en": "fragmentation",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(D) 這是因為 `maxmemory-policy` 設定錯誤，導致過期鍵未被清除，應改為 `allkeys-lru`。",
+        "en": "(D) This is due to a misconfigured `maxmemory-policy` causing expired keys not to be purged; switch to `allkeys-lru`.",
+        "wg": []
+      }
+    ],
+    "answer": "(C)",
+    "why": {
+      "t": "`mem_fragmentation_ratio` 為 1.5 表示有 33% (5GB) 的記憶體是碎片。這通常是因為頻繁的記憶體分配與釋放導致分配器 (jemalloc) 無法有效重複利用記憶體區塊。Redis 4.0+ 支援線上 `activedefrag`，可透過搬移資料來重組記憶體，但會消耗 CPU 資源。",
+      "en": "A `mem_fragmentation_ratio` of 1.5 indicates that 33% (5GB) of memory is fragmentation. This is usually caused by frequent allocation and deallocation preventing the allocator (jemalloc) from effectively reusing memory blocks. Redis 4.0+ supports online `activedefrag`, which compacts memory by moving data but consumes CPU resources.",
+      "wg": [
+        {
+          "t": "分配器",
+          "en": "allocator",
+          "ps": "N"
+        },
+        {
+          "t": "重組",
+          "en": "compact",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "2",
+    "level": "intermediate",
+    "keywords": "LRU, Data Structures, Approximation, Sampling",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在系統設計面試中，您被問到為何 Redis 的 LRU (Least Recently Used) 實作不使用標準的雙向鏈結串列 (Doubly Linked List) 來維護鍵的順序。",
+        "en": "In a system design interview, you are asked why Redis's LRU (Least Recently Used) implementation does not use a standard Doubly Linked List to maintain key order.",
+        "wg": [
+          {
+            "t": "雙向鏈結串列",
+            "en": "Doubly Linked List",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "下列哪項解釋最準確地描述了 Redis 的設計權衡？",
+        "en": "Which of the following explanations most accurately describes Redis's design trade-off?",
+        "wg": [
+          {
+            "t": "權衡",
+            "en": "trade-off",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 鏈結串列的操作時間複雜度為 O(N)，這對於高效能快取來說太慢了。",
+        "en": "(A) The time complexity of linked list operations is O(N), which is too slow for a high-performance cache.",
+        "wg": []
+      },
+      {
+        "t": "(B) 每個鍵需要額外兩個指標 (Pointers) 的記憶體開銷過大，且 Redis 採用隨機採樣 (Sampling) 的近似演算法已足夠精確。",
+        "en": "(B) The memory overhead of two extra pointers per key is too high, and Redis's approximated algorithm using random sampling is sufficiently accurate.",
+        "wg": [
+          {
+            "t": "指標",
+            "en": "pointers",
+            "ps": "N"
+          },
+          {
+            "t": "近似",
+            "en": "approximated",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "(C) Redis 是單執行緒的，維護鏈結串列會導致執行緒阻塞，無法處理並發請求。",
+        "en": "(C) Redis is single-threaded, and maintaining a linked list would cause thread blocking, preventing concurrent request handling.",
+        "wg": []
+      },
+      {
+        "t": "(D) Redis 的 LRU 實際上是基於 LFU 實作的，因此不需要鏈結串列。",
+        "en": "(D) Redis's LRU is actually implemented based on LFU, so a linked list is not required.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "標準 LRU 需要為每個鍵維護 `prev` 和 `next` 指標。在儲存數百萬個小物件時，這種額外的記憶體開銷非常巨大。Redis 選擇在每個物件的標頭 (header) 儲存時間戳記，並在需要淘汰時隨機採樣 N 個鍵，淘汰其中最舊的，這是在記憶體效率與準確度之間的權衡。",
+      "en": "Standard LRU requires maintaining `prev` and `next` pointers for each key. When storing millions of small objects, this extra memory overhead is massive. Redis chooses to store a timestamp in each object's header and randomly samples N keys when eviction is needed, removing the oldest one. This is a trade-off between memory efficiency and accuracy.",
+      "wg": [
+        {
+          "t": "標頭",
+          "en": "header",
+          "ps": "N"
+        },
+        {
+          "t": "開銷",
+          "en": "overhead",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "3",
+    "level": "intermediate",
+    "keywords": "Configuration, volatile-lru, OOM, Anti-pattern",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "CONFIG SET maxmemory-policy volatile-lru",
+    "question": [
+      {
+        "t": "您的團隊將 Redis 用作純快取層，並設定了上述的淘汰策略。",
+        "en": "Your team uses Redis as a pure cache layer and has configured the eviction policy as shown above.",
+        "wg": []
+      },
+      {
+        "t": "然而，應用程式開始頻繁收到 `OOM command not allowed` 錯誤，即使您確認 Redis 中存有大量資料。",
+        "en": "However, the application starts frequently receiving `OOM command not allowed` errors, even though you confirm that Redis holds a large amount of data.",
+        "wg": []
+      },
+      {
+        "t": "經檢查，發現大部分寫入的鍵都沒有設定過期時間 (TTL)。請問發生了什麼事？",
+        "en": "Upon inspection, it is found that most written keys do not have an expiration time (TTL) set. What is happening?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) `volatile-lru` 策略只會淘汰設定了 TTL 的鍵。若沒有鍵具備 TTL，Redis 無法釋放空間，行為等同於 `noeviction`。",
+        "en": "(A) The `volatile-lru` policy only evicts keys with a TTL set. If no keys have a TTL, Redis cannot free space, behaving like `noeviction`.",
+        "wg": [
+          {
+            "t": "等同於",
+            "en": "equivalent to",
+            "ps": "Phr"
+          }
+        ]
+      },
+      {
+        "t": "(B) 這是 Redis 的 Bug，`volatile-lru` 應該會自動為沒有 TTL 的鍵加上預設過期時間。",
+        "en": "(B) This is a Redis bug; `volatile-lru` should automatically add a default expiration time to keys without a TTL.",
+        "wg": []
+      },
+      {
+        "t": "(C) 記憶體被碎片佔滿了，雖然邏輯上有空間，但實體記憶體已耗盡。",
+        "en": "(C) Memory is full of fragmentation; although there is logical space, physical memory is exhausted.",
+        "wg": []
+      },
+      {
+        "t": "(D) `volatile-lru` 需要消耗額外的記憶體來追蹤 LRU，導致記憶體瞬間爆滿。",
+        "en": "(D) `volatile-lru` requires extra memory to track LRU, causing memory to fill up instantly.",
+        "wg": []
+      }
+    ],
+    "answer": "(A)",
+    "why": {
+      "t": "這是一個常見的設定陷阱 (Anti-pattern)。`volatile-*` 系列策略的先決條件是鍵必須有 TTL。如果所有鍵都沒有 TTL，Redis 找不到可淘汰的候選者，當記憶體達到 `maxmemory` 時，就會拒絕寫入並回傳 OOM 錯誤。",
+      "en": "This is a common configuration anti-pattern. The prerequisite for `volatile-*` policies is that keys must have a TTL. If no keys have a TTL, Redis cannot find candidates for eviction. When memory reaches `maxmemory`, it rejects writes and returns an OOM error.",
+      "wg": [
+        {
+          "t": "陷阱",
+          "en": "pitfall",
+          "ps": "N"
+        },
+        {
+          "t": "先決條件",
+          "en": "prerequisite",
+          "ps": "N"
+        },
+        {
+          "t": "候選者",
+          "en": "candidate",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "4",
+    "level": "advanced",
+    "keywords": "Latency Spike, Eviction Loop, Big Key, Performance",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您的監控系統顯示 Redis 的寫入延遲 (Write Latency) 在達到 `maxmemory` 上限後出現週期性的尖峰 (Spikes)。",
+        "en": "Your monitoring system shows periodic spikes in Redis write latency after reaching the `maxmemory` limit.",
+        "wg": [
+          {
+            "t": "尖峰",
+            "en": "spikes",
+            "ps": "N"
+          },
+          {
+            "t": "週期性的",
+            "en": "periodic",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "進一步分析發現，這些尖峰與應用程式寫入新資料的時間點吻合。已知系統中存在一些巨大的 List (每個約 500MB)。",
+        "en": "Further analysis reveals these spikes coincide with application writes. It is known that there are some massive Lists (about 500MB each) in the system.",
+        "wg": [
+          {
+            "t": "吻合",
+            "en": "coincide",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "最可能造成此延遲的原因為何？",
+        "en": "What is the most likely cause of this latency?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 作業系統正在進行 Swap Out 操作，導致 CPU 等待磁碟 I/O。",
+        "en": "(A) The OS is performing Swap Out operations, causing the CPU to wait for disk I/O.",
+        "wg": []
+      },
+      {
+        "t": "(B) Redis 為了寫入新資料，必須先同步 (Synchronously) 淘汰舊鍵。若選中了大鍵 (Big Key)，刪除操作會阻塞主執行緒。",
+        "en": "(B) To write new data, Redis must first synchronously evict old keys. If a Big Key is selected, the deletion operation blocks the main thread.",
+        "wg": [
+          {
+            "t": "同步",
+            "en": "synchronously",
+            "ps": "Adv"
+          },
+          {
+            "t": "阻塞",
+            "en": "block",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(C) LRU 演算法在樣本數過大時計算耗時過久。",
+        "en": "(C) The LRU algorithm takes too long to calculate when the sample size is too large.",
+        "wg": []
+      },
+      {
+        "t": "(D) 網路頻寬被大鍵的傳輸佔滿，導致寫入請求排隊。",
+        "en": "(D) Network bandwidth is saturated by the transfer of big keys, causing write requests to queue.",
+        "wg": [
+          {
+            "t": "飽和",
+            "en": "saturated",
+            "ps": "Adj"
+          }
+        ]
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "當 Redis 記憶體已滿，每個寫入指令都會觸發淘汰循環。如果演算法決定淘汰一個大鍵 (Big Key)，預設的 `DEL` 操作是同步的，這意味著主執行緒必須等待記憶體釋放完成才能繼續處理請求，導致顯著的延遲。解決方案包括拆分大鍵或啟用 `lazyfree-lazy-eviction`。",
+      "en": "When Redis memory is full, every write command triggers the eviction loop. If the algorithm decides to evict a Big Key, the default `DEL` operation is synchronous, meaning the main thread must wait for memory reclamation to finish before processing requests, causing significant latency. Solutions include breaking down big keys or enabling `lazyfree-lazy-eviction`.",
+      "wg": [
+        {
+          "t": "淘汰循環",
+          "en": "eviction loop",
+          "ps": "N"
+        },
+        {
+          "t": "記憶體釋放",
+          "en": "memory reclamation",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "5",
+    "level": "intermediate",
+    "keywords": "LFU, LRU, Cache Pollution, Scan Resistance",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您的應用程式有一個「首頁熱門商品」列表，這些資料應該長期保留在快取中。",
+        "en": "Your application has a 'Homepage Hot Items' list, and this data should remain in the cache for the long term.",
+        "wg": []
+      },
+      {
+        "t": "然而，您發現每當後台執行一次全表掃描 (Full Scan) 的分析作業後，這些熱門資料就會被從快取中剔除，導致首頁載入變慢。",
+        "en": "However, you notice that whenever a background full scan analytics job runs, this hot data is evicted from the cache, causing the homepage to load slowly.",
+        "wg": [
+          {
+            "t": "全表掃描",
+            "en": "full scan",
+            "ps": "N"
+          },
+          {
+            "t": "剔除",
+            "en": "evict",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "這是傳統 LRU 的什麼弱點？改用哪種策略可以最有效解決此問題？",
+        "en": "What weakness of traditional LRU is this? Which policy switch would most effectively solve this problem?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 這是 LRU 的「快取污染 (Cache Pollution)」問題。應改用 `allkeys-lfu`。",
+        "en": "(A) This is the 'Cache Pollution' problem of LRU. Switch to `allkeys-lfu`.",
+        "wg": [
+          {
+            "t": "快取污染",
+            "en": "cache pollution",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(B) 這是 LRU 的「記憶體洩漏」問題。應改用 `volatile-ttl`。",
+        "en": "(B) This is the 'Memory Leak' problem of LRU. Switch to `volatile-ttl`.",
+        "wg": []
+      },
+      {
+        "t": "(C) 這是 LRU 的「隨機採樣誤差」問題。應增加 `maxmemory-samples`。",
+        "en": "(C) This is the 'Random Sampling Error' problem of LRU. Increase `maxmemory-samples`.",
+        "wg": []
+      },
+      {
+        "t": "(D) 這是 LRU 的「碎片化」問題。應啟用 `activedefrag`。",
+        "en": "(D) This is the 'Fragmentation' problem of LRU. Enable `activedefrag`.",
+        "wg": []
+      }
+    ],
+    "answer": "(A)",
+    "why": {
+      "t": "LRU 假設「最近被存取」等於「重要」。全表掃描會一次性存取大量冷資料，將它們標記為「最近使用」，從而擠掉原本的熱門資料。LFU (Least Frequently Used) 根據存取頻率運作，掃描產生的一次性存取不會顯著增加頻率計數，因此能抵抗此類快取污染。",
+      "en": "LRU assumes 'recently accessed' equals 'important'. A full scan accesses a large amount of cold data at once, marking it as 'recently used' and pushing out the actual hot data. LFU (Least Frequently Used) works based on access frequency; one-off accesses from a scan won't significantly boost frequency counts, making it resistant to such cache pollution.",
+      "wg": [
+        {
+          "t": "冷資料",
+          "en": "cold data",
+          "ps": "N"
+        },
+        {
+          "t": "抵抗",
+          "en": "resist",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "6",
+    "level": "advanced",
+    "keywords": "Expiration, CPU, Thundering Herd, Lazy Freeing",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您觀察到 Redis 實例在某個特定時間點 CPU 使用率飆升至 100%，導致服務短暫不可用，但當時的 QPS (每秒查詢數) 並沒有明顯變化。",
+        "en": "You observe that a Redis instance's CPU usage spikes to 100% at a specific point in time, causing brief service unavailability, but the QPS (Queries Per Second) did not change significantly.",
+        "wg": [
+          {
+            "t": "飆升",
+            "en": "spike",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "經調查，發現有數百萬個鍵被設定在同一秒過期。請問這觸發了 Redis 的什麼機制導致 CPU 阻塞？",
+        "en": "Investigation reveals that millions of keys were set to expire at the exact same second. Which Redis mechanism was triggered to cause this CPU blocking?",
+        "wg": [
+          {
+            "t": "觸發",
+            "en": "trigger",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "下列哪項描述是正確的？",
+        "en": "Which of the following descriptions is correct?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 惰性刪除 (Lazy Freeing)：客戶端同時存取了這些過期鍵，導致 Redis 忙於刪除它們。",
+        "en": "(A) Lazy Freeing: Clients accessed these expired keys simultaneously, causing Redis to be busy deleting them.",
+        "wg": []
+      },
+      {
+        "t": "(B) 主動過期 (Active Expiration)：背景任務採樣發現過期鍵比例過高，進入了積極的循環清理模式，佔用了主執行緒。",
+        "en": "(B) Active Expiration: The background task sampled a high percentage of expired keys and entered an aggressive loop cleanup mode, occupying the main thread.",
+        "wg": [
+          {
+            "t": "積極的",
+            "en": "aggressive",
+            "ps": "Adj"
+          },
+          {
+            "t": "佔用",
+            "en": "occupy",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(C) 記憶體重組 (Defragmentation)：過期鍵釋放後產生大量碎片，jemalloc 自動觸發了重組。",
+        "en": "(C) Defragmentation: Releasing expired keys created massive fragmentation, triggering automatic defragmentation by jemalloc.",
+        "wg": []
+      },
+      {
+        "t": "(D) AOF 重寫 (AOF Rewrite)：過期鍵觸發了強制的 AOF 重寫以縮減檔案大小。",
+        "en": "(D) AOF Rewrite: Expired keys triggered a forced AOF rewrite to reduce file size.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "Redis 的主動過期機制會定期採樣。如果樣本中過期鍵的比例超過閾值 (預設 25%)，它會重複執行清理循環。當發生「驚群效應 (Thundering Herd)」，即大量鍵在同一刻過期時，這個循環會持續執行直到比例下降或達到 CPU 時間限制，這會阻塞主執行緒處理正常請求。",
+      "en": "Redis's active expiration mechanism samples periodically. If the percentage of expired keys in the sample exceeds a threshold (default 25%), it repeats the cleanup loop. When a 'Thundering Herd' occurs (massive keys expiring at once), this loop runs continuously until the percentage drops or a CPU time limit is reached, blocking the main thread from processing normal requests.",
+      "wg": [
+        {
+          "t": "驚群效應",
+          "en": "Thundering Herd",
+          "ps": "N"
+        },
+        {
+          "t": "閾值",
+          "en": "threshold",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "7",
+    "level": "intermediate",
+    "keywords": "noeviction, Consistency, Availability, Job Queue",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您正在設計一個基於 Redis 的分散式任務佇列 (Job Queue) 系統，該系統要求資料絕對不能遺失。",
+        "en": "You are designing a distributed Job Queue system based on Redis, which requires zero data loss.",
+        "wg": [
+          {
+            "t": "分散式任務佇列",
+            "en": "distributed Job Queue",
+            "ps": "NP"
+          },
+          {
+            "t": "絕對不能遺失",
+            "en": "zero data loss",
+            "ps": "Phrase"
+          }
+        ]
+      },
+      {
+        "t": "為了確保資料的持久性與完整性，您決定將 `maxmemory-policy` 設定為 `noeviction`。",
+        "en": "To ensure data durability and integrity, you decide to set `maxmemory-policy` to `noeviction`.",
+        "wg": [
+          {
+            "t": "持久性",
+            "en": "durability",
+            "ps": "N"
+          },
+          {
+            "t": "完整性",
+            "en": "integrity",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "當 Redis 實例的記憶體使用量達到 `maxmemory` 上限時，系統將會表現出什麼行為？",
+        "en": "What behavior will the system exhibit when the Redis instance's memory usage reaches the `maxmemory` limit?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 讀取與寫入操作都會失敗，並回傳 OOM 錯誤，直到釋放空間為止。",
+        "en": "(A) Both read and write operations will fail and return OOM errors until space is freed.",
+        "wg": []
+      },
+      {
+        "t": "(B) 寫入操作會失敗並回傳錯誤，但讀取操作仍可正常進行。",
+        "en": "(B) Write operations will fail and return errors, but read operations will continue to function normally.",
+        "wg": []
+      },
+      {
+        "t": "(C) Redis 會自動將最舊的資料 Swap 到磁碟上，以騰出空間給新的寫入。",
+        "en": "(C) Redis will automatically swap the oldest data to disk to make room for new writes.",
+        "wg": [
+          {
+            "t": "騰出空間",
+            "en": "make room",
+            "ps": "VP"
+          }
+        ]
+      },
+      {
+        "t": "(D) Redis 會隨機刪除沒有 TTL 的鍵以保護有 TTL 的任務資料。",
+        "en": "(D) Redis will randomly delete keys without TTL to protect task data with TTL.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "`noeviction` 策略意味著當記憶體已滿時，Redis 不會淘汰任何鍵。對於會增加記憶體使用量的寫入指令（如 SET, LPUSH），Redis 會回傳錯誤；但對於讀取指令（如 GET）或不增加記憶體的指令（如 DEL），則仍能正常運作。這確保了現有資料不會被意外刪除，但犧牲了寫入可用性。",
+      "en": "The `noeviction` policy means Redis will not evict any keys when memory is full. For write commands that would increase memory usage (like SET, LPUSH), Redis returns an error; however, read commands (like GET) or commands that do not increase memory (like DEL) continue to function. This ensures existing data is not accidentally deleted but sacrifices write availability.",
+      "wg": [
+        {
+          "t": "犧牲",
+          "en": "sacrifices",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "8",
+    "level": "advanced",
+    "keywords": "LFU, Morris Counter, Implementation, Decay",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在 Redis 4.0+ 的 LFU (Least Frequently Used) 實作中，Redis 利用物件標頭 (robj) 中原本用於 LRU 的 24 位元欄位來儲存頻率資訊。",
+        "en": "In the LFU (Least Frequently Used) implementation of Redis 4.0+, Redis uses the 24-bit field in the object header (robj), originally used for LRU, to store frequency information.",
+        "wg": [
+          {
+            "t": "物件標頭",
+            "en": "object header",
+            "ps": "N"
+          },
+          {
+            "t": "頻率資訊",
+            "en": "frequency information",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "關於這 24 位元的分配與計數邏輯，下列敘述何者正確？",
+        "en": "Regarding the allocation and counting logic of these 24 bits, which of the following statements is correct?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 24 位元全部用於儲存精確的存取次數，最大可記錄約 1600 萬次存取。",
+        "en": "(A) All 24 bits are used to store the exact access count, capable of recording approximately 16 million accesses.",
+        "wg": [
+          {
+            "t": "精確的",
+            "en": "exact",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "(B) 高 16 位元儲存最後存取時間（以分鐘為單位），低 8 位元儲存對數計數器 (Morris Counter)。",
+        "en": "(B) The high 16 bits store the last access time (in minutes), and the low 8 bits store a logarithmic counter (Morris Counter).",
+        "wg": [
+          {
+            "t": "對數計數器",
+            "en": "logarithmic counter",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) 高 8 位元儲存最後存取時間，低 16 位元儲存線性計數器，並透過背景執行緒進行衰減。",
+        "en": "(C) The high 8 bits store the last access time, and the low 16 bits store a linear counter, which is decayed by a background thread.",
+        "wg": [
+          {
+            "t": "衰減",
+            "en": "decayed",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(D) 24 位元被分為三個 8 位元的區段，分別記錄最近 1 分鐘、5 分鐘與 15 分鐘的存取頻率。",
+        "en": "(D) The 24 bits are divided into three 8-bit sections, recording access frequencies for the last 1 minute, 5 minutes, and 15 minutes respectively.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "Redis 的 LFU 實作將 24 位元分為兩部分：高 16 位元儲存最後一次衰減的時間（以分鐘為單位，用於計算衰減），低 8 位元則使用 Morris Counter 演算法儲存「對數」頻率（而非線性次數），這使得僅用 8 位元就能表示大範圍的存取頻率。",
+      "en": "Redis's LFU implementation splits the 24 bits into two parts: the high 16 bits store the last decrement time (in minutes, used for calculating decay), and the low 8 bits store a 'logarithmic' frequency using the Morris Counter algorithm (instead of a linear count), allowing it to represent a wide range of access frequencies with just 8 bits.",
+      "wg": [
+        {
+          "t": "大範圍",
+          "en": "wide range",
+          "ps": "NP"
+        }
+      ]
+    }
+  },
+  {
+    "no": "9",
+    "level": "advanced",
+    "keywords": "Tuning, maxmemory-samples, CPU, Accuracy",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您的應用程式對快取命中率 (Cache Hit Rate) 極為敏感，且您發現 Redis 預設的近似 LRU 演算法淘汰了某些其實相當熱門的鍵。",
+        "en": "Your application is extremely sensitive to Cache Hit Rate, and you notice that Redis's default approximated LRU algorithm is evicting some keys that are actually quite hot.",
+        "wg": [
+          {
+            "t": "快取命中率",
+            "en": "Cache Hit Rate",
+            "ps": "N"
+          },
+          {
+            "t": "極為敏感",
+            "en": "extremely sensitive",
+            "ps": "AdjP"
+          }
+        ]
+      },
+      {
+        "t": "您希望提高 LRU 淘汰的準確度，使其行為更接近真實的 LRU，即使這會稍微增加 CPU 負載。",
+        "en": "You want to improve the accuracy of LRU eviction to make it behave closer to a true LRU, even if it slightly increases CPU load.",
+        "wg": [
+          {
+            "t": "準確度",
+            "en": "accuracy",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "您應該調整下列哪一個設定？",
+        "en": "Which of the following settings should you adjust?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 將 `maxmemory-policy` 更改為 `allkeys-lru-strict`。",
+        "en": "(A) Change `maxmemory-policy` to `allkeys-lru-strict`.",
+        "wg": []
+      },
+      {
+        "t": "(B) 增加 `maxmemory-samples` 的值（例如從 5 增加到 10）。",
+        "en": "(B) Increase the value of `maxmemory-samples` (e.g., from 5 to 10).",
+        "wg": []
+      },
+      {
+        "t": "(C) 啟用 `activedefrag` 以重組記憶體。",
+        "en": "(C) Enable `activedefrag` to defragment memory.",
+        "wg": []
+      },
+      {
+        "t": "(D) 減少 `active-expire-effort` 的值。",
+        "en": "(D) Decrease the value of `active-expire-effort`.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "Redis 的 LRU 是透過隨機採樣一小組鍵並淘汰其中閒置最久者來運作的。`maxmemory-samples` 控制採樣池的大小。增加此值（預設為 5）可以提高演算法找到「全域」最舊鍵的機率，從而提高準確度，但代價是每次淘汰循環需要消耗更多 CPU。",
+      "en": "Redis LRU works by randomly sampling a small set of keys and evicting the one with the longest idle time. `maxmemory-samples` controls the size of this sample pool. Increasing this value (default is 5) improves the probability of finding the 'globally' oldest key, thus increasing accuracy, but at the cost of higher CPU consumption per eviction cycle.",
+      "wg": [
+        {
+          "t": "全域",
+          "en": "globally",
+          "ps": "Adv"
+        },
+        {
+          "t": "代價",
+          "en": "cost",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "10",
+    "level": "intermediate",
+    "keywords": "Active Expiration, Probabilistic, Memory Release",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您在開發環境中刪除了大量帶有 TTL 的鍵，但透過 `INFO memory` 觀察，發現 `used_memory` 並沒有立即下降。",
+        "en": "You deleted a large number of keys with TTL in a development environment, but observing via `INFO memory`, you noticed that `used_memory` did not drop immediately.",
+        "wg": [
+          {
+            "t": "立即",
+            "en": "immediately",
+            "ps": "Adv"
+          }
+        ]
+      },
+      {
+        "t": "假設沒有發生記憶體碎片化，且您沒有手動存取這些鍵。這是因為 Redis 的「主動過期 (Active Expiration)」機制是如何運作的？",
+        "en": "Assuming no memory fragmentation occurred and you did not manually access these keys. How does Redis's 'Active Expiration' mechanism work to cause this?",
+        "wg": [
+          {
+            "t": "主動過期",
+            "en": "Active Expiration",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) Redis 僅在寫入新資料導致記憶體不足時，才會觸發過期鍵的清理。",
+        "en": "(A) Redis triggers the cleanup of expired keys only when writing new data causes an out-of-memory condition.",
+        "wg": []
+      },
+      {
+        "t": "(B) Redis 使用背景執行緒每分鐘掃描一次整個資料庫來移除過期鍵。",
+        "en": "(B) Redis uses a background thread to scan the entire database once per minute to remove expired keys.",
+        "wg": []
+      },
+      {
+        "t": "(C) Redis 週期性地隨機採樣設有 TTL 的鍵。若樣本中過期鍵的比例低於特定閾值，它會停止該次循環，導致部分過期鍵暫時殘留。",
+        "en": "(C) Redis periodically samples keys with TTL randomly. If the percentage of expired keys in the sample is below a certain threshold, it stops the cycle, causing some expired keys to linger temporarily.",
+        "wg": [
+          {
+            "t": "閾值",
+            "en": "threshold",
+            "ps": "N"
+          },
+          {
+            "t": "殘留",
+            "en": "linger",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(D) 過期鍵的記憶體釋放必須等待客戶端發送 `SCAN` 指令才能完成。",
+        "en": "(D) Memory release for expired keys must wait for a client to send a `SCAN` command to complete.",
+        "wg": []
+      }
+    ],
+    "answer": "(C)",
+    "why": {
+      "t": "Redis 的主動過期是一個機率性的演算法。它每秒執行 10 次，每次隨機採樣 20 個設有 TTL 的鍵。如果其中過期的比例低於 25%，它就會停止該次循環。這意味著如果過期鍵分散在大量未過期的鍵中，它們可能不會被立即發現並刪除。",
+      "en": "Redis's active expiration is a probabilistic algorithm. It runs 10 times per second, randomly sampling 20 keys with TTL each time. If the percentage of expired keys is below 25%, it stops the cycle. This means if expired keys are sparse among many unexpired keys, they might not be discovered and deleted immediately.",
+      "wg": [
+        {
+          "t": "機率性的",
+          "en": "probabilistic",
+          "ps": "Adj"
+        },
+        {
+          "t": "分散",
+          "en": "sparse",
+          "ps": "Adj"
+        }
+      ]
+    }
+  },
+  {
+    "no": "11",
+    "level": "advanced",
+    "keywords": "Lazy Freeing, Configuration, Blocking, Big Key",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您的 Redis 實例經常因為淘汰 (Eviction) 機制觸發而導致短暫的延遲尖峰。經分析，這是因為被淘汰的鍵通常是包含數百萬個項目的大型 Hash 結構。",
+        "en": "Your Redis instance frequently experiences short latency spikes triggered by the eviction mechanism. Analysis shows that the evicted keys are often large Hash structures containing millions of items.",
+        "wg": [
+          {
+            "t": "延遲尖峰",
+            "en": "latency spikes",
+            "ps": "N"
+          },
+          {
+            "t": "大型 Hash 結構",
+            "en": "large Hash structures",
+            "ps": "NP"
+          }
+        ]
+      },
+      {
+        "t": "為了將刪除這些大鍵的開銷從主執行緒移至背景執行緒，您應該啟用下列哪項設定？",
+        "en": "To move the overhead of deleting these large keys from the main thread to a background thread, which of the following settings should you enable?",
+        "wg": [
+          {
+            "t": "開銷",
+            "en": "overhead",
+            "ps": "N"
+          },
+          {
+            "t": "主執行緒",
+            "en": "main thread",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) `lazyfree-lazy-expire yes`",
+        "en": "(A) `lazyfree-lazy-expire yes`",
+        "wg": []
+      },
+      {
+        "t": "(B) `lazyfree-lazy-eviction yes`",
+        "en": "(B) `lazyfree-lazy-eviction yes`",
+        "wg": []
+      },
+      {
+        "t": "(C) `lazyfree-lazy-server-del yes`",
+        "en": "(C) `lazyfree-lazy-server-del yes`",
+        "wg": []
+      },
+      {
+        "t": "(D) `replica-lazy-flush yes`",
+        "en": "(D) `replica-lazy-flush yes`",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "題目明確指出延遲是由「淘汰 (Eviction)」觸發的。`lazyfree-lazy-eviction` 專門控制當 Redis 為了釋放記憶體（達到 maxmemory）而淘汰鍵時，是否應以非同步方式（在背景執行緒）進行刪除。選項 A 針對的是 TTL 過期，選項 C 針對的是伺服器端指令（如 RENAME）產生的刪除。",
+      "en": "The scenario explicitly states the latency is triggered by 'Eviction'. `lazyfree-lazy-eviction` specifically controls whether keys evicted to free up memory (reaching maxmemory) should be deleted asynchronously (in a background thread). Option A is for TTL expiration, and Option C is for server-side deletions (like RENAME).",
+      "wg": [
+        {
+          "t": "專門控制",
+          "en": "specifically controls",
+          "ps": "VP"
+        },
+        {
+          "t": "非同步方式",
+          "en": "asynchronously",
+          "ps": "Adv"
+        }
+      ]
+    }
+  },
+  {
+    "no": "12",
+    "level": "intermediate",
+    "keywords": "Swap, Performance, Fragmentation Ratio, RSS",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您正在檢查 Redis 的 `INFO memory` 輸出，發現 `mem_fragmentation_ratio` 的數值為 `0.8`。",
+        "en": "You are checking the `INFO memory` output of Redis and notice that the value of `mem_fragmentation_ratio` is `0.8`.",
+        "wg": []
+      },
+      {
+        "t": "這個數值代表什麼意義，以及它對系統效能有何潛在影響？",
+        "en": "What does this value indicate, and what is its potential impact on system performance?",
+        "wg": [
+          {
+            "t": "潛在影響",
+            "en": "potential impact",
+            "ps": "NP"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 記憶體碎片極低，表示記憶體配置非常高效，效能處於最佳狀態。",
+        "en": "(A) Memory fragmentation is extremely low, indicating very efficient memory allocation and optimal performance.",
+        "wg": []
+      },
+      {
+        "t": "(B) 作業系統分配給 Redis 的實體記憶體 (RSS) 少於 Redis 實際請求的記憶體，表示 Redis 部分資料已被 Swap 到磁碟，效能將嚴重下降。",
+        "en": "(B) The physical memory (RSS) allocated by the OS to Redis is less than what Redis actually requested, indicating that some Redis data has been swapped to disk, and performance will degrade severely.",
+        "wg": [
+          {
+            "t": "實體記憶體",
+            "en": "physical memory",
+            "ps": "N"
+          },
+          {
+            "t": "嚴重下降",
+            "en": "degrade severely",
+            "ps": "VP"
+          }
+        ]
+      },
+      {
+        "t": "(C) Redis 使用了 jemalloc 的壓縮功能，節省了 20% 的記憶體空間。",
+        "en": "(C) Redis is using jemalloc's compression feature, saving 20% of memory space.",
+        "wg": []
+      },
+      {
+        "t": "(D) 這是一個正常的數值，只要不超過 1.5 都不需要擔心。",
+        "en": "(D) This is a normal value; there is no need to worry as long as it does not exceed 1.5.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "`mem_fragmentation_ratio` = `used_memory_rss` / `used_memory`。當此比率小於 1.0 時，表示 RSS（駐留集大小）小於 Redis 邏輯上分配的記憶體。這通常意味著作業系統已經開始將 Redis 的部分記憶體頁面 Swap（交換）到磁碟上。對於記憶體資料庫而言，磁碟 I/O 會導致毀滅性的效能延遲。",
+      "en": "`mem_fragmentation_ratio` = `used_memory_rss` / `used_memory`. When this ratio is less than 1.0, it means RSS (Resident Set Size) is smaller than the memory Redis logically allocated. This usually implies the OS has started swapping some of Redis's memory pages to disk. For an in-memory database, disk I/O causes catastrophic performance latency.",
+      "wg": [
+        {
+          "t": "駐留集大小",
+          "en": "Resident Set Size",
+          "ps": "NP"
+        },
+        {
+          "t": "毀滅性的",
+          "en": "catastrophic",
+          "ps": "Adj"
+        }
+      ]
+    }
+  },
+  {
+    "no": "13",
+    "level": "advanced",
+    "keywords": "Replication, Eviction, Master-Slave, Consistency",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在一個 Master-Replica 架構中，您發現 Replica 節點的記憶體使用量持續上升，甚至超過了 Master 節點，且似乎沒有執行任何淘汰 (Eviction)。",
+        "en": "In a Master-Replica architecture, you notice that the memory usage of the Replica node continues to rise, even exceeding the Master node, and it seems that no eviction is being performed.",
+        "wg": [
+          {
+            "t": "持續上升",
+            "en": "continues to rise",
+            "ps": "VP"
+          }
+        ]
+      },
+      {
+        "t": "這是因為 Redis Replica 預設的淘汰行為是什麼？",
+        "en": "This is because what is the default eviction behavior of a Redis Replica?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) Replica 預設使用 `noeviction` 策略，且忽略 `maxmemory` 設定，完全依賴 Master 發送的 `DEL` 指令來同步刪除。",
+        "en": "(A) Replicas default to the `noeviction` policy and ignore the `maxmemory` setting, relying entirely on `DEL` commands sent by the Master to synchronize deletions.",
+        "wg": [
+          {
+            "t": "依賴",
+            "en": "relying",
+            "ps": "V"
+          },
+          {
+            "t": "同步刪除",
+            "en": "synchronize deletions",
+            "ps": "NP"
+          }
+        ]
+      },
+      {
+        "t": "(B) Replica 擁有獨立的 LRU 演算法，但因為唯讀 (Read-only) 模式無法寫入，導致無法更新 LRU 資訊。",
+        "en": "(B) Replicas have an independent LRU algorithm, but because they are in Read-only mode, they cannot update LRU information.",
+        "wg": []
+      },
+      {
+        "t": "(C) Replica 只有在收到客戶端讀取請求時才會觸發惰性淘汰 (Lazy Eviction)。",
+        "en": "(C) Replicas only trigger lazy eviction when receiving read requests from clients.",
+        "wg": []
+      },
+      {
+        "t": "(D) 這是設定錯誤，Replica 必須設定 `replica-ignore-maxmemory no` 才能啟用淘汰。",
+        "en": "(D) This is a configuration error; the Replica must set `replica-ignore-maxmemory no` to enable eviction.",
+        "wg": []
+      }
+    ],
+    "answer": "(A)",
+    "why": {
+      "t": "為了保持資料一致性，Redis Replica 預設不會主動淘汰鍵。它會等待 Master 發生淘汰後，將生成的 `DEL` 指令透過複製串流傳送過來。因此，Replica 的記憶體使用量可能會暫時高於 Master（例如 Master 剛淘汰但 DEL 尚未同步到達，或 Replica 有額外的唯讀緩衝區）。",
+      "en": "To maintain data consistency, Redis Replicas do not actively evict keys by default. They wait for the Master to evict keys and send the generated `DEL` commands via the replication stream. Therefore, a Replica's memory usage might temporarily exceed the Master's (e.g., Master just evicted but DEL hasn't arrived, or Replica has extra read-only buffers).",
+      "wg": [
+        {
+          "t": "資料一致性",
+          "en": "data consistency",
+          "ps": "N"
+        },
+        {
+          "t": "複製串流",
+          "en": "replication stream",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "14",
+    "level": "intermediate",
+    "keywords": "volatile-ttl, Policy, Expiration, Use Case",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您的 Redis 實例儲存了各種類型的快取資料，所有資料都設有 TTL。",
+        "en": "Your Redis instance stores various types of cache data, all with TTLs set.",
+        "wg": []
+      },
+      {
+        "t": "業務邏輯要求：當記憶體不足時，應該優先保留那些「剩餘存活時間 (TTL) 較長」的資料，因為這些資料通常計算成本較高或有效期較長。",
+        "en": "Business logic requirement: When memory is full, priority should be given to keeping data with a 'longer remaining Time-To-Live (TTL)', as this data is usually more expensive to compute or has a longer validity period.",
+        "wg": [
+          {
+            "t": "優先保留",
+            "en": "priority should be given to keeping",
+            "ps": "VP"
+          },
+          {
+            "t": "計算成本",
+            "en": "compute cost",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "您應該選擇哪種 `maxmemory-policy`？",
+        "en": "Which `maxmemory-policy` should you choose?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) `volatile-lru`",
+        "en": "(A) `volatile-lru`",
+        "wg": []
+      },
+      {
+        "t": "(B) `volatile-ttl`",
+        "en": "(B) `volatile-ttl`",
+        "wg": []
+      },
+      {
+        "t": "(C) `allkeys-lru`",
+        "en": "(C) `allkeys-lru`",
+        "wg": []
+      },
+      {
+        "t": "(D) `volatile-random`",
+        "en": "(D) `volatile-random`",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "`volatile-ttl` 策略會優先淘汰那些「即將過期」（TTL 剩餘時間最短）的鍵。這符合題目要求保留 TTL 較長資料的邏輯。相比之下，`volatile-lru` 是看最近是否被使用，與剩餘壽命無關。",
+      "en": "The `volatile-ttl` policy prioritizes evicting keys that are 'expiring soonest' (have the shortest remaining TTL). This aligns with the requirement to keep data with longer TTLs. In contrast, `volatile-lru` looks at recency of use, regardless of remaining lifespan.",
+      "wg": [
+        {
+          "t": "即將過期",
+          "en": "expiring soonest",
+          "ps": "VP"
+        },
+        {
+          "t": "剩餘壽命",
+          "en": "remaining lifespan",
+          "ps": "NP"
+        }
+      ]
+    }
+  },
+  {
+    "no": "15",
+    "level": "intermediate",
+    "keywords": "allkeys-random, Uniform Distribution, Cyclic Access, Policy",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您正在為一個特殊的應用程式配置 Redis 快取。該應用程式的存取模式呈現「均勻分佈 (Uniform Distribution)」，意即所有鍵被存取的機率幾乎相等，沒有明顯的熱點 (Hot Keys)。",
+        "en": "You are configuring a Redis cache for a specific application. The access pattern of this application exhibits a 'Uniform Distribution', meaning all keys have an almost equal probability of being accessed, with no obvious Hot Keys.",
+        "wg": [
+          {
+            "t": "均勻分佈",
+            "en": "Uniform Distribution",
+            "ps": "N"
+          },
+          {
+            "t": "熱點",
+            "en": "Hot Keys",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "在這種情況下，選擇哪種淘汰策略通常最合適且能節省追蹤 LRU/LFU 的開銷？",
+        "en": "In this case, which eviction policy is generally most appropriate and saves the overhead of tracking LRU/LFU?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) `allkeys-lru`",
+        "en": "(A) `allkeys-lru`",
+        "wg": []
+      },
+      {
+        "t": "(B) `allkeys-lfu`",
+        "en": "(B) `allkeys-lfu`",
+        "wg": []
+      },
+      {
+        "t": "(C) `allkeys-random`",
+        "en": "(C) `allkeys-random`",
+        "wg": []
+      },
+      {
+        "t": "(D) `noeviction`",
+        "en": "(D) `noeviction`",
+        "wg": []
+      }
+    ],
+    "answer": "(C)",
+    "why": {
+      "t": "當存取模式為均勻分佈時，LRU 和 LFU 無法預測哪些鍵未來較可能被存取（因為機率都一樣）。此時使用 `allkeys-random` 是最佳選擇，因為它不需要消耗 CPU 和記憶體來維護 LRU/LFU 的元數據，且在均勻分佈下，隨機淘汰的效果與 LRU 相當。",
+      "en": "When the access pattern is uniformly distributed, LRU and LFU cannot predict which keys are more likely to be accessed in the future (since probabilities are equal). In this case, `allkeys-random` is the best choice as it does not consume CPU and memory to maintain LRU/LFU metadata, and under uniform distribution, random eviction performs comparably to LRU.",
+      "wg": [
+        {
+          "t": "元數據",
+          "en": "metadata",
+          "ps": "N"
+        },
+        {
+          "t": "相當",
+          "en": "comparably",
+          "ps": "Adv"
+        }
+      ]
+    }
+  }
+]

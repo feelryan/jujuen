@@ -1,0 +1,840 @@
+[
+  {
+    "no": "1",
+    "level": "Medium",
+    "keywords": "Hybrid Persistence, RPO, RTO, Configuration",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "appendonly yes\nappendfsync everysec\naof-use-rdb-preamble yes",
+    "question": [
+      {
+        "t": "在 Redis 4.0+ 的一般通用場景下，採用上述配置（混合持久化）的主要優勢為何？",
+        "en": "In a general-purpose scenario with Redis 4.0+, what is the primary advantage of using the configuration shown above (Hybrid Persistence)?",
+        "wg": [
+          {
+            "t": "混合持久化",
+            "en": "Hybrid Persistence",
+            "ps": "noun"
+          },
+          {
+            "t": "配置",
+            "en": "configuration",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "它能保證資料絕對零遺失（Zero Data Loss），因為 RDB 提供了額外的備份。",
+        "en": "It guarantees absolute zero data loss because RDB provides an extra backup.",
+        "wg": []
+      },
+      {
+        "t": "它結合了 RDB 的快速重啟能力與 AOF 的低資料遺失風險（最多 1 秒）。",
+        "en": "It combines the fast restart capability of RDB with the low data loss risk of AOF (at most 1 second).",
+        "wg": [
+          {
+            "t": "重啟",
+            "en": "restart",
+            "ps": "verb/noun"
+          }
+        ]
+      },
+      {
+        "t": "它完全避免了 fork() 操作，因此不會造成主執行緒阻塞。",
+        "en": "It completely avoids the fork() operation, thus preventing main thread blocking.",
+        "wg": []
+      },
+      {
+        "t": "它會將資料同步寫入 Replica，確保高可用性。",
+        "en": "It synchronously writes data to Replicas to ensure high availability.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "混合持久化利用 RDB 格式作為 AOF 檔案的開頭（Preamble），大幅加快了重啟時的載入速度（RTO 優化），同時後續增量使用 AOF 記錄，將資料遺失風險控制在 1 秒內（RPO 優化）。選項 0 錯誤，因為 `everysec` 仍可能有 1 秒遺失；選項 2 錯誤，AOF Rewrite 仍需 fork；選項 3 混淆了持久化與複製。",
+      "en": "Hybrid persistence uses the RDB format as the preamble of the AOF file, significantly speeding up load time during restarts (optimizing RTO), while subsequent increments are recorded using AOF, keeping data loss risk within 1 second (optimizing RPO). Option 0 is incorrect because `everysec` still implies potential 1-second loss; Option 2 is incorrect as AOF Rewrite still requires a fork; Option 3 confuses persistence with replication.",
+      "wg": [
+        {
+          "t": "增量",
+          "en": "incremental",
+          "ps": "adjective"
+        },
+        {
+          "t": "混淆",
+          "en": "confuses",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "2",
+    "level": "Hard",
+    "keywords": "Latency, Fork, Performance, Troubleshooting",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你的 Redis 監控顯示每小時會出現一次短暫但顯著的延遲尖峰（Latency Spike），且該時段並無慢查詢（Slowlog）。經檢查 `info stats`，發現 `latest_fork_usec` 數值很高。最可能的原因是什麼？",
+        "en": "Your Redis monitoring shows a brief but significant latency spike every hour, and there are no slow queries (Slowlog) during that period. Upon checking `info stats`, you find a high `latest_fork_usec` value. What is the most likely cause?",
+        "wg": [
+          {
+            "t": "延遲尖峰",
+            "en": "Latency Spike",
+            "ps": "noun"
+          },
+          {
+            "t": "慢查詢",
+            "en": "Slowlog",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "網路頻寬不足導致客戶端連線逾時。",
+        "en": "Insufficient network bandwidth causing client connection timeouts.",
+        "wg": []
+      },
+      {
+        "t": "Redis 正在執行 BGSAVE 或 AOF Rewrite，`fork()` 系統呼叫阻塞了主執行緒。",
+        "en": "Redis is performing a BGSAVE or AOF Rewrite, and the `fork()` system call is blocking the main thread.",
+        "wg": [
+          {
+            "t": "阻塞",
+            "en": "blocking",
+            "ps": "verb"
+          },
+          {
+            "t": "主執行緒",
+            "en": "main thread",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "AOF 檔案過大，導致磁碟 I/O 寫入變慢。",
+        "en": "The AOF file is too large, causing slow disk I/O writes.",
+        "wg": []
+      },
+      {
+        "t": "記憶體碎片率（Fragmentation Ratio）過高。",
+        "en": "The memory fragmentation ratio is too high.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "當 Redis 執行 RDB 快照或 AOF 重寫時，必須呼叫 OS 的 `fork()` 來建立子程序。對於大記憶體實例，複製分頁表（Page Table）的過程會暫停主執行緒，導致所有客戶端請求被阻塞。這正是 `latest_fork_usec` 數值高的直接原因。",
+      "en": "When Redis performs an RDB snapshot or AOF rewrite, it must call the OS `fork()` to create a child process. For large memory instances, the process of copying the page table pauses the main thread, causing all client requests to be blocked. This is the direct cause of a high `latest_fork_usec` value.",
+      "wg": [
+        {
+          "t": "分頁表",
+          "en": "Page Table",
+          "ps": "noun"
+        },
+        {
+          "t": "子程序",
+          "en": "child process",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "3",
+    "level": "Hard",
+    "keywords": "Replication, Persistence, Architecture, Anti-pattern",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "為了提升 Master 節點的效能，你決定關閉 Master 的所有持久化功能，僅在 Replica 開啟 AOF。若 Master 發生當機並自動重啟（Auto-restart），可能會發生什麼災難性後果？",
+        "en": "To improve Master node performance, you decide to disable all persistence on the Master and only enable AOF on the Replica. If the Master crashes and auto-restarts, what catastrophic consequence might occur?",
+        "wg": [
+          {
+            "t": "災難性後果",
+            "en": "catastrophic consequence",
+            "ps": "noun"
+          },
+          {
+            "t": "自動重啟",
+            "en": "Auto-restart",
+            "ps": "verb/noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "Replica 會自動晉升為 Master，服務不受影響。",
+        "en": "The Replica will automatically promote itself to Master, and the service will be unaffected.",
+        "wg": []
+      },
+      {
+        "t": "Master 重啟後為空資料，Replica 同步 Master 的空狀態，導致 Replica 資料也被清空。",
+        "en": "The Master restarts with empty data, and the Replica syncs the empty state from the Master, causing the Replica's data to be wiped as well.",
+        "wg": [
+          {
+            "t": "清空",
+            "en": "wiped/cleared",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "Master 會自動從 Replica 拉取資料進行還原。",
+        "en": "The Master will automatically pull data from the Replica to restore itself.",
+        "wg": []
+      },
+      {
+        "t": "Replica 會拒絕連線，直到 Master 手動載入資料。",
+        "en": "The Replica will refuse connections until the Master manually loads data.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "這是經典的「資料連鎖消失」陷阱。Master 無持久化檔，重啟後是空的。Redis 的複製機制會讓 Replica 盡力與 Master 保持一致，因此 Replica 會刪除自身資料以匹配 Master 的空狀態。解法是關閉 Master 自動重啟，或確保有 Sentinel/Cluster 能在重啟前完成 Failover。",
+      "en": "This is a classic 'cascading data loss' trap. The Master has no persistence file, so it restarts empty. Redis replication mechanisms make the Replica strive to match the Master, so the Replica will delete its own data to match the Master's empty state. The solution is to disable auto-restart on the Master or ensure Sentinel/Cluster can complete a failover before the restart.",
+      "wg": [
+        {
+          "t": "連鎖消失",
+          "en": "cascading loss",
+          "ps": "noun"
+        },
+        {
+          "t": "陷阱",
+          "en": "trap/pitfall",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "4",
+    "level": "Medium",
+    "keywords": "Memory, OOM, Copy-on-Write, Operating System",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你的 Redis 實例使用了 85% 的實體記憶體。此時觸發了 BGSAVE，且系統正面臨大量的寫入請求。這最可能導致什麼風險？",
+        "en": "Your Redis instance is using 85% of physical memory. A BGSAVE is triggered while the system is facing a high volume of write requests. What is the most likely risk?",
+        "wg": [
+          {
+            "t": "實體記憶體",
+            "en": "physical memory",
+            "ps": "noun"
+          },
+          {
+            "t": "寫入請求",
+            "en": "write requests",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "BGSAVE 會失敗，但 Redis 服務不受影響。",
+        "en": "BGSAVE will fail, but the Redis service will remain unaffected.",
+        "wg": []
+      },
+      {
+        "t": "OS 的 OOM Killer 可能會因為 Copy-on-Write 需要額外記憶體而殺掉 Redis 行程。",
+        "en": "The OS OOM Killer might kill the Redis process because Copy-on-Write requires additional memory.",
+        "wg": [
+          {
+            "t": "額外記憶體",
+            "en": "additional memory",
+            "ps": "noun"
+          },
+          {
+            "t": "行程",
+            "en": "process",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "Redis 會自動暫停寫入請求，直到 BGSAVE 完成。",
+        "en": "Redis will automatically pause write requests until BGSAVE completes.",
+        "wg": []
+      },
+      {
+        "t": "AOF 檔案會損壞。",
+        "en": "The AOF file will become corrupted.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "BGSAVE 依賴 OS 的 Copy-on-Write (CoW) 機制。當父行程（Redis）在持久化期間修改資料時，OS 必須複製該記憶體頁面。若寫入頻繁，CoW 消耗的記憶體會迅速增加，在記憶體已佔用 85% 的情況下，極易觸發 Out of Memory (OOM) Killer。",
+      "en": "BGSAVE relies on the OS Copy-on-Write (CoW) mechanism. When the parent process (Redis) modifies data during persistence, the OS must copy that memory page. If writes are frequent, the memory consumed by CoW increases rapidly. With 85% memory already occupied, this easily triggers the Out of Memory (OOM) Killer.",
+      "wg": [
+        {
+          "t": "依賴",
+          "en": "relies on",
+          "ps": "verb"
+        },
+        {
+          "t": "消耗",
+          "en": "consume",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "5",
+    "level": "Easy",
+    "keywords": "Configuration, Performance, Anti-pattern",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "appendfsync always",
+    "question": [
+      {
+        "t": "一位初階工程師為了追求「零資料遺失」，將 Redis 設定為 `appendfsync always`。這會對系統造成什麼主要影響？",
+        "en": "A junior engineer sets Redis to `appendfsync always` in pursuit of 'zero data loss'. What major impact will this have on the system?",
+        "wg": [
+          {
+            "t": "追求",
+            "en": "in pursuit of",
+            "ps": "verb"
+          },
+          {
+            "t": "影響",
+            "en": "impact",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "寫入吞吐量（Throughput）將受限於磁碟 IOPS，效能可能下降 10-100 倍。",
+        "en": "Write throughput will be limited by disk IOPS, and performance may drop by 10-100 times.",
+        "wg": [
+          {
+            "t": "吞吐量",
+            "en": "Throughput",
+            "ps": "noun"
+          },
+          {
+            "t": "受限於",
+            "en": "limited by",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "Redis 會佔用過多的 CPU 資源進行壓縮。",
+        "en": "Redis will consume excessive CPU resources for compression.",
+        "wg": []
+      },
+      {
+        "t": "AOF 檔案大小會指數成長。",
+        "en": "The AOF file size will grow exponentially.",
+        "wg": []
+      },
+      {
+        "t": "這是一個推薦的設定，沒有明顯副作用。",
+        "en": "This is a recommended setting with no significant side effects.",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "`appendfsync always` 強制 Redis 在每次寫入指令後都執行 `fsync` 落盤。這將記憶體資料庫的效能拉低至磁碟 I/O 的水平，通常是極大的效能殺手，僅適用於極低寫入量且資料極度敏感的場景。",
+      "en": "`appendfsync always` forces Redis to perform an `fsync` to disk after every write command. This drags the performance of the in-memory database down to the level of disk I/O, which is usually a massive performance killer, suitable only for scenarios with very low write volume and extremely sensitive data.",
+      "wg": [
+        {
+          "t": "落盤",
+          "en": "flush to disk",
+          "ps": "verb"
+        },
+        {
+          "t": "極度敏感",
+          "en": "extremely sensitive",
+          "ps": "adjective"
+        }
+      ]
+    }
+  },
+  {
+    "no": "6",
+    "level": "Medium",
+    "keywords": "Troubleshooting, Recovery, AOF",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你的 Redis 服務在當機後重啟，發現它卡在「Loading...」狀態長達 20 分鐘。檢查發現 AOF 檔案雖然不大（2GB），但包含了數億次的 List 操作（LPUSH/LPOP）。如何最有效地解決此問題並加速未來的重啟？",
+        "en": "Your Redis service restarts after a crash and gets stuck in the 'Loading...' state for 20 minutes. You find that although the AOF file is not large (2GB), it contains hundreds of millions of List operations (LPUSH/LPOP). What is the most effective way to solve this and speed up future restarts?",
+        "wg": [
+          {
+            "t": "卡在",
+            "en": "stuck in",
+            "ps": "verb"
+          },
+          {
+            "t": "加速",
+            "en": "speed up",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "刪除 AOF 檔案並接受資料遺失。",
+        "en": "Delete the AOF file and accept the data loss.",
+        "wg": []
+      },
+      {
+        "t": "開啟 `aof-use-rdb-preamble yes` 並手動觸發 `BGREWRITEAOF`。",
+        "en": "Enable `aof-use-rdb-preamble yes` and manually trigger `BGREWRITEAOF`.",
+        "wg": [
+          {
+            "t": "觸發",
+            "en": "trigger",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "將 `appendfsync` 改為 `no`。",
+        "en": "Change `appendfsync` to `no`.",
+        "wg": []
+      },
+      {
+        "t": "增加伺服器的 CPU 核心數。",
+        "en": "Increase the number of CPU cores on the server.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "問題在於 Redis 正在逐條重播數億個指令（Replay）。透過開啟混合持久化（Hybrid Persistence）並執行 AOF Rewrite，Redis 會將當前記憶體狀態快照為 RDB 格式存入 AOF 檔頭。下次重啟時，Redis 只需載入 RDB 快照，速度會從分鐘級縮短至秒級。",
+      "en": "The problem is that Redis is replaying hundreds of millions of commands one by one. By enabling Hybrid Persistence and executing an AOF Rewrite, Redis will snapshot the current memory state into RDB format at the beginning of the AOF file. On the next restart, Redis only needs to load the RDB snapshot, reducing the time from minutes to seconds.",
+      "wg": [
+        {
+          "t": "重播",
+          "en": "replay",
+          "ps": "verb"
+        },
+        {
+          "t": "檔頭",
+          "en": "header/preamble",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "7",
+    "level": "Hard",
+    "keywords": "Configuration, AOF, Latency, I/O",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "appendonly yes\nappendfsync everysec\nno-appendfsync-on-rewrite yes",
+    "question": [
+      {
+        "t": "你的 Redis 伺服器在高寫入負載下，偶爾會出現與 AOF Rewrite 同步發生的短暫阻塞。為了緩解磁碟 I/O 競爭，你套用了上述設定 `no-appendfsync-on-rewrite yes`。請問這個設定的主要代價（Trade-off）是什麼？",
+        "en": "Your Redis server experiences occasional blocking synchronized with AOF Rewrites under high write loads. To alleviate disk I/O contention, you applied the configuration `no-appendfsync-on-rewrite yes`. What is the main trade-off of this setting?",
+        "wg": [
+          {
+            "t": "磁碟 I/O 競爭",
+            "en": "disk I/O contention",
+            "ps": "noun phrase"
+          },
+          {
+            "t": "代價",
+            "en": "trade-off",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "AOF 檔案的大小會顯著增加，佔用更多磁碟空間。",
+        "en": "The size of the AOF file will increase significantly, consuming more disk space.",
+        "wg": []
+      },
+      {
+        "t": "在 AOF Rewrite 期間若發生當機，可能會遺失這段期間（可能長達 30 秒以上）的所有寫入資料。",
+        "en": "If a crash occurs during AOF Rewrite, you may lose all write data from that period (potentially 30 seconds or more).",
+        "wg": []
+      },
+      {
+        "t": "Redis 將無法再執行 BGSAVE，導致 RDB 快照功能失效。",
+        "en": "Redis will no longer be able to perform BGSAVE, causing the RDB snapshot feature to fail.",
+        "wg": []
+      },
+      {
+        "t": "主執行緒（Main Thread）的 CPU 使用率會因為緩衝區管理而大幅上升。",
+        "en": "The CPU usage of the main thread will rise significantly due to buffer management.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "當設定為 `yes` 時，Redis 在進行 BGSAVE 或 AOF Rewrite 的過程中，主程序將暫停執行 `fsync`（將資料刷入磁碟）。這雖然避免了 I/O 競爭導致的主執行緒阻塞，但也意味著在這段期間，資料僅保存在作業系統的緩衝區中。若此時發生當機，遺失的資料量將取決於 Linux 核心何時將緩衝區寫入磁碟（通常可達 30 秒），而非原本 `everysec` 保證的 1 秒。",
+      "en": "When set to `yes`, Redis stops performing `fsync` (flushing data to disk) in the main process while a BGSAVE or AOF Rewrite is in progress. While this prevents main thread blocking due to I/O contention, it means data is only held in the OS buffer during this time. If a crash occurs, the amount of data lost depends on when the Linux kernel flushes the buffer (often up to 30 seconds), rather than the 1 second guaranteed by `everysec`.",
+      "wg": [
+        {
+          "t": "作業系統的緩衝區",
+          "en": "OS buffer",
+          "ps": "noun phrase"
+        }
+      ]
+    }
+  },
+  {
+    "no": "8",
+    "level": "Medium",
+    "keywords": "RDB, Configuration, Data Loss, Snapshot",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "save 900 1\nsave 300 10\nsave 60 10000",
+    "question": [
+      {
+        "t": "某個僅使用 RDB 持久化的 Redis 實例配置如上。假設上一次成功的快照發生在 `10:00:00`。隨後在 `10:02:00`（經過 120 秒）時，系統累積了 500 筆寫入操作。緊接著在 `10:04:00`（經過 240 秒）時伺服器發生電源故障當機。請問重啟後，資料的狀態為何？",
+        "en": "A Redis instance using only RDB persistence is configured as above. Assume the last successful snapshot occurred at `10:00:00`. Subsequently, at `10:02:00` (120 seconds elapsed), the system accumulated 500 write operations. Then, at `10:04:00` (240 seconds elapsed), the server crashed due to power failure. What is the state of the data after restart?",
+        "wg": [
+          {
+            "t": "累積",
+            "en": "accumulated",
+            "ps": "verb"
+          },
+          {
+            "t": "電源故障",
+            "en": "power failure",
+            "ps": "noun phrase"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "資料回復到 `10:02:00` 的狀態，因為已經超過了 10 筆寫入。",
+        "en": "Data is restored to the state at `10:02:00` because more than 10 writes occurred.",
+        "wg": []
+      },
+      {
+        "t": "資料回復到 `10:00:00` 的狀態，這 4 分鐘內的寫入全部遺失。",
+        "en": "Data is restored to the state at `10:00:00`; all writes within these 4 minutes are lost.",
+        "wg": []
+      },
+      {
+        "t": "資料回復到 `10:04:00` 當機前的狀態，因為 Redis 會在崩潰前嘗試緊急存檔。",
+        "en": "Data is restored to the state right before the crash at `10:04:00`, as Redis attempts an emergency save before crashing.",
+        "wg": []
+      },
+      {
+        "t": "資料部分遺失，僅保留前 300 筆寫入。",
+        "en": "Data is partially lost; only the first 300 writes are retained.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "RDB 的觸發條件是「時間」與「寫入次數」必須 **同時滿足**。雖然寫入次數（500 筆）超過了 `save 300 10` 的門檻（10 筆），但時間僅經過 240 秒，未達到該規則要求的 300 秒。同時也未達到 `save 900 1` 的時間要求或 `save 60 10000` 的次數要求。因此，這段期間沒有觸發任何快照，資料將回溯至上一次成功的快照點（10:00:00）。",
+      "en": "RDB triggers require **both** 'time' and 'write count' conditions to be met simultaneously. Although the write count (500) exceeded the threshold (10) for `save 300 10`, the elapsed time was only 240 seconds, which is less than the required 300 seconds. Neither the `save 900 1` time requirement nor the `save 60 10000` count requirement was met. Therefore, no snapshot was triggered during this period, and data reverts to the last successful snapshot (10:00:00).",
+      "wg": [
+        {
+          "t": "同時滿足",
+          "en": "met simultaneously",
+          "ps": "verb phrase"
+        },
+        {
+          "t": "門檻",
+          "en": "threshold",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "9",
+    "level": "Medium",
+    "keywords": "Cloud, IOPS, Performance, Troubleshooting",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你的團隊將 Redis 遷移至雲端環境（如 AWS EC2 或 Google Compute Engine）。在壓力測試中，你發現每當觸發 BGSAVE 時，應用程式的讀寫請求就會發生嚴重的阻塞（Blocking），即使 CPU 和記憶體資源都還很充裕。這最可能是什麼原因造成的？",
+        "en": "Your team migrated Redis to a cloud environment (e.g., AWS EC2 or Google Compute Engine). During stress testing, you noticed severe blocking of application read/write requests whenever BGSAVE is triggered, even though CPU and memory resources are plentiful. What is the most likely cause?",
+        "wg": [
+          {
+            "t": "壓力測試",
+            "en": "stress testing",
+            "ps": "noun phrase"
+          },
+          {
+            "t": "充裕",
+            "en": "plentiful",
+            "ps": "adjective"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "雲端環境的網路延遲過高，導致主從同步失敗。",
+        "en": "Network latency in the cloud environment is too high, causing replication failure.",
+        "wg": []
+      },
+      {
+        "t": "磁碟的 IOPS 或吞吐量（Throughput）達到上限，導致正常請求的 I/O 被持久化操作排擠。",
+        "en": "Disk IOPS or throughput limits were reached, causing normal request I/O to be crowded out by persistence operations.",
+        "wg": []
+      },
+      {
+        "t": "Redis 的 `maxmemory` 設定過低，導致頻繁的 Key Eviction。",
+        "en": "Redis `maxmemory` setting is too low, causing frequent key eviction.",
+        "wg": []
+      },
+      {
+        "t": "雲端主機的虛擬化技術不支援 `fork()` 系統呼叫。",
+        "en": "The virtualization technology of the cloud host does not support the `fork()` system call.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "在雲端環境中，磁碟（EBS, Persistent Disk 等）通常有嚴格的 IOPS 與頻寬限制。BGSAVE 或 AOF Rewrite 會產生大量的連續寫入，若此時磁碟頻寬被吃滿，主執行緒在嘗試寫入 AOF 或處理依賴磁碟的操作時就會被阻塞。這是一個常見的 Anti-pattern，解決方案是升級磁碟等級或優化持久化策略。",
+      "en": "In cloud environments, disks (EBS, Persistent Disk, etc.) usually have strict IOPS and bandwidth limits. BGSAVE or AOF Rewrite generates a large amount of sequential writes. If the disk bandwidth is saturated, the main thread can be blocked when attempting to write to AOF or handle disk-dependent operations. This is a common anti-pattern; the solution is to upgrade the disk tier or optimize persistence strategies.",
+      "wg": [
+        {
+          "t": "頻寬",
+          "en": "bandwidth",
+          "ps": "noun"
+        },
+        {
+          "t": "飽和",
+          "en": "saturated",
+          "ps": "adjective"
+        }
+      ]
+    }
+  },
+  {
+    "no": "10",
+    "level": "Medium",
+    "keywords": "Recovery, Tooling, AOF, Corruption",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你的 Redis 伺服器因硬體故障意外當機。嘗試重啟時，Redis 拒絕啟動並在 Log 中顯示 AOF 檔案格式錯誤（Bad file format）。為了盡快恢復服務，你應該採取什麼步驟？",
+        "en": "Your Redis server crashed unexpectedly due to hardware failure. Upon attempting to restart, Redis refuses to start and logs a 'Bad file format' error for the AOF file. What steps should you take to restore service as quickly as possible?",
+        "wg": [
+          {
+            "t": "拒絕啟動",
+            "en": "refuses to start",
+            "ps": "verb phrase"
+          },
+          {
+            "t": "格式錯誤",
+            "en": "format error",
+            "ps": "noun phrase"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "刪除 AOF 檔案，讓 Redis 以空資料庫啟動，再依賴 Replica 同步資料。",
+        "en": "Delete the AOF file, let Redis start with an empty database, and rely on Replica to sync data.",
+        "wg": []
+      },
+      {
+        "t": "使用 `redis-check-aof --fix` 工具修復 AOF 檔案，並接受可能會遺失少量尾端資料。",
+        "en": "Use the `redis-check-aof --fix` tool to repair the AOF file, accepting that a small amount of tail data may be lost.",
+        "wg": []
+      },
+      {
+        "t": "手動使用文字編輯器開啟 AOF 檔案，尋找並刪除亂碼部分。",
+        "en": "Manually open the AOF file with a text editor to find and delete the corrupted parts.",
+        "wg": []
+      },
+      {
+        "t": "將 `appendonly` 設定改為 `no` 強制啟動，然後再動態開啟 AOF。",
+        "en": "Change the `appendonly` setting to `no` to force a start, then dynamically enable AOF.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "當 AOF 檔案因寫入不完整而損壞時，Redis 提供了官方工具 `redis-check-aof`。使用 `--fix` 參數可以自動掃描並截斷（Truncate）檔案中損壞的尾部資料，使 Redis 能夠讀取剩餘的有效資料並成功啟動。手動編輯大檔案風險極高且困難；直接刪除則會遺失所有資料。",
+      "en": "When an AOF file is corrupted due to incomplete writes, Redis provides the official tool `redis-check-aof`. Using the `--fix` parameter automatically scans and truncates the corrupted tail of the file, allowing Redis to read the remaining valid data and start successfully. Manually editing large files is risky and difficult; deleting the file results in total data loss.",
+      "wg": [
+        {
+          "t": "截斷",
+          "en": "truncate",
+          "ps": "verb"
+        },
+        {
+          "t": "損壞的",
+          "en": "corrupted",
+          "ps": "adjective"
+        }
+      ]
+    }
+  },
+  {
+    "no": "11",
+    "level": "Easy",
+    "keywords": "Backup, Disaster Recovery, Best Practice",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "一位工程師認為既然已經開啟了 AOF (`appendonly yes`) 並且設定了 `appendfsync everysec`，資料就已經非常安全，不需要額外設定備份機制。請問這個觀點忽略了什麼主要風險？",
+        "en": "An engineer believes that since AOF is enabled (`appendonly yes`) with `appendfsync everysec`, the data is very safe and no additional backup mechanism is needed. What major risk does this viewpoint overlook?",
+        "wg": [
+          {
+            "t": "觀點",
+            "en": "viewpoint",
+            "ps": "noun"
+          },
+          {
+            "t": "忽略",
+            "en": "overlook",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "AOF 檔案可能會無限增長導致磁碟滿載。",
+        "en": "The AOF file may grow indefinitely, causing the disk to fill up.",
+        "wg": []
+      },
+      {
+        "t": "持久化檔案僅存在於本地磁碟，若發生實體硬碟損壞或伺服器遭入侵刪除檔案，資料將無法復原。",
+        "en": "Persistence files exist only on the local disk. If physical disk failure occurs or the server is compromised and files are deleted, data cannot be recovered.",
+        "wg": []
+      },
+      {
+        "t": "Redis 的 AOF 重寫機制可能會導致資料不一致。",
+        "en": "Redis's AOF rewrite mechanism may lead to data inconsistency.",
+        "wg": []
+      },
+      {
+        "t": "AOF 無法記錄過期（Expired）的 Key。",
+        "en": "AOF cannot record expired keys.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "持久化（Persistence）不等於備份（Backup）。持久化是為了解決程序崩潰（Process Crash）後的復原，檔案仍存於本地。若發生災難性故障（如硬碟損壞、火災、惡意刪除），本地檔案將一併遺失。最佳實務是定期將 RDB 快照複製到遠端物件儲存（如 AWS S3, GCS）。",
+      "en": "Persistence is not the same as Backup. Persistence addresses recovery after a process crash, with files remaining locally. In the event of a catastrophic failure (e.g., disk corruption, fire, malicious deletion), local files are lost as well. Best practice is to periodically copy RDB snapshots to remote object storage (e.g., AWS S3, GCS).",
+      "wg": [
+        {
+          "t": "災難性故障",
+          "en": "catastrophic failure",
+          "ps": "noun phrase"
+        },
+        {
+          "t": "惡意刪除",
+          "en": "malicious deletion",
+          "ps": "noun phrase"
+        }
+      ]
+    }
+  },
+  {
+    "no": "12",
+    "level": "Hard",
+    "keywords": "Architecture, Fork, Performance, Sharding",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你管理著一個記憶體使用量達 60GB 的單一 Redis 實例。監控顯示每次觸發持久化時，`latest_fork_usec` 都高達 800ms，導致應用程式頻繁逾時。在不關閉持久化的前提下，最根本的架構解決方案是什麼？",
+        "en": "You manage a single Redis instance with 60GB of memory usage. Monitoring shows that `latest_fork_usec` reaches 800ms every time persistence is triggered, causing frequent application timeouts. Assuming persistence cannot be disabled, what is the fundamental architectural solution?",
+        "wg": [
+          {
+            "t": "根本的",
+            "en": "fundamental",
+            "ps": "adjective"
+          },
+          {
+            "t": "逾時",
+            "en": "timeouts",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "升級伺服器 CPU，使用更多核心來加速 `fork` 操作。",
+        "en": "Upgrade the server CPU to use more cores to accelerate the `fork` operation.",
+        "wg": []
+      },
+      {
+        "t": "將該實例拆分為 Redis Cluster（分片），降低單一實例的記憶體大小，從而縮短 `fork` 時間。",
+        "en": "Split the instance into a Redis Cluster (sharding) to reduce the memory size of individual instances, thereby shortening `fork` time.",
+        "wg": []
+      },
+      {
+        "t": "改用 `save 900 1` 取代 AOF，減少持久化頻率。",
+        "en": "Switch to `save 900 1` instead of AOF to reduce the frequency of persistence.",
+        "wg": []
+      },
+      {
+        "t": "在作業系統層級開啟 Huge Pages 以優化記憶體複製效能。",
+        "en": "Enable Huge Pages at the OS level to optimize memory copy performance.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "`fork()` 的執行時間與程序佔用的頁表（Page Table）大小成正比，而頁表大小又與記憶體總量成正比。單一實例記憶體過大（如 60GB）是導致 `fork` 緩慢的物理限制，單純升級 CPU 幫助有限（fork 是單執行緒操作）。最有效的解法是透過分片（Sharding）將資料分散到多個小實例（例如 10 個 6GB 的實例），使每個實例的 fork 時間大幅降低。",
+      "en": "The execution time of `fork()` is proportional to the size of the process's page table, which in turn is proportional to the total memory. An excessively large single instance (e.g., 60GB) imposes a physical limit causing slow `fork`; upgrading CPU helps little (fork is single-threaded). The most effective solution is sharding: distributing data across multiple smaller instances (e.g., 10 instances of 6GB), significantly reducing the fork time for each.",
+      "wg": [
+        {
+          "t": "成正比",
+          "en": "proportional to",
+          "ps": "verb phrase"
+        },
+        {
+          "t": "頁表",
+          "en": "Page Table",
+          "ps": "noun"
+        }
+      ]
+    }
+  }
+]

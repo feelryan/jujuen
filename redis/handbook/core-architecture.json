@@ -1,0 +1,852 @@
+[
+  {
+    "no": "1",
+    "level": "Medium",
+    "keywords": "Redis 6.0, I/O Threads, Single-threaded, Lua Script",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "某團隊將 Redis 升級至 6.0 版本，希望藉由其「多執行緒 (Multi-threaded)」特性來解決一個執行時間過長的 Lua Script 導致的阻塞問題。請問這個策略有效嗎？",
+        "en": "A team upgrades to Redis 6.0, hoping to solve a blocking issue caused by a long-running Lua Script by leveraging its 'Multi-threaded' capabilities. Is this strategy effective?",
+        "wg": [
+          {
+            "t": "多執行緒",
+            "en": "Multi-threaded",
+            "ps": "adj"
+          },
+          {
+            "t": "阻塞",
+            "en": "blocking",
+            "ps": "verb/adj"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "有效。Redis 6.0 的多執行緒可以並行處理 Lua Script，避免主執行緒被佔用。",
+        "en": "Yes. Redis 6.0's multi-threading can execute Lua Scripts in parallel, preventing the main thread from being occupied.",
+        "wg": []
+      },
+      {
+        "t": "無效。Redis 6.0 的多執行緒僅用於網路 I/O 處理，指令執行（包含 Lua Script）仍然是單執行緒且序列化的。",
+        "en": "No. Redis 6.0's multi-threading is only for network I/O; command execution (including Lua Scripts) remains single-threaded and serialized.",
+        "wg": [
+          {
+            "t": "網路 I/O",
+            "en": "network I/O",
+            "ps": "noun"
+          },
+          {
+            "t": "序列化",
+            "en": "serialized",
+            "ps": "adj"
+          }
+        ]
+      },
+      {
+        "t": "有效，但需要在 redis.conf 中明確開啟 `lua-threaded-execution` 選項。",
+        "en": "Yes, but you need to explicitly enable the `lua-threaded-execution` option in redis.conf.",
+        "wg": []
+      },
+      {
+        "t": "無效，因為 Lua Script 本身不支援多執行緒，必須改用 Redis Functions。",
+        "en": "No, because Lua Scripts themselves do not support multi-threading; you must switch to Redis Functions.",
+        "wg": []
+      }
+    ],
+    "answer": "無效。Redis 6.0 的多執行緒僅用於網路 I/O 處理，指令執行（包含 Lua Script）仍然是單執行緒且序列化的。",
+    "why": {
+      "t": "Redis 6.0 引入的多執行緒僅負責處理網路讀寫（Network I/O）與協議解析，核心的「指令執行（Command Execution）」依然是由單一主執行緒（Main Thread）負責。因此，慢的 Lua Script 依然會阻塞後面排隊的所有請求。",
+      "en": "The multi-threading introduced in Redis 6.0 is only responsible for handling network I/O and protocol parsing. The core 'Command Execution' is still handled by a single Main Thread. Therefore, a slow Lua Script will still block all subsequent requests in the queue.",
+      "wg": [
+        {
+          "t": "主執行緒",
+          "en": "Main Thread",
+          "ps": "noun"
+        },
+        {
+          "t": "協議解析",
+          "en": "protocol parsing",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "2",
+    "level": "Easy",
+    "keywords": "Pipeline, RTT, Latency, Performance",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "for i in range(5000):\n    redis.set(f\"key:{i}\", \"value\")",
+    "question": [
+      {
+        "t": "你需要將 5,000 筆資料寫入位於另一個區域（Region）的 Redis 實體，該連線的 RTT（往返時間）約為 20ms。目前的程式碼使用迴圈逐一執行 `SET` 指令（如上所示），導致總耗時超過 100 秒。請問最有效的優化方式為何？",
+        "en": "You need to write 5,000 records to a Redis instance located in another region, with an RTT (Round Trip Time) of about 20ms. The current code executes `SET` commands one by one in a loop (as shown above), taking over 100 seconds. What is the most effective optimization?",
+        "wg": [
+          {
+            "t": "往返時間",
+            "en": "Round Trip Time (RTT)",
+            "ps": "noun"
+          },
+          {
+            "t": "逐一執行",
+            "en": "execute one by one",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "將 Redis 升級至支援多執行緒的版本。",
+        "en": "Upgrade Redis to a version that supports multi-threading.",
+        "wg": []
+      },
+      {
+        "t": "使用 Pipeline 將指令打包發送，減少 RTT 的次數。",
+        "en": "Use Pipeline to batch commands, reducing the number of RTTs.",
+        "wg": [
+          {
+            "t": "打包發送",
+            "en": "batch send",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "使用 `MSET` 指令一次寫入所有 Key，但這不保證原子性。",
+        "en": "Use the `MSET` command to write all keys at once, but this does not guarantee atomicity.",
+        "wg": []
+      },
+      {
+        "t": "增加客戶端機器的 CPU 核心數。",
+        "en": "Increase the number of CPU cores on the client machine.",
+        "wg": []
+      }
+    ],
+    "answer": "使用 Pipeline 將指令打包發送，減少 RTT 的次數。",
+    "why": {
+      "t": "此情境的瓶頸在於網路延遲（Latency）。每次 `SET` 都需要等待 20ms 的 RTT，5000 次就是 100 秒。使用 Pipeline 可以一次發送多個指令並一次接收回應，大幅減少網路往返次數，將總耗時降至數百毫秒等級。",
+      "en": "The bottleneck here is network latency. Each `SET` waits for a 20ms RTT, totaling 100 seconds for 5000 ops. Using Pipeline allows sending multiple commands and receiving responses in a single batch, drastically reducing network round-trips and lowering total time to the order of milliseconds.",
+      "wg": [
+        {
+          "t": "網路延遲",
+          "en": "network latency",
+          "ps": "noun"
+        },
+        {
+          "t": "瓶頸",
+          "en": "bottleneck",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "3",
+    "level": "Medium",
+    "keywords": "Big Key, UNLINK, DEL, Blocking",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你在生產環境中發現了一個不再需要的 Big Key（一個包含 500 萬個元素的 List）。直接執行 `DEL` 指令導致了資料庫短暫卡頓（Stop-the-World）。為了避免這種情況，未來應該使用哪個指令來移除此類 Big Key？",
+        "en": "You identified an unneeded Big Key (a List with 5 million elements) in production. Executing `DEL` directly caused a momentary 'Stop-the-World' freeze. To avoid this, which command should be used to remove such Big Keys in the future?",
+        "wg": [
+          {
+            "t": "卡頓",
+            "en": "freeze/stall",
+            "ps": "noun"
+          },
+          {
+            "t": "生產環境",
+            "en": "production environment",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "FLUSHDB",
+        "en": "FLUSHDB",
+        "wg": []
+      },
+      {
+        "t": "UNLINK",
+        "en": "UNLINK",
+        "wg": []
+      },
+      {
+        "t": "EXPIRE 0",
+        "en": "EXPIRE 0",
+        "wg": []
+      },
+      {
+        "t": "LREM",
+        "en": "LREM",
+        "wg": []
+      }
+    ],
+    "answer": "UNLINK",
+    "why": {
+      "t": "`DEL` 是阻塞式指令，會在主執行緒中回收記憶體，對於 Big Key 會耗時很久。`UNLINK` (Redis 4.0+) 則是非阻塞的，它會將 Key 從 Keyspace 中移除，真正的記憶體回收工作會交由背景執行緒（Lazy Freeing）處理，不會阻塞主執行緒。",
+      "en": "`DEL` is a blocking command that reclaims memory in the main thread, which takes time for Big Keys. `UNLINK` (Redis 4.0+) is non-blocking; it removes the key from the keyspace, but the actual memory reclamation is handled by a background thread (Lazy Freeing), avoiding main thread blockage.",
+      "wg": [
+        {
+          "t": "背景執行緒",
+          "en": "background thread",
+          "ps": "noun"
+        },
+        {
+          "t": "記憶體回收",
+          "en": "memory reclamation",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "4",
+    "level": "Hard",
+    "keywords": "Troubleshooting, CPU, Slowlog, High Concurrency",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "監控系統發出警報指出 Redis CPU 使用率達到 100%。你立即登入並檢查 `SLOWLOG GET`，卻發現最近 5 分鐘內沒有任何紀錄。請問最可能的原因是什麼？",
+        "en": "Your monitoring system alerts that Redis CPU usage has hit 100%. You immediately check `SLOWLOG GET` but find no records from the last 5 minutes. What is the most likely cause?",
+        "wg": [
+          {
+            "t": "監控系統",
+            "en": "monitoring system",
+            "ps": "noun"
+          },
+          {
+            "t": "警報",
+            "en": "alert",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "有一個執行時間極長的 `KEYS *` 指令正在執行中，尚未結束，所以還沒寫入 Slowlog。",
+        "en": "A very long-running `KEYS *` command is currently executing and hasn't finished yet, so it hasn't been written to the Slowlog.",
+        "wg": []
+      },
+      {
+        "t": "系統遭遇了極高併發的小指令（如簡單的 GET/SET），導致 CPU 消耗在網路 I/O 與上下文切換，而非單一指令執行慢。",
+        "en": "The system is experiencing extremely high concurrency of small commands (like simple GET/SET), causing CPU drain on network I/O and context switching rather than slow command execution.",
+        "wg": [
+          {
+            "t": "極高併發",
+            "en": "extremely high concurrency",
+            "ps": "noun"
+          },
+          {
+            "t": "上下文切換",
+            "en": "context switching",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "Redis 正在進行 AOF Rewrite，導致主執行緒被 Fork 出來的子程序拖慢。",
+        "en": "Redis is performing an AOF Rewrite, causing the main thread to be slowed down by the forked child process.",
+        "wg": []
+      },
+      {
+        "t": "記憶體不足導致 Redis 頻繁進行 Swap。",
+        "en": "Insufficient memory is causing Redis to swap frequently.",
+        "wg": []
+      }
+    ],
+    "answer": "系統遭遇了極高併發的小指令（如簡單的 GET/SET），導致 CPU 消耗在網路 I/O 與上下文切換，而非單一指令執行慢。",
+    "why": {
+      "t": "Slowlog 只記錄「指令執行時間」超過閾值的命令。如果 CPU 滿載但 Slowlog 為空，通常代表沒有單一指令特別慢，而是每秒處理的指令數（OPS）極高，CPU 時間都花在網路中斷處理、協議解析與 Context Switch 上。這時應考慮使用 Pipeline 或 Redis 6+ 的 I/O Threads。",
+      "en": "Slowlog only records commands where 'execution time' exceeds a threshold. If CPU is full but Slowlog is empty, it usually means no single command is slow, but the OPS (Operations Per Second) is extremely high. CPU time is spent on network interrupts, protocol parsing, and context switching. Consider using Pipeline or Redis 6+ I/O Threads.",
+      "wg": [
+        {
+          "t": "閾值",
+          "en": "threshold",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "5",
+    "level": "Medium",
+    "keywords": "KEYS, SCAN, O(N), Anti-pattern",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "keys = redis.keys(\"session:*\")\nfor key in keys:\n    redis.del(key)",
+    "question": [
+      {
+        "t": "某開發者寫了一個排程工作來清理過期的 Session（如上方程式碼）。這在測試環境運作良好，但在生產環境上線後，隨著用戶量增長，導致 Redis 週期性凍結數秒。請問根本原因與修正方案為何？",
+        "en": "A developer wrote a cron job to clean up expired sessions (code above). It worked fine in staging, but in production, as the user base grew, it caused Redis to freeze periodically for seconds. What is the root cause and the fix?",
+        "wg": [
+          {
+            "t": "排程工作",
+            "en": "cron job/scheduled task",
+            "ps": "noun"
+          },
+          {
+            "t": "週期性凍結",
+            "en": "freeze periodically",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "原因：`DEL` 指令太慢。修正：改用 `UNLINK`。",
+        "en": "Cause: `DEL` command is too slow. Fix: Use `UNLINK` instead.",
+        "wg": []
+      },
+      {
+        "t": "原因：`KEYS` 是 O(N) 指令，會遍歷整個資料庫並阻塞主執行緒。修正：改用 `SCAN` 指令分批迭代。",
+        "en": "Cause: `KEYS` is an O(N) command that iterates the entire database and blocks the main thread. Fix: Use `SCAN` command for incremental iteration.",
+        "wg": [
+          {
+            "t": "遍歷",
+            "en": "iterate/traverse",
+            "ps": "verb"
+          },
+          {
+            "t": "分批迭代",
+            "en": "incremental iteration",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "原因：Python 用戶端解析回應太慢。修正：改用 C++ 用戶端。",
+        "en": "Cause: The Python client parses responses too slowly. Fix: Switch to a C++ client.",
+        "wg": []
+      },
+      {
+        "t": "原因：網路頻寬不足。修正：升級網路卡。",
+        "en": "Cause: Insufficient network bandwidth. Fix: Upgrade the network card.",
+        "wg": []
+      }
+    ],
+    "answer": "原因：`KEYS` 是 O(N) 指令，會遍歷整個資料庫並阻塞主執行緒。修正：改用 `SCAN` 指令分批迭代。",
+    "why": {
+      "t": "`KEYS pattern` 是一個 $O(N)$ 操作，N 為資料庫中 Key 的總數。在生產環境中 N 可能達到數百萬甚至上億，執行此指令會導致 Redis 主執行緒長時間阻塞，無法處理其他請求。應使用 `SCAN` 透過游標（Cursor）分批取得 Key，避免長時間阻塞。",
+      "en": "`KEYS pattern` is an $O(N)$ operation where N is the total number of keys. In production, N can be millions, causing the main thread to block for a long time. You should use `SCAN` to iterate keys incrementally using a cursor to avoid blocking the server.",
+      "wg": [
+        {
+          "t": "游標",
+          "en": "cursor",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "6",
+    "level": "Hard",
+    "keywords": "Big Key, Network, HGETALL, Troubleshooting",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "某電商網站在促銷期間出現隨機的 Redis Timeout，但 CPU 使用率並不高。經排查發現，有一個儲存「熱門商品」的 Hash Key 包含 5 萬個欄位，且應用程式頻繁對其呼叫 `HGETALL`。為什麼這會導致其他客戶端 Timeout？",
+        "en": "An e-commerce site experiences random Redis Timeouts during a sale, but CPU usage is low. Investigation reveals a 'Hot Products' Hash Key with 50,000 fields, and the app frequently calls `HGETALL` on it. Why does this cause timeouts for other clients?",
+        "wg": [
+          {
+            "t": "隨機的",
+            "en": "random",
+            "ps": "adj"
+          },
+          {
+            "t": "頻繁",
+            "en": "frequently",
+            "ps": "adv"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "因為 `HGETALL` 的時間複雜度是 O(1)，所以不應該是它造成的。",
+        "en": "Since `HGETALL` has O(1) time complexity, it shouldn't be the cause.",
+        "wg": []
+      },
+      {
+        "t": "大量的資料序列化與網路傳輸塞滿了單執行緒的 Output Buffer，導致處理其他請求的能力下降或阻塞。",
+        "en": "Massive data serialization and network transmission filled the single-threaded Output Buffer, degrading or blocking the ability to process other requests.",
+        "wg": [
+          {
+            "t": "輸出緩衝區",
+            "en": "Output Buffer",
+            "ps": "noun"
+          },
+          {
+            "t": "序列化",
+            "en": "serialization",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "因為 Hash Key 的欄位數量超過了 Redis 的上限。",
+        "en": "Because the number of fields in the Hash Key exceeded Redis's limit.",
+        "wg": []
+      },
+      {
+        "t": "因為 Redis 正在將該 Key 寫入硬碟（Swap）。",
+        "en": "Because Redis is swapping that Key to disk.",
+        "wg": []
+      }
+    ],
+    "answer": "大量的資料序列化與網路傳輸塞滿了單執行緒的 Output Buffer，導致處理其他請求的能力下降或阻塞。",
+    "why": {
+      "t": "雖然 `HGETALL` 的複雜度是 $O(N)$，但當 N (欄位數) 很大時，Redis 需要將大量資料序列化並寫入 Output Buffer。在單執行緒模型下（或即使有 I/O threads 但資料量過大），這會佔用大量時間與頻寬，導致後續請求排隊超時。這就是典型的 Big Key 造成的網路/Buffer 瓶頸。",
+      "en": "Although `HGETALL` is $O(N)$, when N is large, Redis must serialize a lot of data into the Output Buffer. In a single-threaded model (or even with I/O threads if data is huge), this consumes significant time and bandwidth, causing subsequent requests to queue up and timeout. This is a classic Big Key network/buffer bottleneck.",
+      "wg": [
+        {
+          "t": "頻寬",
+          "en": "bandwidth",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "7",
+    "level": "Medium",
+    "keywords": "Connection Pooling, TCP Handshake, Performance, Anti-pattern",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你的應用程式伺服器日誌顯示偶爾會出現 Redis 連線逾時錯誤。檢查 Redis 伺服器後發現：記憶體使用率低，每秒指令數（OPS）不高，但 CPU 使用率卻異常地高。此外，在伺服器上執行 `netstat` 顯示有成千上萬個處於 `TIME_WAIT` 狀態的 TCP 連線。請問最可能的原因是什麼？",
+        "en": "Your application server logs show occasional Redis connection timeout errors. Upon checking the Redis server: memory usage is low, operations per second (OPS) are moderate, but CPU usage is abnormally high. Additionally, running `netstat` on the server reveals thousands of TCP connections in `TIME_WAIT` state. What is the most likely cause?",
+        "wg": [
+          {
+            "t": "連線逾時",
+            "en": "connection timeout",
+            "ps": "noun"
+          },
+          {
+            "t": "處於 TIME_WAIT 狀態",
+            "en": "in TIME_WAIT state",
+            "ps": "phrase"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "應用程式正在讀取 Big Key，導致網路頻寬耗盡。",
+        "en": "The application is reading Big Keys, causing network bandwidth exhaustion.",
+        "wg": []
+      },
+      {
+        "t": "應用程式沒有使用連線池（Connection Pooling），頻繁建立與關閉連線消耗了大量 CPU。",
+        "en": "The application is not using Connection Pooling; frequent opening and closing of connections is consuming excessive CPU.",
+        "wg": [
+          {
+            "t": "連線池",
+            "en": "Connection Pooling",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "Redis 正在執行 AOF Rewrite，導致 CPU 飆升。",
+        "en": "Redis is performing an AOF Rewrite, causing the CPU spike.",
+        "wg": []
+      },
+      {
+        "t": "Redis 實例遭遇了 DDoS 攻擊。",
+        "en": "The Redis instance is under a DDoS attack.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "頻繁的 `Open Connection -> Command -> Close Connection` 模式（Connection Churn）會導致大量的 TCP 三向交握與 Redis 認證過程，這些都極度消耗 CPU 資源。大量的 `TIME_WAIT` 狀態正是頻繁關閉短連線的典型特徵。解決方案是使用連線池（Connection Pooling）來重複使用長連線。",
+      "en": "Frequent `Open Connection -> Command -> Close Connection` patterns (Connection Churn) incur significant CPU overhead due to TCP handshakes and Redis authentication. A large number of sockets in `TIME_WAIT` state is a classic symptom of closing short-lived connections frequently. The solution is to use Connection Pooling to reuse persistent connections.",
+      "wg": [
+        {
+          "t": "三向交握",
+          "en": "three-way handshake",
+          "ps": "noun"
+        },
+        {
+          "t": "長連線",
+          "en": "persistent connections / keep-alive",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "8",
+    "level": "Medium",
+    "keywords": "Atomicity, Lua Script, Race Condition, Concurrency",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "val = redis.get('balance')\nif val >= cost:\n    redis.set('balance', val - cost)",
+    "question": [
+      {
+        "t": "你需要實作一個「餘額扣款」功能。上方的虛擬程式碼（Pseudo-code）在高併發環境下會產生 Race Condition（競態條件），導致餘額變成負數。為了確保「讀取餘額」與「扣款」這兩個動作的原子性（Atomicity），且不使用過時的 `WATCH` 機制，最佳的實作方式為何？",
+        "en": "You need to implement a 'balance deduction' feature. The pseudo-code above creates a Race Condition in a high-concurrency environment, potentially causing a negative balance. To ensure the atomicity of the 'read balance' and 'deduct' operations without using the deprecated `WATCH` mechanism, what is the best implementation approach?",
+        "wg": [
+          {
+            "t": "競態條件",
+            "en": "Race Condition",
+            "ps": "noun"
+          },
+          {
+            "t": "原子性",
+            "en": "Atomicity",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "使用 Redis Transaction (`MULTI`/`EXEC`) 包裹這兩個指令。",
+        "en": "Wrap the two commands using Redis Transaction (`MULTI`/`EXEC`).",
+        "wg": []
+      },
+      {
+        "t": "將邏輯封裝在 Lua Script 中執行。",
+        "en": "Encapsulate the logic within a Lua Script for execution.",
+        "wg": []
+      },
+      {
+        "t": "在應用程式端使用 Mutex Lock。",
+        "en": "Use a Mutex Lock on the application side.",
+        "wg": []
+      },
+      {
+        "t": "將 Redis 升級至 6.0 以啟用多執行緒處理。",
+        "en": "Upgrade Redis to 6.0 to enable multi-threaded processing.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "Redis 會將 Lua Script 視為單一指令執行，這保證了腳本內所有操作的原子性，中間不會被其他客戶端的指令插入。`MULTI`/`EXEC` 雖然提供交易功能，但在需要根據讀取結果（`GET`）來決定是否寫入（`SET`）的場景中（Read-Modify-Write），單純的 Transaction 無法在 `EXEC` 前取得值來做判斷，通常需搭配 `WATCH`，但 Lua 是更現代且高效的選擇。",
+      "en": "Redis executes a Lua Script as a single command, guaranteeing atomicity for all operations within the script; no other client commands can be interleaved. While `MULTI`/`EXEC` provides transaction capabilities, in scenarios requiring a decision based on a read value (Read-Modify-Write), simple transactions cannot retrieve the value before `EXEC`. This would typically require `WATCH`, but Lua is the more modern and efficient choice.",
+      "wg": [
+        {
+          "t": "單一指令",
+          "en": "single command",
+          "ps": "noun"
+        },
+        {
+          "t": "插入",
+          "en": "interleaved",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "9",
+    "level": "Easy",
+    "keywords": "Time Complexity, Set, O(N), Performance",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "members = redis.smembers('blacklist')\nif user_id in members:\n    block_user()",
+    "question": [
+      {
+        "t": "某位初階工程師寫了上方的程式碼來檢查使用者是否在黑名單（Set）中。已知黑名單可能包含數百萬筆資料。這段程式碼存在嚴重的效能隱憂，請問應該改用哪個指令來優化？",
+        "en": "A junior engineer wrote the code above to check if a user is in a blacklist (Set). The blacklist may contain millions of entries. This code has serious performance concerns. Which command should be used to optimize it?",
+        "wg": [
+          {
+            "t": "黑名單",
+            "en": "blacklist",
+            "ps": "noun"
+          },
+          {
+            "t": "效能隱憂",
+            "en": "performance concerns",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "改用 `SSCAN` 分批讀取。",
+        "en": "Use `SSCAN` to read in batches.",
+        "wg": []
+      },
+      {
+        "t": "改用 `SISMEMBER` 指令。",
+        "en": "Use the `SISMEMBER` command.",
+        "wg": []
+      },
+      {
+        "t": "改用 `LREM` 指令。",
+        "en": "Use the `LREM` command.",
+        "wg": []
+      },
+      {
+        "t": "將 Set 改為 List 並使用 `LRANGE`。",
+        "en": "Change the Set to a List and use `LRANGE`.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "`SMEMBERS` 的時間複雜度是 $O(N)$，會將整個 Set 取回應用程式，這在 N 很大時會阻塞 Redis 並消耗大量頻寬。`SISMEMBER` 的時間複雜度是 $O(1)$，它直接在 Redis 端檢查元素是否存在並回傳布林值，這是最正確且高效的做法。",
+      "en": "`SMEMBERS` has a time complexity of $O(N)$ and retrieves the entire Set to the application, which blocks Redis and consumes significant bandwidth when N is large. `SISMEMBER` has a time complexity of $O(1)$; it checks for existence directly on the Redis side and returns a boolean, making it the most correct and efficient approach.",
+      "wg": [
+        {
+          "t": "時間複雜度",
+          "en": "time complexity",
+          "ps": "noun"
+        },
+        {
+          "t": "布林值",
+          "en": "boolean",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "10",
+    "level": "Hard",
+    "keywords": "Troubleshooting, Output Buffer, Memory, Client List",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你的 Redis 實例發出記憶體不足（OOM）警報，但你檢查 Key 的總數量與大小並沒有顯著增加。執行 `CLIENT LIST` 後，你發現某個 Client 的 `omem` (Output Buffer Memory) 數值極高。這通常代表什麼問題？",
+        "en": "Your Redis instance triggers an Out of Memory (OOM) alert, but checking the total number and size of keys shows no significant increase. After running `CLIENT LIST`, you notice a Client with an extremely high `omem` (Output Buffer Memory) value. What does this usually indicate?",
+        "wg": [
+          {
+            "t": "記憶體不足",
+            "en": "Out of Memory (OOM)",
+            "ps": "noun"
+          },
+          {
+            "t": "數值極高",
+            "en": "extremely high value",
+            "ps": "phrase"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "該 Client 正在大量寫入資料，導致 Input Buffer 滿載。",
+        "en": "The Client is writing data heavily, causing the Input Buffer to fill up.",
+        "wg": []
+      },
+      {
+        "t": "該 Client 請求了大量資料（如 Big Key），但處理速度跟不上 Redis 的傳送速度，導致資料堆積在 Redis 的輸出緩衝區。",
+        "en": "The Client requested a large amount of data (e.g., a Big Key), but cannot process it as fast as Redis sends it, causing data to pile up in Redis's output buffer.",
+        "wg": [
+          {
+            "t": "堆積",
+            "en": "pile up / accumulate",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "Redis 的 AOF 緩衝區已滿，正在等待寫入磁碟。",
+        "en": "Redis's AOF buffer is full and waiting to write to disk.",
+        "wg": []
+      },
+      {
+        "t": "該 Client 斷線了，但 Redis 尚未回收其資源。",
+        "en": "The Client has disconnected, but Redis has not yet reclaimed its resources.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "`omem` 代表 Output Buffer Memory。當 Redis 準備好要回傳的資料（例如讀取了一個 Big Key）比 Client 透過網路接收並處理的速度快時，這些資料就會暫存在 Redis 的記憶體中。如果 Client 處理過慢或網路頻寬不足，`omem` 就會無限膨脹導致 OOM。這常見於監控系統或批次處理作業讀取過大資料時。",
+      "en": "`omem` stands for Output Buffer Memory. When Redis prepares data to return (e.g., reading a Big Key) faster than the Client can receive and process it over the network, this data is buffered in Redis memory. If the Client is too slow or network bandwidth is insufficient, `omem` can grow indefinitely, leading to OOM. This is common when monitoring systems or batch jobs read excessively large data.",
+      "wg": [
+        {
+          "t": "暫存",
+          "en": "buffered / temporarily stored",
+          "ps": "verb"
+        },
+        {
+          "t": "無限膨脹",
+          "en": "grow indefinitely",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "11",
+    "level": "Hard",
+    "keywords": "Persistence, BGSAVE, Latency, Fork",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你的 Redis 服務每小時會出現一次短暫的延遲尖峰（Latency Spike），持續約數百毫秒。這段時間內 `SLOWLOG` 是空的，CPU 使用率也未滿載。經檢查，該時間點與 Log 中的 `Background saving started by pid ...` 完全吻合。請問造成延遲的主因最可能是什麼？",
+        "en": "Your Redis service experiences a brief latency spike every hour, lasting a few hundred milliseconds. During this time, `SLOWLOG` is empty, and CPU usage is not maxed out. Upon inspection, the timing perfectly matches `Background saving started by pid ...` in the logs. What is the most likely primary cause of this latency?",
+        "wg": [
+          {
+            "t": "延遲尖峰",
+            "en": "Latency Spike",
+            "ps": "noun"
+          },
+          {
+            "t": "完全吻合",
+            "en": "perfectly matches",
+            "ps": "phrase"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "磁碟 I/O 頻寬被耗盡，導致主執行緒無法寫入 AOF。",
+        "en": "Disk I/O bandwidth is exhausted, preventing the main thread from writing to AOF.",
+        "wg": []
+      },
+      {
+        "t": "作業系統執行 `fork()` 產生子程序時，需複製 Page Table 導致主執行緒短暫阻塞。",
+        "en": "The operating system executing `fork()` to create a child process requires copying the Page Table, causing the main thread to block briefly.",
+        "wg": [
+          {
+            "t": "子程序",
+            "en": "child process",
+            "ps": "noun"
+          },
+          {
+            "t": "頁表",
+            "en": "Page Table",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "RDB 檔案過大，導致網路傳輸阻塞。",
+        "en": "The RDB file is too large, causing network transmission blocking.",
+        "wg": []
+      },
+      {
+        "t": "Redis 在備份期間會自動暫停處理寫入指令。",
+        "en": "Redis automatically pauses processing write commands during backup.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "雖然 `BGSAVE` 是在背景執行，但它依賴 `fork()` 系統呼叫來建立子程序。`fork()` 雖然使用 Copy-on-Write 技術，但仍需複製主程序的記憶體分頁表（Page Table）。對於記憶體很大的 Redis 實例（例如數十 GB），複製 Page Table 本身就需要數百毫秒，這段期間主執行緒是完全阻塞的（Stop-the-world）。",
+      "en": "Although `BGSAVE` runs in the background, it relies on the `fork()` system call to create a child process. While `fork()` uses Copy-on-Write, it still needs to copy the main process's memory Page Table. For large Redis instances (e.g., tens of GBs), copying the Page Table itself can take hundreds of milliseconds, during which the main thread is completely blocked (Stop-the-world).",
+      "wg": [
+        {
+          "t": "系統呼叫",
+          "en": "system call",
+          "ps": "noun"
+        },
+        {
+          "t": "完全阻塞",
+          "en": "completely blocked",
+          "ps": "phrase"
+        }
+      ]
+    }
+  },
+  {
+    "no": "12",
+    "level": "Medium",
+    "keywords": "Eviction, Lazy Freeing, Configuration, Latency",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你將 Redis 用作 LRU Cache（設定了 `maxmemory`）。當記憶體已滿且需要寫入新資料時，Redis 必須先驅逐（Evict）舊資料。如果被驅逐的是一個 Big Key，預設行為會導致主執行緒阻塞。為了避免這種情況，你應該調整哪個設定？",
+        "en": "You are using Redis as an LRU Cache (with `maxmemory` set). When memory is full and new data needs to be written, Redis must first evict old data. If the evicted item is a Big Key, the default behavior blocks the main thread. To avoid this, which setting should you adjust?",
+        "wg": [
+          {
+            "t": "驅逐",
+            "en": "Evict",
+            "ps": "verb"
+          },
+          {
+            "t": "預設行為",
+            "en": "default behavior",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "設定 `lazyfree-lazy-eviction yes`",
+        "en": "Set `lazyfree-lazy-eviction yes`",
+        "wg": []
+      },
+      {
+        "t": "設定 `appendonly no`",
+        "en": "Set `appendonly no`",
+        "wg": []
+      },
+      {
+        "t": "使用 `UNLINK` 指令代替 `SET`",
+        "en": "Use the `UNLINK` command instead of `SET`",
+        "wg": []
+      },
+      {
+        "t": "增加 `maxmemory-samples` 的數值",
+        "en": "Increase the value of `maxmemory-samples`",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "當 Redis 需要釋放記憶體以容納新資料時（Eviction），預設是在主執行緒中同步刪除舊 Key。如果該 Key 很大，就會造成阻塞。啟用 `lazyfree-lazy-eviction` 可以讓 Redis 僅將該 Key 從 Key Space 中移除（邏輯刪除），而實際的記憶體回收工作則交由背景執行緒非同步處理，從而避免阻塞主執行緒。",
+      "en": "When Redis needs to free memory for new data (Eviction), it defaults to synchronously deleting the old Key in the main thread. If that Key is large, it causes blocking. Enabling `lazyfree-lazy-eviction` allows Redis to only remove the Key from the Key Space (logical deletion), while offloading the actual memory reclamation to a background thread asynchronously, thus avoiding main thread blocking.",
+      "wg": [
+        {
+          "t": "邏輯刪除",
+          "en": "logical deletion",
+          "ps": "noun"
+        },
+        {
+          "t": "非同步處理",
+          "en": "asynchronously process",
+          "ps": "verb"
+        }
+      ]
+    }
+  }
+]

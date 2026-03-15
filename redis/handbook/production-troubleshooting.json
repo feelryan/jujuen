@@ -1,0 +1,738 @@
+[
+  {
+    "no": "1",
+    "level": "Easy",
+    "keywords": "Single-threaded, Architecture, Latency",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "根據 Redis 的「單執行緒事件迴圈」心智模型，為什麼執行一個時間複雜度為 O(N) 的指令（如針對百萬級資料執行 `KEYS *`）會導致整個服務看似「當機」？",
+        "en": "Based on the 'Single-threaded Event Loop' mental model of Redis, why does executing an O(N) command (like `KEYS *` on millions of keys) cause the entire service to appear 'frozen'?",
+        "wg": [
+          {
+            "t": "單執行緒事件迴圈",
+            "en": "Single-threaded Event Loop",
+            "ps": "noun phrase"
+          },
+          {
+            "t": "時間複雜度",
+            "en": "Time Complexity",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "因為該指令會消耗過多的 CPU 資源，導致 Context Switch 過於頻繁。",
+        "en": "Because the command consumes too much CPU, causing frequent Context Switches.",
+        "wg": []
+      },
+      {
+        "t": "因為 Redis 一次只能處理一個請求，該指令未完成前，後續所有請求都會被阻塞在隊列中。",
+        "en": "Because Redis can only process one request at a time; all subsequent requests are blocked in the queue until this command completes.",
+        "wg": [
+          {
+            "t": "阻塞",
+            "en": "blocked",
+            "ps": "verb"
+          },
+          {
+            "t": "隊列",
+            "en": "queue",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "因為該指令會觸發大量的磁碟 I/O，導致系統變慢。",
+        "en": "Because the command triggers excessive Disk I/O, slowing down the system.",
+        "wg": []
+      },
+      {
+        "t": "因為該指令會強制 Redis 進入 Swap 模式。",
+        "en": "Because the command forces Redis into Swap mode.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "Redis 使用單執行緒來處理指令。就像只有一個窗口的收費站，如果有一輛車（指令）卡在窗口很久，後面所有的車（請求）都必須等待，無論後面的請求多麼簡單。這就是所謂的「阻塞效應」。",
+      "en": "Redis uses a single thread to process commands. Like a toll booth with only one lane, if one car (command) stalls at the window, all cars (requests) behind it must wait, regardless of how simple they are. This is the 'blocking effect'.",
+      "wg": [
+        {
+          "t": "阻塞效應",
+          "en": "Blocking Effect",
+          "ps": "noun phrase"
+        }
+      ]
+    }
+  },
+  {
+    "no": "2",
+    "level": "Medium",
+    "keywords": "Memory, Fragmentation, Swap, Golden Signals",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "used_memory: 8.00G\nused_memory_rss: 12.80G\nmem_fragmentation_ratio: 1.6",
+    "question": [
+      {
+        "t": "你在監控儀表板上觀察到某個 Redis 實例的記憶體指標如上所示。請問這代表什麼狀況，以及潛在的風險為何？",
+        "en": "You observe the above memory metrics for a Redis instance on your monitoring dashboard. What does this indicate, and what is the potential risk?",
+        "wg": [
+          {
+            "t": "監控儀表板",
+            "en": "Monitoring Dashboard",
+            "ps": "noun phrase"
+          },
+          {
+            "t": "碎片化",
+            "en": "Fragmentation",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "記憶體碎片化嚴重（Ratio > 1.5），雖然浪費了實體記憶體，但通常不會立即導致崩潰，需優化記憶體分配。",
+        "en": "Severe memory fragmentation (Ratio > 1.5). While it wastes physical memory, it usually doesn't cause an immediate crash but requires allocation optimization.",
+        "wg": []
+      },
+      {
+        "t": "系統發生了 Swap（Ratio < 1），這對 Redis 效能是致命的，需立即檢查記憶體是否不足。",
+        "en": "System is swapping (Ratio < 1), which is fatal to Redis performance. Immediate check for memory insufficiency is needed.",
+        "wg": []
+      },
+      {
+        "t": "這是正常的記憶體使用狀況，RSS 通常應該是 used_memory 的兩倍。",
+        "en": "This is normal memory usage; RSS should typically be double the used_memory.",
+        "wg": []
+      },
+      {
+        "t": "這代表 Redis 正在進行 RDB 備份，CoW 機制導致 RSS 暫時升高。",
+        "en": "This indicates Redis is performing an RDB backup, and the CoW mechanism is causing a temporary spike in RSS.",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "`mem_fragmentation_ratio` 計算方式為 `used_memory_rss / used_memory`。當此值大於 1.5 時，代表作業系統分配給 Redis 的實體記憶體（RSS）遠大於 Redis 實際儲存數據所需的記憶體，即碎片化嚴重。若小於 1 則代表發生 Swap。",
+      "en": "`mem_fragmentation_ratio` is calculated as `used_memory_rss / used_memory`. A value greater than 1.5 indicates that the physical memory allocated by the OS (RSS) is much larger than what Redis actually needs for data, implying severe fragmentation. A value less than 1 indicates swapping.",
+      "wg": [
+        {
+          "t": "實體記憶體",
+          "en": "Physical Memory",
+          "ps": "noun phrase"
+        }
+      ]
+    }
+  },
+  {
+    "no": "3",
+    "level": "Medium",
+    "keywords": "Anti-pattern, Big Keys, Performance",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你的團隊發現生產環境中有一個包含 200 萬個元素的 Hash Key 需要刪除。為了避免阻塞主執行緒（Main Thread），下列哪種做法是最佳實務？",
+        "en": "Your team identified a Hash Key with 2 million elements in production that needs to be deleted. To avoid blocking the Main Thread, which of the following is the best practice?",
+        "wg": [
+          {
+            "t": "主執行緒",
+            "en": "Main Thread",
+            "ps": "noun phrase"
+          },
+          {
+            "t": "最佳實務",
+            "en": "Best Practice",
+            "ps": "noun phrase"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "直接使用 `DEL` 指令，因為 Redis 刪除操作非常快。",
+        "en": "Use the `DEL` command directly, as Redis deletion operations are very fast.",
+        "wg": []
+      },
+      {
+        "t": "使用 `UNLINK` 指令，讓 Redis 在背景非同步回收記憶體。",
+        "en": "Use the `UNLINK` command to let Redis reclaim memory asynchronously in the background.",
+        "wg": [
+          {
+            "t": "非同步",
+            "en": "Asynchronously",
+            "ps": "adverb"
+          },
+          {
+            "t": "回收",
+            "en": "Reclaim",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "使用 `FLUSHALL` 指令來清除所有資料。",
+        "en": "Use the `FLUSHALL` command to clear all data.",
+        "wg": []
+      },
+      {
+        "t": "寫一個腳本，使用 `HGETALL` 取出所有資料後再逐一刪除。",
+        "en": "Write a script to fetch all data using `HGETALL` and then delete them one by one.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "刪除大型 Key（Big Key）是耗時操作，直接使用 `DEL` 會阻塞主執行緒直到記憶體釋放完畢。`UNLINK` 是非阻塞（Non-blocking）指令，它會將 Key 從 Keyspace 中移除，並在另一個執行緒中非同步釋放記憶體。",
+      "en": "Deleting a Big Key is a time-consuming operation. Using `DEL` directly blocks the main thread until memory is released. `UNLINK` is a non-blocking command that removes the key from the keyspace and reclaims memory asynchronously in a separate thread.",
+      "wg": [
+        {
+          "t": "非阻塞",
+          "en": "Non-blocking",
+          "ps": "adjective"
+        }
+      ]
+    }
+  },
+  {
+    "no": "4",
+    "level": "Hard",
+    "keywords": "Kernel Tuning, THP, Latency",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在 Linux 環境部署 Redis 時，有一個核心參數被稱為「常見的效能殺手」，如果不關閉它，可能會導致 Redis 延遲大幅增加。請問是哪一個設定？",
+        "en": "When deploying Redis on Linux, there is a kernel parameter known as a 'common performance killer'. If not disabled, it can cause significant latency spikes in Redis. Which setting is it?",
+        "wg": [
+          {
+            "t": "核心參數",
+            "en": "Kernel Parameter",
+            "ps": "noun phrase"
+          },
+          {
+            "t": "效能殺手",
+            "en": "Performance Killer",
+            "ps": "noun phrase"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "Transparent Huge Pages (THP)",
+        "en": "Transparent Huge Pages (THP)",
+        "wg": []
+      },
+      {
+        "t": "TCP Backlog (somaxconn)",
+        "en": "TCP Backlog (somaxconn)",
+        "wg": []
+      },
+      {
+        "t": "Overcommit Memory",
+        "en": "Overcommit Memory",
+        "wg": []
+      },
+      {
+        "t": "Swappiness",
+        "en": "Swappiness",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "THP (Transparent Huge Pages) 會試圖分配大頁面記憶體。對於 Redis 這種依賴 `fork()` 進行持久化的資料庫，開啟 THP 會導致 Copy-on-Write 時的記憶體複製單位變大（從 4KB 變成 2MB），造成寫入時的延遲顯著增加。應設為 `never`。",
+      "en": "THP (Transparent Huge Pages) attempts to allocate large memory pages. For databases like Redis that rely on `fork()` for persistence, enabling THP increases the memory copy granularity during Copy-on-Write (from 4KB to 2MB), causing significant latency spikes during writes. It should be set to `never`.",
+      "wg": [
+        {
+          "t": "持久化",
+          "en": "Persistence",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "5",
+    "level": "Hard",
+    "keywords": "OOM, Copy-on-Write, BGSAVE, Troubleshooting",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你的 Redis 實體記憶體為 16GB，`maxmemory` 設為 12GB。某次觸發 BGSAVE 備份時，Redis 突然被 OS 的 OOM Killer 殺掉。最可能的原因與解決方案為何？",
+        "en": "Your Redis has 16GB physical memory, and `maxmemory` is set to 12GB. During a BGSAVE backup, Redis was suddenly killed by the OS OOM Killer. What is the most likely cause and solution?",
+        "wg": [
+          {
+            "t": "寫入時複製",
+            "en": "Copy-on-Write",
+            "ps": "noun phrase"
+          },
+          {
+            "t": "記憶體不足殺手",
+            "en": "OOM Killer",
+            "ps": "noun phrase"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "原因：BGSAVE 時寫入流量大，觸發 Copy-on-Write 機制導致記憶體使用激增。解決：調降 `maxmemory` 至 8-10GB 並啟用 `vm.overcommit_memory = 1`。",
+        "en": "Cause: High write traffic during BGSAVE triggered Copy-on-Write, spiking memory usage. Solution: Lower `maxmemory` to 8-10GB and enable `vm.overcommit_memory = 1`.",
+        "wg": []
+      },
+      {
+        "t": "原因：AOF 檔案過大。解決：關閉 AOF 功能。",
+        "en": "Cause: AOF file is too large. Solution: Disable AOF.",
+        "wg": []
+      },
+      {
+        "t": "原因：Redis 的 `maxclients` 設定太高。解決：減少連線數上限。",
+        "en": "Cause: Redis `maxclients` setting is too high. Solution: Reduce the connection limit.",
+        "wg": []
+      },
+      {
+        "t": "原因：CPU 過熱導致保護機制啟動。解決：增加 CPU 核心數。",
+        "en": "Cause: CPU overheating triggered protection mechanisms. Solution: Increase CPU cores.",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "當 Redis 執行 BGSAVE 時會 Fork 子進程。Linux 的 Copy-on-Write (CoW) 機制允許父子進程共享記憶體，但若在備份期間有大量寫入，被修改的記憶體頁面會被複製，導致記憶體使用量最多可能翻倍（12GB -> 24GB），超過實體 16GB 而觸發 OOM。應預留更多緩衝空間。",
+      "en": "When Redis performs BGSAVE, it forks a child process. Linux's Copy-on-Write (CoW) allows sharing memory, but if there are heavy writes during backup, modified memory pages are copied, potentially doubling memory usage (12GB -> 24GB), exceeding the physical 16GB and triggering OOM. More buffer space should be reserved.",
+      "wg": [
+        {
+          "t": "預留",
+          "en": "Reserve",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "6",
+    "level": "Medium",
+    "keywords": "Replication, Network, Configuration",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你發現 Master 節點運作正常，但某個 Slave 節點不斷斷線重連，導致全量同步（Full Resync）反覆發生，吃滿了網路頻寬。經查 Log 發現 Master 主動斷開了連線。這通常與哪個設定有關？",
+        "en": "You notice the Master node is fine, but a Slave node keeps disconnecting and reconnecting, causing repeated Full Resyncs that saturate bandwidth. Logs show the Master is actively closing the connection. Which setting is this usually related to?",
+        "wg": [
+          {
+            "t": "全量同步",
+            "en": "Full Resync",
+            "ps": "noun phrase"
+          },
+          {
+            "t": "主動斷開",
+            "en": "Actively closing",
+            "ps": "verb phrase"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "`client-output-buffer-limit slave`",
+        "en": "`client-output-buffer-limit slave`",
+        "wg": []
+      },
+      {
+        "t": "`repl-backlog-size`",
+        "en": "`repl-backlog-size`",
+        "wg": []
+      },
+      {
+        "t": "`min-slaves-to-write`",
+        "en": "`min-slaves-to-write`",
+        "wg": []
+      },
+      {
+        "t": "`cluster-node-timeout`",
+        "en": "`cluster-node-timeout`",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "當 Slave 的同步速度慢於 Master 的寫入速度時，Master 為該 Slave 保留的 Output Buffer 會持續增長。一旦超過 `client-output-buffer-limit` 設定的限制，Master 為了保護自己不被耗盡記憶體，會主動斷開該 Slave 的連線。",
+      "en": "When a Slave syncs slower than the Master writes, the Output Buffer reserved for that Slave grows. Once it exceeds the `client-output-buffer-limit`, the Master actively disconnects the Slave to protect itself from running out of memory.",
+      "wg": [
+        {
+          "t": "輸出緩衝區",
+          "en": "Output Buffer",
+          "ps": "noun phrase"
+        }
+      ]
+    }
+  },
+  {
+    "no": "7",
+    "level": "Medium",
+    "keywords": "Connection Storms, Connection Pooling, Performance, CPU",
+    "parentNo": null,
+    "images": "",
+    "codeSnippet": "",
+    "question": [
+      {
+        "t": "在一次應用程式的版本更新重啟後，你發現 Redis 的 CPU 使用率瞬間飆升至 100%，導致正常的請求處理變慢。檢查 Log 發現有數千個客戶端同時嘗試建立連線。",
+        "en": "After an application version update and restart, you notice that Redis CPU usage instantly spikes to 100%, causing normal request processing to slow down. Checking the logs reveals that thousands of clients are attempting to establish connections simultaneously.",
+        "wg": []
+      },
+      {
+        "t": "這種現象被稱為「連線風暴 (Connection Storm)」。為了避免這種情況再次發生並提升效能，下列哪項是應用程式端最應該實作的最佳實務？",
+        "en": "This phenomenon is known as a 'Connection Storm'. To prevent this from happening again and to improve performance, which of the following is the most critical best practice to implement on the application side?",
+        "wg": [
+          {
+            "t": "連線風暴",
+            "en": "Connection Storm",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "增加 Redis 的 maxclients 設定值",
+        "en": "Increase the Redis maxclients setting",
+        "wg": []
+      },
+      {
+        "t": "在應用程式端實作連線池 (Connection Pooling) 並採用指數退避 (Exponential Backoff) 重連機制",
+        "en": "Implement Connection Pooling on the application side and adopt an Exponential Backoff reconnection mechanism",
+        "wg": [
+          {
+            "t": "連線池",
+            "en": "Connection Pooling",
+            "ps": "noun"
+          },
+          {
+            "t": "指數退避",
+            "en": "Exponential Backoff",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "將 Redis 升級為 Cluster 模式以分散連線壓力",
+        "en": "Upgrade Redis to Cluster mode to distribute connection load",
+        "wg": []
+      },
+      {
+        "t": "關閉 Redis 的 TCP Backlog 設定",
+        "en": "Disable the Redis TCP Backlog setting",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "建立 TCP 連線與 Redis 握手是消耗 CPU 的操作。若沒有使用連線池，大量併發的連線請求會耗盡 Redis 的 CPU 資源（用於處理握手而非資料讀寫）。使用連線池可重複使用連線，而指數退避可避免同時發起重連。",
+      "en": "Establishing TCP connections and Redis handshakes are CPU-intensive operations. Without connection pooling, a massive number of concurrent connection requests will exhaust Redis CPU resources (spent on handshakes rather than data processing). Connection pooling allows connection reuse, and exponential backoff prevents simultaneous reconnection attempts.",
+      "wg": []
+    }
+  },
+  {
+    "no": "8",
+    "level": "Medium",
+    "keywords": "Slowlog, Troubleshooting, Configuration, Latency",
+    "parentNo": null,
+    "images": "",
+    "codeSnippet": "CONFIG GET slowlog-log-slower-than\n1) \"slowlog-log-slower-than\"\n2) \"10000\"",
+    "question": [
+      {
+        "t": "你的應用程式對延遲非常敏感（SLA 要求 < 5ms）。你懷疑 Redis 偶爾出現慢查詢導致超時，但執行 `SLOWLOG GET` 後卻發現結果是空的（Empty）。",
+        "en": "Your application is very latency-sensitive (SLA < 5ms). You suspect Redis occasionally has slow queries causing timeouts, but executing `SLOWLOG GET` returns empty results.",
+        "wg": []
+      },
+      {
+        "t": "參考上方的設定值（單位為微秒），最可能的原因是什麼？",
+        "en": "Referring to the configuration value above (in microseconds), what is the most likely reason?",
+        "wg": []
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "Slowlog 功能預設是關閉的，需要重啟 Redis 才能生效",
+        "en": "The Slowlog feature is disabled by default and requires a Redis restart to take effect",
+        "wg": []
+      },
+      {
+        "t": "造成延遲的指令執行時間介於 5ms 到 10ms 之間，未達到記錄門檻",
+        "en": "The execution time of the commands causing latency is between 5ms and 10ms, which does not reach the logging threshold",
+        "wg": []
+      },
+      {
+        "t": "Slowlog 只會記錄寫入指令，不會記錄讀取指令",
+        "en": "Slowlog only records write commands, not read commands",
+        "wg": []
+      },
+      {
+        "t": "記憶體不足導致 Slowlog 無法寫入",
+        "en": "Insufficient memory prevented Slowlog from being written",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "當前設定為 10000 微秒（即 10ms）。如果應用程式對 5ms 的延遲敏感，那麼執行時間為 6ms 或 8ms 的指令雖然會影響 SLA，但因為低於 10ms 的門檻，所以不會被 Slowlog 記錄。應將此值調低（例如 1000 或更低）以捕捉問題。",
+      "en": "The current setting is 10000 microseconds (10ms). If the application is sensitive to 5ms latency, commands taking 6ms or 8ms will impact the SLA but won't be recorded by Slowlog because they fall below the 10ms threshold. You should lower this value (e.g., to 1000 or lower) to capture the issue.",
+      "wg": []
+    }
+  },
+  {
+    "no": "9",
+    "level": "Medium",
+    "keywords": "Eviction Policy, Configuration, OOM, Error Handling",
+    "parentNo": null,
+    "images": "",
+    "codeSnippet": "",
+    "question": [
+      {
+        "t": "你的 Redis 實例被用作「快取（Cache）」，這意味著當記憶體滿了之後，舊資料應該被自動刪除以容納新資料。",
+        "en": "Your Redis instance is used as a 'Cache', meaning that when memory is full, old data should be automatically deleted to accommodate new data.",
+        "wg": []
+      },
+      {
+        "t": "然而，監控系統顯示 `evicted_keys` 指標一直為 0，且應用程式開始收到 `OOM command not allowed when used memory > 'maxmemory'` 的錯誤。請問最可能是哪裡設定錯誤？",
+        "en": "However, the monitoring system shows the `evicted_keys` metric is consistently 0, and the application starts receiving `OOM command not allowed when used memory > 'maxmemory'` errors. What is the most likely configuration error?",
+        "wg": [
+          {
+            "t": "驅逐",
+            "en": "Eviction",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "maxmemory 設定得太小",
+        "en": "maxmemory is set too low",
+        "wg": []
+      },
+      {
+        "t": "maxmemory-policy 被設定為 noeviction",
+        "en": "maxmemory-policy is set to noeviction",
+        "wg": []
+      },
+      {
+        "t": "沒有開啟虛擬記憶體 (Swap)",
+        "en": "Virtual memory (Swap) is not enabled",
+        "wg": []
+      },
+      {
+        "t": "Redis 處於 Read-only 模式",
+        "en": "Redis is in Read-only mode",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "`noeviction` 是 Redis 的預設策略之一（視版本而定）。在此策略下，當記憶體達到上限時，Redis 不會刪除任何 Key，而是直接對寫入請求回傳錯誤。作為快取用途，應將策略改為 `allkeys-lru` 或 `volatile-lru`。",
+      "en": "`noeviction` is one of Redis's default policies (depending on the version). Under this policy, when memory reaches the limit, Redis will not delete any keys but will instead return an error for write requests. For caching purposes, the policy should be changed to `allkeys-lru` or `volatile-lru`.",
+      "wg": [
+        {
+          "t": "策略",
+          "en": "Policy",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "10",
+    "level": "Hard",
+    "keywords": "Memory Leak, Client Output Buffer, Troubleshooting, omem",
+    "parentNo": null,
+    "images": "",
+    "codeSnippet": "",
+    "question": [
+      {
+        "t": "你發現 Redis 記憶體使用量異常高，但檢查 Key 的數量與大小（Dataset size）並未明顯增加，且碎片率（Fragmentation Ratio）也正常。",
+        "en": "You notice Redis memory usage is abnormally high, but checking the number and size of keys (Dataset size) shows no significant increase, and the Fragmentation Ratio is also normal.",
+        "wg": []
+      },
+      {
+        "t": "此時你執行 `CLIENT LIST` 指令，發現有幾個連線的 `omem` 數值非常大。這代表什麼問題？",
+        "en": "You then execute the `CLIENT LIST` command and find that the `omem` value for several connections is very large. What problem does this indicate?",
+        "wg": [
+          {
+            "t": "碎片率",
+            "en": "Fragmentation Ratio",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "客戶端發送了過大的 Key 進行寫入",
+        "en": "Clients sent overly large keys for writing",
+        "wg": []
+      },
+      {
+        "t": "客戶端處理回應的速度慢於 Redis 產生回應的速度，導致 Output Buffer 堆積",
+        "en": "Clients are processing responses slower than Redis is generating them, causing Output Buffer accumulation",
+        "wg": [
+          {
+            "t": "輸出緩衝區",
+            "en": "Output Buffer",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "Redis 正在進行 AOF Rewrite，佔用了額外記憶體",
+        "en": "Redis is performing an AOF Rewrite, consuming extra memory",
+        "wg": []
+      },
+      {
+        "t": "這些客戶端正在執行阻塞指令（如 BLPOP）",
+        "en": "These clients are executing blocking commands (like BLPOP)",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "`omem` 代表 Output Memory，即 Redis 為該客戶端保留的輸出緩衝區大小。如果客戶端讀取速度太慢（例如網路慢或應用程式處理不過來），Redis 必須在記憶體中暫存回應資料，這會導致 Redis 整體記憶體使用量飆升，甚至導致 OOM。",
+      "en": "`omem` stands for Output Memory, which is the size of the output buffer Redis reserves for that client. If the client reads too slowly (e.g., due to slow network or application processing), Redis must buffer the response data in memory, causing Redis's overall memory usage to spike and potentially leading to OOM.",
+      "wg": []
+    }
+  },
+  {
+    "no": "11",
+    "level": "Medium",
+    "keywords": "Persistence, RDB, AOF, Backup & Restore",
+    "parentNo": null,
+    "images": "",
+    "codeSnippet": "",
+    "question": [
+      {
+        "t": "在規劃生產環境的災難復原（Disaster Recovery）策略時，你需要權衡「資料安全性」與「復原速度」。",
+        "en": "When planning a Disaster Recovery strategy for a production environment, you need to balance 'Data Safety' and 'Recovery Speed'.",
+        "wg": []
+      },
+      {
+        "t": "如果你的目標是在 Redis 發生嚴重故障後能以「最快速度」重啟並載入資料（即使可能遺失最近幾分鐘的資料），你應該優先依賴哪種備份檔案進行還原？",
+        "en": "If your goal is to restart and load data with the 'fastest speed' after a severe Redis failure (even if it means losing the last few minutes of data), which backup file should you prioritize for restoration?",
+        "wg": []
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "AOF (Append Only File)",
+        "en": "AOF (Append Only File)",
+        "wg": []
+      },
+      {
+        "t": "RDB (Redis Database Backup)",
+        "en": "RDB (Redis Database Backup)",
+        "wg": []
+      },
+      {
+        "t": "兩者速度相同",
+        "en": "Both have the same speed",
+        "wg": []
+      },
+      {
+        "t": "依賴 Replica 節點的記憶體快照",
+        "en": "Rely on the memory snapshot of Replica nodes",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "RDB 是一個緊湊的二進位檔案，載入速度通常比重放 AOF 日誌快得多。AOF 需要逐條重放所有寫入指令，當資料量大時會非常耗時。因此，為了最快的復原時間（RTO），通常優先載入 RDB。",
+      "en": "RDB is a compact binary file, and loading it is usually much faster than replaying AOF logs. AOF requires replaying every write command, which can be very time-consuming for large datasets. Therefore, for the fastest Recovery Time Objective (RTO), loading RDB is usually prioritized.",
+      "wg": [
+        {
+          "t": "復原時間目標",
+          "en": "Recovery Time Objective (RTO)",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "12",
+    "level": "Easy",
+    "keywords": "Security, Configuration, Deployment Checklist",
+    "parentNo": null,
+    "images": "",
+    "codeSnippet": "",
+    "question": [
+      {
+        "t": "為了防止開發人員或攻擊者在生產環境誤執行破壞性指令（如 `FLUSHALL` 清空所有資料），在 `redis.conf` 中進行哪項設定是最標準的安全實務？",
+        "en": "To prevent developers or attackers from accidentally executing destructive commands (like `FLUSHALL` to clear all data) in a production environment, which setting in `redis.conf` is the standard security best practice?",
+        "wg": [
+          {
+            "t": "破壞性指令",
+            "en": "Destructive commands",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "設定 requirepass 強制密碼驗證",
+        "en": "Set requirepass to enforce password authentication",
+        "wg": []
+      },
+      {
+        "t": "使用 rename-command 將危險指令重新命名為空字串或複雜名稱",
+        "en": "Use rename-command to rename dangerous commands to an empty string or a complex name",
+        "wg": [
+          {
+            "t": "重新命名",
+            "en": "Rename",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "將 Redis 設定為 protected-mode yes",
+        "en": "Set Redis to protected-mode yes",
+        "wg": []
+      },
+      {
+        "t": "使用 iptables 封鎖所有非 localhost 的連線",
+        "en": "Use iptables to block all non-localhost connections",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "雖然設定密碼 (`requirepass`) 很重要，但它無法防止已通過驗證的用戶誤執行危險指令。使用 `rename-command FLUSHALL \"\"` 可以完全禁用該指令，或將其改名為只有管理員知道的亂碼，這是防止誤操作的最有效手段。",
+      "en": "While setting a password (`requirepass`) is important, it doesn't prevent authenticated users from accidentally executing dangerous commands. Using `rename-command FLUSHALL \"\"` can completely disable the command or rename it to a random string known only to admins, which is the most effective way to prevent accidental operations.",
+      "wg": []
+    }
+  }
+]

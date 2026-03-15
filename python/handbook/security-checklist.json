@@ -1,0 +1,918 @@
+[
+  {
+    "no": "1",
+    "level": "3",
+    "keywords": "assert,python -O,security logic,anti-pattern",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "def process_payment(user, amount):\n    # Check if user is active\n    assert user.is_active, \"User is inactive\"\n    \n    # Check balance\n    assert user.balance >= amount, \"Insufficient funds\"\n    \n    user.balance -= amount\n    user.save()",
+    "question": [
+      {
+        "t": "在進行代碼審查（Code Review）時，你發現資淺工程師提交了上述用於處理支付的程式碼。請問這段程式碼在生產環境（Production）中最大的安全隱憂是什麼？",
+        "en": "During a Code Review, you notice a junior engineer submitted the above code for processing payments. What is the biggest security risk of this code in a Production environment?",
+        "wg": [
+          {
+            "t": "代碼審查",
+            "en": "Code Review",
+            "ps": "noun"
+          },
+          {
+            "t": "生產環境",
+            "en": "Production environment",
+            "ps": "noun"
+          },
+          {
+            "t": "安全隱憂",
+            "en": "security risk",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "single",
+    "options": [
+      {
+        "t": "assert 語句會拋出 AssertionError，這不是標準的 Exception 類型，難以被上層的 try-except 捕獲。",
+        "en": "The assert statement raises an AssertionError, which is not a standard Exception type and is hard to catch by upstream try-except blocks.",
+        "wg": []
+      },
+      {
+        "t": "如果在執行 Python 時使用了優化標誌（-O），所有的 assert 語句都會被移除，導致權限與餘額檢查完全失效。",
+        "en": "If Python is executed with the optimization flag (-O), all assert statements are removed, causing permission and balance checks to be completely bypassed.",
+        "wg": [
+          {
+            "t": "優化標誌",
+            "en": "optimization flag",
+            "ps": "noun"
+          },
+          {
+            "t": "失效",
+            "en": "bypassed",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "assert 語句的錯誤訊息會洩漏內部邏輯給使用者，造成資訊洩漏（Information Leakage）。",
+        "en": "The error message in the assert statement leaks internal logic to the user, causing Information Leakage.",
+        "wg": []
+      },
+      {
+        "t": "使用 assert 會導致 Race Condition，因為檢查與扣款不是原子操作（Atomic Operation）。",
+        "en": "Using assert causes a Race Condition because the check and deduction are not an Atomic Operation.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "這是 Python 安全中經典的『assert 陷阱』。當 Python 直譯器以 `python -O`（優化模式）執行時，編譯器會將所有的 `assert` 語句編譯為無操作（no-op）或直接移除。這意味著在 Production 環境中（通常會開啟優化），上述代碼的檢查邏輯將不存在，導致任何使用者（即使餘額不足或未啟用）都能成功扣款。正確做法是使用 `if ...: raise ...`。",
+      "en": "This is the classic 'assert trap' in Python security. When the Python interpreter runs with `python -O` (optimized mode), the compiler compiles all `assert` statements into no-ops or removes them entirely. This means that in a Production environment (which often runs optimized), the check logic in the code above will not exist, allowing any user (even with insufficient funds or inactive status) to process payments. The correct approach is to use `if ...: raise ...`.",
+      "wg": [
+        {
+          "t": "直譯器",
+          "en": "interpreter",
+          "ps": "noun"
+        },
+        {
+          "t": "無操作",
+          "en": "no-op",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "2",
+    "level": "2",
+    "keywords": "SQL Injection,f-string,parameterized queries,database",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "# Option A\ncursor.execute(f\"SELECT * FROM users WHERE id = '{user_id}'\")\n\n# Option B\ncursor.execute(\"SELECT * FROM users WHERE id = %s\", (user_id,))\n\n# Option C\nquery = \"SELECT * FROM users WHERE id = '{}'\".format(user_id)\ncursor.execute(query)\n\n# Option D\nsafe_id = user_id.replace(\"'\", \"''\")\ncursor.execute(f\"SELECT * FROM users WHERE id = '{safe_id}'\")",
+    "question": [
+      {
+        "t": "為了防止 SQL Injection 攻擊，下列哪一種資料庫查詢寫法是唯一推薦的安全實踐？",
+        "en": "To prevent SQL Injection attacks, which of the following database query patterns is the only recommended secure practice?",
+        "wg": [
+          {
+            "t": "SQL 注入",
+            "en": "SQL Injection",
+            "ps": "noun"
+          },
+          {
+            "t": "推薦的",
+            "en": "recommended",
+            "ps": "adjective"
+          }
+        ]
+      }
+    ],
+    "type": "single",
+    "options": [
+      {
+        "t": "Option A",
+        "en": "Option A",
+        "wg": []
+      },
+      {
+        "t": "Option B",
+        "en": "Option B",
+        "wg": []
+      },
+      {
+        "t": "Option C",
+        "en": "Option C",
+        "wg": []
+      },
+      {
+        "t": "Option D",
+        "en": "Option D",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "只有 Option B 使用了 DB-API 的參數化查詢（Parameterized Queries）。這種方式將 SQL 模板與數據分開傳送給資料庫驅動程式，由驅動程式負責正確的轉義與處理，從根本上杜絕 SQL Injection。Option A 與 C 使用字串格式化（f-string/format），攻擊者可輕易注入惡意 SQL。Option D 試圖手動過濾（Sanitization），但這種『黑名單』過濾法容易被繞過且難以維護，屬於 Anti-pattern。",
+      "en": "Only Option B uses DB-API Parameterized Queries. This method sends the SQL template and data separately to the database driver, which handles proper escaping and processing, fundamentally preventing SQL Injection. Options A and C use string formatting (f-string/format), allowing attackers to easily inject malicious SQL. Option D attempts manual sanitization, but this 'blacklist' filtering approach is easily bypassed and hard to maintain, making it an Anti-pattern.",
+      "wg": [
+        {
+          "t": "參數化查詢",
+          "en": "Parameterized Queries",
+          "ps": "noun"
+        },
+        {
+          "t": "轉義",
+          "en": "escaping",
+          "ps": "verb"
+        },
+        {
+          "t": "黑名單",
+          "en": "blacklist",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "3",
+    "level": "4",
+    "keywords": "pickle,deserialization,RCE,remote code execution",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "import pickle\n# data is received from an untrusted network source\nuser_obj = pickle.loads(data)",
+    "question": [
+      {
+        "t": "為什麼在 Python 中使用 `pickle` 模組來反序列化（Deserialize）來自不可信來源的數據被視為極度危險？",
+        "en": "Why is using the `pickle` module in Python to deserialize data from untrusted sources considered extremely dangerous?",
+        "wg": [
+          {
+            "t": "反序列化",
+            "en": "deserialize",
+            "ps": "verb"
+          },
+          {
+            "t": "不可信來源",
+            "en": "untrusted sources",
+            "ps": "noun"
+          },
+          {
+            "t": "極度危險",
+            "en": "extremely dangerous",
+            "ps": "adjective"
+          }
+        ]
+      }
+    ],
+    "type": "single",
+    "options": [
+      {
+        "t": "因為 pickle 格式未經加密，攻擊者可以讀取其中的敏感數據。",
+        "en": "Because the pickle format is unencrypted, attackers can read sensitive data within it.",
+        "wg": []
+      },
+      {
+        "t": "因為 pickle 的反序列化過程可以觸發任意代碼執行（RCE），攻擊者可透過構造惡意的 `__reduce__` 方法來控制伺服器。",
+        "en": "Because the pickle deserialization process can trigger Arbitrary Code Execution (RCE); attackers can control the server by constructing a malicious `__reduce__` method.",
+        "wg": [
+          {
+            "t": "任意代碼執行",
+            "en": "Arbitrary Code Execution",
+            "ps": "noun"
+          },
+          {
+            "t": "構造",
+            "en": "constructing",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "因為 pickle 只能處理 Python 特定物件，無法與其他語言（如 Java, Go）交換數據，造成相容性問題。",
+        "en": "Because pickle can only handle Python-specific objects and cannot exchange data with other languages (like Java, Go), causing compatibility issues.",
+        "wg": []
+      },
+      {
+        "t": "因為 pickle 在處理大型物件時會消耗過多記憶體，容易導致阻斷服務攻擊（DoS）。",
+        "en": "Because pickle consumes too much memory when processing large objects, easily leading to Denial of Service (DoS) attacks.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "Pickle 的設計初衷僅是為了序列化 Python 物件，並未考慮安全性。它允許物件定義 `__reduce__` 方法，該方法會在反序列化時被自動呼叫並執行其中的指令（例如 `os.system`）。這意味著只要攻擊者能控制傳入 `pickle.loads` 的字節流，就能在伺服器上執行任意代碼（RCE）。這比單純的資料洩漏或 DoS 更為嚴重。",
+      "en": "Pickle was designed solely for serializing Python objects without security considerations. It allows objects to define a `__reduce__` method, which is automatically called during deserialization to execute instructions (e.g., `os.system`). This means if an attacker controls the byte stream passed to `pickle.loads`, they can execute arbitrary code (RCE) on the server. This is far more severe than simple data leakage or DoS.",
+      "wg": [
+        {
+          "t": "序列化",
+          "en": "serializing",
+          "ps": "verb"
+        },
+        {
+          "t": "字節流",
+          "en": "byte stream",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "4",
+    "level": "3",
+    "keywords": "subprocess,command injection,shell=True,os.system",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "import subprocess\n\nfilename = request.args.get('filename')\n# Goal: List details of the uploaded file",
+    "question": [
+      {
+        "t": "你需要執行系統指令 `ls -l` 來查看使用者上傳的檔案。為了避免 Command Injection（命令注入），下列哪一種實作方式是正確的？",
+        "en": "You need to execute the system command `ls -l` to check a file uploaded by a user. To avoid Command Injection, which of the following implementations is correct?",
+        "wg": [
+          {
+            "t": "命令注入",
+            "en": "Command Injection",
+            "ps": "noun"
+          },
+          {
+            "t": "實作方式",
+            "en": "implementation",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "single",
+    "options": [
+      {
+        "t": "`subprocess.run(f'ls -l {filename}', shell=True)`",
+        "en": "`subprocess.run(f'ls -l {filename}', shell=True)`",
+        "wg": []
+      },
+      {
+        "t": "`os.system('ls -l ' + filename)`",
+        "en": "`os.system('ls -l ' + filename)`",
+        "wg": []
+      },
+      {
+        "t": "`subprocess.run(['ls', '-l', filename], shell=False)`",
+        "en": "`subprocess.run(['ls', '-l', filename], shell=False)`",
+        "wg": []
+      },
+      {
+        "t": "`subprocess.call(f'ls -l {filename}')`",
+        "en": "`subprocess.call(f'ls -l {filename}')`",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "正確做法是將參數作為 List 傳遞，並保持 `shell=False`（這是 `subprocess.run` 的預設值）。這樣做會直接調用執行檔，將 `filename` 視為單一參數，而不是透過 Shell 解析，從而避免攻擊者透過分號或 pipe 符號（如 `file; rm -rf /`）注入額外指令。使用 `shell=True` 或 `os.system` 都會啟動 Shell 解析字串，極易受到注入攻擊。",
+      "en": "The correct approach is to pass arguments as a List and keep `shell=False` (which is the default for `subprocess.run`). This invokes the executable directly, treating `filename` as a single argument rather than parsing it through a Shell, thus preventing attackers from injecting extra commands via semicolons or pipes (e.g., `file; rm -rf /`). Using `shell=True` or `os.system` invokes Shell parsing, making it highly vulnerable to injection.",
+      "wg": [
+        {
+          "t": "預設值",
+          "en": "default value",
+          "ps": "noun"
+        },
+        {
+          "t": "解析",
+          "en": "parsing",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "5",
+    "level": "3",
+    "keywords": "zip slip,tarfile,path traversal,vulnerability",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "import tarfile\n\ndef extract_archive(filepath):\n    with tarfile.open(filepath) as tar:\n        # Vulnerable line:\n        tar.extractall(path=\"/var/www/uploads/\")",
+    "question": [
+      {
+        "t": "上述程式碼存在名為 'Zip Slip' 的路徑遍歷漏洞。攻擊者可以透過構造包含什麼特徵的檔案名稱，來覆蓋伺服器上的關鍵檔案（如 `/etc/passwd`）？",
+        "en": "The code above contains a path traversal vulnerability known as 'Zip Slip'. What feature in a filename can an attacker construct to overwrite critical files on the server (such as `/etc/passwd`)?",
+        "wg": [
+          {
+            "t": "路徑遍歷",
+            "en": "path traversal",
+            "ps": "noun"
+          },
+          {
+            "t": "覆蓋",
+            "en": "overwrite",
+            "ps": "verb"
+          },
+          {
+            "t": "關鍵檔案",
+            "en": "critical files",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "single",
+    "options": [
+      {
+        "t": "包含 Null Byte (`%00`) 的檔名。",
+        "en": "Filenames containing a Null Byte (`%00`).",
+        "wg": []
+      },
+      {
+        "t": "包含相對路徑序列（如 `../../`）的檔名。",
+        "en": "Filenames containing relative path sequences (e.g., `../../`).",
+        "wg": [
+          {
+            "t": "相對路徑",
+            "en": "relative path",
+            "ps": "noun"
+          },
+          {
+            "t": "序列",
+            "en": "sequences",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "包含 Shell Metacharacters（如 `$`, `|`, `;`）的檔名。",
+        "en": "Filenames containing Shell Metacharacters (e.g., `$`, `|`, `;`).",
+        "wg": []
+      },
+      {
+        "t": "長度超過 255 個字元的檔名。",
+        "en": "Filenames exceeding 255 characters in length.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "Zip Slip 漏洞利用了解壓縮工具未檢查檔名中包含的 `../`（上一層目錄）。如果攻擊者在壓縮檔中將某個檔案命名為 `../../../../etc/passwd`，當程式執行 `extractall` 時，該檔案就會跳出預期的上傳目錄，直接覆蓋系統檔案。修復方式是在 Python 3.11+ 使用 `filter='data'`，或手動檢查解壓後的絕對路徑是否仍在目標目錄內。",
+      "en": "The Zip Slip vulnerability exploits the lack of checks for `../` (parent directory) in filenames within an archive. If an attacker names a file `../../../../etc/passwd` inside the archive, executing `extractall` will cause the file to escape the intended upload directory and overwrite system files. The fix is to use `filter='data'` in Python 3.11+ or manually verify that the extracted absolute path remains within the target directory.",
+      "wg": [
+        {
+          "t": "解壓縮",
+          "en": "decompression",
+          "ps": "noun"
+        },
+        {
+          "t": "絕對路徑",
+          "en": "absolute path",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "6",
+    "level": "2",
+    "keywords": "security tools,SAST,dependency scanning,bandit,pip-audit",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在建立 Python 專案的 CI/CD 安全流水線（Security Pipeline）時，我們通常會結合多種工具。請問下列哪一個工具主要用於「靜態應用程式安全測試（SAST）」，專門掃描**你的程式碼**中的常見漏洞（如硬編碼密碼、弱加密算法）？",
+        "en": "When building a Security Pipeline for a Python project in CI/CD, we often combine multiple tools. Which of the following tools is primarily used for 'Static Application Security Testing (SAST)', specifically scanning **your code** for common vulnerabilities (e.g., hardcoded passwords, weak encryption algorithms)?",
+        "wg": [
+          {
+            "t": "安全流水線",
+            "en": "Security Pipeline",
+            "ps": "noun"
+          },
+          {
+            "t": "靜態應用程式安全測試",
+            "en": "Static Application Security Testing",
+            "ps": "noun"
+          },
+          {
+            "t": "硬編碼",
+            "en": "hardcoded",
+            "ps": "adjective"
+          }
+        ]
+      }
+    ],
+    "type": "single",
+    "options": [
+      {
+        "t": "pip-audit",
+        "en": "pip-audit",
+        "wg": []
+      },
+      {
+        "t": "Bandit",
+        "en": "Bandit",
+        "wg": []
+      },
+      {
+        "t": "Black",
+        "en": "Black",
+        "wg": []
+      },
+      {
+        "t": "Pytest",
+        "en": "Pytest",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "`Bandit` 是專門針對 Python 代碼進行 SAST 掃描的工具，能找出代碼中不安全的寫法。相對地，`pip-audit`（或 `safety`）是用來檢查**依賴套件**（Dependencies）是否存在已知的 CVE 漏洞。`Black` 是代碼格式化工具，`Pytest` 是測試框架，後兩者主要與代碼品質有關，而非直接的安全掃描。",
+      "en": "`Bandit` is a tool specifically designed for SAST scanning of Python code, identifying insecure coding patterns. In contrast, `pip-audit` (or `safety`) is used to check **dependencies** for known CVE vulnerabilities. `Black` is a code formatter, and `Pytest` is a testing framework; the latter two are primarily related to code quality rather than direct security scanning.",
+      "wg": [
+        {
+          "t": "依賴套件",
+          "en": "dependencies",
+          "ps": "noun"
+        },
+        {
+          "t": "格式化工具",
+          "en": "formatter",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "7",
+    "level": "3",
+    "keywords": "PyYAML, deserialization, RCE, yaml.load, safe_load",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "import yaml\nfrom flask import request\n\n@app.route('/upload_config', methods=['POST'])\ndef upload_config():\n    # User uploads a YAML configuration file\n    config_content = request.files['config'].read()\n    # Parse the YAML data\n    config = yaml.load(config_content)\n    return 'Config applied'",
+    "question": [
+      {
+        "t": "上述程式碼使用了 PyYAML 函式庫來解析使用者上傳的設定檔。請問這段程式碼存在什麼嚴重的安全漏洞？",
+        "en": "The code above uses the PyYAML library to parse a user-uploaded configuration file. What critical security vulnerability exists in this code?",
+        "wg": [
+          {
+            "t": "解析",
+            "en": "parse",
+            "ps": "verb"
+          },
+          {
+            "t": "設定檔",
+            "en": "configuration file",
+            "ps": "noun"
+          },
+          {
+            "t": "漏洞",
+            "en": "vulnerability",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "single",
+    "options": [
+      {
+        "t": "它容易受到 SQL Injection 攻擊，因為 YAML 可能包含惡意 SQL 語句。",
+        "en": "It is vulnerable to SQL Injection because YAML can contain malicious SQL statements.",
+        "wg": []
+      },
+      {
+        "t": "它容易受到遠端代碼執行（RCE）攻擊，因為 `yaml.load` 預設可以實例化任意 Python 物件。",
+        "en": "It is vulnerable to Remote Code Execution (RCE) because `yaml.load` can instantiate arbitrary Python objects by default.",
+        "wg": [
+          {
+            "t": "遠端代碼執行",
+            "en": "Remote Code Execution (RCE)",
+            "ps": "noun"
+          },
+          {
+            "t": "實例化",
+            "en": "instantiate",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "它會導致記憶體洩漏（Memory Leak），因為 YAML 解析器不會釋放記憶體。",
+        "en": "It causes Memory Leaks because the YAML parser does not release memory.",
+        "wg": []
+      },
+      {
+        "t": "它只支援 ASCII 編碼，無法處理 Unicode 字符。",
+        "en": "It only supports ASCII encoding and cannot handle Unicode characters.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "PyYAML 的 `yaml.load()` 是一個不安全的函數，它能夠解析並執行特定的 YAML 標籤（如 `!!python/object/apply`），這允許攻擊者構造惡意 payload 來執行任意系統指令。修復方法是務必改用 `yaml.safe_load()`，它僅限於解析標準的 YAML 數據結構。",
+      "en": "PyYAML's `yaml.load()` is an unsafe function capable of parsing and executing specific YAML tags (like `!!python/object/apply`), allowing attackers to construct malicious payloads to execute arbitrary system commands. The fix is to strictly use `yaml.safe_load()`, which is limited to parsing standard YAML data structures.",
+      "wg": [
+        {
+          "t": "任意系統指令",
+          "en": "arbitrary system commands",
+          "ps": "noun phrase"
+        },
+        {
+          "t": "修復方法",
+          "en": "fix / remediation",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "8",
+    "level": "2",
+    "keywords": "secrets management, environment variables, hardcoding, security best practices",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在開發 Python 應用程式時，處理 API Key、資料庫密碼等敏感資訊（Secrets）的最佳實務是什麼？",
+        "en": "When developing Python applications, what is the best practice for handling sensitive information (Secrets) such as API Keys and database passwords?",
+        "wg": [
+          {
+            "t": "敏感資訊",
+            "en": "sensitive information",
+            "ps": "noun"
+          },
+          {
+            "t": "最佳實務",
+            "en": "best practice",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "single",
+    "options": [
+      {
+        "t": "將它們定義在程式碼最上方的全域變數中，以便於維護。",
+        "en": "Define them as global variables at the top of the code for easy maintenance.",
+        "wg": []
+      },
+      {
+        "t": "將它們儲存在專案目錄下的 `config.py` 檔案中，並將該檔案提交（Commit）到 Git 儲存庫。",
+        "en": "Store them in a `config.py` file within the project directory and commit that file to the Git repository.",
+        "wg": []
+      },
+      {
+        "t": "使用環境變數（Environment Variables）讀取，並配合 `.env` 檔案（不提交到版控）來管理開發環境設定。",
+        "en": "Read them from Environment Variables, using a `.env` file (not committed to version control) to manage development settings.",
+        "wg": [
+          {
+            "t": "環境變數",
+            "en": "Environment Variables",
+            "ps": "noun"
+          },
+          {
+            "t": "版控",
+            "en": "version control",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "使用 Base64 編碼後直接寫在程式碼中，以防止被輕易讀取。",
+        "en": "Encode them with Base64 and write them directly in the code to prevent easy reading.",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "將密鑰硬編碼（Hardcode）在程式碼或提交到版本控制系統（Git）是極大的安全風險。最佳實務是透過 `os.environ` 或 `python-dotenv` 等工具從環境變數中讀取，確保敏感資訊與程式碼分離，且不會意外洩漏給擁有程式碼存取權的人。",
+      "en": "Hardcoding secrets in code or committing them to version control systems (Git) poses a huge security risk. The best practice is to read from environment variables via `os.environ` or tools like `python-dotenv`, ensuring sensitive information is decoupled from the code and not accidentally leaked to those with code access.",
+      "wg": [
+        {
+          "t": "硬編碼",
+          "en": "hardcode",
+          "ps": "verb"
+        },
+        {
+          "t": "分離",
+          "en": "decouple / separate",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "9",
+    "level": "3",
+    "keywords": "mutable default argument, data leakage, session pollution, anti-pattern",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "def add_audit_log(entry, log=[]):\n    log.append(entry)\n    return log\n\n# User A triggers:\nadd_audit_log('User A logged in')\n\n# User B triggers:\nadd_audit_log('User B logged in')",
+    "question": [
+      {
+        "t": "在 Web 應用程式的 Context 下，上述使用「可變預設參數（Mutable Default Argument）」的寫法會造成什麼安全隱憂？",
+        "en": "In the context of a Web application, what security concern does the use of 'Mutable Default Argument' in the code above create?",
+        "wg": [
+          {
+            "t": "可變預設參數",
+            "en": "Mutable Default Argument",
+            "ps": "noun"
+          },
+          {
+            "t": "安全隱憂",
+            "en": "security concern",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "single",
+    "options": [
+      {
+        "t": "會導致 `RecursionError`，因為列表會無限增長。",
+        "en": "It will cause a `RecursionError` because the list will grow infinitely.",
+        "wg": []
+      },
+      {
+        "t": "會導致資訊洩漏（Information Leakage），因為 `log` 列表在所有函數呼叫間共享，不同使用者的數據會混在一起。",
+        "en": "It will cause Information Leakage because the `log` list is shared across all function calls, mixing data from different users.",
+        "wg": [
+          {
+            "t": "資訊洩漏",
+            "en": "Information Leakage",
+            "ps": "noun"
+          },
+          {
+            "t": "共享",
+            "en": "shared",
+            "ps": "adjective"
+          }
+        ]
+      },
+      {
+        "t": "沒有安全隱憂，這只是 Python 的語法糖，每次呼叫都會建立新列表。",
+        "en": "No security concern; this is just Python syntactic sugar, and a new list is created for each call.",
+        "wg": []
+      },
+      {
+        "t": "會導致語法錯誤（SyntaxError），Python 不允許列表作為預設參數。",
+        "en": "It will cause a SyntaxError; Python does not allow lists as default arguments.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "在 Python 中，函數的預設參數是在「定義時」被評估並建立一次，而非每次呼叫時。因此，`log=[]` 建立的列表物件會在該函數的所有呼叫中共享。在 Web 伺服器中，這意味著 User A 的操作紀錄可能會被 User B 看到，造成跨使用者的資料污染與洩漏。",
+      "en": "In Python, default arguments are evaluated and created once at 'definition time', not at each call. Therefore, the list object created by `log=[]` is shared across all calls to that function. In a web server, this means User A's audit logs might be visible to User B, causing cross-user data pollution and leakage.",
+      "wg": [
+        {
+          "t": "定義時",
+          "en": "definition time",
+          "ps": "noun"
+        },
+        {
+          "t": "資料污染",
+          "en": "data pollution",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "10",
+    "level": "2",
+    "keywords": "logging, sensitive data, PII, exception handling",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "try:\n    login_user(request.json)\nexcept AuthenticationError as e:\n    # Logging the entire request for debugging\n    logger.error(f\"Login failed for request: {request.json}\")",
+    "question": [
+      {
+        "t": "在處理使用者登入失敗的例外狀況時，上述日誌記錄（Logging）方式存在什麼主要風險？",
+        "en": "What is the primary risk of the logging approach shown above when handling a user login failure exception?",
+        "wg": [
+          {
+            "t": "日誌記錄",
+            "en": "logging",
+            "ps": "noun"
+          },
+          {
+            "t": "例外狀況",
+            "en": "exception",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "single",
+    "options": [
+      {
+        "t": "日誌檔案會變得太大，導致磁碟空間不足。",
+        "en": "The log file will become too large, causing disk space exhaustion.",
+        "wg": []
+      },
+      {
+        "t": "將使用者的明文密碼（Password）寫入日誌系統，造成憑證洩漏。",
+        "en": "Writing the user's plaintext password into the log system, causing credential leakage.",
+        "wg": [
+          {
+            "t": "明文密碼",
+            "en": "plaintext password",
+            "ps": "noun"
+          },
+          {
+            "t": "憑證洩漏",
+            "en": "credential leakage",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "這會導致 Python 的 logger 拋出錯誤，因為 `request.json` 可能不是字串。",
+        "en": "This will cause the Python logger to throw an error because `request.json` might not be a string.",
+        "wg": []
+      },
+      {
+        "t": "這樣寫會中斷程式執行，導致使用者看到 500 錯誤頁面。",
+        "en": "Writing it this way will interrupt program execution, causing the user to see a 500 error page.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "直接 Log 整個 `request` 物件或 Payload 是常見的反模式（Anti-pattern）。在登入場景中，Payload 包含使用者的密碼。一旦這些敏感資料進入日誌系統（如 ELK, Splunk 或純文字檔），它們通常會被更多人存取且保存更久，造成嚴重的二次洩漏風險。",
+      "en": "Directly logging the entire `request` object or payload is a common anti-pattern. In a login scenario, the payload contains the user's password. Once this sensitive data enters the log system (like ELK, Splunk, or text files), it is often accessible to more people and stored for longer, creating a severe risk of secondary leakage.",
+      "wg": [
+        {
+          "t": "反模式",
+          "en": "anti-pattern",
+          "ps": "noun"
+        },
+        {
+          "t": "二次洩漏",
+          "en": "secondary leakage",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "11",
+    "level": "2",
+    "keywords": "DEBUG mode, information disclosure, production readiness, Django/Flask",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在將 Django 或 Flask 應用程式部署到生產環境（Production）時，如果忘記將 `DEBUG` 模式設為 `False`，攻擊者最可能利用這一點獲得什麼資訊？",
+        "en": "When deploying a Django or Flask application to production, if you forget to set `DEBUG` mode to `False`, what information is an attacker most likely to gain from this?",
+        "wg": [
+          {
+            "t": "部署",
+            "en": "deploy",
+            "ps": "verb"
+          },
+          {
+            "t": "生產環境",
+            "en": "production environment",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "single",
+    "options": [
+      {
+        "t": "攻擊者可以獲得資料庫的寫入權限。",
+        "en": "The attacker can gain write access to the database.",
+        "wg": []
+      },
+      {
+        "t": "攻擊者可以透過錯誤頁面看到完整的 Stack Trace、環境變數與程式碼片段。",
+        "en": "The attacker can see the full Stack Trace, environment variables, and code snippets via error pages.",
+        "wg": [
+          {
+            "t": "錯誤頁面",
+            "en": "error pages",
+            "ps": "noun"
+          },
+          {
+            "t": "程式碼片段",
+            "en": "code snippets",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "攻擊者可以直接下載伺服器上的所有靜態檔案。",
+        "en": "The attacker can directly download all static files on the server.",
+        "wg": []
+      },
+      {
+        "t": "攻擊者可以繞過登入驗證直接進入後台。",
+        "en": "The attacker can bypass login authentication and access the admin panel directly.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "開啟 `DEBUG = True` 會在發生錯誤時顯示詳細的互動式除錯頁面。這不僅會暴露程式碼邏輯與路徑，還經常會顯示包含 API Key、資料庫連線字串等敏感資訊的環境變數（Environment Variables），這屬於嚴重的資訊洩露（Information Disclosure）。",
+      "en": "Enabling `DEBUG = True` displays detailed interactive debug pages when errors occur. This not only exposes code logic and paths but often displays environment variables containing sensitive information like API Keys and database connection strings, constituting severe Information Disclosure.",
+      "wg": [
+        {
+          "t": "互動式除錯頁面",
+          "en": "interactive debug pages",
+          "ps": "noun"
+        },
+        {
+          "t": "資訊洩漏",
+          "en": "Information Disclosure",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "12",
+    "level": "3",
+    "keywords": "eval, dynamic execution, RCE, input validation",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "user_input = request.args.get('expression')\n# Trying to build a simple calculator\nresult = eval(user_input)",
+    "question": [
+      {
+        "t": "你正在審查一段實作簡易計算機功能的程式碼（如上）。為什麼使用 `eval()` 來處理使用者輸入是絕對禁止的？",
+        "en": "You are reviewing code implementing a simple calculator (as shown above). Why is using `eval()` to handle user input strictly prohibited?",
+        "wg": [
+          {
+            "t": "絕對禁止",
+            "en": "strictly prohibited",
+            "ps": "adjective phrase"
+          },
+          {
+            "t": "簡易計算機",
+            "en": "simple calculator",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "single",
+    "options": [
+      {
+        "t": "因為 `eval()` 的運算速度比直接編譯慢太多，會影響效能。",
+        "en": "Because `eval()` is much slower than direct compilation, affecting performance.",
+        "wg": []
+      },
+      {
+        "t": "因為 `eval()` 只能處理整數運算，無法處理浮點數。",
+        "en": "Because `eval()` can only handle integer arithmetic and cannot handle floating-point numbers.",
+        "wg": []
+      },
+      {
+        "t": "因為 `eval()` 會執行字串中的任何 Python 代碼，攻擊者可藉此執行系統指令（如刪除檔案、讀取密鑰）。",
+        "en": "Because `eval()` executes any Python code within the string, allowing attackers to execute system commands (e.g., deleting files, reading keys).",
+        "wg": [
+          {
+            "t": "執行系統指令",
+            "en": "execute system commands",
+            "ps": "verb phrase"
+          }
+        ]
+      },
+      {
+        "t": "因為 `eval()` 在 Python 3 中已經被棄用（Deprecated）。",
+        "en": "Because `eval()` has been deprecated in Python 3.",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "`eval()` 是 Python 中最強大但也最危險的函數之一。它將字串視為程式碼執行。攻擊者可以輸入 `__import__('os').system('rm -rf /')` 等惡意字串來完全控制伺服器。對於數學運算，應使用 `ast.literal_eval` 或專門的數學表達式解析庫。",
+      "en": "`eval()` is one of the most powerful yet dangerous functions in Python. It treats strings as code to be executed. Attackers can input malicious strings like `__import__('os').system('rm -rf /')` to take full control of the server. For mathematical operations, `ast.literal_eval` or specialized math expression parsing libraries should be used.",
+      "wg": [
+        {
+          "t": "惡意字串",
+          "en": "malicious string",
+          "ps": "noun"
+        },
+        {
+          "t": "完全控制",
+          "en": "full control",
+          "ps": "noun"
+        }
+      ]
+    }
+  }
+]

@@ -1,0 +1,879 @@
+[
+  {
+    "no": "1",
+    "level": "Medium",
+    "keywords": "Redis Streams, Pub/Sub, Architecture, Selection Strategy",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你正在設計一個「訂單處理系統」，當使用者下單後，需要同時觸發「庫存扣除」與「發送確認信」兩個獨立的微服務。此外，未來可能會加入「數據分析」服務，需要能夠讀取過去一週的歷史訂單資料。請問下列哪種 Redis 設計模式最適合此場景？",
+        "en": "You are designing an 'Order Processing System'. When a user places an order, it needs to simultaneously trigger two independent microservices: 'Inventory Deduction' and 'Email Confirmation'. Additionally, a 'Data Analytics' service might be added in the future, which will need to read historical order data from the past week. Which Redis design pattern is most suitable for this scenario?",
+        "wg": [
+          {
+            "t": "微服務",
+            "en": "microservices",
+            "ps": "noun"
+          },
+          {
+            "t": "歷史訂單資料",
+            "en": "historical order data",
+            "ps": "noun phrase"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "使用 Redis Pub/Sub，讓庫存與信件服務訂閱訂單頻道。",
+        "en": "Use Redis Pub/Sub, letting inventory and email services subscribe to the order channel.",
+        "wg": []
+      },
+      {
+        "t": "使用 Redis List，並維護兩個獨立的 List (`orders:inventory`, `orders:email`)，生產者寫入兩次。",
+        "en": "Use Redis List, maintaining two separate Lists (`orders:inventory`, `orders:email`), with the producer writing twice.",
+        "wg": []
+      },
+      {
+        "t": "使用 Redis Streams，並為庫存、信件與分析服務建立不同的 Consumer Groups。",
+        "en": "Use Redis Streams, creating different Consumer Groups for inventory, email, and analytics services.",
+        "wg": [
+          {
+            "t": "消費者群組",
+            "en": "Consumer Groups",
+            "ps": "noun phrase"
+          }
+        ]
+      },
+      {
+        "t": "使用 Redis List，所有服務共用同一個 List，競爭搶奪任務。",
+        "en": "Use Redis List, where all services share the same List and compete for tasks.",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "Redis Streams 是唯一同時滿足「一對多廣播 (Fan-out)」、「持久化 (Persistence)」與「歷史回溯 (Replayability)」的選項。Pub/Sub 無法回溯歷史；多個 List 缺乏寫入原子性且維護困難；共用 List 則是點對點模式，無法讓多個服務同時收到同一筆訂單。",
+      "en": "Redis Streams is the only option that simultaneously satisfies 'Fan-out', 'Persistence', and 'Replayability'. Pub/Sub cannot replay history; multiple Lists lack write atomicity and are hard to maintain; a shared List follows a point-to-point model, preventing multiple services from receiving the same order.",
+      "wg": [
+        {
+          "t": "一對多廣播",
+          "en": "Fan-out",
+          "ps": "noun"
+        },
+        {
+          "t": "持久化",
+          "en": "Persistence",
+          "ps": "noun"
+        },
+        {
+          "t": "歷史回溯",
+          "en": "Replayability",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "2",
+    "level": "Hard",
+    "keywords": "Redis Streams, Memory Leak, PEL, XACK",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "XADD mystream MAXLEN ~ 1000 * key value",
+    "question": [
+      {
+        "t": "你的團隊在生產環境使用 Redis Streams，並確實設定了 `MAXLEN ~ 1000` 來限制 Stream 的長度。然而，監控系統顯示該 Key 佔用的記憶體空間隨著時間持續增長，並未如預期般穩定。最可能的原因是什麼？",
+        "en": "Your team uses Redis Streams in production and has correctly set `MAXLEN ~ 1000` to cap the stream length. However, monitoring shows that the memory usage for this key continues to grow over time and does not stabilize as expected. What is the most likely cause?",
+        "wg": [
+          {
+            "t": "記憶體空間",
+            "en": "memory usage",
+            "ps": "noun phrase"
+          },
+          {
+            "t": "持續增長",
+            "en": "continues to grow",
+            "ps": "verb phrase"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "`MAXLEN ~` 只是近似修剪，Redis 可能保留了數百萬筆資料尚未刪除。",
+        "en": "`MAXLEN ~` is only approximate trimming; Redis might be retaining millions of records without deleting them.",
+        "wg": []
+      },
+      {
+        "t": "Consumer 讀取訊息後，程式邏輯中遺漏或未能成功執行 `XACK`，導致 PEL (Pending Entries List) 無限膨脹。",
+        "en": "Consumers read messages but the code logic misses or fails to execute `XACK`, causing the PEL (Pending Entries List) to grow indefinitely.",
+        "wg": [
+          {
+            "t": "遺漏",
+            "en": "misses",
+            "ps": "verb"
+          },
+          {
+            "t": "無限膨脹",
+            "en": "grow indefinitely",
+            "ps": "verb phrase"
+          }
+        ]
+      },
+      {
+        "t": "Consumer Groups 的數量過多，導致 Redis 內部的 metadata 超過資料本身的大小。",
+        "en": "There are too many Consumer Groups, causing Redis internal metadata to exceed the size of the data itself.",
+        "wg": []
+      },
+      {
+        "t": "Redis Streams 不支援自動刪除舊資料，必須手動執行 `XDEL`。",
+        "en": "Redis Streams does not support automatic deletion of old data; `XDEL` must be executed manually.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "這是一個經典的「PEL 洩漏」問題。`MAXLEN` 只會修剪 Stream 本身的訊息日誌，但不會移除 PEL 中的項目。如果 Consumer 讀取了訊息卻沒有 `XACK`，這些訊息的參考會一直保留在記憶體中，導致記憶體洩漏。",
+      "en": "This is a classic 'PEL Leak' issue. `MAXLEN` only trims the message log of the Stream itself but does not remove entries from the PEL. If a Consumer reads messages without sending `XACK`, references to these messages remain in memory, leading to a memory leak.",
+      "wg": [
+        {
+          "t": "PEL 洩漏",
+          "en": "PEL Leak",
+          "ps": "noun phrase"
+        },
+        {
+          "t": "參考",
+          "en": "references",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "3",
+    "level": "Medium",
+    "keywords": "Redis Streams, Consumer Groups, Recovery, XREADGROUP",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "redis.xreadgroup(group, consumer, {stream_key: \">\"}, count=10)",
+    "question": [
+      {
+        "t": "某個 Consumer Worker 在處理一批訊息時崩潰（Crash），導致這批訊息尚未被 ACK。當該 Worker 重啟並重新執行上述程式碼（使用 ID `>`）時，會發生什麼事？",
+        "en": "A Consumer Worker crashes while processing a batch of messages, leaving them un-ACKed. What happens when the Worker restarts and re-executes the code above (using ID `>`)?",
+        "wg": [
+          {
+            "t": "崩潰",
+            "en": "crashes",
+            "ps": "verb"
+          },
+          {
+            "t": "尚未被 ACK",
+            "en": "un-ACKed",
+            "ps": "adjective"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "它會自動重新讀取那些崩潰前未處理完的舊訊息。",
+        "en": "It will automatically re-read the old messages that were not finished before the crash.",
+        "wg": []
+      },
+      {
+        "t": "它只會讀取「從未被分配給任何 Consumer」的新訊息，崩潰前的那批訊息會被略過。",
+        "en": "It will only read new messages that have 'never been delivered to any Consumer', skipping the batch from before the crash.",
+        "wg": [
+          {
+            "t": "略過",
+            "en": "skipping",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "Redis 會偵測到 Consumer 重啟，並自動將舊訊息重新放入佇列尾端。",
+        "en": "Redis will detect the Consumer restart and automatically requeue the old messages to the end of the queue.",
+        "wg": []
+      },
+      {
+        "t": "程式會拋出錯誤，因為該 Consumer 還有 Pending 的訊息未處理。",
+        "en": "The program will throw an error because the Consumer still has Pending messages unprocessed.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "特殊 ID `>` 的定義是「讀取尚未遞送給此 Group 內任何人的新訊息」。崩潰前已讀取但未 ACK 的訊息屬於 PEL (Pending Entries List)。若要恢復這些訊息，必須明確使用 ID `0`（或其他非 `>` 的 ID）來讀取 PEL，或使用 `XAUTOCLAIM` 機制。",
+      "en": "The special ID `>` is defined as 'read new messages not yet delivered to anyone in this Group'. Messages read but not ACKed before the crash belong to the PEL (Pending Entries List). To recover these, you must explicitly read using ID `0` (or a non-`>` ID) to access the PEL, or use the `XAUTOCLAIM` mechanism.",
+      "wg": [
+        {
+          "t": "特殊 ID",
+          "en": "special ID",
+          "ps": "noun phrase"
+        },
+        {
+          "t": "遞送",
+          "en": "delivered",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "4",
+    "level": "Medium",
+    "keywords": "Redis List, Reliability, RPOPLPUSH, Data Loss",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "job = redis.rpop(\"jobs_queue\")\n# Worker crashes here / Worker 在此處崩潰\nprocess(job)",
+    "question": [
+      {
+        "t": "在使用 Redis List 實作簡單的工作佇列（Job Queue）時，採用上述 `RPOP` 取出任務的模式。請問這種實作方式最大的風險是什麼？",
+        "en": "When implementing a simple Job Queue using Redis List, the above `RPOP` pattern is used to fetch tasks. What is the biggest risk of this implementation?",
+        "wg": [
+          {
+            "t": "工作佇列",
+            "en": "Job Queue",
+            "ps": "noun phrase"
+          },
+          {
+            "t": "風險",
+            "en": "risk",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "效能低落，因為 RPOP 是 O(N) 操作。",
+        "en": "Poor performance, because RPOP is an O(N) operation.",
+        "wg": []
+      },
+      {
+        "t": "任務永久遺失。如果 Worker 在取出任務後但在處理完成前崩潰，該任務就從 Redis 中消失了。",
+        "en": "Permanent task loss. If the Worker crashes after popping the task but before finishing processing, the task is gone from Redis.",
+        "wg": [
+          {
+            "t": "永久遺失",
+            "en": "permanent loss",
+            "ps": "noun phrase"
+          },
+          {
+            "t": "消失",
+            "en": "gone / disappeared",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "重複處理。如果 Worker 崩潰，Redis 會自動將任務重發給另一個 Worker。",
+        "en": "Duplicate processing. If the Worker crashes, Redis will automatically resend the task to another Worker.",
+        "wg": []
+      },
+      {
+        "t": "無法支援多個 Worker 同時讀取。",
+        "en": "Cannot support multiple Workers reading simultaneously.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "Redis List 的 `RPOP` 是破壞性讀取（取出即刪除）。這被稱為「脆弱的記憶（Fragile Memory）」。若要確保可靠性，應改用 `RPOPLPUSH` (或 `LMOVE`) 將任務移動到另一個「處理中」的 List，或改用支援 ACK 機制的 Redis Streams。",
+      "en": "Redis List's `RPOP` is a destructive read (pop and delete). This is known as 'Fragile Memory'. To ensure reliability, one should use `RPOPLPUSH` (or `LMOVE`) to move the task to a 'processing' List, or switch to Redis Streams which support an ACK mechanism.",
+      "wg": [
+        {
+          "t": "破壞性讀取",
+          "en": "destructive read",
+          "ps": "noun phrase"
+        },
+        {
+          "t": "脆弱的記憶",
+          "en": "Fragile Memory",
+          "ps": "noun phrase"
+        }
+      ]
+    }
+  },
+  {
+    "no": "5",
+    "level": "Easy",
+    "keywords": "Redis Streams, Performance, Optimization, MAXLEN",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在設定 Redis Stream 的長度限制時，為什麼建議使用 `MAXLEN ~ 1000` 而不是 `MAXLEN 1000`？",
+        "en": "When setting the length limit for a Redis Stream, why is it recommended to use `MAXLEN ~ 1000` instead of `MAXLEN 1000`?",
+        "wg": [
+          {
+            "t": "長度限制",
+            "en": "length limit",
+            "ps": "noun phrase"
+          },
+          {
+            "t": "建議",
+            "en": "recommended",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "`~` 符號表示「近似修剪」，允許 Redis 在效能最佳化的前提下，稍微多保留一些節點，大幅減少記憶體重組的開銷。",
+        "en": "The `~` symbol indicates 'approximate trimming', allowing Redis to retain a few more nodes for performance optimization, significantly reducing memory reallocation overhead.",
+        "wg": [
+          {
+            "t": "近似修剪",
+            "en": "approximate trimming",
+            "ps": "noun phrase"
+          },
+          {
+            "t": "開銷",
+            "en": "overhead",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "`~` 符號表示「嚴格修剪」，確保 Stream 的長度絕對不會超過 1000。",
+        "en": "The `~` symbol indicates 'strict trimming', ensuring the Stream length absolutely never exceeds 1000.",
+        "wg": []
+      },
+      {
+        "t": "`MAXLEN 1000` 在 Redis Cluster 模式下不支援，必須加 `~`。",
+        "en": "`MAXLEN 1000` is not supported in Redis Cluster mode; `~` must be added.",
+        "wg": []
+      },
+      {
+        "t": "`~` 會自動將舊資料備份到硬碟，而不是直接刪除。",
+        "en": "`~` will automatically backup old data to disk instead of deleting it directly.",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "精確修剪（Exact Trimming）需要 Redis 頻繁調整底層 Macro-node 的結構，極耗效能。近似修剪（Approximate Trimming, `~`）容許 Stream 實際長度稍微超過設定值（例如 1050 筆），這讓 Redis 只有在整塊節點都可以移除時才進行操作，效能極佳。",
+      "en": "Exact Trimming requires Redis to frequently adjust the underlying Macro-node structure, which is very performance-intensive. Approximate Trimming (`~`) allows the actual Stream length to slightly exceed the set value (e.g., 1050 entries), enabling Redis to perform operations only when entire node blocks can be removed, resulting in excellent performance.",
+      "wg": [
+        {
+          "t": "精確修剪",
+          "en": "Exact Trimming",
+          "ps": "noun phrase"
+        },
+        {
+          "t": "底層",
+          "en": "underlying",
+          "ps": "adjective"
+        }
+      ]
+    }
+  },
+  {
+    "no": "6",
+    "level": "Easy",
+    "keywords": "Redis List, Anti-pattern, Blocking Operations, Performance",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "while True:\n    msg = redis.rpop(\"queue\")\n    if not msg:\n        time.sleep(1)  # Sleep 1s\n        continue\n    process(msg)",
+    "question": [
+      {
+        "t": "在 Code Review 中，你看到了上述處理 Redis List 的程式碼。你會給出什麼建議來改進這段程式碼？",
+        "en": "During a Code Review, you see the above code for handling a Redis List. What suggestion would you give to improve this code?",
+        "wg": [
+          {
+            "t": "建議",
+            "en": "suggestion",
+            "ps": "noun"
+          },
+          {
+            "t": "改進",
+            "en": "improve",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "這是標準寫法，沒有問題。",
+        "en": "This is standard practice, no issues.",
+        "wg": []
+      },
+      {
+        "t": "應移除 `time.sleep(1)`，這樣可以更即時地處理訊息。",
+        "en": "Remove `time.sleep(1)` to process messages more instantly.",
+        "wg": []
+      },
+      {
+        "t": "應改用 `BRPOP` (Blocking Pop)。這能消除輪詢（Polling）帶來的延遲與 CPU 浪費，並在有新訊息時立即喚醒。",
+        "en": "Switch to `BRPOP` (Blocking Pop). This eliminates the latency and CPU waste caused by polling, and wakes up immediately when a new message arrives.",
+        "wg": [
+          {
+            "t": "輪詢",
+            "en": "Polling",
+            "ps": "noun"
+          },
+          {
+            "t": "喚醒",
+            "en": "wakes up",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "應改用 `LPOP` 而不是 `RPOP`，效能較好。",
+        "en": "Use `LPOP` instead of `RPOP` for better performance.",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "使用 `while` 迴圈配合 `sleep` 是典型的 Polling 反模式。這會導致不必要的網路往返（如果 sleep 太短）或處理延遲（如果 sleep 太長）。Redis 提供了 `BRPOP` (List) 或 `XREAD BLOCK` (Stream) 等阻塞式指令，由 Server 端在有資料時主動通知 Client，這是最高效的做法。",
+      "en": "Using a `while` loop with `sleep` is a typical Polling anti-pattern. It causes unnecessary network round-trips (if sleep is too short) or processing latency (if sleep is too long). Redis provides blocking commands like `BRPOP` (List) or `XREAD BLOCK` (Stream), where the Server actively notifies the Client when data is available, which is the most efficient approach.",
+      "wg": [
+        {
+          "t": "反模式",
+          "en": "anti-pattern",
+          "ps": "noun"
+        },
+        {
+          "t": "阻塞式指令",
+          "en": "blocking commands",
+          "ps": "noun phrase"
+        }
+      ]
+    }
+  },
+  {
+    "no": "7",
+    "level": "Medium",
+    "keywords": "Redis Pub/Sub, Reliability, Data Loss, Fire-and-forget",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你的系統使用 Redis Pub/Sub 來廣播「即時股價更新」給多個下游服務。其中一個下游服務因為部署更新而重啟了 30 秒。請問在這 30 秒期間發送的股價更新訊息會發生什麼事？",
+        "en": "Your system uses Redis Pub/Sub to broadcast 'real-time stock price updates' to multiple downstream services. One of the downstream services restarts for a deployment, taking 30 seconds. What happens to the stock price update messages sent during this 30-second window?",
+        "wg": [
+          {
+            "t": "即時股價更新",
+            "en": "real-time stock price updates",
+            "ps": "noun phrase"
+          },
+          {
+            "t": "下游服務",
+            "en": "downstream services",
+            "ps": "noun phrase"
+          },
+          {
+            "t": "部署更新",
+            "en": "deployment update",
+            "ps": "noun phrase"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "Redis 會將訊息暫存在記憶體中，待該服務重新連線後一次發送。",
+        "en": "Redis buffers the messages in memory and sends them all once the service reconnects.",
+        "wg": []
+      },
+      {
+        "t": "這些訊息會被永久遺失，因為 Pub/Sub 是「射後不理」的機制。",
+        "en": "These messages are permanently lost because Pub/Sub is a 'fire-and-forget' mechanism.",
+        "wg": [
+          {
+            "t": "射後不理",
+            "en": "fire-and-forget",
+            "ps": "idiom"
+          }
+        ]
+      },
+      {
+        "t": "這些訊息會自動轉入 Dead Letter Queue 等待處理。",
+        "en": "These messages are automatically moved to a Dead Letter Queue for later processing.",
+        "wg": []
+      },
+      {
+        "t": "Redis 會拋出錯誤通知發送端（Publisher）有訂閱者斷線。",
+        "en": "Redis throws an error notifying the Publisher that a subscriber has disconnected.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "Redis Pub/Sub 採用「廣播電台模型」（Fire-and-forget）。如果訂閱者在訊息發送當下沒有連線（例如正在重啟），該訊息就會直接遺失，Redis 不會為其保留歷史紀錄。若需要持久化或回溯，應改用 Redis Streams。",
+      "en": "Redis Pub/Sub follows the 'Radio Broadcast' model (Fire-and-forget). If a subscriber is not connected at the moment a message is published (e.g., during a restart), that message is lost immediately. Redis does not persist history for Pub/Sub. If persistence or replayability is required, Redis Streams should be used.",
+      "wg": [
+        {
+          "t": "廣播電台模型",
+          "en": "Radio Broadcast model",
+          "ps": "concept"
+        },
+        {
+          "t": "持久化",
+          "en": "persistence",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "8",
+    "level": "Medium",
+    "keywords": "Redis List, Anti-pattern, Fan-out, Atomicity",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "redis.lpush(\"events:service_a\", message)\nredis.lpush(\"events:service_b\", message)\nredis.lpush(\"events:service_c\", message)",
+    "question": [
+      {
+        "t": "一位開發者為了實作「將同一則訊息廣播給三個不同的微服務」，寫出了上述程式碼（維護三個獨立的 List）。根據 Handbook 中的反模式（Anti-patterns），這種做法最大的缺點是什麼？",
+        "en": "To implement 'broadcasting the same message to three different microservices', a developer wrote the code above (maintaining three separate Lists). According to the Anti-patterns in the Handbook, what is the major drawback of this approach?",
+        "wg": [
+          {
+            "t": "反模式",
+            "en": "Anti-patterns",
+            "ps": "noun"
+          },
+          {
+            "t": "廣播",
+            "en": "broadcasting",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "Redis List 不支援字串以外的資料格式。",
+        "en": "Redis List does not support data formats other than strings.",
+        "wg": []
+      },
+      {
+        "t": "讀取效能會因為 List 數量增加而線性下降。",
+        "en": "Read performance degrades linearly with the increase in the number of Lists.",
+        "wg": []
+      },
+      {
+        "t": "缺乏原子性（Atomicity），若寫入第二個 List 時失敗，會導致系統狀態不一致。",
+        "en": "Lack of atomicity; if writing to the second List fails, it leads to inconsistent system state.",
+        "wg": [
+          {
+            "t": "原子性",
+            "en": "Atomicity",
+            "ps": "noun"
+          },
+          {
+            "t": "不一致",
+            "en": "inconsistent",
+            "ps": "adjective"
+          }
+        ]
+      },
+      {
+        "t": "List 無法設定過期時間（TTL）。",
+        "en": "Lists cannot have an expiration time (TTL) set.",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "這是典型的「使用 List 模擬 1-to-N 廣播」的反模式。主要風險在於缺乏原子性：如果程式在寫入 `service_a` 後崩潰，`service_b` 和 `c` 就會收不到訊息。正確做法是使用 Redis Streams 配合 Consumer Groups。",
+      "en": "This is a typical anti-pattern of 'Using List for 1-to-N Broadcasting'. The main risk is the lack of atomicity: if the program crashes after writing to `service_a`, `service_b` and `c` will never receive the message. The correct approach is to use Redis Streams with Consumer Groups.",
+      "wg": []
+    }
+  },
+  {
+    "no": "9",
+    "level": "Easy",
+    "keywords": "Redis Streams, Consumer Groups, Scaling, Load Balancing",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你有一個 Redis Stream `orders` 和一個 Consumer Group `fulfillment_group`，目前該群組內只有一個 Consumer `worker-1`。為了應付流量高峰，你啟動了第二個 Consumer `worker-2` 並加入**同一個**群組。請問這兩個 Worker 會如何接收訊息？",
+        "en": "You have a Redis Stream `orders` and a Consumer Group `fulfillment_group` which currently contains only one Consumer `worker-1`. To handle peak traffic, you start a second Consumer `worker-2` and join it to the **same** group. How will these two workers receive messages?",
+        "wg": [
+          {
+            "t": "流量高峰",
+            "en": "peak traffic",
+            "ps": "noun phrase"
+          },
+          {
+            "t": "應付",
+            "en": "handle/cope with",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "兩者會收到完全相同的訊息副本（Fan-out）。",
+        "en": "Both will receive exact copies of the same messages (Fan-out).",
+        "wg": []
+      },
+      {
+        "t": "訊息會被分攤處理，每則訊息只會被其中一個 Worker 讀取（Load Balancing）。",
+        "en": "Messages will be distributed; each message is read by only one of the workers (Load Balancing).",
+        "wg": [
+          {
+            "t": "分攤處理",
+            "en": "distributed processing",
+            "ps": "verb phrase"
+          }
+        ]
+      },
+      {
+        "t": "只有 `worker-1` 會收到訊息，`worker-2` 處於備援狀態（Standby）。",
+        "en": "Only `worker-1` will receive messages; `worker-2` remains in standby mode.",
+        "wg": []
+      },
+      {
+        "t": "Redis 會報錯，因為一個群組不允許有多個 Consumer。",
+        "en": "Redis will throw an error because a group cannot have multiple Consumers.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "Consumer Group 的主要目的之一就是「分攤工作負載」。在同一個 Group 內的 Consumers 會競爭讀取訊息，確保每則訊息只被該 Group 處理一次（除非發生重試）。若要達成 Fan-out（廣播），則需建立不同的 Consumer Groups。",
+      "en": "One of the main purposes of a Consumer Group is to 'distribute the workload'. Consumers within the same Group compete to read messages, ensuring each message is processed only once by that Group (unless retried). To achieve Fan-out (broadcasting), you would need to create different Consumer Groups.",
+      "wg": [
+        {
+          "t": "競爭讀取",
+          "en": "compete to read",
+          "ps": "verb phrase"
+        }
+      ]
+    }
+  },
+  {
+    "no": "10",
+    "level": "Hard",
+    "keywords": "Redis Streams, Reliability, XACK, At-most-once",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "entries = redis.xreadgroup(..., block=2000)\nfor stream, messages in entries:\n    for msg_id, data in messages:\n        redis.xack(\"mystream\", \"mygroup\", msg_id)  // ACK immediately\n        process_heavy_task(data)                   // Then process",
+    "question": [
+      {
+        "t": "在 Code Review 時，你發現同事寫了上述程式碼：先執行 `XACK` 再進行業務處理。請問這種寫法屬於哪種語意，並存在什麼風險？",
+        "en": "During a Code Review, you notice a colleague wrote the code above: executing `XACK` before processing the business logic. What kind of semantics does this approach represent, and what is the risk?",
+        "wg": [
+          {
+            "t": "語意",
+            "en": "semantics",
+            "ps": "noun"
+          },
+          {
+            "t": "業務處理",
+            "en": "business processing",
+            "ps": "noun phrase"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "At-least-once（至少一次）：風險是可能會重複處理訊息。",
+        "en": "At-least-once: The risk is potentially processing messages multiple times.",
+        "wg": []
+      },
+      {
+        "t": "At-most-once（至多一次）：風險是若 `process_heavy_task` 崩潰，該訊息將永久遺失。",
+        "en": "At-most-once: The risk is that if `process_heavy_task` crashes, the message is permanently lost.",
+        "wg": [
+          {
+            "t": "至多一次",
+            "en": "At-most-once",
+            "ps": "concept"
+          },
+          {
+            "t": "永久遺失",
+            "en": "permanently lost",
+            "ps": "phrase"
+          }
+        ]
+      },
+      {
+        "t": "Exactly-once（精確一次）：這是 Redis Streams 的標準寫法，沒有風險。",
+        "en": "Exactly-once: This is the standard way to write Redis Streams code and has no risks.",
+        "wg": []
+      },
+      {
+        "t": "Event Sourcing（事件溯源）：風險是 PEL 會無限增長。",
+        "en": "Event Sourcing: The risk is that the PEL will grow indefinitely.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "先 ACK 再處理意味著「我告訴 Redis 我已經做完了」，然後才真正開始做。如果程式在 `process_heavy_task` 期間崩潰，Redis 認為該訊息已處理完畢（已從 PEL 移除），因此不會被重新派發，導致資料遺失。這稱為 At-most-once 語意。",
+      "en": "ACKing before processing means saying 'I told Redis I'm done' before actually starting the work. If the program crashes during `process_heavy_task`, Redis considers the message fully processed (removed from PEL) and will not redeliver it, leading to data loss. This is known as At-most-once semantics.",
+      "wg": [
+        {
+          "t": "重新派發",
+          "en": "redeliver",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "11",
+    "level": "Medium",
+    "keywords": "Redis Streams, Recovery, XAUTOCLAIM, Dead Consumer",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在 Redis Streams 的架構中，如果一個 Consumer 崩潰且長時間未恢復，導致它持有的訊息一直停留在 PEL（Pending Entries List）中未被 ACK。其他健康的 Consumer 應該使用什麼指令來「接手」這些超時的訊息？",
+        "en": "In a Redis Streams architecture, if a Consumer crashes and does not recover for a long time, leaving its messages un-ACKed in the PEL (Pending Entries List). What command should other healthy Consumers use to 'take over' these timed-out messages?",
+        "wg": [
+          {
+            "t": "接手",
+            "en": "take over",
+            "ps": "verb"
+          },
+          {
+            "t": "超時",
+            "en": "timed-out",
+            "ps": "adjective"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "XREADGROUP with ID `>`",
+        "en": "XREADGROUP with ID `>`",
+        "wg": []
+      },
+      {
+        "t": "XREVRANGE",
+        "en": "XREVRANGE",
+        "wg": []
+      },
+      {
+        "t": "XAUTOCLAIM (or XCLAIM)",
+        "en": "XAUTOCLAIM (or XCLAIM)",
+        "wg": []
+      },
+      {
+        "t": "XPENDING",
+        "en": "XPENDING",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "`XAUTOCLAIM`（或手動版 `XCLAIM`）是用於 Consumer Group 故障恢復的關鍵指令。它可以掃描 PEL 中閒置超過指定時間的訊息，並將其擁有權轉移給執行的 Consumer，使其能重新處理這些被遺棄的任務。",
+      "en": "`XAUTOCLAIM` (or the manual `XCLAIM`) is the key command for Consumer Group failure recovery. It scans the PEL for messages that have been idle for longer than a specified time and transfers their ownership to the executing Consumer, allowing it to re-process these abandoned tasks.",
+      "wg": [
+        {
+          "t": "故障恢復",
+          "en": "failure recovery",
+          "ps": "noun phrase"
+        },
+        {
+          "t": "擁有權",
+          "en": "ownership",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "12",
+    "level": "Easy",
+    "keywords": "Redis Streams, Replayability, Debugging, List vs Stream",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你的團隊遇到一個棘手的 Bug，需要重現過去 24 小時內所有的使用者行為事件來進行除錯（Replay）。如果當初在設計系統時選擇了 Redis List 作為訊息佇列，為何現在會無法達成此需求？",
+        "en": "Your team encounters a tricky bug and needs to reproduce all user behavior events from the past 24 hours for debugging (Replay). If Redis List was chosen as the message queue during system design, why would it be impossible to meet this requirement now?",
+        "wg": [
+          {
+            "t": "棘手",
+            "en": "tricky/thorny",
+            "ps": "adjective"
+          },
+          {
+            "t": "除錯",
+            "en": "debugging",
+            "ps": "verb/noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "Redis List 的讀取速度太慢，無法在合理時間內重播。",
+        "en": "Redis List read speed is too slow to replay in a reasonable time.",
+        "wg": []
+      },
+      {
+        "t": "Redis List 的訊息一旦被 Consumer 取出（Pop）就會從資料庫中移除。",
+        "en": "Messages in a Redis List are removed from the database once popped by a Consumer.",
+        "wg": [
+          {
+            "t": "取出",
+            "en": "popped/retrieved",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "Redis List 不支援多個 Consumer 同時讀取。",
+        "en": "Redis List does not support multiple Consumers reading simultaneously.",
+        "wg": []
+      },
+      {
+        "t": "Redis List 的容量限制比 Stream 小很多。",
+        "en": "The capacity limit of Redis List is much smaller than that of Stream.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "Redis List 的運作模型是「輸送帶」（Conveyor Belt），任務一旦被 `RPOP` 或 `BLPOP` 取出，就從 List 中消失了，無法回溯。相比之下，Redis Streams 是「唯增日誌」（Append-only Log），訊息預設會保留（直到被 Trimming 清除），因此支援回溯讀取（Replayability）。",
+      "en": "The operational model of Redis List is a 'Conveyor Belt'; once a task is retrieved via `RPOP` or `BLPOP`, it disappears from the List and cannot be backtracked. In contrast, Redis Streams is an 'Append-only Log', where messages are persisted by default (until cleared by Trimming), thus supporting Replayability.",
+      "wg": [
+        {
+          "t": "輸送帶",
+          "en": "Conveyor Belt",
+          "ps": "metaphor"
+        },
+        {
+          "t": "回溯讀取",
+          "en": "replay/backtrack reading",
+          "ps": "noun phrase"
+        }
+      ]
+    }
+  }
+]

@@ -1,0 +1,872 @@
+[
+  {
+    "no": "1",
+    "level": "Intermediate",
+    "keywords": "Overhead, redisObject, Memory Efficiency, Iceberg Model",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "SET user:1001:age 25",
+    "question": [
+      {
+        "t": "根據「冰山模型 (Iceberg Model)」，當你在 Redis 中執行上述指令儲存一個極小的整數時，為何實際佔用的記憶體遠大於字串本身的 bytes 數？",
+        "en": "According to the 'Iceberg Model', when you execute the command above to store a tiny integer in Redis, why is the actual memory usage significantly larger than the bytes of the string itself?",
+        "wg": [
+          {
+            "t": "冰山模型",
+            "en": "Iceberg Model",
+            "ps": "noun"
+          },
+          {
+            "t": "開銷",
+            "en": "Overhead",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "因為 Redis 預設會為每個 Key 分配至少 1KB 的緩衝區。",
+        "en": "Because Redis allocates at least a 1KB buffer for each key by default.",
+        "wg": []
+      },
+      {
+        "t": "因為除了 Key 和 Value 本身，還需儲存 redisObject 結構、dictEntry、記憶體分配器的 metadata 以及指針 (Pointers) 等 Overhead。",
+        "en": "Because apart from the Key and Value, Redis must store overheads like the redisObject structure, dictEntry, memory allocator metadata, and pointers.",
+        "wg": [
+          {
+            "t": "指針",
+            "en": "Pointers",
+            "ps": "noun"
+          },
+          {
+            "t": "記憶體分配器",
+            "en": "Memory Allocator",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "因為 Redis 會自動將所有整數轉換為 64-bit 的浮點數格式儲存。",
+        "en": "Because Redis automatically converts all integers into a 64-bit floating-point format for storage.",
+        "wg": []
+      },
+      {
+        "t": "因為 Redis 為了高可用性，會同步複製一份資料在記憶體的備份區域。",
+        "en": "Because Redis synchronously copies the data to a backup area in memory for high availability.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "Redis 的記憶體消耗不僅來自資料本身（水面上的資料），更來自底層結構（水面下的 Overhead）。每個 Key-Value 對都需要 `redisObject`、`dictEntry` 以及 jemalloc 的 metadata 和指針，這些 Overhead 對於小資料來說可能比資料本身大好幾倍。",
+      "en": "Redis memory consumption comes not just from the data itself (above water), but from underlying structures (underwater Overhead). Each Key-Value pair requires a `redisObject`, `dictEntry`, jemalloc metadata, and pointers. For small data, this overhead can be several times larger than the data itself.",
+      "wg": [
+        {
+          "t": "底層結構",
+          "en": "Underlying structures",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "2",
+    "level": "Advanced",
+    "keywords": "Encoding, Hash, listpack, ziplist, Memory Optimization",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "hash-max-listpack-entries 512\nhash-max-listpack-value 64",
+    "question": [
+      {
+        "t": "你正在優化一個儲存大量使用者 Profile 的 Redis Hash。根據上述配置，當某個 Hash 的欄位數量超過 512 個，或者單個欄位值超過 64 bytes 時，會發生什麼現象？",
+        "en": "You are optimizing a Redis Hash storing many user profiles. Based on the configuration above, what happens when a Hash's field count exceeds 512 or a single value exceeds 64 bytes?",
+        "wg": [
+          {
+            "t": "緊湊編碼",
+            "en": "Compact Encoding",
+            "ps": "noun"
+          },
+          {
+            "t": "膨脹",
+            "en": "Inflate",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "Redis 會拒絕寫入並回傳錯誤。",
+        "en": "Redis will reject the write and return an error.",
+        "wg": []
+      },
+      {
+        "t": "該 Hash 會自動拆分為多個小的 Hash 以維持效能。",
+        "en": "The Hash will automatically split into multiple smaller Hashes to maintain performance.",
+        "wg": []
+      },
+      {
+        "t": "底層編碼會從緊湊的 listpack (或 ziplist) 轉換為標準的 Hash Table，導致記憶體佔用量顯著增加，且此過程通常不可逆。",
+        "en": "The underlying encoding converts from compact listpack (or ziplist) to a standard Hash Table, causing a significant increase in memory usage, and this process is usually irreversible.",
+        "wg": [
+          {
+            "t": "不可逆",
+            "en": "Irreversible",
+            "ps": "adjective"
+          }
+        ]
+      },
+      {
+        "t": "Redis 會將該 Key 標記為 Big Key 並在背景執行緒中進行壓縮。",
+        "en": "Redis will mark the Key as a Big Key and compress it in a background thread.",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "當 Hash 的大小或元素數量超過 `listpack` (或舊版 `ziplist`) 的限制時，Redis 會將其編碼轉換為標準的 Hash Table (Dict)。標準 Hash Table 使用指針連結各個節點，記憶體效率遠低於緊湊的記憶體塊，因此記憶體佔用會瞬間膨脹。除非重建該 Key，否則即使刪除元素通常也不會自動轉回 listpack。",
+      "en": "When a Hash exceeds the limits for `listpack` (or `ziplist`), Redis converts its encoding to a standard Hash Table (Dict). Standard Hash Tables use pointers to link nodes, which is far less memory-efficient than compact memory blocks, causing memory usage to inflate instantly. This conversion is typically irreversible (unless the key is recreated) even if elements are deleted.",
+      "wg": [
+        {
+          "t": "標準雜湊表",
+          "en": "Standard Hash Table",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "3",
+    "level": "Advanced",
+    "keywords": "Eviction Policy, volatile-lru, OOM, Troubleshooting",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "maxmemory-policy volatile-lru",
+    "question": [
+      {
+        "t": "你的 Redis 實例同時用於「快取」與「持久化儲存」。你設定了 `volatile-lru` 策略。某天系統收到 `OOM command not allowed` 錯誤，但你檢查發現記憶體中仍有大量舊資料。最可能的原因是什麼？",
+        "en": "Your Redis instance is used for both 'caching' and 'persistent storage'. You set the `volatile-lru` policy. One day, the system receives an `OOM command not allowed` error, but you find plenty of old data in memory. What is the most likely cause?",
+        "wg": [
+          {
+            "t": "持久化儲存",
+            "en": "Persistent Storage",
+            "ps": "noun"
+          },
+          {
+            "t": "淘汰策略",
+            "en": "Eviction Policy",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "Redis 的 LRU 演算法失效了，需要重啟服務。",
+        "en": "Redis's LRU algorithm has failed and the service needs a restart.",
+        "wg": []
+      },
+      {
+        "t": "大量的 Key 沒有設定 TTL (Time-To-Live)，而 `volatile-lru` 只會淘汰有設定過期時間的 Key。",
+        "en": "A large number of keys do not have a TTL (Time-To-Live) set, and `volatile-lru` only evicts keys with an expiration time.",
+        "wg": [
+          {
+            "t": "過期時間",
+            "en": "Expiration time",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "記憶體碎片率 (Fragmentation Ratio) 過高，導致邏輯空間已滿。",
+        "en": "The memory fragmentation ratio is too high, causing the logical space to be full.",
+        "wg": []
+      },
+      {
+        "t": "`volatile-lru` 策略只在 Master 節點生效，而寫入發生在 Replica 節點。",
+        "en": "`volatile-lru` policy only works on Master nodes, but the write happened on a Replica node.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "這是經典的「Keys-LRU Trap」。`volatile-*` 系列的策略只會針對「有設定 TTL」的 Key 進行淘汰。如果寫入資料時忘記帶上 TTL，這些資料對於 `volatile-lru` 來說是「不可觸碰的」，當記憶體滿時，Redis 無法釋放空間，最終導致 OOM。",
+      "en": "This is the classic 'Keys-LRU Trap'. Policies starting with `volatile-*` only target keys that have a TTL set. If data is written without a TTL, it becomes 'untouchable' to `volatile-lru`. When memory fills up, Redis cannot free space, leading to an OOM error.",
+      "wg": [
+        {
+          "t": "不可觸碰的",
+          "en": "Untouchable",
+          "ps": "adjective"
+        }
+      ]
+    }
+  },
+  {
+    "no": "4",
+    "level": "Intermediate",
+    "keywords": "Lazy Freeing, UNLINK, DEL, Blocking",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你需要刪除一個包含 500 萬個元素的 List Key。為了避免阻塞主執行緒 (Main Thread) 導致線上服務短暫停頓，你應該採取什麼操作？",
+        "en": "You need to delete a List Key containing 5 million elements. To avoid blocking the Main Thread and causing a brief outage for online services, what action should you take?",
+        "wg": [
+          {
+            "t": "阻塞",
+            "en": "Blocking",
+            "ps": "verb"
+          },
+          {
+            "t": "主執行緒",
+            "en": "Main Thread",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "使用 `DEL` 指令，因為 Redis 6.0 之後 `DEL` 預設就是非同步的。",
+        "en": "Use the `DEL` command, because `DEL` is asynchronous by default after Redis 6.0.",
+        "wg": []
+      },
+      {
+        "t": "使用 `FLUSHDB` 指令並加上 `ASYNC` 參數。",
+        "en": "Use the `FLUSHDB` command with the `ASYNC` parameter.",
+        "wg": []
+      },
+      {
+        "t": "使用 `UNLINK` 指令，它會將 Key 從 Keyspace 移除，並在背景執行緒中回收記憶體。",
+        "en": "Use the `UNLINK` command, which removes the Key from the Keyspace and reclaims memory in a background thread.",
+        "wg": [
+          {
+            "t": "背景執行緒",
+            "en": "Background Thread",
+            "ps": "noun"
+          },
+          {
+            "t": "鍵空間",
+            "en": "Keyspace",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "分批使用 `LPOP` 刪除，每次刪除 1000 個元素。",
+        "en": "Use `LPOP` in batches, deleting 1000 elements at a time.",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "`DEL` 是阻塞性操作，刪除大 Key 會導致 Stop-the-world。`UNLINK` 是非阻塞的 (Lazy Freeing)，它會立即返回 OK，實際的記憶體釋放工作會交由背景執行緒異步處理，是處理 Big Key 刪除的最佳實務。",
+      "en": "`DEL` is a blocking operation; deleting a Big Key causes a 'Stop-the-world' event. `UNLINK` is non-blocking (Lazy Freeing); it returns OK immediately, and the actual memory reclamation is handled asynchronously by a background thread, making it the best practice for deleting Big Keys.",
+      "wg": [
+        {
+          "t": "非阻塞",
+          "en": "Non-blocking",
+          "ps": "adjective"
+        }
+      ]
+    }
+  },
+  {
+    "no": "5",
+    "level": "Advanced",
+    "keywords": "Fragmentation, RSS, activedefrag, Memory Purge",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "used_memory: 5.00G\nused_memory_rss: 8.50G\nmem_fragmentation_ratio: 1.7",
+    "question": [
+      {
+        "t": "監控系統顯示 Redis 的記憶體狀態如上。`mem_fragmentation_ratio` 高達 1.7。這代表什麼意義，且在不重啟 Redis 的前提下，建議優先嘗試什麼操作？",
+        "en": "The monitoring system shows the Redis memory status above. `mem_fragmentation_ratio` is as high as 1.7. What does this signify, and what is the recommended priority action without restarting Redis?",
+        "wg": [
+          {
+            "t": "記憶體碎片",
+            "en": "Memory Fragmentation",
+            "ps": "noun"
+          },
+          {
+            "t": "常駐集大小",
+            "en": "RSS (Resident Set Size)",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "代表使用了 Swap，效能極差。應立即增加實體記憶體。",
+        "en": "It indicates Swap is being used, performance is poor. Physical memory should be increased immediately.",
+        "wg": []
+      },
+      {
+        "t": "代表記憶體碎片過多，OS 分配給 Redis 的記憶體遠大於實際資料量。應開啟 `activedefrag` 或執行 `MEMORY PURGE`。",
+        "en": "It indicates excessive memory fragmentation; memory allocated by OS to Redis is far larger than actual data. Enable `activedefrag` or execute `MEMORY PURGE`.",
+        "wg": [
+          {
+            "t": "主動碎片整理",
+            "en": "Active Defragmentation",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "代表有大量的 Big Keys 佔用空間。應執行 `redis-cli --bigkeys` 進行掃描。",
+        "en": "It indicates large Big Keys are occupying space. Execute `redis-cli --bigkeys` to scan.",
+        "wg": []
+      },
+      {
+        "t": "這是正常現象，因為 Redis 需要預留記憶體給 Copy-on-Write。",
+        "en": "This is normal, as Redis needs to reserve memory for Copy-on-Write.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "`mem_fragmentation_ratio` > 1.5 代表碎片率高（RSS 遠大於 used_memory）。這通常是因為頻繁的記憶體申請與釋放導致。在 Redis 4.0+，可以開啟 `activedefrag` 讓 Redis 主動搬移資料整理碎片，或手動呼叫 `MEMORY PURGE` 觸發 jemalloc 清理，而非直接重啟導致快取失效。",
+      "en": "`mem_fragmentation_ratio` > 1.5 indicates high fragmentation (RSS is much larger than used_memory). This is usually caused by frequent memory allocation and deallocation. In Redis 4.0+, you can enable `activedefrag` to let Redis actively move data to defragment, or manually call `MEMORY PURGE` to trigger jemalloc cleanup, instead of restarting which clears the cache.",
+      "wg": [
+        {
+          "t": "快取失效",
+          "en": "Cache invalidation",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "6",
+    "level": "Advanced",
+    "keywords": "Copy-on-Write, BGSAVE, OOM Killer, Capacity Planning",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "一個電商網站在大促銷期間發生 Redis 崩潰。經查，機器有 8GB RAM，`maxmemory` 設定為 8GB。崩潰發生在觸發 `BGSAVE` 的瞬間。請問根本原因 (Root Cause) 與 Copy-on-Write (COW) 機制有何關係？",
+        "en": "An e-commerce site's Redis crashed during a big sale. The machine has 8GB RAM, and `maxmemory` was set to 8GB. The crash happened the moment `BGSAVE` was triggered. What is the relationship between the root cause and the Copy-on-Write (COW) mechanism?",
+        "wg": [
+          {
+            "t": "寫入時複製",
+            "en": "Copy-on-Write",
+            "ps": "noun"
+          },
+          {
+            "t": "根本原因",
+            "en": "Root Cause",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "BGSAVE 會暫停所有寫入，導致請求堆積，最終記憶體溢出。",
+        "en": "BGSAVE pauses all writes, causing requests to pile up and eventually overflowing memory.",
+        "wg": []
+      },
+      {
+        "t": "BGSAVE 產生的子行程 (Child Process) 需要複製父行程的記憶體頁面。在寫入量大時，COW 機制會導致記憶體需求倍增，超過物理 RAM 上限觸發 OOM Killer。",
+        "en": "The child process created by BGSAVE needs to copy the parent's memory pages. Under heavy write load, the COW mechanism causes memory demand to multiply, exceeding physical RAM limits and triggering the OOM Killer.",
+        "wg": [
+          {
+            "t": "子行程",
+            "en": "Child Process",
+            "ps": "noun"
+          },
+          {
+            "t": "記憶體頁面",
+            "en": "Memory Pages",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "COW 機制會導致 CPU 使用率飆升至 100%，導致 Redis 被 Watchdog 終止。",
+        "en": "The COW mechanism causes CPU usage to spike to 100%, causing Redis to be terminated by the Watchdog.",
+        "wg": []
+      },
+      {
+        "t": "設定 `maxmemory` 為 8GB 是正確的，問題出在 Linux 核心參數 `overcommit_memory` 設定過於寬鬆。",
+        "en": "Setting `maxmemory` to 8GB is correct; the problem lies in the Linux kernel parameter `overcommit_memory` being set too loosely.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "當 Redis 執行 `BGSAVE` 時會 fork 子行程。Linux 使用 Copy-on-Write 優化，只有當父行程修改記憶體頁面時，該頁面才會被複製。在高寫入負載下，大量頁面被複製，導致總記憶體需求可能接近原本的 2 倍。若 `maxmemory` 佔滿了物理 RAM，系統將無額外空間進行 COW，導致 OOM Killer 殺掉 Redis。",
+      "en": "When Redis executes `BGSAVE`, it forks a child process. Linux uses Copy-on-Write optimization, so pages are only copied when the parent process modifies them. Under heavy write loads, many pages are copied, potentially doubling memory demand. If `maxmemory` occupies all physical RAM, the system lacks space for COW, causing the OOM Killer to terminate Redis.",
+      "wg": [
+        {
+          "t": "高寫入負載",
+          "en": "Heavy write load",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "7",
+    "level": "Intermediate",
+    "keywords": "IntSet, Set, Memory Optimization, Data Structures",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "SADD user:tags 101 102 103",
+    "question": [
+      {
+        "t": "你需要儲存 1000 萬個使用者的標籤 (Tags)，每個標籤都是純數字 ID。為了將記憶體佔用降到最低（例如 Hashtable 的 1/10），你應該遵循哪項最佳實務來利用 `IntSet` 編碼？",
+        "en": "You need to store tags for 10 million users, where each tag is a pure numeric ID. To minimize memory usage (e.g., to 1/10th of a Hashtable), which best practice should you follow to leverage `IntSet` encoding?",
+        "wg": [
+          {
+            "t": "整數集合",
+            "en": "IntSet",
+            "ps": "noun"
+          },
+          {
+            "t": "最佳實務",
+            "en": "Best Practice",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "將 Tag ID 轉為字串儲存，並使用 `listpack`。",
+        "en": "Convert Tag IDs to strings and store them using `listpack`.",
+        "wg": []
+      },
+      {
+        "t": "確保 Tag ID 都在整數範圍內，且每個 Set 的元素數量控制在 `set-max-intset-entries` (預設 512) 以內。",
+        "en": "Ensure Tag IDs are within the integer range, and keep the number of elements in each Set within `set-max-intset-entries` (default 512).",
+        "wg": [
+          {
+            "t": "整數範圍",
+            "en": "Integer range",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "使用 Sorted Set (ZSET) 代替 Set，因為 ZSET 壓縮率更高。",
+        "en": "Use Sorted Set (ZSET) instead of Set, because ZSET has a higher compression ratio.",
+        "wg": []
+      },
+      {
+        "t": "將所有使用者的 Tags 合併存入一個巨大的 Hash 中。",
+        "en": "Merge all users' tags into a single giant Hash.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "Redis 的 Set 類型在元素皆為整數且數量較少時，會使用 `IntSet` (整數陣列) 儲存，這比標準的 Hashtable 緊湊非常多。一旦元素包含非數字或數量超過配置上限，就會轉為 Hashtable，記憶體佔用會大幅增加。",
+      "en": "Redis Sets use `IntSet` (integer array) storage when elements are all integers and few in number, which is much more compact than a standard Hashtable. Once elements contain non-numbers or exceed the configuration limit, it converts to a Hashtable, significantly increasing memory usage.",
+      "wg": [
+        {
+          "t": "配置上限",
+          "en": "Configuration limit",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "8",
+    "level": "Intermediate",
+    "keywords": "Eviction Policy, allkeys-lfu, allkeys-lru, Cache Pollution",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你的 Redis 被用作新聞快取系統，大部份流量集中在當日的熱門新聞。然而，每天凌晨會有一個爬蟲程式遍歷所有歷史文章，這導致熱門新聞經常被從快取中剔除，影響早晨的快取命中率。",
+        "en": "Your Redis is used as a news cache system where most traffic focuses on trending news of the day. However, a crawler traverses all historical articles every morning, causing trending news to be evicted from the cache and affecting the cache hit rate in the morning.",
+        "wg": [
+          {
+            "t": "爬蟲程式",
+            "en": "crawler",
+            "ps": "noun"
+          },
+          {
+            "t": "快取命中率",
+            "en": "cache hit rate",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "若目前的策略是 `allkeys-lru`，為了避免這種「一次性掃描」污染快取，你應該改用哪種淘汰策略？",
+        "en": "If the current policy is `allkeys-lru`, which eviction policy should you switch to in order to prevent this 'one-time scan' from polluting the cache?",
+        "wg": [
+          {
+            "t": "一次性掃描",
+            "en": "one-time scan",
+            "ps": "noun"
+          },
+          {
+            "t": "污染快取",
+            "en": "cache pollution",
+            "ps": "verb phrase"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "volatile-lru",
+        "en": "volatile-lru",
+        "wg": []
+      },
+      {
+        "t": "allkeys-random",
+        "en": "allkeys-random",
+        "wg": []
+      },
+      {
+        "t": "allkeys-lfu",
+        "en": "allkeys-lfu",
+        "wg": []
+      },
+      {
+        "t": "noeviction",
+        "en": "noeviction",
+        "wg": []
+      }
+    ],
+    "answer": "allkeys-lfu",
+    "why": {
+      "t": "`allkeys-lfu` (Least Frequently Used) 是根據存取頻率而非最近存取時間來淘汰資料。即使爬蟲程式剛剛讀取了大量歷史文章（最近存取），但因為它們的長期累積頻率低，LFU 策略仍會優先保留那些頻率高但暫時未被讀取的熱門新聞，從而抵抗掃描帶來的快取污染。",
+      "en": "`allkeys-lfu` (Least Frequently Used) evicts data based on access frequency rather than recency. Even if the crawler just accessed many historical articles (recent access), their long-term accumulated frequency remains low. The LFU policy will prioritize keeping the trending news that has high frequency, thus resisting cache pollution caused by scanning.",
+      "wg": [
+        {
+          "t": "存取頻率",
+          "en": "access frequency",
+          "ps": "noun"
+        },
+        {
+          "t": "抵抗",
+          "en": "resist",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "9",
+    "level": "Intermediate",
+    "keywords": "Swap, mem_fragmentation_ratio, RSS, Performance",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "used_memory: 10.00G\nused_memory_rss: 8.50G\nmem_fragmentation_ratio: 0.85",
+    "question": [
+      {
+        "t": "你在檢查 Redis 的 `INFO memory` 時看到了上述數據。`mem_fragmentation_ratio` 小於 1.0。",
+        "en": "You observe the above data when checking Redis `INFO memory`. The `mem_fragmentation_ratio` is less than 1.0.",
+        "wg": []
+      },
+      {
+        "t": "這代表系統發生了什麼狀況，以及對效能有何潛在影響？",
+        "en": "What does this indicate about the system status, and what is the potential impact on performance?",
+        "wg": [
+          {
+            "t": "潛在影響",
+            "en": "potential impact",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "Redis 記憶體配置非常緊湊，效能處於最佳狀態。",
+        "en": "Redis memory allocation is very compact, and performance is at its peak.",
+        "wg": []
+      },
+      {
+        "t": "作業系統正在將 Redis 的部分記憶體交換 (Swap) 到硬碟，會導致嚴重的延遲。",
+        "en": "The OS is swapping part of Redis memory to disk, which will cause severe latency.",
+        "wg": [
+          {
+            "t": "交換",
+            "en": "Swap",
+            "ps": "verb"
+          },
+          {
+            "t": "嚴重的延遲",
+            "en": "severe latency",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "這代表有大量的記憶體碎片，需要執行碎片整理。",
+        "en": "This indicates a high level of memory fragmentation, requiring defragmentation.",
+        "wg": []
+      },
+      {
+        "t": "這是 Copy-on-Write 機制運作中的正常現象。",
+        "en": "This is a normal phenomenon during the Copy-on-Write mechanism.",
+        "wg": []
+      }
+    ],
+    "answer": "作業系統正在將 Redis 的部分記憶體交換 (Swap) 到硬碟，會導致嚴重的延遲。",
+    "why": {
+      "t": "當 `mem_fragmentation_ratio` < 1.0 時，表示 `used_memory_rss` (OS 分配給 Redis 的實體記憶體) 小於 `used_memory` (Redis 認為自己儲存的資料量)。這意味著部分資料已被 OS 交換 (Swap) 到硬碟上。Redis 存取這些資料時會觸發 Disk I/O，導致效能崩跌。",
+      "en": "When `mem_fragmentation_ratio` < 1.0, it means `used_memory_rss` (physical memory allocated by OS) is less than `used_memory` (data Redis thinks it holds). This implies some data has been swapped to disk by the OS. Accessing this data triggers Disk I/O, causing performance to collapse.",
+      "wg": [
+        {
+          "t": "實體記憶體",
+          "en": "physical memory",
+          "ps": "noun"
+        },
+        {
+          "t": "崩跌",
+          "en": "collapse",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "10",
+    "level": "Advanced",
+    "keywords": "Big Key, Cluster, Data Skew, Architecture",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你維護一個 Redis Cluster (3 個節點)。監控顯示 Node A 的記憶體使用率高達 90%，而 Node B 與 Node C 僅有 10%，但 Key 的總數量在三個節點上分佈均勻。",
+        "en": "You maintain a Redis Cluster (3 nodes). Monitoring shows Node A has 90% memory usage, while Node B and Node C have only 10%, yet the total count of keys is evenly distributed across the three nodes.",
+        "wg": [
+          {
+            "t": "分佈均勻",
+            "en": "evenly distributed",
+            "ps": "adjective"
+          }
+        ]
+      },
+      {
+        "t": "造成這種「資料傾斜 (Data Skew)」最可能的原因是什麼？",
+        "en": "What is the most likely cause of this 'Data Skew'?",
+        "wg": [
+          {
+            "t": "資料傾斜",
+            "en": "Data Skew",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "Node A 的 Hash Slot 數量分配錯誤。",
+        "en": "The allocation of Hash Slots for Node A is incorrect.",
+        "wg": []
+      },
+      {
+        "t": "系統中存在少數幾個巨大的 Big Keys (如超大 Hash)，剛好被分配到了 Node A。",
+        "en": "There are a few massive Big Keys (e.g., huge Hashes) in the system that happened to be assigned to Node A.",
+        "wg": [
+          {
+            "t": "剛好",
+            "en": "happened to be",
+            "ps": "adverb"
+          }
+        ]
+      },
+      {
+        "t": "Node A 的 `maxmemory` 設定值比其他節點小。",
+        "en": "The `maxmemory` setting on Node A is smaller than on other nodes.",
+        "wg": []
+      },
+      {
+        "t": "Node A 處理的寫入請求 (QPS) 遠高於其他節點。",
+        "en": "The write QPS handled by Node A is much higher than other nodes.",
+        "wg": []
+      }
+    ],
+    "answer": "系統中存在少數幾個巨大的 Big Keys (如超大 Hash)，剛好被分配到了 Node A。",
+    "why": {
+      "t": "在 Redis Cluster 中，資料是根據 Key 的 Hash Slot 分配的。一個單獨的 Key (無論多大) 只能存在於一個 Slot，進而存在於一個節點上。如果有一個包含數百萬元素的 Big Key (例如大 Hash)，它無法被拆分，會導致所在的節點記憶體暴增，形成資料傾斜。",
+      "en": "In Redis Cluster, data is distributed based on Hash Slots. A single Key (no matter how large) can only reside in one Slot, and thus on one node. If there is a Big Key with millions of elements (e.g., a large Hash), it cannot be split, causing memory usage to spike on that specific node, leading to data skew.",
+      "wg": [
+        {
+          "t": "拆分",
+          "en": "split",
+          "ps": "verb"
+        },
+        {
+          "t": "暴增",
+          "en": "spike / surge",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "11",
+    "level": "Advanced",
+    "keywords": "Lazy Freeing, lazyfree-lazy-eviction, Latency, Configuration",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你的 Redis 實例設定了 `maxmemory`。監控發現每當記憶體達到上限觸發淘汰 (Eviction) 時，應用程式就會出現短暫的延遲 (Latency Spikes)。",
+        "en": "Your Redis instance has `maxmemory` configured. Monitoring reveals that whenever memory hits the limit and triggers eviction, the application experiences brief latency spikes.",
+        "wg": [
+          {
+            "t": "觸發淘汰",
+            "en": "triggers eviction",
+            "ps": "verb phrase"
+          },
+          {
+            "t": "短暫的延遲",
+            "en": "brief latency spikes",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "經查這是因為被淘汰的 Key 體積較大，刪除耗時。為了在不修改應用程式代碼的前提下解決此問題，你應該調整哪個配置？",
+        "en": "Investigation shows this is because the evicted keys are large and deletion is time-consuming. To solve this without modifying application code, which configuration should you adjust?",
+        "wg": [
+          {
+            "t": "體積較大",
+            "en": "large size",
+            "ps": "adjective"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "lazyfree-lazy-expire yes",
+        "en": "lazyfree-lazy-expire yes",
+        "wg": []
+      },
+      {
+        "t": "lazyfree-lazy-eviction yes",
+        "en": "lazyfree-lazy-eviction yes",
+        "wg": []
+      },
+      {
+        "t": "activedefrag yes",
+        "en": "activedefrag yes",
+        "wg": []
+      },
+      {
+        "t": "maxmemory-policy noeviction",
+        "en": "maxmemory-policy noeviction",
+        "wg": []
+      }
+    ],
+    "answer": "lazyfree-lazy-eviction yes",
+    "why": {
+      "t": "預設情況下，Redis 的淘汰機制是在主執行緒中同步執行的。若被淘汰的是 Big Key，會阻塞主執行緒。開啟 `lazyfree-lazy-eviction yes` 後，Redis 會在淘汰 Key 時僅將其從 Keyspace 移除，實際的記憶體釋放操作會交由背景執行緒 (Background Thread) 非同步處理，避免阻塞。",
+      "en": "By default, Redis eviction is performed synchronously in the main thread. If a Big Key is evicted, it blocks the main thread. Enabling `lazyfree-lazy-eviction yes` allows Redis to remove the key from the Keyspace immediately, while the actual memory release is handled asynchronously by a background thread, preventing blocking.",
+      "wg": [
+        {
+          "t": "主執行緒",
+          "en": "main thread",
+          "ps": "noun"
+        },
+        {
+          "t": "同步執行",
+          "en": "performed synchronously",
+          "ps": "verb phrase"
+        }
+      ]
+    }
+  },
+  {
+    "no": "12",
+    "level": "Advanced",
+    "keywords": "MEMORY PURGE, jemalloc, Fragmentation, Troubleshooting",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你的 Redis 伺服器 `used_memory_rss` 遠高於 `used_memory` (高碎片率)，但受限於版本或 CPU 資源，你無法開啟 `activedefrag`。",
+        "en": "Your Redis server's `used_memory_rss` is much higher than `used_memory` (high fragmentation), but due to version or CPU constraints, you cannot enable `activedefrag`.",
+        "wg": [
+          {
+            "t": "受限於",
+            "en": "constrained by",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "你希望立即手動釋放記憶體給作業系統，應該執行哪個指令？",
+        "en": "You want to manually release memory to the OS immediately. Which command should you execute?",
+        "wg": [
+          {
+            "t": "手動釋放",
+            "en": "manually release",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "MEMORY DOCTOR",
+        "en": "MEMORY DOCTOR",
+        "wg": []
+      },
+      {
+        "t": "MEMORY PURGE",
+        "en": "MEMORY PURGE",
+        "wg": []
+      },
+      {
+        "t": "CONFIG SET activedefrag yes",
+        "en": "CONFIG SET activedefrag yes",
+        "wg": []
+      },
+      {
+        "t": "BGREWRITEAOF",
+        "en": "BGREWRITEAOF",
+        "wg": []
+      }
+    ],
+    "answer": "MEMORY PURGE",
+    "why": {
+      "t": "`MEMORY PURGE` 指令會明確呼叫底層記憶體分配器 (如 jemalloc) 的清理功能，嘗試釋放那些標記為 dirty 的記憶體頁面歸還給作業系統。這是解決高碎片率的一種手動、即時的手段。",
+      "en": "The `MEMORY PURGE` command explicitly calls the underlying memory allocator's (e.g., jemalloc) purge function, attempting to release memory pages marked as dirty back to the OS. This is a manual, immediate method to resolve high fragmentation.",
+      "wg": [
+        {
+          "t": "底層記憶體分配器",
+          "en": "underlying memory allocator",
+          "ps": "noun"
+        },
+        {
+          "t": "歸還",
+          "en": "return / release back",
+          "ps": "verb"
+        }
+      ]
+    }
+  }
+]

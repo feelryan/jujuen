@@ -1,0 +1,954 @@
+[
+  {
+    "no": "1",
+    "level": "Intermediate",
+    "keywords": "asyncio,blocking,event loop,anti-pattern",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "import time\nimport asyncio\n\nasync def handle_request():\n    # Simulate a heavy calculation or blocking IO\n    time.sleep(5)\n    return \"Done\"\n\nasync def main():\n    task1 = asyncio.create_task(handle_request())\n    task2 = asyncio.create_task(handle_request())\n    await asyncio.gather(task1, task2)",
+    "question": [
+      {
+        "t": "在上述程式碼中，當 `task1` 執行 `time.sleep(5)` 時，對於 `task2` 與整個 Event Loop 會有什麼影響？",
+        "en": "In the code above, what is the impact on `task2` and the entire Event Loop when `task1` executes `time.sleep(5)`?",
+        "wg": [
+          {
+            "t": "Event Loop",
+            "en": "Event Loop",
+            "ps": "noun"
+          },
+          {
+            "t": "阻塞",
+            "en": "blocking",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "Event Loop 會暫停 `task1` 並切換去執行 `task2`，兩者幾乎同時完成。",
+        "en": "The Event Loop will pause `task1` and switch to execute `task2`, so both finish almost simultaneously.",
+        "wg": []
+      },
+      {
+        "t": "整個 Event Loop 會被阻塞，`task2` 必須等待 `task1` 的 5 秒結束後才能開始執行。",
+        "en": "The entire Event Loop will be blocked; `task2` must wait for `task1`'s 5 seconds to finish before it can start.",
+        "wg": [
+          {
+            "t": "阻塞",
+            "en": "blocked",
+            "ps": "adjective"
+          }
+        ]
+      },
+      {
+        "t": "Python 會自動將 `time.sleep` 轉換為非同步操作，因此不會有阻塞問題。",
+        "en": "Python automatically converts `time.sleep` into an asynchronous operation, so there is no blocking issue.",
+        "wg": []
+      },
+      {
+        "t": "會拋出 `RuntimeError`，因為在 async 函式中不允許使用 `time` 模組。",
+        "en": "A `RuntimeError` will be raised because the `time` module is not allowed in async functions.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "AsyncIO 是「單執行緒協作式多工」。`time.sleep()` 是同步阻塞呼叫，它會霸佔整個執行緒，導致 Event Loop 無法運作或切換到其他任務。正確做法應使用 `await asyncio.sleep()`。",
+      "en": "AsyncIO is 'single-threaded cooperative multitasking'. `time.sleep()` is a synchronous blocking call that monopolizes the entire thread, preventing the Event Loop from running or switching to other tasks. The correct approach is to use `await asyncio.sleep()`.",
+      "wg": [
+        {
+          "t": "單執行緒協作式多工",
+          "en": "single-threaded cooperative multitasking",
+          "ps": "phrase"
+        },
+        {
+          "t": "霸佔",
+          "en": "monopolize",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "2",
+    "level": "Intermediate",
+    "keywords": "architecture,cpu-bound,multiprocessing,gil",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你正在設計一個服務，主要任務是接收圖片並進行高強度的影像處理（如濾鏡、壓縮、AI 推論）。這屬於 CPU Bound 任務。根據 Python 的並發特性，下列哪種架構最合適？",
+        "en": "You are designing a service whose main task is to receive images and perform intensive image processing (e.g., filters, compression, AI inference). This is a CPU-bound task. Based on Python's concurrency characteristics, which architecture is most suitable?",
+        "wg": [
+          {
+            "t": "高強度",
+            "en": "intensive",
+            "ps": "adjective"
+          },
+          {
+            "t": "影像處理",
+            "en": "image processing",
+            "ps": "noun"
+          },
+          {
+            "t": "CPU 密集型",
+            "en": "CPU Bound",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "使用 `asyncio`，因為它可以處理大量並發請求。",
+        "en": "Use `asyncio` because it can handle a large number of concurrent requests.",
+        "wg": []
+      },
+      {
+        "t": "使用 `threading` (多執行緒)，因為執行緒切換開銷比 Process 小。",
+        "en": "Use `threading` (multithreading) because thread switching overhead is lower than processes.",
+        "wg": []
+      },
+      {
+        "t": "使用 `multiprocessing` (多行程)，以繞過 GIL 並利用多核心 CPU。",
+        "en": "Use `multiprocessing` to bypass the GIL and utilize multi-core CPUs.",
+        "wg": [
+          {
+            "t": "繞過",
+            "en": "bypass",
+            "ps": "verb"
+          },
+          {
+            "t": "多核心",
+            "en": "multi-core",
+            "ps": "adjective"
+          }
+        ]
+      },
+      {
+        "t": "使用 `asyncio` 搭配 `await time.sleep(0)` 來手動釋放 CPU。",
+        "en": "Use `asyncio` with `await time.sleep(0)` to manually yield the CPU.",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "對於 CPU Bound 任務，Python 的 GIL (Global Interpreter Lock) 會限制多執行緒同時只能有一個在執行 Python Bytecode，導致 `threading` 無法利用多核優勢。`asyncio` 亦是單執行緒，無法加速計算。唯有 `multiprocessing` 能建立獨立的 Python 解譯器實例，實現真正的平行運算。",
+      "en": "For CPU-bound tasks, Python's GIL (Global Interpreter Lock) restricts multithreading so that only one thread executes Python Bytecode at a time, rendering `threading` unable to utilize multi-core benefits. `asyncio` is also single-threaded and cannot accelerate computation. Only `multiprocessing` can create independent Python interpreter instances to achieve true parallelism.",
+      "wg": [
+        {
+          "t": "平行運算",
+          "en": "parallelism",
+          "ps": "noun"
+        },
+        {
+          "t": "解譯器",
+          "en": "interpreter",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "3",
+    "level": "Advanced",
+    "keywords": "asyncio,garbage collection,fire-and-forget,anti-pattern",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "import asyncio\n\nasync def background_job():\n    await asyncio.sleep(10)\n    print(\"Job finished\")\n\nasync def handler():\n    # Fire and Forget\n    asyncio.create_task(background_job())\n    return \"Request received\"",
+    "question": [
+      {
+        "t": "在上述 `handler` 函式中，使用了「射後不理」(Fire and Forget) 的方式建立任務。除了無法捕捉異常外，這種寫法在 Python 中還有什麼潛在的嚴重風險？",
+        "en": "In the `handler` function above, a 'Fire and Forget' approach is used to create a task. Besides being unable to catch exceptions, what is another potential severe risk of this pattern in Python?",
+        "wg": [
+          {
+            "t": "射後不理",
+            "en": "Fire and Forget",
+            "ps": "phrase"
+          },
+          {
+            "t": "潛在風險",
+            "en": "potential risk",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "該任務會立即阻塞 Event Loop 直到完成。",
+        "en": "The task will immediately block the Event Loop until completion.",
+        "wg": []
+      },
+      {
+        "t": "如果沒有變數持有該 Task 的參照 (Reference)，Python 的垃圾回收機制 (GC) 可能會在任務執行途中將其回收並終止。",
+        "en": "If no variable holds a reference to the Task, Python's Garbage Collection (GC) might collect and terminate it mid-execution.",
+        "wg": [
+          {
+            "t": "垃圾回收機制",
+            "en": "Garbage Collection",
+            "ps": "noun"
+          },
+          {
+            "t": "參照",
+            "en": "reference",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "會導致記憶體洩漏 (Memory Leak)，因為任務永遠不會被釋放。",
+        "en": "It will cause a Memory Leak because the task will never be released.",
+        "wg": []
+      },
+      {
+        "t": "`create_task` 必須搭配 `await` 使用，否則會直接拋出 SyntaxError。",
+        "en": "`create_task` must be used with `await`, otherwise a SyntaxError will be raised.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "在 Python 的 `asyncio` 實作中，如果一個 Task 物件沒有被任何變數引用 (Strong Reference)，垃圾回收器 (GC) 有權利隨時將其回收，這會導致任務在未完成的情況下無聲無息地消失。最佳實務是將 Task 加入一個全域集合 (Set) 中保存。",
+      "en": "In Python's `asyncio` implementation, if a Task object is not referenced by any variable (Strong Reference), the Garbage Collector (GC) has the right to collect it at any time. This causes the task to silently disappear before completion. The best practice is to keep the Task in a global set.",
+      "wg": [
+        {
+          "t": "強引用",
+          "en": "Strong Reference",
+          "ps": "noun"
+        },
+        {
+          "t": "無聲無息",
+          "en": "silently",
+          "ps": "adverb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "4",
+    "level": "Intermediate",
+    "keywords": "asyncio,integration,blocking io,to_thread",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "import asyncio\nimport requests  # Synchronous library\n\ndef sync_fetch(url):\n    return requests.get(url).text\n\nasync def main():\n    url = \"https://example.com\"\n    # TODO: Call sync_fetch without blocking the loop",
+    "question": [
+      {
+        "t": "你需要在 `async` 函式中呼叫一個僅支援同步 (Blocking) 的第三方函式庫（如 `requests` 或特定 DB 驅動）。為了避免阻塞 Event Loop，在 Python 3.9+ 中最推薦的寫法是什麼？",
+        "en": "You need to call a synchronous (blocking) third-party library (like `requests` or a specific DB driver) inside an `async` function. To avoid blocking the Event Loop, what is the most recommended approach in Python 3.9+?",
+        "wg": [
+          {
+            "t": "第三方函式庫",
+            "en": "third-party library",
+            "ps": "noun"
+          },
+          {
+            "t": "推薦的",
+            "en": "recommended",
+            "ps": "adjective"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "直接呼叫：`result = sync_fetch(url)`",
+        "en": "Call directly: `result = sync_fetch(url)`",
+        "wg": []
+      },
+      {
+        "t": "使用 `await asyncio.sleep(0)` 包裹：`await asyncio.sleep(0); sync_fetch(url)`",
+        "en": "Wrap with `await asyncio.sleep(0)`: `await asyncio.sleep(0); sync_fetch(url)`",
+        "wg": []
+      },
+      {
+        "t": "使用 `asyncio.to_thread`：`result = await asyncio.to_thread(sync_fetch, url)`",
+        "en": "Use `asyncio.to_thread`: `result = await asyncio.to_thread(sync_fetch, url)`",
+        "wg": [
+          {
+            "t": "執行緒池",
+            "en": "thread pool",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "將函式改為 `async def` 但不修改內部邏輯。",
+        "en": "Change the function to `async def` without modifying the internal logic.",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "`asyncio.to_thread` 是 Python 3.9 引入的高階 API，它會自動將阻塞的同步函式丟到獨立的 Thread 中執行，並回傳一個可 await 的 coroutine，從而釋放主 Event Loop 去處理其他任務。",
+      "en": "`asyncio.to_thread` is a high-level API introduced in Python 3.9. It automatically offloads the blocking synchronous function to a separate thread and returns an awaitable coroutine, thereby freeing up the main Event Loop to handle other tasks.",
+      "wg": [
+        {
+          "t": "釋放",
+          "en": "free up / release",
+          "ps": "verb"
+        },
+        {
+          "t": "高階 API",
+          "en": "high-level API",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "5",
+    "level": "Advanced",
+    "keywords": "asyncio,race condition,lock,concurrency",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "count = 0\n\nasync def increment():\n    global count\n    temp = count\n    await asyncio.sleep(0.1)  # Simulate IO\n    count = temp + 1\n\nasync def main():\n    await asyncio.gather(increment(), increment())",
+    "question": [
+      {
+        "t": "雖然 Python 的 AsyncIO 是單執行緒執行的，但上述程式碼在並發執行時仍會發生「競態條件」(Race Condition)，導致 `count` 最終結果可能為 1 而非 2。這是為什麼？",
+        "en": "Although Python's AsyncIO is single-threaded, the code above can still experience a 'Race Condition' when executed concurrently, potentially resulting in `count` being 1 instead of 2. Why is this?",
+        "wg": [
+          {
+            "t": "競態條件",
+            "en": "Race Condition",
+            "ps": "noun"
+          },
+          {
+            "t": "單執行緒",
+            "en": "single-threaded",
+            "ps": "adjective"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "因為 `global` 變數在 async 函式中是唯讀的。",
+        "en": "Because `global` variables are read-only in async functions.",
+        "wg": []
+      },
+      {
+        "t": "因為 `await` 關鍵字代表一個「檢查點」(Checkpoint)，Event Loop 會在此處切換 context，允許其他 Task 介入並修改共享狀態。",
+        "en": "Because the `await` keyword represents a 'Checkpoint' where the Event Loop switches context, allowing other Tasks to intervene and modify the shared state.",
+        "wg": [
+          {
+            "t": "檢查點",
+            "en": "Checkpoint",
+            "ps": "noun"
+          },
+          {
+            "t": "共享狀態",
+            "en": "shared state",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "因為 Python 的 GIL 在 `asyncio` 模組中失效了。",
+        "en": "Because Python's GIL is disabled within the `asyncio` module.",
+        "wg": []
+      },
+      {
+        "t": "這是不可能的，單執行緒程式保證不會有 Race Condition。",
+        "en": "This is impossible; single-threaded programs guarantee no Race Conditions.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "在 AsyncIO 中，`await` 明確標示了讓出控制權的時機。當 Task A 讀取變數後遇到 `await` 暫停，Task B 可能會在此時執行並讀取到舊的值，導致兩者都基於同一個舊值進行更新。解決方案是使用 `asyncio.Lock`。",
+      "en": "In AsyncIO, `await` explicitly marks when control is yielded. When Task A reads a variable and pauses at `await`, Task B might execute and read the old value, causing both to update based on the same old value. The solution is to use `asyncio.Lock`.",
+      "wg": [
+        {
+          "t": "讓出控制權",
+          "en": "yield control",
+          "ps": "verb phrase"
+        },
+        {
+          "t": "明確標示",
+          "en": "explicitly mark",
+          "ps": "verb phrase"
+        }
+      ]
+    }
+  },
+  {
+    "no": "6",
+    "level": "Intermediate",
+    "keywords": "asyncio,throttling,semaphore,best practice",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "urls = [\"http://api.com/item/\" + str(i) for i in range(10000)]\n\nasync def fetch(url):\n    # ... request logic ...\n    pass\n\n# Bad Practice: Creating 10,000 tasks at once\n# await asyncio.gather(*[fetch(url) for url in urls])",
+    "question": [
+      {
+        "t": "當你需要對外部 API 發起大量並發請求（例如 10,000 次）時，直接使用 `asyncio.gather` 一次性發起所有請求通常是個壞主意（可能導致 File Descriptor 耗盡或被 Ban）。應使用什麼機制來限制同時執行的並發數量？",
+        "en": "When you need to make a large number of concurrent requests (e.g., 10,000) to an external API, firing them all at once with `asyncio.gather` is usually a bad idea (can exhaust File Descriptors or get banned). What mechanism should be used to limit the number of concurrent executions?",
+        "wg": [
+          {
+            "t": "並發數量",
+            "en": "concurrency level",
+            "ps": "noun"
+          },
+          {
+            "t": "耗盡",
+            "en": "exhaust",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "使用 `asyncio.Semaphore` 來控制同時進入關鍵區段的 Task 數量。",
+        "en": "Use `asyncio.Semaphore` to control the number of Tasks entering the critical section simultaneously.",
+        "wg": [
+          {
+            "t": "信號量",
+            "en": "Semaphore",
+            "ps": "noun"
+          },
+          {
+            "t": "關鍵區段",
+            "en": "critical section",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "使用 `time.sleep()` 在每個請求間強制等待。",
+        "en": "Use `time.sleep()` to force a wait between each request.",
+        "wg": []
+      },
+      {
+        "t": "使用 `asyncio.Lock` 確保一次只執行一個請求。",
+        "en": "Use `asyncio.Lock` to ensure only one request is executed at a time.",
+        "wg": []
+      },
+      {
+        "t": "將請求分散到多個 Process 中執行。",
+        "en": "Distribute the requests across multiple Processes.",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "`asyncio.Semaphore(n)` 允許同時有 n 個 worker 取得執行權，超過數量的 worker 必須等待釋放。這是實作「限流」(Throttling) 最標準的模式。`Lock` 會導致完全序列化（一次一個），效率太低。",
+      "en": "`asyncio.Semaphore(n)` allows n workers to acquire execution rights simultaneously; excess workers must wait for a release. This is the standard pattern for implementing 'Throttling'. A `Lock` would cause complete serialization (one at a time), which is too inefficient.",
+      "wg": [
+        {
+          "t": "限流",
+          "en": "Throttling",
+          "ps": "noun"
+        },
+        {
+          "t": "序列化",
+          "en": "serialization",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "id": "7",
+    "difficulty": "Advanced",
+    "type": "Single Choice",
+    "topicTags": [
+      "asyncio",
+      "structured concurrency",
+      "taskgroup",
+      "error handling"
+    ],
+    "codeSnippet": "import asyncio\n\nasync def fail_task():\n    raise ValueError(\"Oops\")\n\nasync def success_task():\n    try:\n        await asyncio.sleep(10)\n        return \"Success\"\n    except asyncio.CancelledError:\n        return \"Cancelled\"\n\nasync def main():\n    try:\n        async with asyncio.TaskGroup() as tg:\n            tg.create_task(fail_task())\n            t2 = tg.create_task(success_task())\n    except Exception:\n        pass\n    print(t2.result())",
+    "questionSummaryZh": "Python 3.11 引入了 `TaskGroup` 來實踐結構化並發 (Structured Concurrency)。在上述程式碼中，當 `fail_task` 拋出異常時，`success_task` (t2) 的最終狀態與結果會是什麼？",
+    "questionSummaryEn": "Python 3.11 introduced `TaskGroup` for Structured Concurrency. In the code above, when `fail_task` raises an exception, what will be the final state and result of `success_task` (t2)?",
+    "question": [
+      {
+        "t": "Python 3.11 引入了 `TaskGroup` 來實踐結構化並發 (Structured Concurrency)。",
+        "en": "Python 3.11 introduced `TaskGroup` to implement Structured Concurrency.",
+        "wg": [
+          {
+            "t": "結構化並發",
+            "en": "Structured Concurrency",
+            "ps": "noun"
+          },
+          {
+            "t": "實踐",
+            "en": "implement",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "在上述程式碼中，當 `fail_task` 拋出異常時，`success_task` (t2) 的最終狀態與結果會是什麼？",
+        "en": "In the code above, when `fail_task` raises an exception, what will be the final state and result of `success_task` (t2)?",
+        "wg": [
+          {
+            "t": "拋出異常",
+            "en": "raises an exception",
+            "ps": "verb phrase"
+          },
+          {
+            "t": "最終狀態",
+            "en": "final state",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "options": [
+      {
+        "t": "`t2` 會繼續執行直到完成，並回傳 \"Success\"。",
+        "en": "`t2` will continue running until completion and return \"Success\".",
+        "wg": []
+      },
+      {
+        "t": "`t2` 會被取消 (Cancelled)，並回傳 \"Cancelled\"。",
+        "en": "`t2` will be cancelled, and return \"Cancelled\".",
+        "wg": []
+      },
+      {
+        "t": "`t2` 會被強制終止且不執行任何清理代碼，拋出 `RuntimeError`。",
+        "en": "`t2` will be forcibly terminated without running cleanup code, raising `RuntimeError`.",
+        "wg": []
+      },
+      {
+        "t": "整個 Event Loop 會崩潰，無法取得 `t2` 的結果。",
+        "en": "The entire Event Loop will crash, and `t2`'s result cannot be retrieved.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "`TaskGroup` 的核心特性之一是「要麼全體成功，要麼全體取消」。當群組內任一任務發生未處理的異常時，`TaskGroup` 會自動取消 (Cancel) 同一群組內其他仍在執行中的任務。因此 `t2` 會收到 `CancelledError`，進入 `except` 區塊並回傳 \"Cancelled\"。",
+      "en": "One of the core features of `TaskGroup` is 'all succeed or all cancel'. When any task in the group raises an unhandled exception, `TaskGroup` automatically cancels other running tasks in the same group. Thus, `t2` receives a `CancelledError`, enters the `except` block, and returns \"Cancelled\".",
+      "wg": [
+        {
+          "t": "要麼全體成功，要麼全體取消",
+          "en": "all succeed or all cancel",
+          "ps": "phrase"
+        },
+        {
+          "t": "未處理的異常",
+          "en": "unhandled exception",
+          "ps": "noun phrase"
+        }
+      ]
+    }
+  },
+  {
+    "id": "8",
+    "difficulty": "Intermediate",
+    "type": "Single Choice",
+    "topicTags": [
+      "asyncio",
+      "timeout",
+      "wait_for",
+      "cancellation"
+    ],
+    "codeSnippet": "async def long_task():\n    try:\n        print(\"Start\")\n        await asyncio.sleep(10)\n        print(\"End\")\n    except asyncio.CancelledError:\n        print(\"Cleanup\")\n\nasync def main():\n    try:\n        await asyncio.wait_for(long_task(), timeout=1.0)\n    except asyncio.TimeoutError:\n        print(\"Timeout\")\n\n# Output sequence?",
+    "questionSummaryZh": "使用 `asyncio.wait_for` 設定超時是常見的防禦性程式設計。在上述程式碼執行後，控制台輸出的順序最可能是什麼？",
+    "questionSummaryEn": "Using `asyncio.wait_for` to set a timeout is a common defensive programming practice. After executing the code above, what is the most likely sequence of console output?",
+    "question": [
+      {
+        "t": "使用 `asyncio.wait_for` 設定超時是常見的防禦性程式設計。",
+        "en": "Using `asyncio.wait_for` to set a timeout is a common defensive programming practice.",
+        "wg": [
+          {
+            "t": "超時",
+            "en": "timeout",
+            "ps": "noun"
+          },
+          {
+            "t": "防禦性程式設計",
+            "en": "defensive programming",
+            "ps": "noun phrase"
+          }
+        ]
+      },
+      {
+        "t": "在上述程式碼執行後，控制台輸出的順序最可能是什麼？",
+        "en": "After executing the code above, what is the most likely sequence of console output?",
+        "wg": [
+          {
+            "t": "順序",
+            "en": "sequence",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "options": [
+      {
+        "t": "Start -> Timeout -> End",
+        "en": "Start -> Timeout -> End",
+        "wg": []
+      },
+      {
+        "t": "Start -> Timeout -> Cleanup",
+        "en": "Start -> Timeout -> Cleanup",
+        "wg": []
+      },
+      {
+        "t": "Start -> Cleanup -> Timeout",
+        "en": "Start -> Cleanup -> Timeout",
+        "wg": []
+      },
+      {
+        "t": "Start -> Timeout (End 與 Cleanup 不會執行)",
+        "en": "Start -> Timeout (End and Cleanup will not execute)",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "當 `wait_for` 發生超時，它會自動對內部的 Task 發送取消信號 (Cancel)。因此流程是：1. `Start` (任務開始) -> 2. 超時觸發，Task 被取消，進入 `except CancelledError` 印出 `Cleanup` -> 3. `wait_for` 拋出 `TimeoutError`，外層印出 `Timeout`。注意：Cleanup 通常會在 Timeout 拋出前完成（或並發發生），但 `End` 絕對不會印出。",
+      "en": "When `wait_for` times out, it automatically sends a cancellation signal to the inner Task. The flow is: 1. `Start` (task begins) -> 2. Timeout triggers, Task is cancelled, enters `except CancelledError` to print `Cleanup` -> 3. `wait_for` raises `TimeoutError`, outer layer prints `Timeout`. Note: Cleanup usually completes before Timeout is raised (or concurrently), but `End` will definitely not be printed.",
+      "wg": [
+        {
+          "t": "發送取消信號",
+          "en": "sends a cancellation signal",
+          "ps": "verb phrase"
+        },
+        {
+          "t": "觸發",
+          "en": "triggers",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "id": "9",
+    "difficulty": "Intermediate",
+    "type": "Single Choice",
+    "topicTags": [
+      "asyncio",
+      "queue",
+      "producer-consumer",
+      "deadlock"
+    ],
+    "codeSnippet": "async def worker(q):\n    while True:\n        item = await q.get()\n        print(f\"Processed {item}\")\n        # Missing code here\n\nasync def main():\n    q = asyncio.Queue()\n    asyncio.create_task(worker(q))\n    await q.put(1)\n    await q.join()  # Script hangs here forever\n    print(\"Done\")",
+    "questionSummaryZh": "在實作生產者-消費者模式時，上述程式碼會永遠卡在 `await q.join()`。這是因為 `worker` 函式中缺少了哪一行關鍵程式碼？",
+    "questionSummaryEn": "When implementing the Producer-Consumer pattern, the code above hangs forever at `await q.join()`. This is because the `worker` function is missing which critical line of code?",
+    "question": [
+      {
+        "t": "在實作生產者-消費者模式時，上述程式碼會永遠卡在 `await q.join()`。",
+        "en": "When implementing the Producer-Consumer pattern, the code above hangs forever at `await q.join()`.",
+        "wg": [
+          {
+            "t": "生產者-消費者模式",
+            "en": "Producer-Consumer pattern",
+            "ps": "noun phrase"
+          },
+          {
+            "t": "卡在",
+            "en": "hangs at",
+            "ps": "verb phrase"
+          }
+        ]
+      },
+      {
+        "t": "這是因為 `worker` 函式中缺少了哪一行關鍵程式碼？",
+        "en": "This is because the `worker` function is missing which critical line of code?",
+        "wg": [
+          {
+            "t": "關鍵程式碼",
+            "en": "critical line of code",
+            "ps": "noun phrase"
+          }
+        ]
+      }
+    ],
+    "options": [
+      {
+        "t": "`await asyncio.sleep(0)`",
+        "en": "`await asyncio.sleep(0)`",
+        "wg": []
+      },
+      {
+        "t": "`q.task_done()`",
+        "en": "`q.task_done()`",
+        "wg": []
+      },
+      {
+        "t": "`return item`",
+        "en": "`return item`",
+        "wg": []
+      },
+      {
+        "t": "`q.empty()`",
+        "en": "`q.empty()`",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "`asyncio.Queue.join()` 會阻塞直到佇列中的所有項目都被取出並標記為「已處理」。每當呼叫 `get()` 取出一個項目後，必須呼叫 `task_done()` 來告知佇列該項目處理完畢。若遺漏此行，內部計數器永遠不會歸零，導致 `join()` 無限等待。",
+      "en": "`asyncio.Queue.join()` blocks until all items in the queue have been retrieved and marked as 'processed'. Whenever an item is retrieved using `get()`, `task_done()` must be called to inform the queue that the item processing is complete. If omitted, the internal counter never reaches zero, causing `join()` to wait indefinitely.",
+      "wg": [
+        {
+          "t": "標記為",
+          "en": "marked as",
+          "ps": "verb phrase"
+        },
+        {
+          "t": "內部計數器",
+          "en": "internal counter",
+          "ps": "noun phrase"
+        },
+        {
+          "t": "無限等待",
+          "en": "wait indefinitely",
+          "ps": "verb phrase"
+        }
+      ]
+    }
+  },
+  {
+    "id": "10",
+    "difficulty": "Advanced",
+    "type": "Single Choice",
+    "topicTags": [
+      "asyncio",
+      "gather",
+      "exception handling",
+      "best practice"
+    ],
+    "codeSnippet": "async def task_a(): return \"A\"\nasync def task_b(): raise ValueError(\"Error B\")\nasync def task_c(): return \"C\"\n\nresults = await asyncio.gather(task_a(), task_b(), task_c(), return_exceptions=True)",
+    "questionSummaryZh": "當使用 `asyncio.gather` 並設定 `return_exceptions=True` 時，若其中一個任務發生異常，變數 `results` 的內容將會是什麼？",
+    "questionSummaryEn": "When using `asyncio.gather` with `return_exceptions=True`, if one of the tasks raises an exception, what will be the content of the `results` variable?",
+    "question": [
+      {
+        "t": "當使用 `asyncio.gather` 並設定 `return_exceptions=True` 時，若其中一個任務發生異常，變數 `results` 的內容將會是什麼？",
+        "en": "When using `asyncio.gather` with `return_exceptions=True`, if one of the tasks raises an exception, what will be the content of the `results` variable?",
+        "wg": [
+          {
+            "t": "發生異常",
+            "en": "raises an exception",
+            "ps": "verb phrase"
+          },
+          {
+            "t": "變數",
+            "en": "variable",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "options": [
+      {
+        "t": "程式會直接拋出 `ValueError`，`results` 不會被賦值。",
+        "en": "The program will raise `ValueError` directly, and `results` will not be assigned.",
+        "wg": []
+      },
+      {
+        "t": "`[\"A\", None, \"C\"]` (異常的任務回傳 None)",
+        "en": "`[\"A\", None, \"C\"]` (The failed task returns None)",
+        "wg": []
+      },
+      {
+        "t": "`[\"A\", ValueError(\"Error B\"), \"C\"]` (異常物件本身作為結果)",
+        "en": "`[\"A\", ValueError(\"Error B\"), \"C\"]` (The exception object itself is the result)",
+        "wg": []
+      },
+      {
+        "t": "`[\"A\", \"C\"]` (異常的任務被自動忽略)",
+        "en": "`[\"A\", \"C\"]` (The failed task is automatically ignored)",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "設定 `return_exceptions=True` 會改變 `gather` 的行為：它不會因為單一任務失敗而中斷並拋出異常，而是將異常物件視為該任務的「回傳值」，與其他成功結果一同放入列表中。這對於批次處理且不希望因單點失敗導致全盤崩潰的場景非常有用。",
+      "en": "Setting `return_exceptions=True` changes the behavior of `gather`: it does not stop and raise an exception due to a single task failure. Instead, it treats the exception object as the 'return value' of that task and places it in the list along with other successful results. This is very useful for batch processing where you don't want a single failure to crash the entire operation.",
+      "wg": [
+        {
+          "t": "中斷",
+          "en": "stop / interrupt",
+          "ps": "verb"
+        },
+        {
+          "t": "單點失敗",
+          "en": "single point of failure",
+          "ps": "noun phrase"
+        },
+        {
+          "t": "全盤崩潰",
+          "en": "crash the entire operation",
+          "ps": "verb phrase"
+        }
+      ]
+    }
+  },
+  {
+    "id": "11",
+    "difficulty": "Advanced",
+    "type": "Single Choice",
+    "topicTags": [
+      "asyncio",
+      "context manager",
+      "resource management",
+      "syntax"
+    ],
+    "codeSnippet": "class AsyncDatabase:\n    async def __aenter__(self):\n        self.conn = await connect_db()\n        return self.conn\n    \n    async def __aexit__(self, exc_type, exc, tb):\n        await self.conn.close()\n\n# Correct usage?",
+    "questionSummaryZh": "你實作了一個支援非同步的 Context Manager（如上圖）。下列哪一種呼叫方式是正確的，能確保 `__aenter__` 與 `__aexit__` 被正確執行？",
+    "questionSummaryEn": "You implemented an async-supported Context Manager (as shown above). Which of the following usage patterns is correct to ensure `__aenter__` and `__aexit__` are executed properly?",
+    "question": [
+      {
+        "t": "你實作了一個支援非同步的 Context Manager（如上圖）。",
+        "en": "You implemented an async-supported Context Manager (as shown above).",
+        "wg": [
+          {
+            "t": "支援非同步",
+            "en": "async-supported",
+            "ps": "adjective"
+          }
+        ]
+      },
+      {
+        "t": "下列哪一種呼叫方式是正確的，能確保 `__aenter__` 與 `__aexit__` 被正確執行？",
+        "en": "Which of the following usage patterns is correct to ensure `__aenter__` and `__aexit__` are executed properly?",
+        "wg": [
+          {
+            "t": "呼叫方式",
+            "en": "usage patterns",
+            "ps": "noun phrase"
+          },
+          {
+            "t": "確保",
+            "en": "ensure",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "options": [
+      {
+        "t": "`with AsyncDatabase() as db: ...`",
+        "en": "`with AsyncDatabase() as db: ...`",
+        "wg": []
+      },
+      {
+        "t": "`async with AsyncDatabase() as db: ...`",
+        "en": "`async with AsyncDatabase() as db: ...`",
+        "wg": []
+      },
+      {
+        "t": "`await with AsyncDatabase() as db: ...`",
+        "en": "`await with AsyncDatabase() as db: ...`",
+        "wg": []
+      },
+      {
+        "t": "`with await AsyncDatabase() as db: ...`",
+        "en": "`with await AsyncDatabase() as db: ...`",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "定義了 `__aenter__` 與 `__aexit__` 的物件必須配合 `async with` 語法使用。普通的 `with` 語句只會尋找同步的 `__enter__` 與 `__exit__` 方法，若對非同步物件使用會導致 `AttributeError` 或無法正確等待非同步操作完成。",
+      "en": "Objects defining `__aenter__` and `__aexit__` must be used with the `async with` syntax. A regular `with` statement only looks for synchronous `__enter__` and `__exit__` methods; using it on an async object will result in an `AttributeError` or failure to properly await the async operations.",
+      "wg": [
+        {
+          "t": "配合",
+          "en": "used with / cooperate with",
+          "ps": "verb"
+        },
+        {
+          "t": "語法",
+          "en": "syntax",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "id": "12",
+    "difficulty": "Advanced",
+    "type": "Single Choice",
+    "topicTags": [
+      "asyncio",
+      "shutdown",
+      "signal handling",
+      "best practice"
+    ],
+    "focus": "Graceful Shutdown",
+    "questionSummaryZh": "當你的 Async 微服務收到 `SIGTERM` 信號準備關閉時，為了達成「優雅關閉」(Graceful Shutdown)，下列哪一個步驟是**不必要**甚至是有害的？",
+    "questionSummaryEn": "When your Async microservice receives a `SIGTERM` signal and prepares to shut down, which of the following steps is **unnecessary** or even harmful to achieve 'Graceful Shutdown'?",
+    "question": [
+      {
+        "t": "當你的 Async 微服務收到 `SIGTERM` 信號準備關閉時，為了達成「優雅關閉」(Graceful Shutdown)，下列哪一個步驟是**不必要**甚至是有害的？",
+        "en": "When your Async microservice receives a `SIGTERM` signal and prepares to shut down, which of the following steps is **unnecessary** or even harmful to achieve 'Graceful Shutdown'?",
+        "wg": [
+          {
+            "t": "微服務",
+            "en": "microservice",
+            "ps": "noun"
+          },
+          {
+            "t": "優雅關閉",
+            "en": "Graceful Shutdown",
+            "ps": "noun phrase"
+          },
+          {
+            "t": "有害的",
+            "en": "harmful",
+            "ps": "adjective"
+          }
+        ]
+      }
+    ],
+    "options": [
+      {
+        "t": "對所有 Pending 的 Task 呼叫 `task.cancel()`。",
+        "en": "Call `task.cancel()` on all Pending Tasks.",
+        "wg": []
+      },
+      {
+        "t": "使用 `sys.exit(0)` 強制立即退出程式，不等待 Event Loop 清理。",
+        "en": "Use `sys.exit(0)` to force the program to exit immediately without waiting for the Event Loop to clean up.",
+        "wg": []
+      },
+      {
+        "t": "使用 `asyncio.gather(..., return_exceptions=True)` 等待被取消的任務完成清理工作。",
+        "en": "Use `asyncio.gather(..., return_exceptions=True)` to wait for cancelled tasks to complete their cleanup work.",
+        "wg": []
+      },
+      {
+        "t": "停止接收新的請求 (Stop accepting new requests)。",
+        "en": "Stop accepting new requests.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "直接呼叫 `sys.exit(0)` 會立即終止 Python 直譯器，導致 Event Loop 中正在進行的任務（如寫入 DB、發送回應）被強行中斷，可能造成資料損毀或連線未正確關閉。正確的做法是取消任務並 `await` 它們完成清理邏輯（如 `finally` 區塊）。",
+      "en": "Calling `sys.exit(0)` directly terminates the Python interpreter immediately, causing ongoing tasks in the Event Loop (like writing to DB, sending responses) to be forcibly interrupted. This can lead to data corruption or improperly closed connections. The correct approach is to cancel tasks and `await` them to complete their cleanup logic (e.g., in `finally` blocks).",
+      "wg": [
+        {
+          "t": "直譯器",
+          "en": "interpreter",
+          "ps": "noun"
+        },
+        {
+          "t": "強行中斷",
+          "en": "forcibly interrupted",
+          "ps": "verb phrase"
+        },
+        {
+          "t": "資料損毀",
+          "en": "data corruption",
+          "ps": "noun phrase"
+        }
+      ]
+    }
+  }
+]

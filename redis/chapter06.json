@@ -1,0 +1,1284 @@
+[
+  {
+    "no": "1",
+    "level": "intermediate",
+    "keywords": "Redis, Distributed Lock, Atomicity, SETNX, Deadlock",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "func acquireLock(conn redis.Conn, key string, val string, ttl int) bool {\n    // Legacy implementation found in codebase\n    success, _ := redis.Bool(conn.Do(\"SETNX\", key, val))\n    if success {\n        conn.Do(\"EXPIRE\", key, ttl)\n        return true\n    }\n    return false\n}",
+    "question": [
+      {
+        "t": "您正在審查一段舊有的 Go 語言程式碼，該程式碼負責處理分散式鎖的獲取邏輯（如上所示）。",
+        "en": "You are reviewing a piece of legacy Go code responsible for acquiring distributed locks (as shown above).",
+        "wg": [
+          {
+            "t": "審查",
+            "en": "reviewing",
+            "ps": "V"
+          },
+          {
+            "t": "舊有的",
+            "en": "legacy",
+            "ps": "Adj"
+          },
+          {
+            "t": "獲取",
+            "en": "acquiring",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "這段程式碼在生產環境中偶爾會導致嚴重的系統問題。",
+        "en": "This code occasionally causes severe system issues in the production environment.",
+        "wg": [
+          {
+            "t": "偶爾",
+            "en": "occasionally",
+            "ps": "Adv"
+          }
+        ]
+      },
+      {
+        "t": "請問此實作最大的風險是什麼？",
+        "en": "What is the biggest risk with this implementation?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) SETNX 與 EXPIRE 不是原子操作；若應用程式在兩者之間崩潰，將導致死鎖。",
+        "en": "(A) SETNX and EXPIRE are not atomic; if the application crashes between them, it will cause a deadlock.",
+        "wg": [
+          {
+            "t": "原子操作",
+            "en": "atomic",
+            "ps": "Adj"
+          },
+          {
+            "t": "崩潰",
+            "en": "crashes",
+            "ps": "V"
+          },
+          {
+            "t": "死鎖",
+            "en": "deadlock",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(B) SETNX 指令在 Redis Cluster 模式下不被支援，會導致連線錯誤。",
+        "en": "(B) The SETNX command is not supported in Redis Cluster mode, causing connection errors.",
+        "wg": []
+      },
+      {
+        "t": "(C) EXPIRE 的時間單位是秒，對於高頻交易來說精度不足。",
+        "en": "(C) The time unit for EXPIRE is seconds, which lacks precision for high-frequency trading.",
+        "wg": [
+          {
+            "t": "精度",
+            "en": "precision",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(D) 使用 Bool 轉換回傳值會導致整數溢位問題。",
+        "en": "(D) Converting the return value using Bool causes integer overflow issues.",
+        "wg": []
+      }
+    ],
+    "answer": "(A)",
+    "why": {
+      "t": "這是分散式鎖最經典的反模式。SETNX 和 EXPIRE 是兩個獨立指令，若 Client 在 SETNX 成功後但在 EXPIRE 執行前崩潰（Crash），該 Key 將永遠沒有過期時間，導致其他 Client 永遠無法取得鎖（死鎖）。正確做法是使用 `SET key value NX PX milliseconds`。",
+      "en": "This is the most classic anti-pattern for distributed locks. SETNX and EXPIRE are two separate commands. If the client crashes after SETNX succeeds but before EXPIRE executes, the key will never have an expiration time, causing other clients to be unable to acquire the lock forever (deadlock). The correct approach is to use `SET key value NX PX milliseconds`.",
+      "wg": [
+        {
+          "t": "反模式",
+          "en": "anti-pattern",
+          "ps": "N"
+        },
+        {
+          "t": "獨立指令",
+          "en": "separate commands",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "2",
+    "level": "intermediate",
+    "keywords": "Lua Script, Safe Unlocking, Race Condition, Ownership",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在實作 Redis 分散式鎖的「解鎖（Unlock）」邏輯時，為什麼強烈建議使用 Lua Script 來執行，而不是由應用程式端先查詢（GET）再刪除（DEL）？",
+        "en": "When implementing the 'Unlock' logic for Redis distributed locks, why is it strongly recommended to use a Lua Script instead of having the application query (GET) and then delete (DEL)?",
+        "wg": [
+          {
+            "t": "解鎖",
+            "en": "unlock",
+            "ps": "V"
+          },
+          {
+            "t": "強烈建議",
+            "en": "strongly recommended",
+            "ps": "V"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) Lua Script 執行速度比 Go 或 Java 快，可以減少網路延遲。",
+        "en": "(A) Lua Scripts execute faster than Go or Java, reducing network latency.",
+        "wg": []
+      },
+      {
+        "t": "(B) 為了確保操作的原子性，防止誤刪其他客戶端剛取得的鎖。",
+        "en": "(B) To ensure operation atomicity and prevent accidentally deleting a lock just acquired by another client.",
+        "wg": [
+          {
+            "t": "原子性",
+            "en": "atomicity",
+            "ps": "N"
+          },
+          {
+            "t": "誤刪",
+            "en": "accidentally deleting",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(C) Redis 只能透過 Lua Script 存取過期的 Key。",
+        "en": "(C) Redis can only access expired keys through Lua Scripts.",
+        "wg": []
+      },
+      {
+        "t": "(D) Lua Script 可以繞過 Redis 的單執行緒限制，實現平行刪除。",
+        "en": "(D) Lua Scripts can bypass Redis's single-threaded limitation to achieve parallel deletion.",
+        "wg": [
+          {
+            "t": "繞過",
+            "en": "bypass",
+            "ps": "V"
+          },
+          {
+            "t": "單執行緒",
+            "en": "single-threaded",
+            "ps": "Adj"
+          }
+        ]
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "若不使用 Lua，流程為：Client A 檢查鎖是自己的 -> (此時鎖過期，Client B 取得鎖) -> Client A 發送 DEL。這會導致 A 刪除了 B 的鎖。Lua Script 保證了「檢查 Value」與「刪除 Key」這兩個動作在 Redis 伺服器端是原子執行的，中間不會插入其他指令。",
+      "en": "Without Lua, the flow is: Client A checks the lock belongs to it -> (Lock expires, Client B acquires lock) -> Client A sends DEL. This results in A deleting B's lock. Lua Script ensures that 'Check Value' and 'Delete Key' are executed atomically on the Redis server side, with no other commands inserted in between.",
+      "wg": [
+        {
+          "t": "原子執行",
+          "en": "executed atomically",
+          "ps": "Adv"
+        }
+      ]
+    }
+  },
+  {
+    "no": "3",
+    "level": "advanced",
+    "keywords": "GC Pause, Fencing Token, Consistency, System Design",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "考慮一個使用 Redis 分散式鎖來保護資料庫寫入的情境。",
+        "en": "Consider a scenario where a Redis distributed lock is used to protect database writes.",
+        "wg": [
+          {
+            "t": "情境",
+            "en": "scenario",
+            "ps": "N"
+          },
+          {
+            "t": "保護",
+            "en": "protect",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "如果客戶端 A 取得鎖後，發生了長時間的 Stop-the-World GC (Garbage Collection)，導致鎖在 Redis 中過期，此時客戶端 B 取得了鎖並更新了資料。",
+        "en": "If Client A acquires the lock, but a long Stop-the-World GC (Garbage Collection) occurs, causing the lock to expire in Redis, and Client B then acquires the lock and updates the data.",
+        "wg": [
+          {
+            "t": "過期",
+            "en": "expire",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "當客戶端 A 從 GC 恢復後，它繼續執行寫入操作，從而覆蓋了 B 的更新。這種現象稱為什麼？最佳解決方案為何？",
+        "en": "When Client A recovers from GC, it proceeds with the write operation, overwriting B's update. What is this phenomenon called, and what is the best solution?",
+        "wg": [
+          {
+            "t": "恢復",
+            "en": "recovers",
+            "ps": "V"
+          },
+          {
+            "t": "覆蓋",
+            "en": "overwriting",
+            "ps": "V"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 這是死鎖 (Deadlock)；解決方案是無限延長 TTL。",
+        "en": "(A) This is a Deadlock; the solution is to extend the TTL indefinitely.",
+        "wg": []
+      },
+      {
+        "t": "(B) 這是腦裂 (Split-brain)；解決方案是使用 ZooKeeper 代替 Redis。",
+        "en": "(B) This is Split-brain; the solution is to use ZooKeeper instead of Redis.",
+        "wg": [
+          {
+            "t": "腦裂",
+            "en": "split-brain",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) 這是違反線性一致性 (Linearizability Violation)；解決方案是引入 Fencing Token 機制。",
+        "en": "(C) This is a Linearizability Violation; the solution is to introduce a Fencing Token mechanism.",
+        "wg": [
+          {
+            "t": "線性一致性",
+            "en": "linearizability",
+            "ps": "N"
+          },
+          {
+            "t": "機制",
+            "en": "mechanism",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(D) 這是快取擊穿 (Cache Stampede)；解決方案是使用互斥鎖 (Mutex)。",
+        "en": "(D) This is Cache Stampede; the solution is to use a Mutex.",
+        "wg": []
+      }
+    ],
+    "answer": "(C)",
+    "why": {
+      "t": "這是典型的 GC Pause 導致鎖失效問題。單純依賴 Redis 鎖無法解決「舊請求復活」的問題。Fencing Token 是一種資料庫層級的防護：每次鎖生成時配發一個遞增 Token，資料庫在寫入時檢查 `current_token < incoming_token`，若不符合則拒絕寫入。",
+      "en": "This is a typical issue where GC Pause causes lock invalidation. Relying solely on Redis locks cannot solve the 'zombie request' problem. Fencing Token is a database-level protection: an incrementing Token is issued with each lock, and the database checks `current_token < incoming_token` on write, rejecting the write if the condition is not met.",
+      "wg": [
+        {
+          "t": "失效",
+          "en": "invalidation",
+          "ps": "N"
+        },
+        {
+          "t": "遞增",
+          "en": "incrementing",
+          "ps": "Adj"
+        },
+        {
+          "t": "拒絕",
+          "en": "rejecting",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "4",
+    "level": "advanced",
+    "keywords": "Redlock, Redis Cluster, Reliability, Quorum",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "關於 Redlock 演算法的設計目的與運作機制，下列敘述何者正確？",
+        "en": "Regarding the design purpose and mechanism of the Redlock algorithm, which of the following statements is correct?",
+        "wg": [
+          {
+            "t": "運作機制",
+            "en": "mechanism",
+            "ps": "N"
+          },
+          {
+            "t": "敘述",
+            "en": "statement",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) Redlock 旨在解決單點 Redis Master 故障時，因非同步複製導致鎖遺失的問題；它要求客戶端從 N 個獨立節點中的至少 N/2+1 個節點成功取得鎖。",
+        "en": "(A) Redlock aims to solve the problem of lock loss due to asynchronous replication when a single Redis Master fails; it requires the client to successfully acquire the lock from at least N/2+1 of N independent nodes.",
+        "wg": [
+          {
+            "t": "非同步複製",
+            "en": "asynchronous replication",
+            "ps": "N"
+          },
+          {
+            "t": "獨立節點",
+            "en": "independent nodes",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(B) Redlock 依賴 Redis Sentinel 來自動切換故障的 Master，並保證鎖的強一致性。",
+        "en": "(B) Redlock relies on Redis Sentinel to automatically failover the faulty Master and guarantees strong consistency of the lock.",
+        "wg": []
+      },
+      {
+        "t": "(C) Redlock 透過將鎖資料寫入硬碟 (AOF/RDB) 來確保伺服器重啟後鎖依然存在，不涉及多節點溝通。",
+        "en": "(C) Redlock ensures locks persist after server restarts by writing lock data to disk (AOF/RDB), without involving multi-node communication.",
+        "wg": []
+      },
+      {
+        "t": "(D) Redlock 是一種基於 ZooKeeper ZAB 協議的 Redis 實作版本。",
+        "en": "(D) Redlock is a Redis implementation version based on the ZooKeeper ZAB protocol.",
+        "wg": []
+      }
+    ],
+    "answer": "(A)",
+    "why": {
+      "t": "Redis 的主從複製是非同步的，Master 掛掉時 Slave 可能還沒收到鎖資訊。Redlock 透過向多個（通常是 5 個）完全獨立的 Master 節點請求鎖，並要求過半數（Quorum）成功，來容忍部分節點故障並提高可靠性。",
+      "en": "Redis master-slave replication is asynchronous; when the Master fails, the Slave might not have received the lock info yet. Redlock tolerates partial node failures and improves reliability by requesting locks from multiple (usually 5) fully independent Master nodes and requiring a majority (Quorum) success.",
+      "wg": [
+        {
+          "t": "過半數",
+          "en": "majority / quorum",
+          "ps": "N"
+        },
+        {
+          "t": "容忍",
+          "en": "tolerate",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "5",
+    "level": "intermediate",
+    "keywords": "Reentrant Lock, Data Structure, Hash, Lua",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "若您需要實作一個支援「可重入（Reentrant）」特性的 Redis 分散式鎖，意即同一個執行緒可以多次進入同一把鎖而不被阻擋。",
+        "en": "If you need to implement a Redis distributed lock that supports 'Reentrancy', meaning the same thread can enter the same lock multiple times without being blocked.",
+        "wg": [
+          {
+            "t": "可重入",
+            "en": "reentrant",
+            "ps": "Adj"
+          },
+          {
+            "t": "阻擋",
+            "en": "blocked",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "下列哪種 Redis 資料結構與邏輯最適合此需求？",
+        "en": "Which of the following Redis data structures and logic is best suited for this requirement?",
+        "wg": [
+          {
+            "t": "資料結構",
+            "en": "data structure",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 使用 String 結構：value 儲存 'count:1'，每次重入時解析字串並更新。",
+        "en": "(A) Use String structure: value stores 'count:1', parse the string and update it on every re-entry.",
+        "wg": []
+      },
+      {
+        "t": "(B) 使用 List 結構：每次重入時 Push 一個元素，解鎖時 Pop。",
+        "en": "(B) Use List structure: Push an element on every re-entry, Pop on unlock.",
+        "wg": []
+      },
+      {
+        "t": "(C) 使用 Hash 結構：Key 為鎖名稱，Field 為 Client ID，Value 為計數器 (Counter)。",
+        "en": "(C) Use Hash structure: Key is the lock name, Field is the Client ID, and Value is the Counter.",
+        "wg": [
+          {
+            "t": "計數器",
+            "en": "counter",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(D) 使用 Set 結構：儲存所有持有鎖的 Client ID。",
+        "en": "(D) Use Set structure: Store all Client IDs that hold the lock.",
+        "wg": []
+      }
+    ],
+    "answer": "(C)",
+    "why": {
+      "t": "可重入鎖需要記錄「是誰持有的」以及「持有了幾次」。Redis Hash 結構非常適合此場景：`HINCRBY lock_key client_uuid 1` 可原子性地增加計數，解鎖時則減少計數，直到歸零才真正刪除 Key。",
+      "en": "A reentrant lock needs to record 'who holds it' and 'how many times it is held'. The Redis Hash structure is perfect for this: `HINCRBY lock_key client_uuid 1` can atomically increment the count, and unlocking decrements it, only truly deleting the Key when the count reaches zero.",
+      "wg": [
+        {
+          "t": "歸零",
+          "en": "reaches zero",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "6",
+    "level": "advanced",
+    "keywords": "Redis Cluster, Failover, Async Replication, Consistency, CAP Theorem",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在標準的 Redis Master-Slave 架構（或 Redis Cluster）中，為什麼在 Master 節點發生故障轉移（Failover）時，分散式鎖可能會失效？",
+        "en": "In a standard Redis Master-Slave architecture (or Redis Cluster), why might distributed locks fail during a Master node failover?",
+        "wg": [
+          {
+            "t": "故障轉移",
+            "en": "failover",
+            "ps": "N"
+          },
+          {
+            "t": "失效",
+            "en": "fail/become invalid",
+            "ps": "V"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "因為 Redis 使用非同步複製（Asynchronous Replication），鎖的寫入可能尚未同步到 Slave 節點，Master 就已崩潰。",
+        "en": "Because Redis uses asynchronous replication, the lock write might not have synced to the Slave node before the Master crashed.",
+        "wg": [
+          {
+            "t": "非同步複製",
+            "en": "asynchronous replication",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "因為 Redis 的 Lua Script 在 Slave 節點上無法執行。",
+        "en": "Because Redis Lua scripts cannot be executed on Slave nodes.",
+        "wg": []
+      },
+      {
+        "t": "因為 Slave 節點預設是唯讀的（Read-only），無法接手鎖的狀態。",
+        "en": "Because Slave nodes are read-only by default and cannot take over the lock state.",
+        "wg": []
+      },
+      {
+        "t": "因為 Redis 的 TTL 機制在 Master 崩潰時會自動重置。",
+        "en": "Because the Redis TTL mechanism automatically resets when the Master crashes.",
+        "wg": []
+      }
+    ],
+    "answer": "A",
+    "why": {
+      "t": "Redis 為了效能，預設採用非同步複製。當 Client 在 Master 寫入鎖成功後，Master 會立即回傳成功，隨後才將資料複製給 Slave。若在此空窗期 Master 崩潰，尚未收到資料的 Slave 被提升為新 Master，鎖就會遺失，導致其他 Client 可以再次取得鎖（違反互斥性）。",
+      "en": "For performance, Redis uses asynchronous replication by default. After a client successfully writes a lock to the Master, the Master acknowledges immediately before replicating to the Slave. If the Master crashes during this window, a Slave that hasn't received the data is promoted to new Master, causing the lock to be lost and allowing other clients to acquire it (violating mutual exclusion).",
+      "wg": [
+        {
+          "t": "互斥性",
+          "en": "mutual exclusion",
+          "ps": "N"
+        },
+        {
+          "t": "空窗期",
+          "en": "window/gap",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "7",
+    "level": "advanced",
+    "keywords": "Watchdog, Lease Renewal, TTL, Redisson, Liveness",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您正在設計一個背景任務，該任務的執行時間差異很大（從 1 秒到 5 分鐘不等）。",
+        "en": "You are designing a background task where the execution time varies significantly (from 1 second to 5 minutes).",
+        "wg": [
+          {
+            "t": "背景任務",
+            "en": "background task",
+            "ps": "N"
+          },
+          {
+            "t": "差異很大",
+            "en": "varies significantly",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "為了避免任務執行到一半鎖過期，但又不想將 TTL 設定得過長（例如固定 10 分鐘）以免節點崩潰時卡死系統，最佳的實作模式是什麼？",
+        "en": "To prevent the lock from expiring mid-execution, but without setting an excessively long TTL (e.g., fixed 10 minutes) which would stall the system if the node crashes, what is the best implementation pattern?",
+        "wg": [
+          {
+            "t": "過期",
+            "en": "expire",
+            "ps": "V"
+          },
+          {
+            "t": "卡死",
+            "en": "stall/block",
+            "ps": "V"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "實作「看門狗（Watchdog）」機制：設定較短的 TTL，並由一個背景執行緒在鎖快過期時自動續約（Renew Lease）。",
+        "en": "Implement a 'Watchdog' mechanism: Set a shorter TTL and have a background thread automatically renew the lease when the lock is about to expire.",
+        "wg": [
+          {
+            "t": "續約",
+            "en": "renew lease",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "使用 `PERSIST` 指令移除鎖的 TTL，直到任務完成後再手動刪除。",
+        "en": "Use the `PERSIST` command to remove the lock's TTL until the task is finished, then manually delete it.",
+        "wg": []
+      },
+      {
+        "t": "在程式碼中捕捉鎖過期的 Exception，並在 Catch 區塊中重新取得鎖。",
+        "en": "Catch the lock expiration Exception in the code and re-acquire the lock in the Catch block.",
+        "wg": []
+      },
+      {
+        "t": "使用 Redis 的 Pub/Sub 功能，當鎖過期時通知客戶端立即補鎖。",
+        "en": "Use Redis Pub/Sub to notify the client to immediately re-lock when the lock expires.",
+        "wg": []
+      }
+    ],
+    "answer": "A",
+    "why": {
+      "t": "這是 Redisson 等成熟套件的標準做法。設定合理的短 TTL（如 30 秒）確保若客戶端崩潰鎖會自動釋放（Liveness）；同時利用 Watchdog 在客戶端存活時不斷延長 TTL，確保任務執行期間鎖不會過期（Safety）。移除 TTL 會導致死鎖風險。",
+      "en": "This is the standard approach in mature libraries like Redisson. Setting a reasonable short TTL (e.g., 30s) ensures the lock is released if the client crashes (Liveness); meanwhile, the Watchdog extends the TTL as long as the client is alive, ensuring the lock doesn't expire during execution (Safety). Removing the TTL creates a deadlock risk.",
+      "wg": [
+        {
+          "t": "存活",
+          "en": "alive",
+          "ps": "Adj"
+        },
+        {
+          "t": "死鎖風險",
+          "en": "deadlock risk",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "8",
+    "level": "intermediate",
+    "keywords": "Lock Granularity, Performance, Throughput, Anti-pattern",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在審查團隊成員的程式碼時，您發現他使用 `SET lock:user_update NX PX 5000` 來保護使用者資料的更新。",
+        "en": "While reviewing a team member's code, you notice they use `SET lock:user_update NX PX 5000` to protect user data updates.",
+        "wg": [
+          {
+            "t": "審查",
+            "en": "reviewing",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "這個設計在系統流量變大時會造成什麼主要的效能問題？",
+        "en": "What major performance issue will this design cause when system traffic increases?",
+        "wg": [
+          {
+            "t": "流量",
+            "en": "traffic",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "鎖的粒度（Granularity）過大，導致所有使用者的更新請求被迫序列化執行，大幅降低吞吐量。",
+        "en": "The lock granularity is too coarse, forcing update requests for all users to be executed serially, significantly reducing throughput.",
+        "wg": [
+          {
+            "t": "粒度",
+            "en": "granularity",
+            "ps": "N"
+          },
+          {
+            "t": "序列化",
+            "en": "serially",
+            "ps": "Adv"
+          },
+          {
+            "t": "吞吐量",
+            "en": "throughput",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "鎖的 Key 名稱過長，會消耗過多的 Redis 記憶體。",
+        "en": "The lock Key name is too long, consuming excessive Redis memory.",
+        "wg": []
+      },
+      {
+        "t": "5000 毫秒的 TTL 太短，容易造成頻繁的鎖超時例外。",
+        "en": "The 5000ms TTL is too short, easily causing frequent lock timeout exceptions.",
+        "wg": []
+      },
+      {
+        "t": "使用 `SET` 指令而非 `SETNX` 會導致原子性問題。",
+        "en": "Using the `SET` command instead of `SETNX` leads to atomicity issues.",
+        "wg": []
+      }
+    ],
+    "answer": "A",
+    "why": {
+      "t": "使用單一 Key `lock:user_update` 會鎖住「所有」使用者的更新操作，這是典型的粗粒度鎖（Coarse-grained Lock）反模式。正確做法應包含使用者 ID，如 `lock:user:12345`，以實現針對特定資源的併發控制。",
+      "en": "Using a single Key `lock:user_update` locks update operations for *all* users, which is a typical Coarse-grained Lock anti-pattern. The correct approach should include the User ID, e.g., `lock:user:12345`, to achieve concurrency control for specific resources.",
+      "wg": [
+        {
+          "t": "反模式",
+          "en": "anti-pattern",
+          "ps": "N"
+        },
+        {
+          "t": "併發控制",
+          "en": "concurrency control",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "9",
+    "level": "intermediate",
+    "keywords": "Atomic Operations, Inventory Deduction, Lua Script, Optimization",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在設計一個高併發的「秒殺（Flash Sale）」系統時，為了扣減庫存，下列哪種 Redis 使用方式通常能提供最高的吞吐量？",
+        "en": "When designing a high-concurrency 'Flash Sale' system, which of the following Redis usage patterns typically provides the highest throughput for inventory deduction?",
+        "wg": [
+          {
+            "t": "秒殺",
+            "en": "flash sale",
+            "ps": "N"
+          },
+          {
+            "t": "扣減",
+            "en": "deduction",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "不使用分散式鎖，而是直接利用 Lua Script 或 Redis 原子指令（如 DECR）在 Redis 內完成檢查與扣減。",
+        "en": "Do not use distributed locks; instead, directly use Lua Scripts or Redis atomic commands (like DECR) to perform check-and-deduct within Redis.",
+        "wg": [
+          {
+            "t": "原子指令",
+            "en": "atomic commands",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "對每個商品 ID 使用 Redis 分散式鎖，取得鎖後再查詢 SQL 資料庫進行扣減。",
+        "en": "Use a Redis distributed lock for each product ID, and after acquiring the lock, query the SQL database to perform the deduction.",
+        "wg": []
+      },
+      {
+        "t": "使用 Redlock 演算法鎖定商品，確保強一致性後再寫入資料庫。",
+        "en": "Use the Redlock algorithm to lock the product, ensuring strong consistency before writing to the database.",
+        "wg": []
+      },
+      {
+        "t": "使用 Redis 的 `WATCH` 指令配合 `MULTI/EXEC` 交易區塊來模擬樂觀鎖。",
+        "en": "Use Redis `WATCH` command with `MULTI/EXEC` transaction blocks to simulate optimistic locking.",
+        "wg": []
+      }
+    ],
+    "answer": "A",
+    "why": {
+      "t": "在高併發場景下，顯式鎖（Explicit Locking）會帶來大量的網路來回（RTT）與上下文切換開銷。將邏輯下推至 Redis 內部（Lua Script）執行，能保證原子性並大幅減少網路延遲，是秒殺場景的常見優化手段。`WATCH` 在高競爭下會導致大量重試，效能較差。",
+      "en": "In high-concurrency scenarios, explicit locking introduces significant Round-Trip Time (RTT) and context switching overhead. Pushing logic down into Redis (Lua Script) ensures atomicity and drastically reduces network latency, which is a common optimization for flash sales. `WATCH` performs poorly under high contention due to frequent retries.",
+      "wg": [
+        {
+          "t": "顯式鎖",
+          "en": "explicit locking",
+          "ps": "N"
+        },
+        {
+          "t": "開銷",
+          "en": "overhead",
+          "ps": "N"
+        },
+        {
+          "t": "高競爭",
+          "en": "high contention",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "10",
+    "level": "advanced",
+    "keywords": "Redlock, Clock Drift, Distributed Systems, Safety",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "分散式系統專家 Martin Kleppmann 對 Redlock 演算法提出的主要批評之一涉及「時鐘漂移（Clock Drift）」。",
+        "en": "One of the main criticisms of the Redlock algorithm by distributed systems expert Martin Kleppmann involves 'Clock Drift'.",
+        "wg": [
+          {
+            "t": "時鐘漂移",
+            "en": "clock drift",
+            "ps": "N"
+          },
+          {
+            "t": "批評",
+            "en": "criticism",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "如果 Redis 節點的系統時鐘發生跳躍（例如 NTP 強制更新），可能會導致什麼嚴重後果？",
+        "en": "If a Redis node's system clock jumps (e.g., due to a forced NTP update), what serious consequence might occur?",
+        "wg": [
+          {
+            "t": "跳躍",
+            "en": "jump",
+            "ps": "N"
+          },
+          {
+            "t": "強制更新",
+            "en": "forced update",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "節點可能會誤判鎖已過期並將其釋放，導致多個客戶端同時持有鎖（違反安全性）。",
+        "en": "The node might incorrectly judge that the lock has expired and release it, causing multiple clients to hold the lock simultaneously (violating Safety).",
+        "wg": [
+          {
+            "t": "誤判",
+            "en": "incorrectly judge",
+            "ps": "V"
+          },
+          {
+            "t": "違反",
+            "en": "violating",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "節點會拒絕所有新的寫入請求，導致系統不可用（違反活性）。",
+        "en": "The node will reject all new write requests, causing system unavailability (violating Liveness).",
+        "wg": []
+      },
+      {
+        "t": "Redlock 演算法會自動延長鎖的 TTL 以補償時鐘差異。",
+        "en": "The Redlock algorithm will automatically extend the lock's TTL to compensate for the clock difference.",
+        "wg": []
+      },
+      {
+        "t": "Redis Cluster 會觸發不必要的 Leader Election。",
+        "en": "Redis Cluster will trigger an unnecessary Leader Election.",
+        "wg": []
+      }
+    ],
+    "answer": "A",
+    "why": {
+      "t": "Redlock 依賴各節點的本地時鐘來計算鎖的有效期。如果某節點時鐘突然向前跳躍（例如快了 5 秒），該節點上的鎖會提前過期並被刪除，允許另一個客戶端取得鎖，而原客戶端仍認為自己持有鎖，從而破壞了互斥性（Safety）。",
+      "en": "Redlock relies on each node's local clock to calculate lock validity. If a node's clock suddenly jumps forward (e.g., by 5 seconds), the lock on that node will expire prematurely and be deleted, allowing another client to acquire it while the original client still thinks it holds the lock, thus breaking mutual exclusion (Safety).",
+      "wg": [
+        {
+          "t": "有效期",
+          "en": "validity period",
+          "ps": "N"
+        },
+        {
+          "t": "提前",
+          "en": "prematurely",
+          "ps": "Adv"
+        }
+      ]
+    }
+  },
+  {
+    "no": "11",
+    "level": "intermediate",
+    "keywords": "Ownership, UUID, Safety, Unlock",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在實作 Redis 分散式鎖時，為什麼我們必須將 Value 設定為「隨機生成的唯一字串（如 UUID）」，而不是固定的字串（如 \"LOCKED\"）？",
+        "en": "When implementing a Redis distributed lock, why must we set the Value to a 'randomly generated unique string (like UUID)' instead of a fixed string (like 'LOCKED')?",
+        "wg": [
+          {
+            "t": "隨機生成",
+            "en": "randomly generated",
+            "ps": "Adj"
+          },
+          {
+            "t": "固定",
+            "en": "fixed/static",
+            "ps": "Adj"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "為了防止客戶端 A 誤刪除客戶端 B 持有的鎖（所有權驗證）。",
+        "en": "To prevent Client A from accidentally deleting a lock held by Client B (Ownership Validation).",
+        "wg": [
+          {
+            "t": "誤刪除",
+            "en": "accidentally delete",
+            "ps": "V"
+          },
+          {
+            "t": "所有權驗證",
+            "en": "ownership validation",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "為了增加 Redis Key 的雜湊複雜度，提升查詢效能。",
+        "en": "To increase the hash complexity of the Redis Key and improve lookup performance.",
+        "wg": []
+      },
+      {
+        "t": "為了讓 Redis Cluster 能更均勻地分配 Slot。",
+        "en": "To allow Redis Cluster to distribute Slots more evenly.",
+        "wg": []
+      },
+      {
+        "t": "因為 Redis 不支援儲存重複的 Value。",
+        "en": "Because Redis does not support storing duplicate Values.",
+        "wg": []
+      }
+    ],
+    "answer": "A",
+    "why": {
+      "t": "如果使用固定字串，當 Client A 的鎖因超時自動釋放，且 Client B 隨即取得鎖後，Client A 若此時執行完成並發送 `DEL`，就會錯誤地刪除 B 的鎖。唯一字串配合 Lua Script 檢查，確保了「解鈴還須繫鈴人」。",
+      "en": "If a fixed string is used, and Client A's lock is auto-released due to timeout, then Client B acquires the lock. If Client A then finishes and sends `DEL`, it would wrongly delete B's lock. A unique string combined with a Lua Script check ensures that 'only the bell-tier can untie the bell' (ownership).",
+      "wg": [
+        {
+          "t": "超時",
+          "en": "timeout",
+          "ps": "N"
+        },
+        {
+          "t": "解鈴還須繫鈴人",
+          "en": "only the creator can destroy",
+          "ps": "Idiopm"
+        }
+      ]
+    }
+  },
+  {
+    "no": "12",
+    "level": "advanced",
+    "keywords": "ZooKeeper, Etcd, CP System, Strong Consistency, Trade-off",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在選擇分散式鎖的實作技術時，如果您的業務場景是「金融級交易」，對資料一致性有極高要求，且無法容忍任何鎖遺失的情況。",
+        "en": "When choosing a technology for distributed locks, if your business scenario is 'Financial Transactions' with extremely high requirements for data consistency and zero tolerance for lock loss.",
+        "wg": [
+          {
+            "t": "金融級",
+            "en": "financial-grade",
+            "ps": "Adj"
+          },
+          {
+            "t": "容忍",
+            "en": "tolerance",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "相較於 Redis，為什麼通常建議使用 ZooKeeper 或 Etcd？",
+        "en": "Why is it usually recommended to use ZooKeeper or Etcd instead of Redis?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "因為 ZooKeeper/Etcd 是 CP 系統，透過共識演算法（如 Raft/ZAB）保證強一致性，鎖不會因主節點切換而遺失。",
+        "en": "Because ZooKeeper/Etcd are CP systems that guarantee strong consistency via consensus algorithms (like Raft/ZAB), ensuring locks are not lost during master failover.",
+        "wg": [
+          {
+            "t": "共識演算法",
+            "en": "consensus algorithm",
+            "ps": "N"
+          },
+          {
+            "t": "強一致性",
+            "en": "strong consistency",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "因為 ZooKeeper/Etcd 的讀寫效能遠高於 Redis。",
+        "en": "Because ZooKeeper/Etcd have much higher read/write performance than Redis.",
+        "wg": []
+      },
+      {
+        "t": "因為 Redis 不支援 TTL 機制，容易造成死鎖。",
+        "en": "Because Redis does not support TTL mechanisms, easily leading to deadlocks.",
+        "wg": []
+      },
+      {
+        "t": "因為 Redis 只能單執行緒運作，無法處理高併發。",
+        "en": "Because Redis operates on a single thread and cannot handle high concurrency.",
+        "wg": []
+      }
+    ],
+    "answer": "A",
+    "why": {
+      "t": "Redis 傾向於 AP（可用性優先），在 Failover 時可能遺失資料。ZooKeeper 與 Etcd 傾向於 CP（一致性優先），寫入必須經過多數節點確認才算成功，因此能提供比 Redis 更強的安全性保證，適合關鍵業務。",
+      "en": "Redis leans towards AP (Availability first) and may lose data during failover. ZooKeeper and Etcd lean towards CP (Consistency first), where writes must be acknowledged by a majority of nodes, thus providing stronger safety guarantees than Redis, suitable for critical business logic.",
+      "wg": [
+        {
+          "t": "傾向於",
+          "en": "leans towards",
+          "ps": "V"
+        },
+        {
+          "t": "關鍵業務",
+          "en": "critical business",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "13",
+    "level": "intermediate",
+    "keywords": "Liveness, Deadlock, TTL, Concept",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在分散式鎖的屬性中，「活性（Liveness）」指的是什麼？為什麼我們需要 TTL（Time-To-Live）？",
+        "en": "In the properties of distributed locks, what does 'Liveness' refer to? Why do we need TTL (Time-To-Live)?",
+        "wg": [
+          {
+            "t": "活性",
+            "en": "liveness",
+            "ps": "N"
+          },
+          {
+            "t": "屬性",
+            "en": "property",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "活性保證鎖最終會被釋放。TTL 確保即使持有鎖的客戶端崩潰，鎖也會自動過期，避免系統陷入永久死鎖。",
+        "en": "Liveness guarantees that the lock will eventually be released. TTL ensures that even if the client holding the lock crashes, the lock will automatically expire, preventing a permanent system deadlock.",
+        "wg": [
+          {
+            "t": "崩潰",
+            "en": "crash",
+            "ps": "V"
+          },
+          {
+            "t": "永久死鎖",
+            "en": "permanent deadlock",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "活性保證同一時間只有一個客戶端能持有鎖。TTL 用來限制客戶端的執行時間。",
+        "en": "Liveness guarantees that only one client can hold the lock at a time. TTL is used to limit the client's execution time.",
+        "wg": []
+      },
+      {
+        "t": "活性是指鎖的獲取速度。TTL 用來提升 Redis 的記憶體回收效率。",
+        "en": "Liveness refers to the speed of lock acquisition. TTL is used to improve Redis memory reclamation efficiency.",
+        "wg": []
+      },
+      {
+        "t": "活性是指系統能抵抗網路分區的能力。TTL 用來判斷網路延遲。",
+        "en": "Liveness refers to the system's ability to withstand network partitions. TTL is used to judge network latency.",
+        "wg": []
+      }
+    ],
+    "answer": "A",
+    "why": {
+      "t": "選項 B 描述的是「安全性（Safety/Mutual Exclusion）」。活性（Liveness）關注的是系統不會卡死。如果沒有 TTL 且客戶端在解鎖前崩潰，該資源將永遠被鎖定，導致系統停擺。",
+      "en": "Option B describes 'Safety/Mutual Exclusion'. Liveness concerns the system not getting stuck. Without TTL, if a client crashes before unlocking, the resource would be locked forever, causing the system to halt.",
+      "wg": [
+        {
+          "t": "停擺",
+          "en": "halt/stall",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "14",
+    "level": "intermediate",
+    "keywords": "Redlock, Quorum, Fault Tolerance, Calculation",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "若您部署了由 5 個獨立 Redis Master 節點組成的 Redlock 環境。",
+        "en": "If you deploy a Redlock environment consisting of 5 independent Redis Master nodes.",
+        "wg": [
+          {
+            "t": "獨立",
+            "en": "independent",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "為了成功取得鎖，客戶端至少需要從幾個節點獲得鎖？且該系統最多容許幾個節點同時故障而仍能正常運作？",
+        "en": "To successfully acquire a lock, from how many nodes must the client obtain the lock? And how many concurrent node failures can the system tolerate while still functioning?",
+        "wg": [
+          {
+            "t": "容許",
+            "en": "tolerate",
+            "ps": "V"
+          },
+          {
+            "t": "故障",
+            "en": "failure",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "需取得 3 個節點（N/2 + 1）；可容忍 2 個節點故障。",
+        "en": "Need 3 nodes (N/2 + 1); can tolerate 2 node failures.",
+        "wg": [
+          {
+            "t": "可容忍",
+            "en": "can tolerate",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "需取得 4 個節點；可容忍 1 個節點故障。",
+        "en": "Need 4 nodes; can tolerate 1 node failure.",
+        "wg": []
+      },
+      {
+        "t": "需取得 5 個節點（全部）；不可容忍任何故障。",
+        "en": "Need 5 nodes (all); cannot tolerate any failure.",
+        "wg": []
+      },
+      {
+        "t": "需取得 1 個節點；可容忍 4 個節點故障。",
+        "en": "Need 1 node; can tolerate 4 node failures.",
+        "wg": []
+      }
+    ],
+    "answer": "A",
+    "why": {
+      "t": "Redlock 採用過半數（Quorum）機制。對於 N=5，過半數為 floor(5/2) + 1 = 3。只要有 3 個節點存活並同意給鎖，系統即可運作，因此最多允許 5 - 3 = 2 個節點故障。",
+      "en": "Redlock uses a Quorum mechanism. For N=5, the majority is floor(5/2) + 1 = 3. As long as 3 nodes are alive and agree to grant the lock, the system can function, so it tolerates at most 5 - 3 = 2 node failures.",
+      "wg": [
+        {
+          "t": "過半數",
+          "en": "majority/quorum",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "15",
+    "level": "intermediate",
+    "keywords": "Idempotency, Payment Gateway, Retry Logic, System Design",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在處理第三方支付回調（Webhook）時，為了防止網路重試導致重複扣款，通常會結合 Redis 分散式鎖與「冪等性（Idempotency）」機制。",
+        "en": "When handling third-party payment callbacks (Webhooks), to prevent duplicate charges caused by network retries, Redis distributed locks are often combined with an 'Idempotency' mechanism.",
+        "wg": [
+          {
+            "t": "回調",
+            "en": "callback",
+            "ps": "N"
+          },
+          {
+            "t": "重複扣款",
+            "en": "duplicate charges",
+            "ps": "N"
+          },
+          {
+            "t": "冪等性",
+            "en": "idempotency",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "在此架構中，分散式鎖的主要職責是什麼？",
+        "en": "In this architecture, what is the primary responsibility of the distributed lock?",
+        "wg": [
+          {
+            "t": "職責",
+            "en": "responsibility",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "將併發的重複請求「序列化」，讓第一個請求處理完並寫入狀態後，後續請求能讀到已處理狀態而直接返回。",
+        "en": "Serialize concurrent duplicate requests, allowing the first request to process and write the status, so subsequent requests can read the processed status and return immediately.",
+        "wg": [
+          {
+            "t": "序列化",
+            "en": "serialize",
+            "ps": "V"
+          },
+          {
+            "t": "後續請求",
+            "en": "subsequent requests",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "確保支付閘道的連線加密。",
+        "en": "Ensure the payment gateway connection is encrypted.",
+        "wg": []
+      },
+      {
+        "t": "作為資料庫的替代品，永久儲存交易紀錄。",
+        "en": "Act as a replacement for the database to permanently store transaction records.",
+        "wg": []
+      },
+      {
+        "t": "防止 Redis 記憶體溢出。",
+        "en": "Prevent Redis memory overflow.",
+        "wg": []
+      }
+    ],
+    "answer": "A",
+    "why": {
+      "t": "分散式鎖本身不保證冪等（它只保證互斥）。它的作用是防止兩個相同的 Request 同時進入業務邏輯檢查。鎖讓 Request A 先執行，A 執行完會將訂單標記為「已支付」。當 Request B（重試）獲得鎖進入後，檢查訂單狀態發現已支付，便可直接忽略，從而達成冪等。",
+      "en": "The distributed lock itself does not guarantee idempotency (it only guarantees mutual exclusion). Its role is to prevent two identical requests from entering the business logic check simultaneously. The lock lets Request A execute first; A marks the order as 'Paid'. When Request B (retry) acquires the lock and enters, it checks the status, sees it's already paid, and ignores it, thus achieving idempotency.",
+      "wg": [
+        {
+          "t": "標記",
+          "en": "mark",
+          "ps": "V"
+        },
+        {
+          "t": "忽略",
+          "en": "ignore",
+          "ps": "V"
+        }
+      ]
+    }
+  }
+]
