@@ -1,0 +1,806 @@
+[
+  {
+    "no": "1",
+    "level": "Intermediate",
+    "keywords": "Observability, Monitoring, Unknown Unknowns",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你的團隊維護一個電子商務系統，監控儀表板顯示 CPU、記憶體與磁碟使用率皆正常，HTTP 500 錯誤率也低於門檻。然而，客服部門卻收到多起投訴，指出「當購物車內商品超過 50 件且使用特定折價券時，結帳會卡住」。根據可觀測性（Observability）的心智模型，這種情況反映了什麼問題？",
+        "en": "Your team maintains an e-commerce system. The monitoring dashboard shows normal CPU, memory, and disk usage, and the HTTP 500 error rate is below the threshold. However, customer support has received multiple complaints stating that 'checkout freezes when the cart has over 50 items and a specific coupon is used.' According to the mental model of Observability, what does this situation reflect?",
+        "wg": [
+          {
+            "t": "可觀測性",
+            "en": "Observability",
+            "ps": "noun"
+          },
+          {
+            "t": "心智模型",
+            "en": "Mental Model",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "這是一個「已知的未知」（Known Unknown），需要調整 CPU 警報閾值。",
+        "en": "This is a 'Known Unknown' that requires adjusting CPU alert thresholds.",
+        "wg": []
+      },
+      {
+        "t": "這是一個「未知的未知」（Unknown Unknown），傳統監控無法預先定義此類警報，需要可觀測性來探索原因。",
+        "en": "This is an 'Unknown Unknown'; traditional monitoring cannot pre-define alerts for this, requiring observability to explore the cause.",
+        "wg": [
+          {
+            "t": "未知的未知",
+            "en": "Unknown Unknown",
+            "ps": "phrase"
+          }
+        ]
+      },
+      {
+        "t": "這表示系統完全健康，使用者的投訴可能是網路問題。",
+        "en": "This indicates the system is perfectly healthy; user complaints are likely due to network issues.",
+        "wg": []
+      },
+      {
+        "t": "這是日誌級別（Log Level）設定過低的問題，應將所有服務開啟 DEBUG 模式。",
+        "en": "This is an issue with the Log Level being set too low; all services should be switched to DEBUG mode.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "監控（Monitoring）回答「系統是否健康」，關注已知的指標（如 CPU）。可觀測性（Observability）則回答「為什麼發生這種狀況」，專門處理無法預測的複雜交互（未知的未知）。在此情境中，特定條件組合導致的錯誤無法透過預設的資源監控發現，必須透過探索數據（Tracing/Logs）來診斷。",
+      "en": "Monitoring answers 'Is the system healthy?' focusing on known metrics (like CPU). Observability answers 'Why is it behaving this way?' dealing with unpredictable complex interactions (Unknown Unknowns). In this scenario, errors caused by a specific combination of conditions cannot be detected by default resource monitoring and must be diagnosed by exploring data (Tracing/Logs).",
+      "wg": []
+    }
+  },
+  {
+    "no": "2",
+    "level": "Intermediate",
+    "keywords": "Metrics, Anti-pattern, High Cardinality, Prometheus",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "http_requests_total.labels(method=\"POST\", endpoint=\"/checkout\", user_id=request.user_id).inc()",
+    "question": [
+      {
+        "t": "一位資淺工程師為了追蹤個別使用者的錯誤情況，在 Prometheus 指標中加入了 `user_id` 作為標籤（Label），如上方程式碼所示。這會導致什麼嚴重的後果？",
+        "en": "A junior engineer added `user_id` as a label in Prometheus metrics to track errors for individual users, as shown in the code snippet above. What serious consequence will this cause?",
+        "wg": [
+          {
+            "t": "指標",
+            "en": "Metrics",
+            "ps": "noun"
+          },
+          {
+            "t": "標籤",
+            "en": "Label",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "這會導致「高基數指標災難」（High Cardinality Metrics），可能使時間序列資料庫記憶體耗盡或崩潰。",
+        "en": "This leads to a 'High Cardinality Metrics' disaster, potentially causing the Time Series Database to run out of memory or crash.",
+        "wg": [
+          {
+            "t": "高基數",
+            "en": "High Cardinality",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "這會造成日誌檔案（Log files）過大，佔滿磁碟空間。",
+        "en": "This will cause Log files to become too large, filling up disk space.",
+        "wg": []
+      },
+      {
+        "t": "這會破壞 Trace Context 的傳遞，導致分散式追蹤中斷。",
+        "en": "This will break Trace Context propagation, causing distributed tracing to be interrupted.",
+        "wg": []
+      },
+      {
+        "t": "這是最佳實務，能提供最細顆粒度的使用者行為分析。",
+        "en": "This is a best practice, providing the finest granularity of user behavior analysis.",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "在 Metrics 的 Label 中放入無限增長的值（如 User ID, IP, Email）是典型的「高基數」（High Cardinality）反模式。這會導致 Prometheus 等時間序列資料庫建立過多的索引，造成記憶體爆炸與查詢效能低落。這類資料應放入 Logs 或 Traces 中。",
+      "en": "Putting unbounded values (like User ID, IP, Email) in Metric Labels is a typical 'High Cardinality' anti-pattern. This causes Time Series Databases like Prometheus to create too many indexes, leading to memory explosion and poor query performance. Such data should be placed in Logs or Traces.",
+      "wg": [
+        {
+          "t": "反模式",
+          "en": "Anti-pattern",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "3",
+    "level": "Advanced",
+    "keywords": "Sampling, Head-based, Tail-based, Tracing",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你的系統每天處理數億次請求，為了節省成本，你無法儲存所有 Trace。目前的目標是：「必須完整保留所有發生 Error 的請求 Trace，以及延遲超過 2 秒的請求 Trace，其餘正常請求僅保留 1%」。請問應採用哪種採樣策略？",
+        "en": "Your system handles hundreds of millions of requests daily. To save costs, you cannot store all Traces. The current goal is: 'Must fully retain Traces for all requests with Errors and requests with latency over 2 seconds; for other normal requests, retain only 1%.' Which sampling strategy should be adopted?",
+        "wg": [
+          {
+            "t": "採樣策略",
+            "en": "Sampling Strategy",
+            "ps": "noun"
+          },
+          {
+            "t": "延遲",
+            "en": "Latency",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "Head-based Sampling（頭部採樣）",
+        "en": "Head-based Sampling",
+        "wg": []
+      },
+      {
+        "t": "Tail-based Sampling（尾部採樣）",
+        "en": "Tail-based Sampling",
+        "wg": []
+      },
+      {
+        "t": "Probabilistic Sampling（機率採樣）",
+        "en": "Probabilistic Sampling",
+        "wg": []
+      },
+      {
+        "t": "Rate Limiting Sampling（速率限制採樣）",
+        "en": "Rate Limiting Sampling",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "Head-based 採樣在請求開始時就決定去留，無法預知請求是否會發生錯誤或延遲。Tail-based 採樣則是先收集所有數據，待請求結束後根據結果（是否有 Error、延遲是否過高）來決定是否保留，這正是題目需求（保留感興趣的異常數據）的唯一解法。",
+      "en": "Head-based sampling decides whether to keep data at the start of the request, making it impossible to predict if an error or latency will occur. Tail-based sampling collects all data first and decides whether to retain it after the request ends based on the outcome (e.g., if there was an Error or high latency), which is the only solution for the requirement (retaining interesting anomaly data).",
+      "wg": [
+        {
+          "t": "頭部採樣",
+          "en": "Head-based Sampling",
+          "ps": "noun"
+        },
+        {
+          "t": "尾部採樣",
+          "en": "Tail-based Sampling",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "4",
+    "level": "Intermediate",
+    "keywords": "Context Propagation, Tracing, Distributed Systems",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你在除錯一個微服務鏈路時，發現 Trace 斷裂了：請求從 Service A 成功發出，但在 Service B 的 Trace 中卻顯示為一個全新的 Trace ID，兩者無法串聯。最可能的原因是什麼？",
+        "en": "While debugging a microservice chain, you find the Trace is broken: the request is successfully sent from Service A, but in Service B's Trace, it shows as a brand new Trace ID, and the two cannot be linked. What is the most likely cause?",
+        "wg": [
+          {
+            "t": "斷裂",
+            "en": "Broken",
+            "ps": "adjective"
+          },
+          {
+            "t": "串聯",
+            "en": "Link/Correlate",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "Service B 的資料庫回應過慢，導致 Trace 超時。",
+        "en": "Service B's database response was too slow, causing the Trace to timeout.",
+        "wg": []
+      },
+      {
+        "t": "Service A 在呼叫 Service B 時，沒有正確傳遞 Trace Context（如 HTTP Headers 或 gRPC Metadata）。",
+        "en": "Service A did not correctly propagate the Trace Context (e.g., HTTP Headers or gRPC Metadata) when calling Service B.",
+        "wg": [
+          {
+            "t": "傳遞",
+            "en": "Propagate",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "Service B 的 Log Level 設定為 Info 而非 Debug。",
+        "en": "Service B's Log Level is set to Info instead of Debug.",
+        "wg": []
+      },
+      {
+        "t": "Service A 使用了 UDP 而非 TCP 協定。",
+        "en": "Service A used UDP instead of TCP protocol.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "分散式追蹤依賴「上下文傳遞」（Context Propagation）。如果上游服務在發起請求時沒有將 Trace ID 注入到 Headers 中，或者使用了非同步執行緒卻遺失了 Context，下游服務就會將其視為新請求並生成新的 Trace ID，導致鏈路斷裂。",
+      "en": "Distributed tracing relies on 'Context Propagation'. If the upstream service does not inject the Trace ID into the Headers when initiating a request, or if Context is lost when using asynchronous threads, the downstream service will treat it as a new request and generate a new Trace ID, causing the link to break.",
+      "wg": [
+        {
+          "t": "上下文傳遞",
+          "en": "Context Propagation",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "5",
+    "level": "Intermediate",
+    "keywords": "Metrics, RED Method, USE Method, Dashboard",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你正在為一個「面向使用者的 API 服務（User-facing Service）」設計監控儀表板。根據 Google SRE 與常見實務，下列哪一組指標方法論最適合此場景？",
+        "en": "You are designing a monitoring dashboard for a 'User-facing API Service'. According to Google SRE and common practices, which of the following metric methodologies is most suitable for this scenario?",
+        "wg": [
+          {
+            "t": "方法論",
+            "en": "Methodology",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "USE Method (Utilization, Saturation, Errors)",
+        "en": "USE Method (Utilization, Saturation, Errors)",
+        "wg": []
+      },
+      {
+        "t": "RED Method (Rate, Errors, Duration)",
+        "en": "RED Method (Rate, Errors, Duration)",
+        "wg": []
+      },
+      {
+        "t": "Log Aggregation only (僅日誌聚合)",
+        "en": "Log Aggregation only",
+        "wg": []
+      },
+      {
+        "t": "CPU & Memory Usage only (僅 CPU 與記憶體使用率)",
+        "en": "CPU & Memory Usage only",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "RED Method (Rate, Errors, Duration) 最適合用於衡量「服務」的請求品質與使用者體驗。相對地，USE Method (Utilization, Saturation, Errors) 更適用於分析「資源」（如 CPU、Disk、Memory）的健康狀況。",
+      "en": "The RED Method (Rate, Errors, Duration) is best suited for measuring the request quality and user experience of a 'Service'. In contrast, the USE Method (Utilization, Saturation, Errors) is more applicable for analyzing the health of 'Resources' (such as CPU, Disk, Memory).",
+      "wg": [
+        {
+          "t": "資源",
+          "en": "Resource",
+          "ps": "noun"
+        },
+        {
+          "t": "服務",
+          "en": "Service",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "6",
+    "level": "Intermediate",
+    "keywords": "Logging, Correlation ID, Troubleshooting",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在「三大支柱與黏著劑」的概念中，為了讓工程師能從 Metrics 的異常點直接跳轉到相關的 Logs 進行細節排查，最關鍵的技術實作是什麼？",
+        "en": "In the concept of 'The Three Pillars & The Glue', what is the most critical technical implementation to enable engineers to jump directly from an anomaly in Metrics to the relevant Logs for detailed investigation?",
+        "wg": [
+          {
+            "t": "三大支柱",
+            "en": "Three Pillars",
+            "ps": "noun"
+          },
+          {
+            "t": "黏著劑",
+            "en": "Glue",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "使用 JSON 格式輸出日誌。",
+        "en": "Output logs in JSON format.",
+        "wg": []
+      },
+      {
+        "t": "在所有日誌條目（Log Entry）中自動注入 Trace ID (Correlation ID)。",
+        "en": "Automatically inject Trace ID (Correlation ID) into all Log Entries.",
+        "wg": [
+          {
+            "t": "注入",
+            "en": "Inject",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "將所有日誌都傳送到 Prometheus。",
+        "en": "Send all logs to Prometheus.",
+        "wg": []
+      },
+      {
+        "t": "使用 grep 指令搜尋日誌檔案。",
+        "en": "Use the grep command to search log files.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "雖然 JSON 格式很重要，但要實現 Metrics、Tracing 與 Logs 之間的無縫關聯，核心在於 Trace ID (Correlation ID)。透過 Log Injection 將 Trace ID 寫入每條日誌，工具才能將特定的請求路徑（Trace）與該請求產生的詳細訊息（Logs）連結起來。",
+      "en": "While JSON format is important, the core to achieving seamless correlation between Metrics, Tracing, and Logs is the Trace ID (Correlation ID). By writing the Trace ID into every log via Log Injection, tools can link a specific request path (Trace) with the detailed messages (Logs) generated by that request.",
+      "wg": [
+        {
+          "t": "無縫關聯",
+          "en": "Seamless Correlation",
+          "ps": "phrase"
+        }
+      ]
+    }
+  },
+  {
+    "no": "7",
+    "level": "Intermediate",
+    "keywords": "Metrics, Anti-pattern, Percentiles, Averages, Latency",
+    "parentNo": null,
+    "images": "",
+    "codeSnippet": "",
+    "question": [
+      {
+        "t": "你的團隊負責維護一個關鍵的結帳 API，SLA 要求延遲時間需低於 500ms。目前的監控儀表板顯示該 API 的「平均延遲（Average Latency）」穩定維持在 150ms，但客服仍不斷收到 VIP 客戶投訴結帳頁面「卡死」或「超時」。請問這種監控盲點最可能的原因是什麼？",
+        "en": "Your team maintains a critical checkout API with an SLA requiring latency under 500ms. The current dashboard shows the 'Average Latency' is stable at 150ms, yet customer support keeps receiving complaints from VIP customers about the checkout page freezing or timing out. What is the most likely cause of this monitoring blind spot?",
+        "wg": [
+          {
+            "t": "平均延遲",
+            "en": "Average Latency",
+            "ps": "noun"
+          },
+          {
+            "t": "監控盲點",
+            "en": "monitoring blind spot",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "平均值是一個落後指標，無法反映即時的系統狀態。",
+        "en": "The average is a lagging indicator and cannot reflect the real-time system state.",
+        "wg": []
+      },
+      {
+        "t": "平均值會掩蓋極端值（Outliers），少數極慢的請求被大量快速的請求稀釋了。",
+        "en": "Averages mask outliers; a small number of very slow requests are diluted by a large volume of fast requests.",
+        "wg": [
+          {
+            "t": "極端值",
+            "en": "Outliers",
+            "ps": "noun"
+          },
+          {
+            "t": "稀釋",
+            "en": "diluted",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "監控系統的採樣率（Sampling Rate）過高，導致數據失真。",
+        "en": "The sampling rate of the monitoring system is too high, causing data distortion.",
+        "wg": []
+      },
+      {
+        "t": "平均值只能反映成功的請求，無法計算失敗請求的延遲。",
+        "en": "Averages only reflect successful requests and cannot account for the latency of failed requests.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "這是「依賴平均值（Reliance on Averages）」的反模式。如果 99% 的請求只需 50ms，但有 1% 的請求卡住長達 10秒，平均值可能看起來仍然很健康（例如 150ms），完全掩蓋了那 1% 使用者的糟糕體驗。正確做法是監控 P95 或 P99（百分位數）。",
+      "en": "This is the 'Reliance on Averages' anti-pattern. If 99% of requests take 50ms but 1% hang for 10 seconds, the average might still look healthy (e.g., 150ms), completely masking the terrible experience of that 1% of users. The correct approach is to monitor P95 or P99 (percentiles).",
+      "wg": [
+        {
+          "t": "反模式",
+          "en": "anti-pattern",
+          "ps": "noun"
+        },
+        {
+          "t": "百分位數",
+          "en": "percentiles",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "8",
+    "level": "Intermediate",
+    "keywords": "Logging, Anti-pattern, Signal-to-Noise Ratio, Cost",
+    "parentNo": null,
+    "images": "",
+    "codeSnippet": "",
+    "question": [
+      {
+        "t": "為了不錯過任何潛在的 Bug，一位開發者提議在生產環境（Production）將所有微服務的 Log Level 設為 `DEBUG`，並記錄每一個函式的進入與離開。除了儲存成本飆升外，這種「記錄一切（Log Everything）」的策略主要會帶來什麼負面影響？",
+        "en": "To avoid missing any potential bugs, a developer suggests setting the Log Level to `DEBUG` for all microservices in Production and logging every function entry and exit. Besides skyrocketing storage costs, what is the primary negative impact of this 'Log Everything' strategy?",
+        "wg": [
+          {
+            "t": "記錄一切",
+            "en": "Log Everything",
+            "ps": "phrase"
+          },
+          {
+            "t": "生產環境",
+            "en": "Production",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "會導致 Trace ID 無法正確生成，破壞分佈式追蹤。",
+        "en": "It will prevent Trace IDs from generating correctly, breaking distributed tracing.",
+        "wg": []
+      },
+      {
+        "t": "會導致「訊噪比（Signal-to-Noise Ratio）」過低，真正的錯誤訊息被淹沒在雜訊中，增加排查難度。",
+        "en": "It will cause a low 'Signal-to-Noise Ratio', drowning out real error messages in noise and increasing troubleshooting difficulty.",
+        "wg": [
+          {
+            "t": "訊噪比",
+            "en": "Signal-to-Noise Ratio",
+            "ps": "noun"
+          },
+          {
+            "t": "淹沒",
+            "en": "drowning out",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "會導致 Prometheus 的指標基數（Cardinality）過高，造成記憶體溢出。",
+        "en": "It will cause high cardinality in Prometheus metrics, leading to memory overflow.",
+        "wg": []
+      },
+      {
+        "t": "會強制系統關閉結構化日誌（Structured Logging）功能，只能輸出純文字。",
+        "en": "It will force the system to disable Structured Logging, outputting only plain text.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "過多的 Log 會產生大量雜訊，使得工程師在發生事故時難以快速定位關鍵的錯誤訊息（Actionable Info）。這被稱為低訊噪比。此外，這也會對應用程式的 I/O 效能造成顯著影響。",
+      "en": "Excessive logging creates massive noise, making it difficult for engineers to quickly locate critical error messages (Actionable Info) during an incident. This is known as a low signal-to-noise ratio. Additionally, it can significantly impact the application's I/O performance.",
+      "wg": [
+        {
+          "t": "可行動的資訊",
+          "en": "Actionable Info",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "9",
+    "level": "Advanced",
+    "keywords": "Tracing, Waterfall, Network Latency, DNS, Troubleshooting",
+    "parentNo": null,
+    "images": "",
+    "codeSnippet": "",
+    "question": [
+      {
+        "t": "你正在分析一個分散式追蹤（Distributed Trace）的瀑布圖（Waterfall View）。\n你觀察到 `Service A` 呼叫 `Service B` 的 Span 總耗時為 5 秒。然而，點進去查看 `Service B` 的子 Span，發現 `Service B` 內部處理時間僅為 50 毫秒。在 `Service A` 發出請求與 `Service B` 收到請求之間，有一段長達 4.95 秒的空白間隙。這段空白最不可能代表下列哪種情況？",
+        "en": "You are analyzing a Waterfall View of a distributed trace.\nYou observe that the Span for `Service A` calling `Service B` takes 5 seconds. However, inspecting the child Span of `Service B` reveals its internal processing time is only 50ms. There is a 4.95-second gap between `Service A` sending the request and `Service B` receiving it. Which of the following does this gap LEAST likely represent?",
+        "wg": [
+          {
+            "t": "瀑布圖",
+            "en": "Waterfall View",
+            "ps": "noun"
+          },
+          {
+            "t": "空白間隙",
+            "en": "gap",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "Service B 的資料庫正在執行慢查詢（Slow Query）。",
+        "en": "Service B's database is executing a Slow Query.",
+        "wg": [
+          {
+            "t": "慢查詢",
+            "en": "Slow Query",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "Kubernetes 叢集內的 DNS 解析超時。",
+        "en": "DNS resolution timeout within the Kubernetes cluster.",
+        "wg": []
+      },
+      {
+        "t": "Service A 與 Service B 之間的網路封包遺失導致 TCP 重傳。",
+        "en": "Packet loss between Service A and Service B causing TCP retransmission.",
+        "wg": []
+      },
+      {
+        "t": "Service A 的執行緒在等待建立連線（Connection Pool Exhaustion）。",
+        "en": "Service A's thread is waiting to establish a connection (Connection Pool Exhaustion).",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "如果問題出在 Service B 的資料庫慢查詢，這段時間應該會被包含在 Service B 的 Span 內部（因為 Service B 已經收到請求並開始處理）。題目的情境是「Service B 處理很快」，但「呼叫方覺得很慢」，這通常意味著時間消耗在網路傳輸、DNS 解析、負載平衡器或客戶端等待連線等「服務之外」的環節。",
+      "en": "If the issue were a slow database query in Service B, that time would be included within Service B's Span (since Service B has already received the request and started processing). The scenario describes 'Service B is fast' but 'Caller sees it as slow', which typically implies time is lost in 'out-of-service' stages like network transmission, DNS resolution, load balancers, or client-side connection waiting.",
+      "wg": [
+        {
+          "t": "服務之外",
+          "en": "out-of-service",
+          "ps": "adjective"
+        }
+      ]
+    }
+  },
+  {
+    "no": "10",
+    "level": "Intermediate",
+    "keywords": "OpenTelemetry, Architecture, Vendor Lock-in, Collector",
+    "parentNo": null,
+    "images": "",
+    "codeSnippet": "",
+    "question": [
+      {
+        "t": "你的公司目前使用廠商 A 的專有 Agent 進行監控，但計畫在明年切換到廠商 B 或自建開源方案。為了避免未來的「廠商鎖定（Vendor Lock-in）」並減少切換時修改程式碼的成本，你應該在架構中引入什麼標準組件？",
+        "en": "Your company currently uses Vendor A's proprietary agent for monitoring but plans to switch to Vendor B or an open-source solution next year. To avoid future 'Vendor Lock-in' and minimize code changes during the switch, what standard component should you introduce into your architecture?",
+        "wg": [
+          {
+            "t": "廠商鎖定",
+            "en": "Vendor Lock-in",
+            "ps": "noun"
+          },
+          {
+            "t": "專有",
+            "en": "proprietary",
+            "ps": "adjective"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "Prometheus Pushgateway",
+        "en": "Prometheus Pushgateway",
+        "wg": []
+      },
+      {
+        "t": "OpenTelemetry Collector",
+        "en": "OpenTelemetry Collector",
+        "wg": []
+      },
+      {
+        "t": "Elasticsearch Logstash",
+        "en": "Elasticsearch Logstash",
+        "wg": []
+      },
+      {
+        "t": "Istio Service Mesh",
+        "en": "Istio Service Mesh",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "OpenTelemetry (OTel) 是目前的業界標準。透過部署 OTel Collector，應用程式只需將數據發送到 Collector，由 Collector 負責處理格式轉換並導出到任何後端（如 Jaeger, Prometheus, Datadog 等）。這樣更換後端廠商時，只需修改 Collector 設定檔，無需改動應用程式碼。",
+      "en": "OpenTelemetry (OTel) is the current industry standard. By deploying the OTel Collector, applications only need to send data to the Collector, which handles format conversion and exporting to any backend (like Jaeger, Prometheus, Datadog, etc.). This allows switching backend vendors by simply modifying the Collector configuration without changing application code.",
+      "wg": [
+        {
+          "t": "業界標準",
+          "en": "industry standard",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "11",
+    "level": "Intermediate",
+    "keywords": "Alerting, SRE, Best Practices, Symptom-based",
+    "parentNo": null,
+    "images": "",
+    "codeSnippet": "",
+    "question": [
+      {
+        "t": "根據 Google SRE 的建議與現代可觀測性最佳實務，在設定警報（Alerting）時，下列哪一項規則最適合設為「呼叫工程師起床（Page/Critical）」的高優先級警報？",
+        "en": "According to Google SRE recommendations and modern observability best practices, which of the following rules is most suitable as a high-priority 'Page/Critical' alert that wakes up an engineer?",
+        "wg": [
+          {
+            "t": "警報",
+            "en": "Alerting",
+            "ps": "noun"
+          },
+          {
+            "t": "最佳實務",
+            "en": "best practices",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "某台伺服器的 CPU 使用率超過 90%。",
+        "en": "CPU usage on a specific server exceeds 90%.",
+        "wg": []
+      },
+      {
+        "t": "結帳服務的 HTTP 500 錯誤率超過 5%。",
+        "en": "The HTTP 500 error rate for the Checkout Service exceeds 5%.",
+        "wg": []
+      },
+      {
+        "t": "資料庫的磁碟空間使用率達到 70%。",
+        "en": "Database disk space usage reaches 70%.",
+        "wg": []
+      },
+      {
+        "t": "垃圾回收（GC）頻率比昨天增加了 20%。",
+        "en": "Garbage Collection (GC) frequency increased by 20% compared to yesterday.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "警報應基於「症狀（Symptoms）」，即使用者的真實痛點。錯誤率過高直接影響使用者體驗，需要立即處理。而 CPU 高或磁碟 70% 屬於「原因（Causes）」或潛在風險，如果系統仍能正常服務使用者，則不應在半夜叫醒工程師，適合設為工單或低優先級通知。",
+      "en": "Alerts should be based on 'Symptoms', representing real user pain. High error rates directly impact user experience and require immediate attention. High CPU or 70% disk usage are 'Causes' or potential risks; if the system is still serving users correctly, they should not wake up an engineer at night and are better suited for tickets or low-priority notifications.",
+      "wg": [
+        {
+          "t": "症狀",
+          "en": "Symptoms",
+          "ps": "noun"
+        },
+        {
+          "t": "痛點",
+          "en": "pain points",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "12",
+    "level": "Intermediate",
+    "keywords": "Logging, Structured Logging, JSON, Best Practices",
+    "parentNo": null,
+    "images": "",
+    "codeSnippet": "logger.Error(\"payment failed\", zap.String(\"order_id\", \"123\"), zap.Error(err))",
+    "question": [
+      {
+        "t": "你的團隊正在升級日誌系統，決定全面採用「結構化日誌（Structured Logging）」，如上方程式碼所示。相較於傳統的純文字日誌（如 `printf(\"Payment failed for order %s\", id)`），結構化日誌最大的優勢是什麼？",
+        "en": "Your team is upgrading the logging system and decides to fully adopt 'Structured Logging', as shown in the code snippet above. Compared to traditional plain text logs (like `printf(\"Payment failed for order %s\", id)`), what is the biggest advantage of structured logging?",
+        "wg": [
+          {
+            "t": "結構化日誌",
+            "en": "Structured Logging",
+            "ps": "noun"
+          },
+          {
+            "t": "純文字日誌",
+            "en": "plain text logs",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "它能減少日誌檔案的儲存體積。",
+        "en": "It reduces the storage size of log files.",
+        "wg": []
+      },
+      {
+        "t": "它讓機器（如 ELK, Splunk）能自動解析欄位，支援精確的屬性查詢（如 `order_id=\"123\"`）。",
+        "en": "It allows machines (like ELK, Splunk) to automatically parse fields, supporting precise attribute queries (e.g., `order_id=\"123\"`).",
+        "wg": [
+          {
+            "t": "解析",
+            "en": "parse",
+            "ps": "verb"
+          },
+          {
+            "t": "屬性查詢",
+            "en": "attribute queries",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "它能自動修復應用程式中的錯誤。",
+        "en": "It can automatically fix errors in the application.",
+        "wg": []
+      },
+      {
+        "t": "它不需要開發人員撰寫任何程式碼即可自動產生。",
+        "en": "It generates automatically without requiring developers to write any code.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "結構化日誌（通常為 JSON 格式）將日誌視為資料而非文字。這讓日誌管理系統可以建立索引，使工程師能進行類似 SQL 的查詢（例如篩選特定 `user_id` 或 `status_code`），而不是依賴緩慢且易錯的全文檢索或 Regex。",
+      "en": "Structured logging (usually in JSON format) treats logs as data rather than text. This allows log management systems to build indexes, enabling engineers to perform SQL-like queries (e.g., filtering by specific `user_id` or `status_code`) instead of relying on slow and error-prone full-text search or Regex.",
+      "wg": [
+        {
+          "t": "全文檢索",
+          "en": "full-text search",
+          "ps": "noun"
+        }
+      ]
+    }
+  }
+]

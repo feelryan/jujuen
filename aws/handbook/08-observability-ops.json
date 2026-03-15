@@ -1,0 +1,984 @@
+[
+  {
+    "no": 1,
+    "level": "Intermediate",
+    "keywords": "CloudWatch Metrics, Dimensions, High Cardinality, Cost Optimization",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "一位開發者建議在 CloudWatch Custom Metrics 中加入 `UserID` 作為維度 (Dimension)，以便追蹤每一位使用者的 API 回應時間。該系統擁有超過 50,000 名活躍用戶。這種做法最主要的風險是什麼？",
+        "en": "A developer suggests adding `UserID` as a dimension to CloudWatch Custom Metrics to track API response time for each user. The system has over 50,000 active users. What is the primary risk of this approach?",
+        "wg": [
+          {
+            "t": "維度",
+            "en": "Dimension",
+            "ps": "noun"
+          },
+          {
+            "t": "活躍用戶",
+            "en": "Active users",
+            "ps": "noun"
+          },
+          {
+            "t": "風險",
+            "en": "Risk",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "這會導致 API 延遲顯著增加，因為寫入指標是同步操作。",
+        "en": "It will significantly increase API latency because writing metrics is a synchronous operation.",
+        "wg": []
+      },
+      {
+        "t": "這會產生高基數 (High Cardinality) 問題，導致 CloudWatch 帳單費用爆炸。",
+        "en": "It will create a High Cardinality issue, causing the CloudWatch bill to explode.",
+        "wg": [
+          {
+            "t": "高基數",
+            "en": "High Cardinality",
+            "ps": "noun"
+          },
+          {
+            "t": "帳單",
+            "en": "Bill",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "CloudWatch 不支援字串類型的維度，因此該請求會失敗。",
+        "en": "CloudWatch does not support string-type dimensions, so the request will fail.",
+        "wg": []
+      },
+      {
+        "t": "這違反了 GDPR，因為 UserID 被視為敏感個資。",
+        "en": "It violates GDPR because UserID is considered sensitive personal data.",
+        "wg": []
+      }
+    ],
+    "answer": 1,
+    "why": {
+      "t": "CloudWatch Metrics 的計費是基於「Metric Name + Dimensions 的唯一組合」。若將 UserID (高基數資料) 作為維度，會產生數萬個獨立的 Metrics，導致成本指數級上升。正確做法是將 UserID 放入 Log (使用 EMF 或 Structured Logs) 並透過 Logs Insights 查詢，而非作為 Metric Dimension。",
+      "en": "CloudWatch Metrics billing is based on the 'unique combination of Metric Name + Dimensions'. Using UserID (high cardinality data) as a dimension generates tens of thousands of unique metrics, leading to exponential cost growth. The correct approach is to include UserID in Logs (using EMF or Structured Logs) and query via Logs Insights, rather than using it as a Metric Dimension.",
+      "wg": [
+        {
+          "t": "唯一組合",
+          "en": "Unique combination",
+          "ps": "noun"
+        },
+        {
+          "t": "指數級",
+          "en": "Exponential",
+          "ps": "adjective"
+        }
+      ]
+    }
+  },
+  {
+    "no": 2,
+    "level": "Advanced",
+    "keywords": "EMF, Latency, Performance, Best Practices",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "await cloudwatch.putMetricData(params).promise(); // vs // console.log(JSON.stringify(emfPayload));",
+    "question": [
+      {
+        "t": "你在一個高流量的 Lambda 函式中需要記錄商業指標（例如 `OrderPlaced`）。為了避免每次呼叫 `PutMetricData` API 帶來的網路延遲與成本，你應該採用哪種 AWS 最佳實務？",
+        "en": "You need to record business metrics (e.g., `OrderPlaced`) in a high-traffic Lambda function. To avoid the network latency and cost associated with calling the `PutMetricData` API every time, which AWS best practice should you adopt?",
+        "wg": [
+          {
+            "t": "高流量",
+            "en": "High-traffic",
+            "ps": "adjective"
+          },
+          {
+            "t": "網路延遲",
+            "en": "Network latency",
+            "ps": "noun"
+          },
+          {
+            "t": "最佳實務",
+            "en": "Best practice",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "使用 CloudWatch Embedded Metric Format (EMF)，將指標以 JSON 格式寫入標準輸出 (stdout)。",
+        "en": "Use CloudWatch Embedded Metric Format (EMF) to write metrics as JSON to standard output (stdout).",
+        "wg": [
+          {
+            "t": "標準輸出",
+            "en": "Standard output",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "使用 SQS 佇列來緩衝指標，並由另一個 Lambda 非同步寫入。",
+        "en": "Use an SQS queue to buffer metrics and have another Lambda write them asynchronously.",
+        "wg": []
+      },
+      {
+        "t": "啟用 X-Ray Tracing 並使用 Annotations 來替代 Metrics。",
+        "en": "Enable X-Ray Tracing and use Annotations instead of Metrics.",
+        "wg": []
+      },
+      {
+        "t": "增加 Lambda 的記憶體配置以加快 API 呼叫速度。",
+        "en": "Increase the Lambda memory allocation to speed up API calls.",
+        "wg": []
+      }
+    ],
+    "answer": 0,
+    "why": {
+      "t": "EMF 允許你透過寫入 Log (stdout) 的方式來產生 Metrics。CloudWatch 會在背景非同步地從 Log 中提取指標，這樣既不會阻塞程式執行 (Zero latency impact)，也能節省 API 呼叫費用。",
+      "en": "EMF allows you to generate metrics by writing to Logs (stdout). CloudWatch asynchronously extracts metrics from the logs in the background, so it does not block program execution (Zero latency impact) and saves on API call costs.",
+      "wg": [
+        {
+          "t": "非同步地",
+          "en": "Asynchronously",
+          "ps": "adverb"
+        },
+        {
+          "t": "阻塞",
+          "en": "Block",
+          "ps": "verb"
+        },
+        {
+          "t": "提取",
+          "en": "Extract",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": 3,
+    "level": "Intermediate",
+    "keywords": "Alerting Strategy, SRE, Golden Signals, Anti-patterns",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你的團隊正面臨「告警疲勞 (Alert Fatigue)」。On-call 工程師經常在半夜被「CPU 使用率 > 80%」的告警叫醒，但檢查後發現系統回應速度正常且無錯誤。根據 SRE 黃金訊號 (Golden Signals) 原則，應如何調整此告警策略？",
+        "en": "Your team is suffering from 'Alert Fatigue'. The on-call engineer is often woken up at night by 'CPU Utilization > 80%' alarms, but checks reveal the system response time is normal with no errors. According to SRE Golden Signals principles, how should this alerting strategy be adjusted?",
+        "wg": [
+          {
+            "t": "告警疲勞",
+            "en": "Alert Fatigue",
+            "ps": "noun"
+          },
+          {
+            "t": "回應速度",
+            "en": "Response speed",
+            "ps": "noun"
+          },
+          {
+            "t": "調整",
+            "en": "Adjust",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "將 CPU 閾值提高到 95% 以減少誤報。",
+        "en": "Increase the CPU threshold to 95% to reduce false alarms.",
+        "wg": []
+      },
+      {
+        "t": "將該告警降級為 Ticket/Info，並改為針對「延遲 (Latency)」或「錯誤率 (Error Rate)」設定 P1 告警。",
+        "en": "Downgrade this alarm to Ticket/Info and create a P1 alarm based on 'Latency' or 'Error Rate' instead.",
+        "wg": [
+          {
+            "t": "降級",
+            "en": "Downgrade",
+            "ps": "verb"
+          },
+          {
+            "t": "閾值",
+            "en": "Threshold",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "設定 Auto Scaling Group，一旦 CPU 超過 50% 就自動擴容，避免觸發告警。",
+        "en": "Configure Auto Scaling Group to scale out immediately when CPU exceeds 50% to avoid triggering the alarm.",
+        "wg": []
+      },
+      {
+        "t": "完全停用 CPU 監控，因為它在雲端環境中不重要。",
+        "en": "Disable CPU monitoring completely as it is irrelevant in a cloud environment.",
+        "wg": []
+      }
+    ],
+    "answer": 1,
+    "why": {
+      "t": "告警應針對「症狀 (Symptoms，如使用者感受到的慢或錯誤)」而非「原因 (Causes，如 CPU 高)」。CPU 高但服務正常時，不需要半夜叫醒工程師。應監測直接影響使用者的黃金訊號 (Latency, Errors)。",
+      "en": "Alerts should focus on 'Symptoms' (e.g., slowness or errors perceived by users) rather than 'Causes' (e.g., high CPU). If CPU is high but the service is healthy, there is no need to wake up an engineer. Monitor Golden Signals (Latency, Errors) that directly impact users.",
+      "wg": [
+        {
+          "t": "症狀",
+          "en": "Symptoms",
+          "ps": "noun"
+        },
+        {
+          "t": "原因",
+          "en": "Causes",
+          "ps": "noun"
+        },
+        {
+          "t": "監測",
+          "en": "Monitor",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": 4,
+    "level": "Intermediate",
+    "keywords": "Troubleshooting, Workflow, Three Pillars, Observability",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "當生產環境觸發了「API 錯誤率過高」的告警時，根據 AWS 建議的「資料流三支柱 (Three Pillars Data Flow)」排查模型，最有效率的調查順序是什麼？",
+        "en": "When a 'High API Error Rate' alarm is triggered in production, what is the most efficient investigation sequence according to the AWS recommended 'Three Pillars Data Flow' troubleshooting model?",
+        "wg": [
+          {
+            "t": "觸發",
+            "en": "Trigger",
+            "ps": "verb"
+          },
+          {
+            "t": "排查",
+            "en": "Troubleshoot",
+            "ps": "verb"
+          },
+          {
+            "t": "順序",
+            "en": "Sequence",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "Logs (查看錯誤訊息) -> Metrics (確認告警) -> Traces (定位元件)",
+        "en": "Logs (Check error messages) -> Metrics (Confirm alarm) -> Traces (Locate component)",
+        "wg": []
+      },
+      {
+        "t": "Metrics (偵測問題) -> Traces (定位發生位置) -> Logs (挖掘根本原因)",
+        "en": "Metrics (Detect issue) -> Traces (Locate where) -> Logs (Dig for root cause)",
+        "wg": [
+          {
+            "t": "偵測",
+            "en": "Detect",
+            "ps": "verb"
+          },
+          {
+            "t": "挖掘",
+            "en": "Dig",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "Traces (查看關聯) -> Logs (查看細節) -> Metrics (統計數量)",
+        "en": "Traces (Check correlations) -> Logs (Check details) -> Metrics (Count stats)",
+        "wg": []
+      },
+      {
+        "t": "直接 SSH 進入伺服器查看 `/var/log`，不需理會 Metrics。",
+        "en": "SSH directly into the server to check `/var/log`, ignoring Metrics.",
+        "wg": []
+      }
+    ],
+    "answer": 1,
+    "why": {
+      "t": "標準流程是：1. Metrics (What) 告訴你發生了什麼事並觸發告警；2. Traces (Where) 幫助你縮小範圍，找出是哪個微服務或依賴出問題；3. Logs (Why) 針對該特定服務與 Trace ID 查看詳細錯誤堆疊。",
+      "en": "The standard flow is: 1. Metrics (What) tell you something is wrong and trigger the alarm; 2. Traces (Where) help you narrow down which microservice or dependency is failing; 3. Logs (Why) allow you to inspect the detailed error stack for that specific service and Trace ID.",
+      "wg": [
+        {
+          "t": "縮小範圍",
+          "en": "Narrow down",
+          "ps": "verb"
+        },
+        {
+          "t": "依賴",
+          "en": "Dependency",
+          "ps": "noun"
+        },
+        {
+          "t": "錯誤堆疊",
+          "en": "Error stack",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": 5,
+    "level": "Beginner",
+    "keywords": "CloudWatch Logs, Cost Optimization, Retention Policy",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "一家新創公司的 AWS 帳單顯示 CloudWatch Logs 的儲存成本每個月都在翻倍。經檢查發現，他們使用 CDK 部署的所有 Log Groups 都採用了預設設定。最可能的原因與修正方式為何？",
+        "en": "A startup's AWS bill shows CloudWatch Logs storage costs doubling every month. Upon inspection, it is found that all Log Groups deployed via CDK are using default settings. What is the most likely cause and the fix?",
+        "wg": [
+          {
+            "t": "儲存成本",
+            "en": "Storage cost",
+            "ps": "noun"
+          },
+          {
+            "t": "預設設定",
+            "en": "Default settings",
+            "ps": "noun"
+          },
+          {
+            "t": "修正方式",
+            "en": "Fix",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "預設開啟了 Detailed Monitoring。修正：改為 Basic Monitoring。",
+        "en": "Detailed Monitoring is enabled by default. Fix: Switch to Basic Monitoring.",
+        "wg": []
+      },
+      {
+        "t": "預設保留期限 (Retention) 為「永不過期 (Never Expire)」。修正：設定合理的保留期（如 30 天）。",
+        "en": "Default Retention is set to 'Never Expire'. Fix: Set a reasonable retention period (e.g., 30 days).",
+        "wg": [
+          {
+            "t": "保留期限",
+            "en": "Retention period",
+            "ps": "noun"
+          },
+          {
+            "t": "永不過期",
+            "en": "Never Expire",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "預設日誌格式為 XML。修正：改為 JSON 以節省空間。",
+        "en": "Default log format is XML. Fix: Switch to JSON to save space.",
+        "wg": []
+      },
+      {
+        "t": "預設會將日誌複製到所有區域。修正：關閉跨區域複寫。",
+        "en": "Logs are replicated to all regions by default. Fix: Disable cross-region replication.",
+        "wg": []
+      }
+    ],
+    "answer": 1,
+    "why": {
+      "t": "CloudWatch Log Groups 的預設保留策略是永久保存。隨著時間推移，累積的舊日誌會導致儲存費用不斷墊高。最佳實務是明確設定 Retention Policy (例如 Dev 7天, Prod 90天)。",
+      "en": "The default retention policy for CloudWatch Log Groups is to keep logs forever. Over time, accumulated old logs cause storage costs to rise continuously. Best practice is to explicitly set a Retention Policy (e.g., Dev 7 days, Prod 90 days).",
+      "wg": [
+        {
+          "t": "永久保存",
+          "en": "Keep forever",
+          "ps": "verb"
+        },
+        {
+          "t": "累積",
+          "en": "Accumulate",
+          "ps": "verb"
+        },
+        {
+          "t": "墊高",
+          "en": "Rise / Increase",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": 6,
+    "level": "Intermediate",
+    "keywords": "Structured Logging, JSON, CloudWatch Logs Insights, Debugging",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "[ERROR] 2023-10-01 User 123 failed to checkout: Item out of stock",
+    "question": [
+      {
+        "t": "你的應用程式輸出了如上所示的純文字日誌 (Plain Text Logs)。當你需要統計「過去一小時有多少使用者因庫存不足 (Item out of stock) 而失敗」時，發現查詢非常困難且緩慢。為了改善此問題，你應該實作什麼模式？",
+        "en": "Your application outputs Plain Text Logs as shown above. When you need to count 'how many users failed due to Item out of stock in the last hour', you find the query difficult and slow. What pattern should you implement to improve this?",
+        "wg": [
+          {
+            "t": "純文字日誌",
+            "en": "Plain Text Logs",
+            "ps": "noun"
+          },
+          {
+            "t": "庫存不足",
+            "en": "Item out of stock",
+            "ps": "phrase"
+          },
+          {
+            "t": "實作",
+            "en": "Implement",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "結構化日誌 (Structured Logging)，以 JSON 格式輸出。",
+        "en": "Structured Logging, outputting in JSON format.",
+        "wg": [
+          {
+            "t": "結構化日誌",
+            "en": "Structured Logging",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "日誌輪替 (Log Rotation)，每小時產生一個新檔案。",
+        "en": "Log Rotation, creating a new file every hour.",
+        "wg": []
+      },
+      {
+        "t": "在日誌中加入更多的特殊符號以便 Regex 解析。",
+        "en": "Add more special characters to logs for easier Regex parsing.",
+        "wg": []
+      },
+      {
+        "t": "將日誌級別從 ERROR 提升為 CRITICAL。",
+        "en": "Escalate the log level from ERROR to CRITICAL.",
+        "wg": []
+      }
+    ],
+    "answer": 0,
+    "why": {
+      "t": "結構化日誌 (JSON) 讓 CloudWatch Logs Insights 可以自動解析欄位 (如 `userId`, `errorType`)。這使得類似 `filter errorType = 'OutOfStock' | stats count(*) by userId` 的查詢變得簡單且高效，無需編寫複雜的 Regex。",
+      "en": "Structured Logging (JSON) allows CloudWatch Logs Insights to automatically parse fields (like `userId`, `errorType`). This makes queries like `filter errorType = 'OutOfStock' | stats count(*) by userId` simple and efficient, without needing complex Regex.",
+      "wg": [
+        {
+          "t": "解析",
+          "en": "Parse",
+          "ps": "verb"
+        },
+        {
+          "t": "高效",
+          "en": "Efficient",
+          "ps": "adjective"
+        }
+      ]
+    }
+  },
+  {
+    "no": "7",
+    "level": "Intermediate",
+    "keywords": "X-Ray, Cost Optimization, Sampling Rules, Performance",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你的團隊剛將一個高流量的微服務上線到生產環境，並啟用了 AWS X-Ray 來進行分散式追蹤。然而，月底收到帳單時發現 X-Ray 的費用異常高昂，且應用程式的效能似乎受到輕微影響。",
+        "en": "Your team just launched a high-traffic microservice to production and enabled AWS X-Ray for distributed tracing. However, at the end of the month, the X-Ray bill was unexpectedly high, and the application performance seemed slightly degraded.",
+        "wg": [
+          {
+            "t": "分散式追蹤",
+            "en": "distributed tracing",
+            "ps": "noun"
+          },
+          {
+            "t": "效能",
+            "en": "performance",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "經檢查，目前的配置是對所有請求進行 100% 的追蹤記錄。根據 AWS 的最佳實務，你應該採取什麼行動來解決成本與效能問題，同時維持足夠的可觀測性？",
+        "en": "Upon inspection, the current configuration is recording 100% of requests. According to AWS best practices, what action should you take to resolve the cost and performance issues while maintaining sufficient observability?",
+        "wg": [
+          {
+            "t": "最佳實務",
+            "en": "best practices",
+            "ps": "noun"
+          },
+          {
+            "t": "可觀測性",
+            "en": "observability",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "關閉生產環境的 X-Ray，僅在開發環境 (Dev) 開啟。",
+        "en": "Disable X-Ray in production and only enable it in the development (Dev) environment.",
+        "wg": []
+      },
+      {
+        "t": "設定 X-Ray Sampling Rules，例如每秒保留 1 個請求，超過部分僅保留 5%。",
+        "en": "Configure X-Ray Sampling Rules, such as keeping 1 request per second and 5% of the excess.",
+        "wg": [
+          {
+            "t": "採樣規則",
+            "en": "Sampling Rules",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "改用 CloudWatch Metrics 來取代 X-Ray，因為 Metrics 不會產生費用。",
+        "en": "Switch to CloudWatch Metrics to replace X-Ray, as Metrics do not incur costs.",
+        "wg": []
+      },
+      {
+        "t": "將所有 Trace 資料寫入 S3 而非 X-Ray Console，以降低儲存成本。",
+        "en": "Write all Trace data to S3 instead of the X-Ray Console to reduce storage costs.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "在高流量環境下，100% 採樣 (Sampling) 會導致巨大的成本與效能開銷。設定合理的 Sampling Rules (如保留固定速率加上一定百分比) 是標準做法，既能捕捉足夠的樣本進行分析，又能控制成本。完全關閉會失去生產環境的可視性；Metrics 無法取代 Tracing 的功能；寫入 S3 並非 X-Ray 的標準成本優化手段。",
+      "en": "In a high-traffic environment, 100% sampling leads to huge costs and performance overhead. Setting reasonable Sampling Rules (e.g., a fixed rate plus a percentage) is the standard practice to capture enough samples for analysis while controlling costs. Disabling it completely loses visibility in production; Metrics cannot replace the function of Tracing; writing to S3 is not the standard cost optimization method for X-Ray.",
+      "wg": [
+        {
+          "t": "採樣",
+          "en": "sampling",
+          "ps": "verb/noun"
+        },
+        {
+          "t": "開銷",
+          "en": "overhead",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "8",
+    "level": "Intermediate",
+    "keywords": "Golden Signals, Dashboard, SRE, Latency",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你正在審查一位新進工程師為關鍵服務建立的 CloudWatch Dashboard。該儀表板包含了 CPU 使用率、記憶體消耗量 (Memory Usage) 以及磁碟剩餘空間 (Disk Space)。",
+        "en": "You are reviewing a CloudWatch Dashboard created by a new engineer for a critical service. The dashboard includes CPU utilization, Memory Usage, and Disk Space.",
+        "wg": [
+          {
+            "t": "儀表板",
+            "en": "Dashboard",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "雖然這些指標顯示系統資源健康，但客戶卻投訴服務回應緩慢。根據 Google SRE 的「黃金訊號 (Golden Signals)」原則，這個儀表板最主要缺少了哪一類關鍵指標？",
+        "en": "Although these metrics show healthy system resources, customers are complaining about slow responses. According to the Google SRE 'Golden Signals' principle, what key category of metrics is primarily missing from this dashboard?",
+        "wg": [
+          {
+            "t": "黃金訊號",
+            "en": "Golden Signals",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "飽和度 (Saturation)",
+        "en": "Saturation",
+        "wg": []
+      },
+      {
+        "t": "延遲 (Latency) 與 錯誤率 (Errors)",
+        "en": "Latency and Errors",
+        "wg": [
+          {
+            "t": "延遲",
+            "en": "Latency",
+            "ps": "noun"
+          },
+          {
+            "t": "錯誤率",
+            "en": "Errors",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "日誌詳細度 (Log Verbosity)",
+        "en": "Log Verbosity",
+        "wg": []
+      },
+      {
+        "t": "成本預估 (Cost Estimation)",
+        "en": "Cost Estimation",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "目前的儀表板只關注了「飽和度 (Saturation)」（CPU/Memory/Disk），這是資源視角。要了解使用者體驗，必須監控「延遲 (Latency)」（回應速度）與「錯誤率 (Errors)」（請求成功與否）。這是 SRE 黃金訊號中直接反映服務品質的部分。",
+      "en": "The current dashboard only focuses on 'Saturation' (CPU/Memory/Disk), which is a resource perspective. To understand the user experience, you must monitor 'Latency' (response speed) and 'Errors' (request success rate). These are the parts of the SRE Golden Signals that directly reflect service quality.",
+      "wg": [
+        {
+          "t": "資源視角",
+          "en": "resource perspective",
+          "ps": "noun"
+        },
+        {
+          "t": "使用者體驗",
+          "en": "user experience",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "9",
+    "level": "Intermediate",
+    "keywords": "Alerting Strategy, Incident Response, P1/P2/P3, Operations",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你的團隊正在定義告警分級策略 (Tiered Alerting Strategy)。現在是凌晨 3 點，監控系統偵測到某台次要伺服器的磁碟空間使用率達到 82%，且增長緩慢，預計還有兩週才會填滿。",
+        "en": "Your team is defining a Tiered Alerting Strategy. It is 3 AM, and the monitoring system detects that the disk space usage of a secondary server has reached 82%, growing slowly, and is expected to fill up in two weeks.",
+        "wg": [
+          {
+            "t": "告警分級策略",
+            "en": "Tiered Alerting Strategy",
+            "ps": "noun"
+          },
+          {
+            "t": "次要伺服器",
+            "en": "secondary server",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "根據維運卓越的最佳實務，這個狀況應被歸類為哪一級別，以及應採取什麼行動？",
+        "en": "According to operational excellence best practices, how should this situation be classified, and what action should be taken?",
+        "wg": []
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "P1 (Critical): 立即呼叫 On-call 工程師起床處理，因為磁碟滿了會導致服務崩潰。",
+        "en": "P1 (Critical): Immediately page the On-call engineer to wake up and handle it, as a full disk will cause service crash.",
+        "wg": []
+      },
+      {
+        "t": "P2 (Warning): 自動建立一張工單 (Ticket)，讓工程師在隔天上班時間處理。",
+        "en": "P2 (Warning): Automatically create a ticket for the engineer to handle during the next business day.",
+        "wg": [
+          {
+            "t": "工單",
+            "en": "ticket",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "P3 (Info): 僅記錄在日誌中，不需要採取任何行動。",
+        "en": "P3 (Info): Only record it in the logs, no action required.",
+        "wg": []
+      },
+      {
+        "t": "P0 (Disaster): 觸發自動關機程序以保護硬體。",
+        "en": "P0 (Disaster): Trigger an automatic shutdown procedure to protect the hardware.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "此狀況雖然需要處理，但並未立即影響使用者體驗或營收，且有足夠的緩衝時間（兩週）。因此屬於 P2 (Warning) 級別，應在上班時間處理，而不是在半夜喚醒工程師 (P1)。避免不必要的 P1 告警是防止「告警疲勞」的關鍵。",
+      "en": "Although this situation needs to be addressed, it does not immediately impact user experience or revenue, and there is sufficient buffer time (two weeks). Therefore, it falls under the P2 (Warning) category and should be handled during business hours, rather than waking up an engineer in the middle of the night (P1). Avoiding unnecessary P1 alerts is key to preventing 'Alert Fatigue'.",
+      "wg": [
+        {
+          "t": "緩衝時間",
+          "en": "buffer time",
+          "ps": "noun"
+        },
+        {
+          "t": "告警疲勞",
+          "en": "Alert Fatigue",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "10",
+    "level": "Beginner",
+    "keywords": "Monitoring, Observability, Mental Model, Concepts",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在討論系統穩定性時，資深工程師強調「監控 (Monitoring)」與「可觀測性 (Observability)」是不同的概念。",
+        "en": "When discussing system stability, a senior engineer emphasizes that 'Monitoring' and 'Observability' are different concepts.",
+        "wg": [
+          {
+            "t": "監控",
+            "en": "Monitoring",
+            "ps": "noun"
+          },
+          {
+            "t": "可觀測性",
+            "en": "Observability",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "下列哪一種描述最準確地反映了「可觀測性」的核心特徵？",
+        "en": "Which of the following descriptions most accurately reflects the core characteristic of 'Observability'?",
+        "wg": []
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "它是一個儀表板，告訴你系統是否正在運作 (Is it broken?)。",
+        "en": "It is a dashboard that tells you if the system is working (Is it broken?).",
+        "wg": []
+      },
+      {
+        "t": "它是透過系統的外部輸出（Logs, Metrics, Traces）來推斷系統內部狀態並回答「為什麼壞了」的能力。",
+        "en": "It is the ability to infer the internal state of the system through its external outputs (Logs, Metrics, Traces) and answer 'Why is it broken?'.",
+        "wg": [
+          {
+            "t": "推斷",
+            "en": "infer",
+            "ps": "verb"
+          },
+          {
+            "t": "內部狀態",
+            "en": "internal state",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "它僅指使用 AWS X-Ray 進行分散式追蹤的過程。",
+        "en": "It refers only to the process of using AWS X-Ray for distributed tracing.",
+        "wg": []
+      },
+      {
+        "t": "它是指定期對系統進行健康檢查 (Health Check) 的機制。",
+        "en": "It refers to the mechanism of periodically performing health checks on the system.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "監控 (Monitoring) 通常是黑箱視角，告訴你系統是否異常；而可觀測性 (Observability) 是白箱視角，強調系統的可解釋性，讓你能在未預先定義儀表板的情況下，透過資料回答新的問題 (Unknown-unknowns)。",
+      "en": "Monitoring is typically a black-box perspective, telling you if the system is abnormal; Observability is a white-box perspective, emphasizing system explainability, allowing you to answer new questions (Unknown-unknowns) through data without pre-defined dashboards.",
+      "wg": [
+        {
+          "t": "黑箱視角",
+          "en": "black-box perspective",
+          "ps": "noun"
+        },
+        {
+          "t": "可解釋性",
+          "en": "explainability",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "11",
+    "level": "Intermediate",
+    "keywords": "Dashboard, Visualization, Business Metrics, Anti-patterns",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你為公司 CEO 設計了一個 CloudWatch Dashboard，上面顯示了「DynamoDB Throttled Events」和「JVM Heap Memory Usage」。CEO 反饋說他看不懂這個儀表板對業務的影響。",
+        "en": "You designed a CloudWatch Dashboard for the company CEO, showing 'DynamoDB Throttled Events' and 'JVM Heap Memory Usage'. The CEO gave feedback that he couldn't understand the business impact of this dashboard.",
+        "wg": [
+          {
+            "t": "業務影響",
+            "en": "business impact",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "根據儀表板設計的層次化原則 (Layered Approach)，你應該如何改進？",
+        "en": "According to the Layered Approach principle of dashboard design, how should you improve it?",
+        "wg": [
+          {
+            "t": "層次化原則",
+            "en": "Layered Approach",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "增加更多技術細節，例如 CPU Steal Time，以展現專業度。",
+        "en": "Add more technical details, such as CPU Steal Time, to demonstrate professionalism.",
+        "wg": []
+      },
+      {
+        "t": "為 CEO 建立一個專屬的「業務視圖 (Business View)」，顯示每分鐘訂單數 (Order Rate) 或預估營收。",
+        "en": "Create a dedicated 'Business View' for the CEO, showing Order Rate or estimated revenue.",
+        "wg": [
+          {
+            "t": "業務視圖",
+            "en": "Business View",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "教導 CEO 如何解讀 JVM Heap Memory，因為這是系統穩定的關鍵。",
+        "en": "Teach the CEO how to interpret JVM Heap Memory, as it is key to system stability.",
+        "wg": []
+      },
+      {
+        "t": "將所有圖表合併成一個單一的「系統健康度」分數。",
+        "en": "Combine all charts into a single 'System Health' score.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "儀表板應針對不同受眾分層。CEO/PM 關心的是業務指標 (Business View)，如訂單量與營收；SRE 關心服務指標 (Service View)；開發者才關心實例指標 (Instance/Debug View)。將底層技術指標展示給高層是常見的反模式。",
+      "en": "Dashboards should be layered for different audiences. CEOs/PMs care about Business View metrics like order volume and revenue; SREs care about Service View; developers care about Instance/Debug View. Showing low-level technical metrics to executives is a common anti-pattern.",
+      "wg": [
+        {
+          "t": "受眾",
+          "en": "audience",
+          "ps": "noun"
+        },
+        {
+          "t": "反模式",
+          "en": "anti-pattern",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "12",
+    "level": "Intermediate",
+    "keywords": "CloudWatch Logs Insights, Troubleshooting, Query Syntax, Operations",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "fields @timestamp, @message\n| filter @message like /Error/\n| stats count(*) as exceptionCount by @message\n| sort exceptionCount desc",
+    "question": [
+      {
+        "t": "你的生產環境發生了大量 500 錯誤，你需要快速找出是哪一種 Exception 出現最多次。與其在 CloudWatch Logs 介面逐頁翻閱，你決定使用 CloudWatch Logs Insights。",
+        "en": "Your production environment is experiencing a high volume of 500 errors, and you need to quickly identify which Exception is appearing the most. Instead of paging through the CloudWatch Logs interface, you decide to use CloudWatch Logs Insights.",
+        "wg": [
+          {
+            "t": "逐頁翻閱",
+            "en": "paging through",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "參考上方的查詢語法，這段查詢的主要功能是什麼？",
+        "en": "Referring to the query syntax above, what is the primary function of this query?",
+        "wg": []
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "它會刪除所有包含 \"Error\" 的日誌以節省空間。",
+        "en": "It deletes all logs containing 'Error' to save space.",
+        "wg": []
+      },
+      {
+        "t": "它會篩選出包含 \"Error\" 的日誌，並依據錯誤訊息內容進行分組統計，最後由多到少排序。",
+        "en": "It filters logs containing 'Error', groups and counts them by the error message content, and sorts them from most to least frequent.",
+        "wg": [
+          {
+            "t": "分組統計",
+            "en": "groups and counts",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "它會即時發送 SNS 告警給所有包含 \"Error\" 的日誌。",
+        "en": "It sends real-time SNS alerts for all logs containing 'Error'.",
+        "wg": []
+      },
+      {
+        "t": "它只能查詢最近 5 分鐘的日誌，無法查詢更早的資料。",
+        "en": "It can only query logs from the last 5 minutes and cannot query older data.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "這段語法展示了 Logs Insights 的強大功能：`filter` 用於篩選關鍵字，`stats count(*) by @message` 用於聚合統計相同錯誤訊息的出現次數，`sort` 用於排序。這是快速排查「Top N 錯誤原因」的標準做法，遠比肉眼查看日誌流有效率。",
+      "en": "This syntax demonstrates the power of Logs Insights: `filter` selects keywords, `stats count(*) by @message` aggregates and counts occurrences of the same error message, and `sort` orders them. This is the standard practice for quickly troubleshooting 'Top N error causes', far more efficient than visually scanning log streams.",
+      "wg": [
+        {
+          "t": "聚合統計",
+          "en": "aggregate statistics",
+          "ps": "noun"
+        },
+        {
+          "t": "肉眼查看",
+          "en": "visually scanning",
+          "ps": "verb"
+        }
+      ]
+    }
+  }
+]

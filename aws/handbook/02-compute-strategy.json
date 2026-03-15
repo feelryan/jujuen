@@ -1,0 +1,840 @@
+[
+  {
+    "no": "1",
+    "level": "Hard",
+    "keywords": "Architecture, Serverless, Containers, Throttling",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在設計一個應對「高併發搶購活動（Flash Sale）」的系統時，架構師決定前端使用 API Gateway + Lambda 接收請求並寫入 SQS，後端則使用 ECS Fargate 從 SQS 讀取訊息並寫入關聯式資料庫（RDS）。",
+        "en": "When designing a system for a 'High-Traffic Flash Sale', the architect decides to use API Gateway + Lambda for the frontend to ingest requests into SQS, and ECS Fargate for the backend to consume messages from SQS and write to a relational database (RDS).",
+        "wg": [
+          {
+            "t": "高併發搶購活動",
+            "en": "High-Traffic Flash Sale",
+            "ps": "noun"
+          },
+          {
+            "t": "關聯式資料庫",
+            "en": "Relational Database (RDS)",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "請問這種「Lambda 接收、Fargate 處理」的混合架構設計，最主要的考量是什麼？",
+        "en": "What is the primary rationale behind this hybrid architecture design of 'Lambda for ingestion, Fargate for processing'?",
+        "wg": []
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "因為 Fargate 的啟動速度比 Lambda 快，適合處理緊急訂單。",
+        "en": "Because Fargate starts up faster than Lambda, making it suitable for urgent orders.",
+        "wg": []
+      },
+      {
+        "t": "因為 Lambda 無法連接 RDS，必須透過 Fargate 中轉。",
+        "en": "Because Lambda cannot connect to RDS and must go through Fargate.",
+        "wg": []
+      },
+      {
+        "t": "利用 Lambda 的快速擴展能力應對瞬間流量，並利用 Fargate 控制寫入資料庫的速率（Throttling），防止資料庫崩潰。",
+        "en": "Leverage Lambda's rapid scaling for burst traffic, and use Fargate to throttle the write rate to the database, preventing DB crashes.",
+        "wg": [
+          {
+            "t": "快速擴展能力",
+            "en": "Rapid scaling capability",
+            "ps": "noun"
+          },
+          {
+            "t": "速率",
+            "en": "Rate/Throttling",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "因為 Fargate 比 Lambda 更便宜，適合處理所有的 HTTP 請求。",
+        "en": "Because Fargate is cheaper than Lambda and is suitable for handling all HTTP requests.",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "Lambda 擅長應對瞬間爆量（Bursty traffic），能迅速擴展接收請求；而後端使用 Fargate 配合 SQS 可以控制消費速率，保護下游脆弱的關聯式資料庫不被瞬間流量壓垮（Connection exhaustion）。Fargate 啟動速度慢於 Lambda，且 Lambda 可以連接 RDS（但需注意連線數管理）。",
+      "en": "Lambda excels at handling bursty traffic by scaling rapidly to ingest requests. Using Fargate with SQS at the backend allows for controlled consumption rates, protecting the fragile downstream relational database from being overwhelmed (connection exhaustion). Fargate starts slower than Lambda, and Lambda *can* connect to RDS (though connection management is a concern).",
+      "wg": [
+        {
+          "t": "瞬間爆量",
+          "en": "Bursty traffic",
+          "ps": "noun"
+        },
+        {
+          "t": "連線耗盡",
+          "en": "Connection exhaustion",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "2",
+    "level": "Medium",
+    "keywords": "Anti-pattern, Lambda, Cost, Latency",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你的團隊正在開發微服務，其中 Function A 同步呼叫 (Synchronous invocation) Function B，Function B 再同步呼叫 Function C。",
+        "en": "Your team is developing microservices where Function A synchronously invokes Function B, and Function B synchronously invokes Function C.",
+        "wg": [
+          {
+            "t": "同步呼叫",
+            "en": "Synchronous invocation",
+            "ps": "verb/noun"
+          }
+        ]
+      },
+      {
+        "t": "這種被稱為「Lambda 彈珠台 (Lambda Pinball)」的模式，主要會帶來什麼負面影響？",
+        "en": "What are the main negative consequences of this pattern, known as 'Lambda Pinball'?",
+        "wg": [
+          {
+            "t": "Lambda 彈珠台",
+            "en": "Lambda Pinball",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "會導致 IAM 權限過於寬鬆。",
+        "en": "It leads to overly permissive IAM permissions.",
+        "wg": []
+      },
+      {
+        "t": "成本倍增（A 等待 B 時需同時付費）且延遲疊加。",
+        "en": "Costs multiply (paying for A while it waits for B) and latency adds up.",
+        "wg": [
+          {
+            "t": "成本倍增",
+            "en": "Costs multiply",
+            "ps": "phrase"
+          },
+          {
+            "t": "延遲疊加",
+            "en": "Latency adds up",
+            "ps": "phrase"
+          }
+        ]
+      },
+      {
+        "t": "Lambda 不支援超過兩層的呼叫鏈。",
+        "en": "Lambda does not support call chains deeper than two levels.",
+        "wg": []
+      },
+      {
+        "t": "會導致 Cold Start 時間過長，因為所有函數需同時啟動。",
+        "en": "It causes excessive Cold Start times because all functions must start simultaneously.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "當 A 呼叫 B 時，A 處於閒置等待狀態，但你仍需為 A 的執行時間付費，這導致了雙重計費。同時，整體的延遲是 A+B+C 的總和，導致效能低落。應改用 Step Functions 或非同步訊息佇列（SQS/SNS）。",
+      "en": "When A calls B, A sits idle waiting, but you are still billed for A's execution time, leading to double billing. Additionally, the total latency is the sum of A+B+C, resulting in poor performance. You should use Step Functions or asynchronous messaging (SQS/SNS) instead.",
+      "wg": [
+        {
+          "t": "雙重計費",
+          "en": "Double billing",
+          "ps": "noun"
+        },
+        {
+          "t": "非同步訊息佇列",
+          "en": "Asynchronous messaging queue",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "3",
+    "level": "Medium",
+    "keywords": "Database, Serverless, RDS Proxy",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你將一個高流量的 API 遷移至 Lambda，後端連接 PostgreSQL (RDS)。在壓力測試時，發現 Lambda 擴展迅速，但資料庫隨即出現 `Too many connections` 錯誤並崩潰。",
+        "en": "You migrated a high-traffic API to Lambda, connecting to a PostgreSQL (RDS) backend. During load testing, Lambda scaled rapidly, but the database immediately crashed with a `Too many connections` error.",
+        "wg": [
+          {
+            "t": "壓力測試",
+            "en": "Load testing",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "在不更換資料庫類型的前提下，最有效的解決方案是什麼？",
+        "en": "Without changing the database type, what is the most effective solution?",
+        "wg": []
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "增加 Lambda 的記憶體配置。",
+        "en": "Increase the memory allocation for Lambda.",
+        "wg": []
+      },
+      {
+        "t": "在 Lambda 與 RDS 之間部署 RDS Proxy。",
+        "en": "Deploy RDS Proxy between Lambda and RDS.",
+        "wg": [
+          {
+            "t": "部署",
+            "en": "Deploy",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "將 Lambda 改為 VPC 外部署。",
+        "en": "Move Lambda out of the VPC.",
+        "wg": []
+      },
+      {
+        "t": "在 Lambda 程式碼中實作 Retry 機制。",
+        "en": "Implement a retry mechanism in the Lambda code.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "Lambda 的快速擴展特性容易耗盡關聯式資料庫的連線數（Connection Exhaustion）。RDS Proxy 可以管理連線池（Connection Pooling），讓數千個 Lambda 實例共享少量的資料庫連線，是解決此問題的標準模式。",
+      "en": "Lambda's rapid scaling can easily exhaust the connection limit of relational databases (Connection Exhaustion). RDS Proxy manages connection pooling, allowing thousands of Lambda instances to share a small number of database connections, which is the standard pattern to solve this issue.",
+      "wg": [
+        {
+          "t": "連線池",
+          "en": "Connection Pooling",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "4",
+    "level": "Easy",
+    "keywords": "Compute Strategy, EC2, Kernel",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "根據「控制權與維運責任」的心智模型，若你的應用程式需要修改 OS Kernel 參數或安裝特定的 GPU 驅動程式，你應該選擇哪種運算服務？",
+        "en": "According to the 'Control vs. Responsibility' mental model, if your application requires modifying OS Kernel parameters or installing specific GPU drivers, which compute service should you choose?",
+        "wg": [
+          {
+            "t": "控制權",
+            "en": "Control",
+            "ps": "noun"
+          },
+          {
+            "t": "維運責任",
+            "en": "Operational Responsibility",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "AWS Lambda",
+        "en": "AWS Lambda",
+        "wg": []
+      },
+      {
+        "t": "Amazon ECS on Fargate",
+        "en": "Amazon ECS on Fargate",
+        "wg": []
+      },
+      {
+        "t": "Amazon EC2",
+        "en": "Amazon EC2",
+        "wg": []
+      },
+      {
+        "t": "AWS App Runner",
+        "en": "AWS App Runner",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "EC2 提供完整的 OS Root 權限（Own the Car），允許進行 Kernel tuning 或安裝底層驅動。Fargate 和 Lambda 抽象化了底層 OS，使用者無法修改 Kernel 或安裝系統級依賴。",
+      "en": "EC2 provides full OS Root access ('Own the Car'), allowing for Kernel tuning or installing low-level drivers. Fargate and Lambda abstract away the underlying OS, preventing users from modifying the Kernel or installing system-level dependencies.",
+      "wg": [
+        {
+          "t": "抽象化",
+          "en": "Abstract away",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "5",
+    "level": "Medium",
+    "keywords": "Cost Optimization, Internal Tools, Serverless",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你需要為公司內部開發一個管理工具，該工具僅在工作日（週一至週五 9:00-18:00）有少量流量，其餘時間完全無人使用。",
+        "en": "You need to develop an internal management tool for your company. It receives low traffic only during weekdays (Mon-Fri 9:00-18:00) and has zero usage at other times.",
+        "wg": []
+      },
+      {
+        "t": "為了極大化成本效益，下列哪種運算組合最合適？",
+        "en": "To maximize cost-efficiency, which compute combination is most appropriate?",
+        "wg": [
+          {
+            "t": "極大化",
+            "en": "Maximize",
+            "ps": "verb"
+          },
+          {
+            "t": "成本效益",
+            "en": "Cost-efficiency",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "EC2 Reserved Instances + RDS",
+        "en": "EC2 Reserved Instances + RDS",
+        "wg": []
+      },
+      {
+        "t": "EKS (Kubernetes) + RDS",
+        "en": "EKS (Kubernetes) + RDS",
+        "wg": []
+      },
+      {
+        "t": "Lambda + DynamoDB (On-Demand)",
+        "en": "Lambda + DynamoDB (On-Demand)",
+        "wg": []
+      },
+      {
+        "t": "ECS Fargate (Running 24/7)",
+        "en": "ECS Fargate (Running 24/7)",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "對於有明顯閒置時間且流量低的內部工具，Serverless (Lambda + DynamoDB On-Demand) 是最佳選擇，因為它採用「用量付費 (Pay-per-use)」模式。在晚上和週末無人使用時，成本為零。EC2 或 Fargate 即使閒置也會產生運算費用。",
+      "en": "For internal tools with significant idle time and low traffic, Serverless (Lambda + DynamoDB On-Demand) is the best choice due to its 'Pay-per-use' model. Costs drop to zero during nights and weekends when no one is using it. EC2 or Fargate incur compute costs even when idle.",
+      "wg": [
+        {
+          "t": "用量付費",
+          "en": "Pay-per-use",
+          "ps": "noun"
+        },
+        {
+          "t": "閒置",
+          "en": "Idle",
+          "ps": "adjective"
+        }
+      ]
+    }
+  },
+  {
+    "no": "6",
+    "level": "Medium",
+    "keywords": "ECS, EKS, Orchestration, Decision Making",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "一個新創團隊熟悉 Docker，但沒有 Kubernetes 維運經驗，且不需要 K8s 特有的生態系工具（如 Helm, Istio）。",
+        "en": "A startup team is familiar with Docker but has no experience operating Kubernetes, and does not require K8s-specific ecosystem tools (like Helm, Istio).",
+        "wg": [
+          {
+            "t": "維運經驗",
+            "en": "Operational experience",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "為了避免不必要的維運負擔，他們應該優先選擇哪種容器調度服務？",
+        "en": "To avoid unnecessary operational burden, which container orchestration service should they prioritize?",
+        "wg": [
+          {
+            "t": "維運負擔",
+            "en": "Operational burden",
+            "ps": "noun"
+          },
+          {
+            "t": "容器調度",
+            "en": "Container orchestration",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "Amazon EKS，因為它是業界標準。",
+        "en": "Amazon EKS, because it is the industry standard.",
+        "wg": []
+      },
+      {
+        "t": "Amazon ECS，因為它整合度高且學習曲線較低。",
+        "en": "Amazon ECS, because it has high integration and a lower learning curve.",
+        "wg": [
+          {
+            "t": "整合度",
+            "en": "Integration",
+            "ps": "noun"
+          },
+          {
+            "t": "學習曲線",
+            "en": "Learning curve",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "自行在 EC2 上架設 Kubernetes Cluster。",
+        "en": "Manually set up a Kubernetes Cluster on EC2.",
+        "wg": []
+      },
+      {
+        "t": "使用 Lambda，因為它支援 Docker Image。",
+        "en": "Use Lambda, because it supports Docker Images.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "根據手冊建議，ECS 適合 80% 的團隊，特別是當不需要 K8s 特定功能時。EKS 的維運成本較高（升級、節點管理等），若無明確需求或專職團隊，不應為了簡歷好看而選用 EKS。",
+      "en": "According to the handbook, ECS is suitable for 80% of teams, especially when K8s-specific features are not required. EKS has higher operational costs (upgrades, node management, etc.). Without a clear need or a dedicated team, one should not choose EKS just for 'resume-driven development'.",
+      "wg": []
+    }
+  },
+  {
+    "no": "7",
+    "level": "Medium",
+    "keywords": "Cost Optimization, Graviton, Performance",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你的團隊正在尋求降低 Fargate 服務的成本並提升效能。該服務使用 Node.js 開發，且沒有依賴特定的 CPU 指令集。",
+        "en": "Your team is looking to reduce costs and improve performance for a Fargate service. The service is developed in Node.js and has no dependencies on specific CPU instruction sets.",
+        "wg": [
+          {
+            "t": "指令集",
+            "en": "Instruction set",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "根據 AWS 最佳實務，哪項變更通常能帶來約 20% 的成本降低與效能提升？",
+        "en": "According to AWS best practices, which change typically yields about 20% cost reduction and performance improvement?",
+        "wg": []
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "將架構遷移至 Graviton (ARM64) 處理器。",
+        "en": "Migrate the architecture to Graviton (ARM64) processors.",
+        "wg": []
+      },
+      {
+        "t": "購買 Compute Savings Plans。",
+        "en": "Purchase Compute Savings Plans.",
+        "wg": []
+      },
+      {
+        "t": "使用 Spot Instances。",
+        "en": "Use Spot Instances.",
+        "wg": []
+      },
+      {
+        "t": "將服務遷移至 Lambda。",
+        "en": "Migrate the service to Lambda.",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "Graviton (ARM64) 處理器通常能提供比 x86 架構更好的性價比（約 20% 提升）。對於像 Node.js、Python 這種跨平台語言，遷移成本極低，只需更改 Docker Build 的架構設定即可。",
+      "en": "Graviton (ARM64) processors typically offer better price-performance (about 20% improvement) than x86 architecture. For cross-platform languages like Node.js and Python, the migration cost is very low, often requiring only a change in the Docker Build architecture settings.",
+      "wg": [
+        {
+          "t": "性價比",
+          "en": "Price-performance ratio",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "8",
+    "level": "Medium",
+    "keywords": "Cost Optimization, Networking, Availability Zones, Architecture",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你的團隊發現 AWS 帳單中的「資料傳輸費用 (Data Transfer Cost)」異常高昂。",
+        "en": "Your team notices that the 'Data Transfer Cost' in the AWS bill is unusually high.",
+        "wg": [
+          {
+            "t": "資料傳輸費用",
+            "en": "Data Transfer Cost",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "經過調查，發現應用程式部署在 `us-east-1a` 的 EC2 實例上，而其頻繁存取的 RDS 資料庫則位於 `us-east-1b`。",
+        "en": "Upon investigation, it is found that the application is deployed on EC2 instances in `us-east-1a`, while the frequently accessed RDS database is located in `us-east-1b`.",
+        "wg": [
+          {
+            "t": "可用區域",
+            "en": "Availability Zone (AZ)",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "根據手冊中的反模式，造成此高額費用的主要原因為何？",
+        "en": "According to the anti-patterns in the handbook, what is the primary cause of this high cost?",
+        "wg": []
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "EC2 實例類型選擇錯誤，導致運算成本過高。",
+        "en": "The wrong EC2 instance type was chosen, leading to excessive compute costs.",
+        "wg": []
+      },
+      {
+        "t": "跨可用區域 (Cross-AZ) 的流量會產生額外的資料傳輸費用。",
+        "en": "Traffic across Availability Zones (Cross-AZ) incurs additional data transfer charges.",
+        "wg": [
+          {
+            "t": "跨可用區域",
+            "en": "Cross-AZ",
+            "ps": "adjective"
+          }
+        ]
+      },
+      {
+        "t": "RDS 資料庫未開啟 Multi-AZ 部署模式。",
+        "en": "The RDS database does not have Multi-AZ deployment mode enabled.",
+        "wg": []
+      },
+      {
+        "t": "應用程式未透過 NAT Gateway 存取資料庫。",
+        "en": "The application is not accessing the database through a NAT Gateway.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "AWS 在同一區域 (Region) 內但不同可用區域 (Availability Zone) 之間的資料傳輸是需要收費的。手冊中指出「忽視資料傳輸成本」是一個常見的反模式，解決方案是盡量保持流量在同一 AZ 內。",
+      "en": "Data transfer between different Availability Zones within the same Region in AWS is billable. The handbook identifies 'Ignoring Data Transfer Costs' as a common anti-pattern, and the solution is to keep traffic within the same AZ as much as possible.",
+      "wg": []
+    }
+  },
+  {
+    "no": "9",
+    "level": "Easy",
+    "keywords": "EC2, Spot Instances, Cost Optimization, Batch Processing",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你需要為一個影片轉檔服務選擇運算資源。",
+        "en": "You need to select compute resources for a video transcoding service.",
+        "wg": []
+      },
+      {
+        "t": "該工作負載是無狀態的 (Stateless)，且具備容錯能力（如果中斷，可以重新排程執行），主要目標是將成本降至最低。",
+        "en": "The workload is stateless and fault-tolerant (can be rescheduled if interrupted), with the primary goal of minimizing costs.",
+        "wg": [
+          {
+            "t": "無狀態",
+            "en": "Stateless",
+            "ps": "adjective"
+          },
+          {
+            "t": "容錯能力",
+            "en": "Fault-tolerant",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "根據手冊建議，下列哪種購買選項最合適？",
+        "en": "According to the handbook's recommendations, which purchasing option is the most suitable?",
+        "wg": []
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "EC2 On-Demand Instances",
+        "en": "EC2 On-Demand Instances",
+        "wg": []
+      },
+      {
+        "t": "EC2 Reserved Instances",
+        "en": "EC2 Reserved Instances",
+        "wg": []
+      },
+      {
+        "t": "EC2 Spot Instances",
+        "en": "EC2 Spot Instances",
+        "wg": []
+      },
+      {
+        "t": "Lambda with Provisioned Concurrency",
+        "en": "Lambda with Provisioned Concurrency",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "對於容錯率高且無狀態的工作（如 Batch processing），使用 Spot Instances 可以利用 AWS 的閒置產能，通常能節省高達 70-90% 的成本。",
+      "en": "For fault-tolerant and stateless workloads (such as Batch processing), using Spot Instances allows you to utilize AWS spare capacity, typically saving up to 70-90% in costs.",
+      "wg": [
+        {
+          "t": "閒置產能",
+          "en": "Spare capacity",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "10",
+    "level": "Medium",
+    "keywords": "Anti-pattern, Migration, Fargate, Lambda, Monolith",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你的團隊計畫將一個龐大的 Legacy Django 單體應用程式 (Monolith) 遷移到 AWS。",
+        "en": "Your team plans to migrate a large legacy Django monolith application to AWS.",
+        "wg": [
+          {
+            "t": "單體應用程式",
+            "en": "Monolith",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "為了追求「Serverless」的免維運特性，開發者提議將整個應用程式打包進一個 Lambda Function。",
+        "en": "To pursue the 'Serverless' benefit of zero maintenance, a developer proposes packaging the entire application into a single Lambda Function.",
+        "wg": []
+      },
+      {
+        "t": "根據手冊中的「反模式」章節，這種做法 (Lambdalith) 最可能面臨什麼問題？",
+        "en": "According to the 'Anti-patterns' section of the handbook, what is the most likely issue with this approach (Lambdalith)?",
+        "wg": []
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "Lambda 不支援 Python Django 框架。",
+        "en": "Lambda does not support the Python Django framework.",
+        "wg": []
+      },
+      {
+        "t": "巨大的套件體積會導致極慢的冷啟動 (Cold Start)，且難以利用 Lambda 的並發優勢。",
+        "en": "The huge package size will cause extremely slow Cold Starts and make it difficult to leverage Lambda's concurrency benefits.",
+        "wg": [
+          {
+            "t": "冷啟動",
+            "en": "Cold Start",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "Lambda 無法連接關聯式資料庫。",
+        "en": "Lambda cannot connect to relational databases.",
+        "wg": []
+      },
+      {
+        "t": "單體應用程式無法在 VPC 內執行。",
+        "en": "Monolithic applications cannot run inside a VPC.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "這是典型的「Lift-and-Shift Monolith to Lambda」反模式。龐大的框架與程式碼會導致 Lambda 初始化時間過長。手冊建議若必須跑單體應用，應優先選擇 App Runner 或 Fargate。",
+      "en": "This is a typical 'Lift-and-Shift Monolith to Lambda' anti-pattern. Large frameworks and codebases lead to excessive Lambda initialization times. The handbook suggests that if you must run a monolith, App Runner or Fargate are better choices.",
+      "wg": []
+    }
+  },
+  {
+    "no": "11",
+    "level": "Medium",
+    "keywords": "Serverless, Lambda, Performance, Cold Start",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你負責維護一個基於 Lambda 的結帳 API，該服務對延遲非常敏感 (Latency-sensitive)。",
+        "en": "You are responsible for maintaining a Lambda-based checkout API, which is highly latency-sensitive.",
+        "wg": [
+          {
+            "t": "對延遲非常敏感",
+            "en": "Latency-sensitive",
+            "ps": "adjective"
+          }
+        ]
+      },
+      {
+        "t": "監控顯示，當流量突然增加時，部分請求會出現數秒的延遲，這被診斷為冷啟動 (Cold Start) 問題。",
+        "en": "Monitoring shows that when traffic spikes, some requests experience multi-second delays, diagnosed as Cold Start issues.",
+        "wg": []
+      },
+      {
+        "t": "在不重寫程式碼的前提下，最有效的解決方案是什麼？",
+        "en": "Without rewriting the code, what is the most effective solution?",
+        "wg": []
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "增加 Lambda 的 Memory 設定。",
+        "en": "Increase the Lambda Memory setting.",
+        "wg": []
+      },
+      {
+        "t": "啟用 Provisioned Concurrency (預配置並發)。",
+        "en": "Enable Provisioned Concurrency.",
+        "wg": [
+          {
+            "t": "預配置並發",
+            "en": "Provisioned Concurrency",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "將 Runtime 從 Node.js 改為 Java。",
+        "en": "Change the Runtime from Node.js to Java.",
+        "wg": []
+      },
+      {
+        "t": "使用 API Gateway 的快取功能。",
+        "en": "Use the caching feature of API Gateway.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "Provisioned Concurrency 會預先初始化執行環境，確保 Lambda 隨時準備好接收請求，從而消除冷啟動延遲。這是針對核心路徑 (Core Path) 的標準解決方案。",
+      "en": "Provisioned Concurrency pre-initializes execution environments, ensuring Lambda is always ready to accept requests, thereby eliminating cold start latency. This is the standard solution for core paths.",
+      "wg": []
+    }
+  },
+  {
+    "no": "12",
+    "level": "Easy",
+    "keywords": "CloudWatch, Cost Optimization, Operations, Logging",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你的團隊正在進行 FinOps 審查，發現 CloudWatch Logs 的費用逐月攀升，成為隱形成本殺手。",
+        "en": "Your team is conducting a FinOps review and finds that CloudWatch Logs costs are climbing month over month, becoming a hidden cost killer.",
+        "wg": [
+          {
+            "t": "隱形成本殺手",
+            "en": "Hidden cost killer",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "檢查後發現流量並未顯著增加。根據「上線前檢查清單 (Pre-Flight Checklist)」，最可能遺漏了什麼設定？",
+        "en": "Upon inspection, traffic hasn't increased significantly. According to the 'Pre-Flight Checklist', what setting was most likely missed?",
+        "wg": []
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "未啟用 CloudWatch Logs Insights。",
+        "en": "CloudWatch Logs Insights was not enabled.",
+        "wg": []
+      },
+      {
+        "t": "未設定 Log Retention Policy (日誌保留策略)，導致日誌永久保存。",
+        "en": "Log Retention Policy was not set, causing logs to be stored forever.",
+        "wg": [
+          {
+            "t": "日誌保留策略",
+            "en": "Log Retention Policy",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "未將日誌匯出至 S3 Glacier。",
+        "en": "Logs were not exported to S3 Glacier.",
+        "wg": []
+      },
+      {
+        "t": "Lambda 函數輸出了過多的錯誤日誌。",
+        "en": "The Lambda function is outputting too many error logs.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "CloudWatch Logs 的預設保留設定是「永不過期 (Never Expire)」。隨著時間推移，累積的舊日誌會導致儲存成本不斷增加。手冊強調這是一個常見的遺漏點。",
+      "en": "The default retention setting for CloudWatch Logs is 'Never Expire'. Over time, accumulated old logs lead to ever-increasing storage costs. The handbook highlights this as a common oversight.",
+      "wg": []
+    }
+  }
+]

@@ -1,0 +1,953 @@
+[
+  {
+    "no": "1",
+    "level": "Intermediate",
+    "keywords": "Drift, ClickOps, Terraform, State",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "某位工程師為了緊急修復生產環境問題，直接在 AWS Console 上手動修改了 Security Group 的規則（ClickOps）。",
+        "en": "An engineer manually modified a Security Group rule in the AWS Console (ClickOps) to urgently fix a production issue.",
+        "wg": [
+          {
+            "t": "手動修改",
+            "en": "manually modified",
+            "ps": "verb phrase"
+          },
+          {
+            "t": "緊急修復",
+            "en": "urgently fix",
+            "ps": "verb phrase"
+          }
+        ]
+      },
+      {
+        "t": "隨後，CI/CD Pipeline 針對該專案執行了標準的 `terraform apply`，且程式碼庫（Codebase）尚未包含該次手動變更。",
+        "en": "Subsequently, the CI/CD pipeline executed a standard `terraform apply` for the project, and the codebase did not yet include that manual change.",
+        "wg": [
+          {
+            "t": "程式碼庫",
+            "en": "codebase",
+            "ps": "noun"
+          },
+          {
+            "t": "尚未包含",
+            "en": "did not yet include",
+            "ps": "verb phrase"
+          }
+        ]
+      },
+      {
+        "t": "請問下列哪種結果最可能發生？",
+        "en": "Which of the following outcomes is most likely to occur?",
+        "wg": []
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "Terraform 會自動將 Console 的變更同步回程式碼中，並更新 State 檔案。",
+        "en": "Terraform will automatically sync the Console changes back to the code and update the State file.",
+        "wg": []
+      },
+      {
+        "t": "Terraform 會偵測到差異（Drift），並將 Security Group 恢復（Revert）為程式碼中定義的狀態，導致緊急修復失效。",
+        "en": "Terraform will detect the drift and revert the Security Group to the state defined in the code, causing the emergency fix to be lost.",
+        "wg": [
+          {
+            "t": "偵測到差異",
+            "en": "detect the drift",
+            "ps": "verb phrase"
+          },
+          {
+            "t": "恢復",
+            "en": "revert",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "Terraform 會報錯並停止執行，因為遠端資源與 State 檔案不一致。",
+        "en": "Terraform will throw an error and stop execution because the remote resource does not match the State file.",
+        "wg": []
+      },
+      {
+        "t": "Terraform 會忽略該 Security Group 的變更，只更新其他資源。",
+        "en": "Terraform will ignore the changes to that Security Group and only update other resources.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "IaC 的核心原則是「程式碼即真理」。當 `apply` 執行時，工具會強制將實際環境（Actual State）變更為程式碼描述的狀態（Desired State）。若未先將手動變更寫回程式碼（Backporting），Terraform 會視該差異為「未授權的變更」並將其覆蓋（Revert），這可能導致服務再次中斷。",
+      "en": "The core principle of IaC is 'Code is the Source of Truth'. When `apply` runs, the tool forces the actual environment (Actual State) to match the state described in the code (Desired State). If the manual change hasn't been backported to the code, Terraform views the difference as an 'unauthorized change' and overwrites (reverts) it, potentially causing the service to break again.",
+      "wg": [
+        {
+          "t": "程式碼即真理",
+          "en": "Code is the Source of Truth",
+          "ps": "phrase"
+        },
+        {
+          "t": "未授權的變更",
+          "en": "unauthorized change",
+          "ps": "noun phrase"
+        },
+        {
+          "t": "覆蓋",
+          "en": "overwrites",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "2",
+    "level": "Intermediate",
+    "keywords": "Terraform, Backend, Locking, DynamoDB, S3",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "terraform {\n  backend \"s3\" {\n    bucket = \"my-tf-state\"\n    key    = \"prod/app.tfstate\"\n    dynamodb_table = \"terraform-lock\"\n  }\n}",
+    "question": [
+      {
+        "t": "在設定 Terraform S3 Backend 時，最佳實務建議同時配置 `dynamodb_table`（如上方程式碼所示）。",
+        "en": "When configuring a Terraform S3 Backend, it is a best practice to also configure a `dynamodb_table` (as shown in the code snippet above).",
+        "wg": [
+          {
+            "t": "最佳實務",
+            "en": "best practice",
+            "ps": "noun"
+          },
+          {
+            "t": "配置",
+            "en": "configure",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "請問這個 DynamoDB Table 的主要功能是什麼？",
+        "en": "What is the primary function of this DynamoDB Table?",
+        "wg": []
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "用於備份 State 檔案的歷史版本，以便在錯誤時進行 Rollback。",
+        "en": "Used to backup historical versions of the State file for rollback in case of errors.",
+        "wg": []
+      },
+      {
+        "t": "用於加密 S3 中的 State 檔案，提供額外的安全性。",
+        "en": "Used to encrypt the State file in S3, providing additional security.",
+        "wg": []
+      },
+      {
+        "t": "實作 State Locking 機制，防止多人或多個 Pipeline 同時執行 `apply` 導致 State 損壞。",
+        "en": "Implements a State Locking mechanism to prevent multiple people or pipelines from running `apply` simultaneously, which could corrupt the State.",
+        "wg": [
+          {
+            "t": "實作",
+            "en": "implements",
+            "ps": "verb"
+          },
+          {
+            "t": "損壞",
+            "en": "corrupt",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "作為 Terraform 模組的索引資料庫，加速 `terraform init` 的下載速度。",
+        "en": "Acts as an index database for Terraform modules to speed up `terraform init` downloads.",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "雖然 S3 支援版本控制（Versioning）可用於備份，但 DynamoDB 在此架構中的特定用途是提供「鎖定（Locking）」功能。當 Terraform 執行寫入操作時，會在 DynamoDB 寫入一個 Lock ID，防止其他程序同時修改 State 檔案，避免 Race Condition 造成資料損毀。",
+      "en": "While S3 supports Versioning for backups, the specific purpose of DynamoDB in this architecture is to provide 'Locking'. When Terraform performs a write operation, it writes a Lock ID to DynamoDB to prevent other processes from modifying the State file simultaneously, avoiding data corruption caused by Race Conditions.",
+      "wg": [
+        {
+          "t": "版本控制",
+          "en": "Versioning",
+          "ps": "noun"
+        },
+        {
+          "t": "鎖定",
+          "en": "Locking",
+          "ps": "noun"
+        },
+        {
+          "t": "資料損毀",
+          "en": "data corruption",
+          "ps": "noun phrase"
+        }
+      ]
+    }
+  },
+  {
+    "no": "3",
+    "level": "Advanced",
+    "keywords": "Architecture, Layering, Monolithic State, Blast Radius",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你的團隊目前維護一個包含 VPC、RDS 資料庫以及 20 個微服務（Microservices）的單一 Terraform State (`main.tf` 超過 5000 行)。",
+        "en": "Your team currently maintains a single Terraform State containing a VPC, RDS databases, and 20 Microservices (`main.tf` exceeds 5000 lines).",
+        "wg": [
+          {
+            "t": "維護",
+            "en": "maintains",
+            "ps": "verb"
+          },
+          {
+            "t": "單一",
+            "en": "single",
+            "ps": "adjective"
+          }
+        ]
+      },
+      {
+        "t": "這導致 `plan` 執行時間過長，且修改任一服務都有可能意外影響到底層網路或資料庫。",
+        "en": "This causes `plan` execution to take too long, and modifying any service risks accidentally affecting the underlying network or database.",
+        "wg": [
+          {
+            "t": "意外影響",
+            "en": "accidentally affecting",
+            "ps": "verb phrase"
+          },
+          {
+            "t": "底層",
+            "en": "underlying",
+            "ps": "adjective"
+          }
+        ]
+      },
+      {
+        "t": "根據「分層架構（Layering）」的最佳實務，你應如何重構此架構？",
+        "en": "According to the 'Layering' best practice, how should you refactor this architecture?",
+        "wg": [
+          {
+            "t": "重構",
+            "en": "refactor",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "將所有資源保留在同一個 State，但使用 Terraform Modules 將程式碼邏輯分開。",
+        "en": "Keep all resources in the same State, but use Terraform Modules to separate the code logic.",
+        "wg": []
+      },
+      {
+        "t": "依據資源的生命週期（Lifecycle）拆分 State，例如：Network (VPC)、Data (RDS)、App (Services) 分屬不同的 State 檔案。",
+        "en": "Split the State based on resource Lifecycle, for example: Network (VPC), Data (RDS), and App (Services) belonging to different State files.",
+        "wg": [
+          {
+            "t": "生命週期",
+            "en": "Lifecycle",
+            "ps": "noun"
+          },
+          {
+            "t": "拆分",
+            "en": "split",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "為每一個 AWS Resource (如每個 EC2, 每個 S3 Bucket) 建立獨立的 State 檔案，以達到最小爆炸半徑。",
+        "en": "Create a separate State file for every single AWS Resource (e.g., each EC2, each S3 Bucket) to achieve the minimum blast radius.",
+        "wg": []
+      },
+      {
+        "t": "改用 AWS CDK，因為 CDK 不會有 State 檔案過大的問題。",
+        "en": "Switch to AWS CDK, because CDK does not suffer from the issue of oversized State files.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "這是一個典型的「巨型狀態（Monolithic State）」反模式。最佳解法是依據變更頻率與生命週期進行分層（Layering）。VPC 很少變動，資料庫需要高度保護，而應用層變動頻繁。將它們拆分為獨立的 State 可以隔離風險（減少 Blast Radius）並加速部署。單純使用 Modules (選項 0) 雖然改善了程式碼可讀性，但 State 仍然是巨大的單點。",
+      "en": "This is a typical 'Monolithic State' anti-pattern. The best solution is Layering based on change frequency and lifecycle. VPCs change rarely, databases need high protection, while the app layer changes frequently. Splitting them into independent States isolates risk (reduces Blast Radius) and speeds up deployment. Simply using Modules (Option 0) improves code readability, but the State remains a massive single point of failure.",
+      "wg": [
+        {
+          "t": "反模式",
+          "en": "anti-pattern",
+          "ps": "noun"
+        },
+        {
+          "t": "變更頻率",
+          "en": "change frequency",
+          "ps": "noun phrase"
+        },
+        {
+          "t": "隔離風險",
+          "en": "isolates risk",
+          "ps": "verb phrase"
+        }
+      ]
+    }
+  },
+  {
+    "no": "4",
+    "level": "Intermediate",
+    "keywords": "Security, Secrets, Anti-pattern, IaC",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "resource \"aws_db_instance\" \"default\" {\n  # ...\n  username = \"admin\"\n  password = \"SuperSecret123!\" # Hardcoded\n}",
+    "question": [
+      {
+        "t": "在 Code Review 時，你發現同事在 Terraform 檔案中直接寫入了資料庫密碼（如上所示）。",
+        "en": "During a Code Review, you notice a colleague has hardcoded the database password directly into the Terraform file (as shown above).",
+        "wg": [
+          {
+            "t": "直接寫入",
+            "en": "hardcoded",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "即使該 Git Repo 是私有的（Private），這仍被視為嚴重的安全漏洞。",
+        "en": "Even if the Git Repo is private, this is still considered a serious security vulnerability.",
+        "wg": [
+          {
+            "t": "安全漏洞",
+            "en": "security vulnerability",
+            "ps": "noun phrase"
+          }
+        ]
+      },
+      {
+        "t": "下列哪項是修正此問題的**最佳實務**？",
+        "en": "Which of the following is the **best practice** to fix this issue?",
+        "wg": []
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "將密碼移至 `variables.tf` 並設定 `default` 值，這樣就不會出現在 `main.tf` 中。",
+        "en": "Move the password to `variables.tf` and set a `default` value so it doesn't appear in `main.tf`.",
+        "wg": []
+      },
+      {
+        "t": "使用 AWS Secrets Manager 或 SSM Parameter Store 儲存密碼，並在 Terraform 中透過 Data Source 引用，或在 App Runtime 時讀取。",
+        "en": "Use AWS Secrets Manager or SSM Parameter Store to store the password, and reference it in Terraform via a Data Source, or read it at App Runtime.",
+        "wg": [
+          {
+            "t": "引用",
+            "en": "reference",
+            "ps": "verb"
+          },
+          {
+            "t": "執行階段",
+            "en": "Runtime",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "將密碼寫在一個純文字檔中，並將該檔案加入 `.gitignore`，然後使用 `file()` 函數讀取。",
+        "en": "Write the password in a text file, add that file to `.gitignore`, and read it using the `file()` function.",
+        "wg": []
+      },
+      {
+        "t": "使用 Base64 編碼該密碼後再寫入 Terraform 檔案，以避免明文顯示。",
+        "en": "Base64 encode the password before writing it to the Terraform file to avoid displaying it in plain text.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "將機密資訊硬編碼（Hardcoding）會導致其永久留存在 Git 歷史中。選項 0 和 3 仍然會將密碼暴露在程式碼庫中（Base64 只是編碼非加密）。選項 2 雖然避免了 Git 洩漏，但不利於團隊協作與輪替。最佳解法是使用專門的 Secrets Management 服務（如 AWS Secrets Manager），讓 IaC 僅管理「密碼的指針（ARN）」而非密碼本身。",
+      "en": "Hardcoding secrets causes them to persist permanently in Git history. Options 0 and 3 still expose the password in the codebase (Base64 is encoding, not encryption). Option 2 avoids Git leakage but hinders collaboration and rotation. The best solution is to use a dedicated Secrets Management service (like AWS Secrets Manager), letting IaC manage only the 'pointer (ARN)' to the secret, not the secret itself.",
+      "wg": [
+        {
+          "t": "硬編碼",
+          "en": "Hardcoding",
+          "ps": "verb/noun"
+        },
+        {
+          "t": "永久留存",
+          "en": "persist permanently",
+          "ps": "verb phrase"
+        },
+        {
+          "t": "輪替",
+          "en": "rotation",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "5",
+    "level": "Intermediate",
+    "keywords": "Immutable Infrastructure, EC2, Patching, Strategy",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你的團隊遵循「不可變基礎設施（Immutable Infrastructure）」原則。",
+        "en": "Your team follows the 'Immutable Infrastructure' principle.",
+        "wg": [
+          {
+            "t": "不可變基礎設施",
+            "en": "Immutable Infrastructure",
+            "ps": "noun phrase"
+          },
+          {
+            "t": "遵循",
+            "en": "follows",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "現在需要對生產環境中的 EC2 Auto Scaling Group 進行作業系統安全性更新（Security Patch）。",
+        "en": "You now need to apply an OS security patch to the EC2 Auto Scaling Group in the production environment.",
+        "wg": []
+      },
+      {
+        "t": "下列哪種操作方式符合此原則？",
+        "en": "Which of the following operational approaches aligns with this principle?",
+        "wg": [
+          {
+            "t": "符合",
+            "en": "aligns with",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "使用 AWS Systems Manager (SSM) Run Command 對所有執行中的實例執行 `yum update -y`。",
+        "en": "Use AWS Systems Manager (SSM) Run Command to execute `yum update -y` on all running instances.",
+        "wg": []
+      },
+      {
+        "t": "SSH 進入每一台機器手動更新，確認沒問題後再登出。",
+        "en": "SSH into each machine to manually update, and log out after confirming everything is fine.",
+        "wg": []
+      },
+      {
+        "t": "建立一個包含更新後 OS 的新 AMI，更新 IaC 中的 AMI ID，並觸發 Instance Refresh 以新機器替換舊機器。",
+        "en": "Create a new AMI containing the updated OS, update the AMI ID in the IaC, and trigger an Instance Refresh to replace old instances with new ones.",
+        "wg": [
+          {
+            "t": "觸發",
+            "en": "trigger",
+            "ps": "verb"
+          },
+          {
+            "t": "替換",
+            "en": "replace",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "設定 User Data script 在每次重開機時自動執行更新指令。",
+        "en": "Configure the User Data script to automatically run update commands on every reboot.",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "不可變基礎設施的核心概念是「不原地修補（No in-place patching）」。一旦伺服器啟動，就不應該再修改其配置。若需變更，應構建新的映像檔（AMI），並透過銷毀舊資源、建立新資源的方式來部署。這能確保環境的一致性並避免 Configuration Drift。",
+      "en": "The core concept of Immutable Infrastructure is 'No in-place patching'. Once a server is launched, its configuration should not be modified. If changes are needed, a new image (AMI) should be built, and deployment should happen by destroying old resources and creating new ones. This ensures environmental consistency and avoids Configuration Drift.",
+      "wg": [
+        {
+          "t": "原地修補",
+          "en": "in-place patching",
+          "ps": "noun phrase"
+        },
+        {
+          "t": "映像檔",
+          "en": "image",
+          "ps": "noun"
+        },
+        {
+          "t": "一致性",
+          "en": "consistency",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "6",
+    "level": "Advanced",
+    "keywords": "CDK, Aspects, Compliance, Policy as Code",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在使用 AWS CDK 開發基礎設施時，你希望強制規範團隊產出的所有 S3 Bucket 都必須開啟加密，且希望在「生成 CloudFormation Template 之前」就攔截不合規的程式碼。",
+        "en": "When developing infrastructure with AWS CDK, you want to enforce that all S3 Buckets produced by the team must have encryption enabled, and you want to intercept non-compliant code 'before the CloudFormation Template is generated'.",
+        "wg": [
+          {
+            "t": "強制規範",
+            "en": "enforce",
+            "ps": "verb"
+          },
+          {
+            "t": "攔截",
+            "en": "intercept",
+            "ps": "verb"
+          },
+          {
+            "t": "不合規",
+            "en": "non-compliant",
+            "ps": "adjective"
+          }
+        ]
+      },
+      {
+        "t": "下列哪項 CDK 功能最適合用來實作此需求？",
+        "en": "Which CDK feature is most suitable for implementing this requirement?",
+        "wg": []
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "CDK Aspects",
+        "en": "CDK Aspects",
+        "wg": []
+      },
+      {
+        "t": "CDK Context Methods",
+        "en": "CDK Context Methods",
+        "wg": []
+      },
+      {
+        "t": "CloudFormation Parameters",
+        "en": "CloudFormation Parameters",
+        "wg": []
+      },
+      {
+        "t": "AWS Config Rules",
+        "en": "AWS Config Rules",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "CDK Aspects 允許開發者對 Construct Tree 中的所有節點進行訪問（Visitor Pattern）。你可以在 Aspect 中編寫邏輯（例如檢查 `bucketEncryption` 屬性），若檢查失敗則拋出錯誤。這發生在 Synthesis 階段，因此能在部署前（甚至在生成 JSON 前）就擋下不合規的資源。AWS Config Rules (選項 3) 雖然也能檢查，但通常是在資源部署後才觸發。",
+      "en": "CDK Aspects allow developers to visit all nodes in the Construct Tree (Visitor Pattern). You can write logic in an Aspect (e.g., checking the `bucketEncryption` property) and throw an error if the check fails. This happens during the Synthesis phase, so it blocks non-compliant resources before deployment (or even before JSON generation). AWS Config Rules (Option 3) can also check, but they typically trigger after resources are deployed.",
+      "wg": [
+        {
+          "t": "訪問",
+          "en": "visit",
+          "ps": "verb"
+        },
+        {
+          "t": "合成階段",
+          "en": "Synthesis phase",
+          "ps": "noun phrase"
+        },
+        {
+          "t": "擋下",
+          "en": "blocks",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "7",
+    "level": "Intermediate",
+    "keywords": "Mental Model, Declarative, Terraform, State",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "resource \"aws_instance\" \"web\" {\n  ami           = \"ami-12345678\"\n  instance_type = \"t3.micro\"\n}",
+    "question": [
+      {
+        "t": "你定義了如上方的 Terraform 資源並成功執行了 `terraform apply` 建立了該 EC2 實例。十分鐘後，在未修改任何程式碼且該實例未被更動的情況下，你再次執行了 `terraform apply`。",
+        "en": "You defined the Terraform resource as shown above and successfully ran `terraform apply` to create the EC2 instance. Ten minutes later, without modifying any code or the instance itself, you run `terraform apply` again.",
+        "wg": []
+      },
+      {
+        "t": "請問預期的結果是什麼？",
+        "en": "What is the expected outcome?",
+        "wg": []
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "Terraform 會銷毀舊的實例並建立一個新的實例。",
+        "en": "Terraform will destroy the old instance and create a new one.",
+        "wg": []
+      },
+      {
+        "t": "Terraform 會報錯，因為該資源已經存在。",
+        "en": "Terraform will throw an error because the resource already exists.",
+        "wg": []
+      },
+      {
+        "t": "Terraform 會顯示「No changes」，因為 Desired State 與 Actual State 一致。",
+        "en": "Terraform will show 'No changes' because the Desired State matches the Actual State.",
+        "wg": [
+          {
+            "t": "預期狀態",
+            "en": "Desired State",
+            "ps": "noun"
+          },
+          {
+            "t": "實際狀態",
+            "en": "Actual State",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "Terraform 會更新實例的 Metadata 但不會重啟它。",
+        "en": "Terraform will update the instance metadata but will not restart it.",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "IaC 工具（如 Terraform）是宣告式（Declarative）的。它會計算程式碼（Desired State）與現實世界（Actual State）的差異。若兩者一致，它什麼都不會做（Idempotency）。",
+      "en": "IaC tools (like Terraform) are declarative. They calculate the difference between the code (Desired State) and the real world (Actual State). If they match, it does nothing (Idempotency).",
+      "wg": [
+        {
+          "t": "宣告式",
+          "en": "Declarative",
+          "ps": "adjective"
+        },
+        {
+          "t": "冪等性",
+          "en": "Idempotency",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "8",
+    "level": "Intermediate",
+    "keywords": "CI/CD, Automation, Workflow, Security",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在設計標準的 IaC CI/CD Pipeline 時，針對生產環境（Production）執行 `terraform apply`（或 `cdk deploy`）的最佳時機點通常為何？",
+        "en": "When designing a standard IaC CI/CD Pipeline, what is generally the best timing to execute `terraform apply` (or `cdk deploy`) against the Production environment?",
+        "wg": [
+          {
+            "t": "時機點",
+            "en": "timing",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "當 Pull Request 被建立時（On PR Open）。",
+        "en": "When the Pull Request is opened.",
+        "wg": []
+      },
+      {
+        "t": "當程式碼被合併進主分支後（After merge to Main/Master branch）。",
+        "en": "After the code is merged into the Main/Master branch.",
+        "wg": []
+      },
+      {
+        "t": "在工程師的本機電腦上開發完成時。",
+        "en": "When development is completed on the engineer's local machine.",
+        "wg": []
+      },
+      {
+        "t": "每晚排程自動執行（Nightly Schedule）。",
+        "en": "Automatically executed on a nightly schedule.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "標準流程是：PR 階段執行 `plan` 供審查；合併（Merge）後執行 `apply` 進行部署。PR 階段不應執行 `apply`，因為尚未經過核准且可能破壞環境。",
+      "en": "The standard flow is: run `plan` during the PR stage for review; run `apply` after the Merge to deploy. `Apply` should not be run during the PR stage as it hasn't been approved and could break the environment.",
+      "wg": []
+    }
+  },
+  {
+    "no": "9",
+    "level": "Advanced",
+    "keywords": "Modules, Anti-pattern, Refactoring, Best Practices",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你的團隊正在重構基礎設施程式碼。某位同事提議建立一個單一的「超級模組（Super Module）」，該模組同時包含 VPC、ALB、RDS 和 S3，並透過數十個布林變數（Boolean flags）來控制要開啟哪些功能。",
+        "en": "Your team is refactoring infrastructure code. A colleague proposes creating a single 'Super Module' that contains VPC, ALB, RDS, and S3, using dozens of boolean flags to control which features to enable.",
+        "wg": [
+          {
+            "t": "超級模組",
+            "en": "Super Module",
+            "ps": "noun"
+          },
+          {
+            "t": "布林變數",
+            "en": "Boolean flags",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "根據 IaC 最佳實務，你應如何評價此提議？",
+        "en": "Based on IaC best practices, how should you evaluate this proposal?",
+        "wg": []
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "這是一個好主意，因為它將所有邏輯集中在一個地方，方便管理。",
+        "en": "This is a good idea because it centralizes all logic in one place, making it easy to manage.",
+        "wg": []
+      },
+      {
+        "t": "這是一個反模式（Anti-pattern）。應採用「組合優於繼承（Composition over Inheritance）」原則，建立專注於單一功能的小型模組。",
+        "en": "This is an anti-pattern. You should adopt the 'Composition over Inheritance' principle and build small modules focused on single responsibilities.",
+        "wg": [
+          {
+            "t": "反模式",
+            "en": "Anti-pattern",
+            "ps": "noun"
+          },
+          {
+            "t": "組合優於繼承",
+            "en": "Composition over Inheritance",
+            "ps": "phrase"
+          }
+        ]
+      },
+      {
+        "t": "這是必要的，因為 Terraform 不支援多個模組之間的依賴關係。",
+        "en": "This is necessary because Terraform does not support dependencies between multiple modules.",
+        "wg": []
+      },
+      {
+        "t": "只有在使用 AWS CDK 時才建議這樣做，Terraform 則不建議。",
+        "en": "This is only recommended when using AWS CDK, not Terraform.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "「超級模組」難以維護、測試與升級。最佳實務是建立專注的小模組（如 `vpc-module`, `rds-module`），然後在 Root Module 中將它們組合起來。",
+      "en": "A 'Super Module' is hard to maintain, test, and upgrade. The best practice is to create focused small modules (e.g., `vpc-module`, `rds-module`) and compose them in the Root Module.",
+      "wg": []
+    }
+  },
+  {
+    "no": "10",
+    "level": "Intermediate",
+    "keywords": "Drift, Remediation, Operations, Workflow",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "由於生產環境發生緊急事故，你直接在 AWS Console 上將 RDS 資料庫的規格從 `db.t3.medium` 升級為 `db.r5.large`（ClickOps）。事故解決後，你執行 `terraform plan`，發現 Terraform 打算將資料庫降級回 `db.t3.medium`。",
+        "en": "Due to a production incident, you manually upgraded an RDS instance from `db.t3.medium` to `db.r5.large` in the AWS Console (ClickOps). After the incident, you run `terraform plan` and see that Terraform intends to downgrade the database back to `db.t3.medium`.",
+        "wg": [
+          {
+            "t": "降級",
+            "en": "downgrade",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "若你希望保留升級後的規格，正確的處理步驟為何？",
+        "en": "If you want to keep the upgraded specification, what is the correct remediation step?",
+        "wg": []
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "直接執行 `terraform apply`，Terraform 會自動學習新的狀態。",
+        "en": "Run `terraform apply` directly; Terraform will automatically learn the new state.",
+        "wg": []
+      },
+      {
+        "t": "修改 Terraform 程式碼，將規格更新為 `db.r5.large`（Backporting），再次執行 Plan 確認無變更後再 Apply。",
+        "en": "Update the Terraform code to `db.r5.large` (Backporting), run Plan again to confirm no changes, and then Apply.",
+        "wg": [
+          {
+            "t": "回填/向後移植",
+            "en": "Backporting",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "刪除 `terraform.tfstate` 檔案並重新執行 `terraform init`。",
+        "en": "Delete the `terraform.tfstate` file and re-run `terraform init`.",
+        "wg": []
+      },
+      {
+        "t": "使用 `terraform refresh` 強制覆蓋程式碼中的設定。",
+        "en": "Use `terraform refresh` to forcibly overwrite the settings in the code.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "當現實發生了合理的變更（Reasonable Drift），必須更新 IaC 程式碼以反映現實（Backporting），確保 Code 與 State 再次同步。",
+      "en": "When a reasonable change (Reasonable Drift) occurs in reality, the IaC code must be updated to reflect reality (Backporting) to ensure Code and State are synchronized again.",
+      "wg": []
+    }
+  },
+  {
+    "no": "11",
+    "level": "Intermediate",
+    "keywords": "CDK, Tool Selection, TypeScript, Imperative vs Declarative",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你的團隊由資深的 TypeScript 開發者組成，專案需要建立高度動態的基礎設施（例如使用迴圈動態產生數百個 Queue），且團隊偏好使用物件導向（OOP）的方式進行抽象化。",
+        "en": "Your team consists of senior TypeScript developers. The project requires creating highly dynamic infrastructure (e.g., using loops to dynamically generate hundreds of Queues), and the team prefers using Object-Oriented Programming (OOP) for abstraction.",
+        "wg": [
+          {
+            "t": "高度動態",
+            "en": "highly dynamic",
+            "ps": "adjective"
+          },
+          {
+            "t": "抽象化",
+            "en": "abstraction",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "下列哪項工具最適合此場景？",
+        "en": "Which tool is best suited for this scenario?",
+        "wg": []
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "AWS CloudFormation (YAML)",
+        "en": "AWS CloudFormation (YAML)",
+        "wg": []
+      },
+      {
+        "t": "Terraform (HCL)",
+        "en": "Terraform (HCL)",
+        "wg": []
+      },
+      {
+        "t": "AWS CDK",
+        "en": "AWS CDK",
+        "wg": []
+      },
+      {
+        "t": "AWS SAM",
+        "en": "AWS SAM",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "AWS CDK 允許使用通用程式語言（如 TypeScript, Python）來定義基礎設施，非常適合需要複雜邏輯、迴圈或物件導向封裝的場景。",
+      "en": "AWS CDK allows using general-purpose programming languages (like TypeScript, Python) to define infrastructure, making it ideal for scenarios requiring complex logic, loops, or OOP encapsulation.",
+      "wg": []
+    }
+  },
+  {
+    "no": "12",
+    "level": "Intermediate",
+    "keywords": "Security, Static Analysis, Shift Left, Compliance",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你希望在程式碼進入 Git 儲存庫之前，就自動攔截任何不安全的設定（例如：未加密的 EBS Volume 或公開的 S3 Bucket）。",
+        "en": "You want to automatically intercept any insecure configurations (e.g., unencrypted EBS Volumes or public S3 Buckets) before the code enters the Git repository.",
+        "wg": [
+          {
+            "t": "攔截",
+            "en": "intercept",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "下列哪種做法最符合「左移安全（Shift Left Security）」的原則？",
+        "en": "Which approach best aligns with the 'Shift Left Security' principle?",
+        "wg": [
+          {
+            "t": "左移安全",
+            "en": "Shift Left Security",
+            "ps": "phrase"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "在 Pre-commit Hook 或 CI 階段執行靜態分析工具（如 tfsec, checkov）。",
+        "en": "Run static analysis tools (like tfsec, checkov) in a Pre-commit Hook or CI stage.",
+        "wg": [
+          {
+            "t": "靜態分析工具",
+            "en": "static analysis tools",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "每週定期執行 AWS Config Rules 掃描已部署的資源。",
+        "en": "Run AWS Config Rules scans on deployed resources on a weekly basis.",
+        "wg": []
+      },
+      {
+        "t": "限制只有資深工程師擁有 Merge PR 的權限。",
+        "en": "Restrict Merge PR permissions to senior engineers only.",
+        "wg": []
+      },
+      {
+        "t": "在 `terraform apply` 失敗後再進行修復。",
+        "en": "Fix the issues after `terraform apply` fails.",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "「左移」意指在開發流程的早期（Commit 或 PR 階段）發現問題。使用 `tfsec` 或 `checkov` 可以在資源被部署前就發現安全漏洞。",
+      "en": "'Shift Left' means detecting issues early in the development process (Commit or PR stage). Using `tfsec` or `checkov` allows security vulnerabilities to be detected before resources are deployed.",
+      "wg": []
+    }
+  }
+]

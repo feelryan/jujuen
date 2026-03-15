@@ -1,0 +1,897 @@
+[
+  {
+    "no": "1",
+    "level": "Medium",
+    "keywords": "Kinesis, SQS, Ordering, Architecture",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你正在設計一個「使用者行為分析系統」，需要收集大量的使用者點擊流（Clickstream）資料。需求包含：1. 必須保證同一使用者的操作順序性；2. 支援多個下游系統同時讀取資料（例如一個做即時分析，一個寫入 Data Lake）；3. 下游系統若故障，修復後需要能「倒帶」重播過去幾小時的資料。請問最適合的 AWS 服務為何？",
+        "en": "You are designing a 'User Behavior Analytics System' to collect massive user clickstream data. Requirements include: 1. Strict ordering of operations for the same user; 2. Support for multiple downstream systems reading data simultaneously (e.g., one for real-time analytics, one for Data Lake ingestion); 3. Ability to 'replay' data from the past few hours if a downstream system fails. Which AWS service is most suitable?",
+        "wg": [
+          {
+            "t": "點擊流",
+            "en": "Clickstream",
+            "ps": "noun"
+          },
+          {
+            "t": "順序性",
+            "en": "Ordering",
+            "ps": "noun"
+          },
+          {
+            "t": "倒帶重播",
+            "en": "Replay",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "type": "Single",
+    "options": [
+      {
+        "t": "SQS FIFO Queue",
+        "en": "SQS FIFO Queue",
+        "wg": []
+      },
+      {
+        "t": "SNS Topic",
+        "en": "SNS Topic",
+        "wg": []
+      },
+      {
+        "t": "Kinesis Data Streams",
+        "en": "Kinesis Data Streams",
+        "wg": []
+      },
+      {
+        "t": "EventBridge",
+        "en": "EventBridge",
+        "wg": []
+      }
+    ],
+    "answer": "Kinesis Data Streams",
+    "why": {
+      "t": "Kinesis Data Streams 專為串流資料設計，支援「順序性」（透過 Partition Key/Shard）、「多個 Consumer 同時讀取」以及「重播能力」（資料預設保留 24 小時）。SQS FIFO 雖然支援順序，但通常是一對一消費，且不支援像錄影帶一樣的重播機制；SNS 與 EventBridge 則不保證順序且無資料保留能力。",
+      "en": "Kinesis Data Streams is designed for streaming data, supporting 'ordering' (via Partition Key/Shard), 'multiple concurrent consumers', and 'replay capability' (data retention defaults to 24 hours). While SQS FIFO supports ordering, it is typically for one-to-one consumption and does not support replay like a tape; SNS and EventBridge do not guarantee ordering nor provide data retention.",
+      "wg": [
+        {
+          "t": "資料保留",
+          "en": "Data retention",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "2",
+    "level": "Medium",
+    "keywords": "Fan-out, SNS, SQS, Resilience",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在實作「扇出模式 (Fan-out Pattern)」時，例如訂單成立後需同時通知庫存系統與發票系統。架構上建議使用 SNS + SQS 的組合，而非讓 SNS 直接觸發 Lambda 或 HTTP Endpoint。請問在中間夾一層 SQS 的主要目的為何？",
+        "en": "When implementing the 'Fan-out Pattern', such as notifying inventory and invoice systems upon order creation, it is recommended to use an SNS + SQS combination rather than having SNS trigger Lambda or HTTP endpoints directly. What is the primary purpose of sandwiching an SQS queue in between?",
+        "wg": [
+          {
+            "t": "扇出模式",
+            "en": "Fan-out Pattern",
+            "ps": "noun"
+          },
+          {
+            "t": "夾一層",
+            "en": "Sandwiching",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "type": "Single",
+    "options": [
+      {
+        "t": "為了增加訊息傳遞的速度與降低延遲。",
+        "en": "To increase message delivery speed and reduce latency.",
+        "wg": []
+      },
+      {
+        "t": "為了提供緩衝與持久化，防止下游系統故障或處理不及導致訊息遺失。",
+        "en": "To provide buffering and persistence, preventing message loss if the downstream system fails or is overwhelmed.",
+        "wg": [
+          {
+            "t": "緩衝",
+            "en": "Buffering",
+            "ps": "noun"
+          },
+          {
+            "t": "持久化",
+            "en": "Persistence",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "為了確保訊息能夠被嚴格加密。",
+        "en": "To ensure messages are strictly encrypted.",
+        "wg": []
+      },
+      {
+        "t": "為了讓 SNS 能夠支援超過 256KB 的訊息。",
+        "en": "To allow SNS to support messages larger than 256KB.",
+        "wg": []
+      }
+    ],
+    "answer": "為了提供緩衝與持久化，防止下游系統故障或處理不及導致訊息遺失。",
+    "why": {
+      "t": "這是非同步架構中的黃金法則。SNS 的重試機制有限，若下游（如 Lambda 或外部 API）暫時無法服務，訊息可能會遺失。加入 SQS 可以將訊息持久化保存（Buffer），讓下游依照自己的步調（Throttling）處理，並支援 Dead Letter Queue 機制。",
+      "en": "This is a golden rule in asynchronous architecture. SNS has limited retry mechanisms; if the downstream (like Lambda or external API) is temporarily unavailable, messages might be lost. Adding SQS persists the messages (Buffer), allowing the downstream to process at its own pace (Throttling) and supports Dead Letter Queue mechanisms.",
+      "wg": [
+        {
+          "t": "重試機制",
+          "en": "Retry mechanisms",
+          "ps": "noun"
+        },
+        {
+          "t": "步調",
+          "en": "Pace",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "3",
+    "level": "Hard",
+    "keywords": "Idempotency, SQS, Distributed Systems",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "def handler(event):\n    msg_id = event['id']\n    # Missing check here\n    process_payment(event)\n    return \"Done\"",
+    "question": [
+      {
+        "t": "你的團隊使用 SQS Standard Queue 觸發 Lambda 來處理付款請求。偶爾會發生「同一筆訂單被扣款兩次」的情況，即便程式碼邏輯正確且沒有報錯。請問最根本的原因與解決方案為何？",
+        "en": "Your team uses an SQS Standard Queue to trigger a Lambda for payment processing. Occasionally, 'double charges for the same order' occur, even though the code logic is correct and no errors are thrown. What is the root cause and the solution?",
+        "wg": [
+          {
+            "t": "扣款",
+            "en": "Charge",
+            "ps": "verb"
+          },
+          {
+            "t": "根本原因",
+            "en": "Root cause",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single",
+    "options": [
+      {
+        "t": "原因：SQS Standard 保證 Exactly-once delivery，這是 AWS 的 Bug。解決方案：開 Support ticket。",
+        "en": "Cause: SQS Standard guarantees Exactly-once delivery, so this is an AWS bug. Solution: Open a support ticket.",
+        "wg": []
+      },
+      {
+        "t": "原因：分散式系統承諾 At-least-once delivery，訊息可能會重複送達。解決方案：實作冪等性 (Idempotency)，例如在處理前檢查 DB 是否已有該 ID 的交易紀錄。",
+        "en": "Cause: Distributed systems promise At-least-once delivery, so messages may be delivered more than once. Solution: Implement Idempotency, e.g., check the DB for an existing transaction record with that ID before processing.",
+        "wg": [
+          {
+            "t": "至少傳送一次",
+            "en": "At-least-once delivery",
+            "ps": "noun"
+          },
+          {
+            "t": "冪等性",
+            "en": "Idempotency",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "原因：Lambda 的並發數太高。解決方案：將 Lambda 的 Reserved Concurrency 設為 1。",
+        "en": "Cause: Lambda concurrency is too high. Solution: Set Lambda Reserved Concurrency to 1.",
+        "wg": []
+      },
+      {
+        "t": "原因：SQS Visibility Timeout 設定太短。解決方案：延長 Timeout。",
+        "en": "Cause: SQS Visibility Timeout is too short. Solution: Increase the Timeout.",
+        "wg": []
+      }
+    ],
+    "answer": "原因：分散式系統承諾 At-least-once delivery，訊息可能會重複送達。解決方案：實作冪等性 (Idempotency)，例如在處理前檢查 DB 是否已有該 ID 的交易紀錄。",
+    "why": {
+      "t": "AWS SQS Standard Queue 保證的是「至少傳送一次 (At-least-once)」，這意味著在極少數網路不穩或分散式節點同步延遲的情況下，Consumer 可能會收到重複的訊息。應用程式層必須實作「冪等性 (Idempotency)」，利用唯一 ID (Business Key) 來過濾重複請求，不能依賴基礎設施提供 Exactly-once。",
+      "en": "AWS SQS Standard Queue guarantees 'At-least-once delivery', meaning that in rare cases of network instability or distributed node sync delays, the Consumer may receive duplicate messages. The application layer must implement 'Idempotency', using a unique ID (Business Key) to filter duplicate requests, rather than relying on the infrastructure for Exactly-once.",
+      "wg": [
+        {
+          "t": "過濾",
+          "en": "Filter",
+          "ps": "verb"
+        },
+        {
+          "t": "基礎設施",
+          "en": "Infrastructure",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "4",
+    "level": "Medium",
+    "keywords": "Claim Check Pattern, SQS, S3, Message Size",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你需要設計一個非同步流程來處理使用者上傳的高解析度圖片（平均 5MB）。你想使用 SQS 來解耦上傳與處理流程，但發現 SQS 的訊息大小限制為 256KB。請問應採用哪種設計模式解決此問題？",
+        "en": "You need to design an asynchronous workflow to process high-resolution images uploaded by users (average 5MB). You want to use SQS to decouple the upload and processing, but you find that SQS has a message size limit of 256KB. Which design pattern should be used to solve this?",
+        "wg": [
+          {
+            "t": "解耦",
+            "en": "Decouple",
+            "ps": "verb"
+          },
+          {
+            "t": "高解析度",
+            "en": "High-resolution",
+            "ps": "adjective"
+          }
+        ]
+      }
+    ],
+    "type": "Single",
+    "options": [
+      {
+        "t": "將圖片進行 Base64 編碼並分割成多個小訊息傳送 (Chunking)。",
+        "en": "Base64 encode the image and split it into multiple small messages (Chunking).",
+        "wg": []
+      },
+      {
+        "t": "使用 Claim Check Pattern：將圖片上傳至 S3，僅將 S3 Object Key (Reference) 放入 SQS 訊息中。",
+        "en": "Use the Claim Check Pattern: Upload the image to S3 and put only the S3 Object Key (Reference) into the SQS message.",
+        "wg": [
+          {
+            "t": "參考",
+            "en": "Reference",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "改用 Kinesis Data Streams，因為它支援單一訊息高達 5MB。",
+        "en": "Switch to Kinesis Data Streams because it supports single messages up to 5MB.",
+        "wg": []
+      },
+      {
+        "t": "向 AWS 申請提高 SQS 訊息大小限制。",
+        "en": "Request AWS to increase the SQS message size limit.",
+        "wg": []
+      }
+    ],
+    "answer": "使用 Claim Check Pattern：將圖片上傳至 S3，僅將 S3 Object Key (Reference) 放入 SQS 訊息中。",
+    "why": {
+      "t": "這是處理大型 Payload 的標準模式 (Claim Check Pattern)。SQS 與 SNS 都不適合傳輸大型二進位檔案。正確做法是將大檔案存入物件儲存服務 (S3)，並傳遞其參考路徑 (Reference/Key)，Consumer 收到訊息後再去 S3 下載處理。Kinesis 的單一紀錄限制為 1MB，也不足以直接放入 5MB 圖片。",
+      "en": "This is the standard pattern for handling large payloads (Claim Check Pattern). Neither SQS nor SNS is suitable for transferring large binary files. The correct approach is to store the large file in an object storage service (S3) and pass its reference path (Reference/Key). The Consumer downloads it from S3 for processing upon receiving the message. Kinesis has a single record limit of 1MB, which is also insufficient for a 5MB image.",
+      "wg": [
+        {
+          "t": "二進位檔案",
+          "en": "Binary files",
+          "ps": "noun"
+        },
+        {
+          "t": "紀錄",
+          "en": "Record",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "5",
+    "level": "Medium",
+    "keywords": "Lambda, SQS, Concurrency, Anti-pattern",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你設定了一個 SQS Queue 觸發 Lambda 來寫入 RDS 資料庫。某天 SQS 突然湧入 50,000 個訊息，導致 Lambda 瞬間啟動數千個執行個體 (Instances)，結果把 RDS 的連線數佔滿並導致資料庫崩潰。這是屬於哪種 Anti-pattern，該如何修復？",
+        "en": "You configured an SQS Queue to trigger a Lambda that writes to an RDS database. One day, 50,000 messages suddenly flooded the SQS, causing Lambda to spin up thousands of instances instantly, which exhausted the RDS connection pool and crashed the database. What Anti-pattern is this, and how should it be fixed?",
+        "wg": [
+          {
+            "t": "執行個體",
+            "en": "Instances",
+            "ps": "noun"
+          },
+          {
+            "t": "連線數",
+            "en": "Connection pool",
+            "ps": "noun"
+          },
+          {
+            "t": "崩潰",
+            "en": "Crashed",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "type": "Single",
+    "options": [
+      {
+        "t": "Anti-pattern: 分散式單體。修復：將 RDS 換成 DynamoDB。",
+        "en": "Anti-pattern: Distributed Monolith. Fix: Replace RDS with DynamoDB.",
+        "wg": []
+      },
+      {
+        "t": "Anti-pattern: 忽略並發限制 (Ignoring Concurrency Limits)。修復：設定 Lambda 的 Reserved Concurrency 或調整 SQS Batch Size。",
+        "en": "Anti-pattern: Ignoring Concurrency Limits. Fix: Set Lambda's Reserved Concurrency or adjust SQS Batch Size.",
+        "wg": [
+          {
+            "t": "並發限制",
+            "en": "Concurrency Limits",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "Anti-pattern: 誤用 Kinesis。修復：改用 Kinesis Data Streams。",
+        "en": "Anti-pattern: Misusing Kinesis. Fix: Switch to Kinesis Data Streams.",
+        "wg": []
+      },
+      {
+        "t": "Anti-pattern: 缺乏 DLQ。修復：設定 Dead Letter Queue。",
+        "en": "Anti-pattern: Lack of DLQ. Fix: Configure a Dead Letter Queue.",
+        "wg": []
+      }
+    ],
+    "answer": "Anti-pattern: 忽略並發限制 (Ignoring Concurrency Limits)。修復：設定 Lambda 的 Reserved Concurrency 或調整 SQS Batch Size。",
+    "why": {
+      "t": "這是典型的「忽略 Lambda 並發限制」問題。SQS 堆積大量訊息時，Lambda 預設會盡可能擴展以消化訊息，這會對下游資源（如關聯式資料庫）造成巨大壓力。透過設定 Lambda 的 `Reserved Concurrency` 可以限制最大同時執行數，保護下游系統。",
+      "en": "This is a typical 'Ignoring Lambda Concurrency Limits' issue. When SQS accumulates a large number of messages, Lambda defaults to scaling out as much as possible to consume them, putting immense pressure on downstream resources (like relational databases). Setting Lambda's `Reserved Concurrency` limits the maximum number of simultaneous executions, protecting downstream systems.",
+      "wg": [
+        {
+          "t": "消化",
+          "en": "Consume",
+          "ps": "verb"
+        },
+        {
+          "t": "擴展",
+          "en": "Scale out",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "6",
+    "level": "Medium",
+    "keywords": "Webhook, API Gateway, SQS, Latency",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你的系統需要接收第三方支付平台（如 Stripe）的 Webhook 通知。偶爾因為後端處理邏輯較複雜（超過 10 秒），導致第三方平台判定 Request Timeout 而不斷重試，造成重複扣款或資源浪費。請問最佳的架構改善方案為何？",
+        "en": "Your system needs to receive Webhook notifications from a third-party payment platform (e.g., Stripe). Occasionally, because the backend processing logic is complex (taking over 10 seconds), the third-party platform considers the request timed out and keeps retrying, causing duplicate charges or resource waste. What is the best architectural improvement?",
+        "wg": [
+          {
+            "t": "判定",
+            "en": "Deem/Consider",
+            "ps": "verb"
+          },
+          {
+            "t": "資源浪費",
+            "en": "Resource waste",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single",
+    "options": [
+      {
+        "t": "升級後端伺服器規格，確保所有請求能在 1 秒內完成。",
+        "en": "Upgrade backend server specs to ensure all requests complete within 1 second.",
+        "wg": []
+      },
+      {
+        "t": "採用非同步緩衝模式：API Gateway 接收請求後直接寫入 SQS 並立刻回傳 200 OK，後端 Worker 再從 SQS 慢慢處理。",
+        "en": "Adopt an async buffer pattern: API Gateway receives the request, writes it directly to SQS, and immediately returns 200 OK. The backend Worker then processes it from SQS at its own pace.",
+        "wg": [
+          {
+            "t": "非同步緩衝",
+            "en": "Async buffer",
+            "ps": "noun"
+          },
+          {
+            "t": "立刻回傳",
+            "en": "Immediately return",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "請第三方平台延長 Timeout 時間。",
+        "en": "Ask the third-party platform to extend their Timeout duration.",
+        "wg": []
+      },
+      {
+        "t": "使用 EventBridge 直接觸發長時間執行的 Lambda。",
+        "en": "Use EventBridge to directly trigger a long-running Lambda.",
+        "wg": []
+      }
+    ],
+    "answer": "採用非同步緩衝模式：API Gateway 接收請求後直接寫入 SQS 並立刻回傳 200 OK，後端 Worker 再從 SQS 慢慢處理。",
+    "why": {
+      "t": "處理 Webhook 的最佳實務是「快速回應，非同步處理」。為了避免第三方平台因超時而誤判失敗並重試，應先將 Payload 存入 SQS (Buffer) 並立刻回傳 HTTP 200，確保接收成功。後續的複雜驗證與商業邏輯則由 Worker 從 Queue 中拉取處理，這樣既可靠又能解耦。",
+      "en": "The best practice for handling Webhooks is 'Respond fast, process asynchronously'. To prevent the third-party platform from assuming failure due to timeout and retrying, you should first buffer the Payload into SQS and immediately return HTTP 200 to confirm receipt. Subsequent complex validation and business logic are then handled by a Worker pulling from the Queue, ensuring reliability and decoupling.",
+      "wg": [
+        {
+          "t": "誤判",
+          "en": "Misjudge",
+          "ps": "verb"
+        },
+        {
+          "t": "解耦",
+          "en": "Decouple",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "7",
+    "level": "Medium",
+    "keywords": "EventBridge, SNS, Routing, Architecture",
+    "parentNo": null,
+    "images": "",
+    "codeSnippet": "",
+    "question": [
+      {
+        "t": "你正在設計一個 SaaS 整合平台，需要接收來自不同合作夥伴（如 Shopify、Stripe、Zendesk）的事件通知。你的系統需要根據事件內容中的 `source` 欄位，將訊息精準路由到不同的微服務進行處理。",
+        "en": "You are designing a SaaS integration platform to receive event notifications from various partners (e.g., Shopify, Stripe, Zendesk). Your system needs to route messages to different microservices based on the `source` field in the event content.",
+        "wg": [
+          {
+            "t": "路由",
+            "en": "route",
+            "ps": "verb"
+          },
+          {
+            "t": "微服務",
+            "en": "microservices",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "根據 Handbook 的心智模型，下列哪項服務最適合擔任這個「智慧路由器」的角色？",
+        "en": "According to the mental model in the Handbook, which service is best suited to act as this 'Smart Router'?",
+        "wg": [
+          {
+            "t": "智慧路由器",
+            "en": "Smart Router",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single",
+    "options": [
+      {
+        "t": "Amazon SNS：利用其 Topic 訂閱功能將所有訊息廣播給所有微服務，再由微服務自行過濾。",
+        "en": "Amazon SNS: Use its Topic subscription feature to broadcast all messages to all microservices, letting them filter individually.",
+        "wg": []
+      },
+      {
+        "t": "Amazon EventBridge：利用其 Rules 功能，根據 JSON payload 的內容定義複雜的路由規則。",
+        "en": "Amazon EventBridge: Use its Rules feature to define complex routing logic based on the content of the JSON payload.",
+        "wg": [
+          {
+            "t": "複雜的路由規則",
+            "en": "complex routing logic",
+            "ps": "noun phrase"
+          }
+        ]
+      },
+      {
+        "t": "Amazon SQS：為每個合作夥伴建立一個 Queue，並讓 Consumer 輪詢所有 Queue。",
+        "en": "Amazon SQS: Create a separate Queue for each partner and have Consumers poll all Queues.",
+        "wg": []
+      },
+      {
+        "t": "Amazon Kinesis Data Streams：將所有事件寫入 Stream，由 Consumer 讀取後自行判斷如何分發。",
+        "en": "Amazon Kinesis Data Streams: Write all events to a Stream, and let Consumers decide how to dispatch them after reading.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "EventBridge 被設計為「智慧路由器 (Smart Router)」，專門用於根據訊息內容（Content-based routing）進行過濾與轉發，特別適合 SaaS 整合場景。SNS 雖然支援簡單的屬性過濾，但更適合作為「大聲公 (Megaphone)」進行高吞吐量的廣播。",
+      "en": "EventBridge is designed as a 'Smart Router' specifically for content-based routing, making it ideal for SaaS integration scenarios. While SNS supports simple attribute filtering, it is better suited as a 'Megaphone' for high-throughput broadcasting.",
+      "wg": [
+        {
+          "t": "內容路由",
+          "en": "Content-based routing",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "8",
+    "level": "Hard",
+    "keywords": "SQS, Visibility Timeout, Lambda, Troubleshooting",
+    "parentNo": null,
+    "images": "",
+    "codeSnippet": "",
+    "question": [
+      {
+        "t": "你的團隊遇到一個詭異的 Bug：使用 SQS 觸發 Lambda 處理訂單時，偶爾會發現同一筆訂單被「重複處理」，且兩次處理的時間點非常接近。經檢查，Lambda 的執行時間上限（Timeout）設定為 60 秒，而 SQS 的 Visibility Timeout 設定為 30 秒。",
+        "en": "Your team encounters a strange bug: when using SQS to trigger Lambda for order processing, the same order is occasionally 'processed twice' in very close succession. Upon inspection, the Lambda Timeout is set to 60 seconds, while the SQS Visibility Timeout is set to 30 seconds.",
+        "wg": [
+          {
+            "t": "重複處理",
+            "en": "processed twice",
+            "ps": "verb phrase"
+          },
+          {
+            "t": "執行時間上限",
+            "en": "Timeout",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "請問造成此現象最可能的原因是什麼？",
+        "en": "What is the most likely cause of this phenomenon?",
+        "wg": []
+      }
+    ],
+    "type": "Single",
+    "options": [
+      {
+        "t": "這是 SQS Standard Queue 的正常行為，因為它保證「至少傳送一次 (At-least-once delivery)」。",
+        "en": "This is normal behavior for SQS Standard Queues, as they guarantee 'At-least-once delivery'.",
+        "wg": []
+      },
+      {
+        "t": "當 Lambda 執行超過 30 秒但尚未結束時，SQS 判定處理失敗，讓訊息重新變為可見 (Visible)，導致另一個 Lambda 實例開始處理同一則訊息。",
+        "en": "When the Lambda runs for more than 30 seconds without finishing, SQS considers the processing failed and makes the message visible again, causing another Lambda instance to pick up the same message.",
+        "wg": [
+          {
+            "t": "重新變為可見",
+            "en": "makes the message visible again",
+            "ps": "verb phrase"
+          }
+        ]
+      },
+      {
+        "t": "Lambda 的並發數 (Concurrency) 設定過高，導致多個實例同時搶奪同一個訊息。",
+        "en": "The Lambda concurrency setting is too high, causing multiple instances to compete for the same message.",
+        "wg": []
+      },
+      {
+        "t": "SQS 的 Dead Letter Queue (DLQ) 設定錯誤，導致訊息被立即重試。",
+        "en": "The SQS Dead Letter Queue (DLQ) is misconfigured, causing the message to be retried immediately.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "這是常見的配置錯誤。SQS 的 Visibility Timeout 必須大於 Consumer (Lambda) 的最大處理時間。若 Lambda 還在跑（例如跑了 40 秒），但 Visibility Timeout 只有 30 秒，SQS 會以為 Consumer 掛了，於是把訊息釋放給其他 Consumer，導致重複執行。",
+      "en": "This is a common misconfiguration. SQS Visibility Timeout must be larger than the Consumer's (Lambda's) maximum processing time. If Lambda is still running (e.g., at 40s) but Visibility Timeout is only 30s, SQS assumes the Consumer failed and releases the message to other Consumers, causing duplicate execution.",
+      "wg": [
+        {
+          "t": "配置錯誤",
+          "en": "misconfiguration",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "9",
+    "level": "Medium",
+    "keywords": "Kinesis, Replay, Analytics, Architecture",
+    "parentNo": null,
+    "images": "",
+    "codeSnippet": "",
+    "question": [
+      {
+        "t": "你的資料分析團隊發現昨天的即時分析演算法有一個邏輯錯誤，需要重新計算過去 24 小時內的所有使用者點擊資料。目前的架構是將點擊流送入某個 AWS 服務，再由 Lambda 進行分析。",
+        "en": "Your data analytics team discovered a logic error in yesterday's real-time analytics algorithm and needs to recalculate all user click data from the past 24 hours. The current architecture sends clickstreams to an AWS service, which is then processed by Lambda.",
+        "wg": [
+          {
+            "t": "重新計算",
+            "en": "recalculate",
+            "ps": "verb"
+          },
+          {
+            "t": "點擊流",
+            "en": "clickstreams",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "為了支援這種「資料重播 (Replay)」的需求，最初在設計架構時應選用哪項服務？",
+        "en": "To support this 'Data Replay' requirement, which service should have been chosen in the initial architecture design?",
+        "wg": [
+          {
+            "t": "資料重播",
+            "en": "Data Replay",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single",
+    "options": [
+      {
+        "t": "Amazon SQS Standard Queue",
+        "en": "Amazon SQS Standard Queue",
+        "wg": []
+      },
+      {
+        "t": "Amazon SNS Topic",
+        "en": "Amazon SNS Topic",
+        "wg": []
+      },
+      {
+        "t": "Amazon EventBridge",
+        "en": "Amazon EventBridge",
+        "wg": []
+      },
+      {
+        "t": "Amazon Kinesis Data Streams",
+        "en": "Amazon Kinesis Data Streams",
+        "wg": []
+      }
+    ],
+    "answer": "3",
+    "why": {
+      "t": "Kinesis Data Streams 的特性是像「錄影帶」一樣保存資料流（預設 24 小時，可延長），允許 Consumer 隨時「倒帶」重播歷史資料。SQS 和 SNS 在訊息被消費後就會刪除，無法支援重播。",
+      "en": "Kinesis Data Streams acts like a 'video tape' that retains the data stream (default 24 hours, extendable), allowing Consumers to 'rewind' and replay historical data at any time. SQS and SNS delete messages after consumption and do not support replay.",
+      "wg": [
+        {
+          "t": "倒帶",
+          "en": "rewind",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "10",
+    "level": "Medium",
+    "keywords": "SQS FIFO, Ordering, Architecture",
+    "parentNo": null,
+    "images": "",
+    "codeSnippet": "",
+    "question": [
+      {
+        "t": "你正在為一家銀行設計交易處理系統。對於同一個銀行帳戶的操作（如存款、轉帳、提款），必須嚴格保證「先進先出 (FIFO)」的執行順序，否則會導致餘額計算錯誤。系統整體的吞吐量約為每秒 300 筆交易。",
+        "en": "You are designing a transaction processing system for a bank. For operations on the same bank account (e.g., deposit, transfer, withdrawal), strict 'First-In-First-Out (FIFO)' execution order must be guaranteed to avoid balance errors. The system throughput is about 300 transactions per second.",
+        "wg": [
+          {
+            "t": "嚴格保證",
+            "en": "strictly guaranteed",
+            "ps": "verb phrase"
+          },
+          {
+            "t": "餘額",
+            "en": "balance",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "下列哪種架構最能簡單且有效地滿足此需求？",
+        "en": "Which architecture most simply and effectively meets this requirement?",
+        "wg": []
+      }
+    ],
+    "type": "Single",
+    "options": [
+      {
+        "t": "使用 SQS Standard Queue，並在 Consumer 端實作邏輯來重新排序訊息。",
+        "en": "Use SQS Standard Queue and implement logic on the Consumer side to reorder messages.",
+        "wg": []
+      },
+      {
+        "t": "使用 SQS FIFO Queue，並將「銀行帳戶 ID」設為 Message Group ID。",
+        "en": "Use SQS FIFO Queue and set the 'Bank Account ID' as the Message Group ID.",
+        "wg": [
+          {
+            "t": "訊息群組 ID",
+            "en": "Message Group ID",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "使用 SNS Topic，因為它保證訊息的順序性傳遞。",
+        "en": "Use SNS Topic, as it guarantees ordered delivery of messages.",
+        "wg": []
+      },
+      {
+        "t": "使用 Kinesis Data Streams，並為每個銀行帳戶建立一個獨立的 Shard。",
+        "en": "Use Kinesis Data Streams and create a separate Shard for each bank account.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "SQS FIFO Queue 專為須嚴格順序的場景設計。透過設定 Message Group ID，可以保證同一群組（此處為同一帳戶）的訊息依序處理。SQS Standard 不保證順序；Kinesis 雖然可保證順序但管理 Shard 較複雜且為每個帳戶開 Shard 不切實際。",
+      "en": "SQS FIFO Queue is designed for scenarios requiring strict ordering. By setting the Message Group ID, you ensure messages within the same group (in this case, the same account) are processed in order. SQS Standard does not guarantee order; Kinesis guarantees order but managing Shards is complex and creating a Shard per account is impractical.",
+      "wg": [
+        {
+          "t": "不切實際",
+          "en": "impractical",
+          "ps": "adjective"
+        }
+      ]
+    }
+  },
+  {
+    "no": "11",
+    "level": "Medium",
+    "keywords": "DLQ, Redrive, Operations, SQS",
+    "parentNo": null,
+    "images": "",
+    "codeSnippet": "",
+    "question": [
+      {
+        "t": "由於程式碼的一個 Bug，你的 SQS Dead Letter Queue (DLQ) 中累積了 5,000 則處理失敗的訊息。你已經修復了 Consumer 的 Bug 並部署了新版本。",
+        "en": "Due to a bug in the code, your SQS Dead Letter Queue (DLQ) has accumulated 5,000 failed messages. You have fixed the bug in the Consumer and deployed a new version.",
+        "wg": [
+          {
+            "t": "累積",
+            "en": "accumulated",
+            "ps": "verb"
+          },
+          {
+            "t": "部署",
+            "en": "deployed",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "現在，將這些訊息送回主 Queue 重新處理的最佳方式是什麼？",
+        "en": "Now, what is the best way to send these messages back to the main Queue for reprocessing?",
+        "wg": []
+      }
+    ],
+    "type": "Single",
+    "options": [
+      {
+        "t": "撰寫一個一次性的 Python Script，從 DLQ 讀取訊息並發送到主 Queue。",
+        "en": "Write a one-off Python script to read messages from the DLQ and send them to the main Queue.",
+        "wg": []
+      },
+      {
+        "t": "使用 AWS Console 或 CLI 的 \"Start DLQ Redrive\" 功能。",
+        "en": "Use the 'Start DLQ Redrive' feature in the AWS Console or CLI.",
+        "wg": [
+          {
+            "t": "DLQ 重驅動",
+            "en": "DLQ Redrive",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "刪除 DLQ 中的訊息，因為它們已經過期無效了。",
+        "en": "Delete the messages in the DLQ because they are already expired and invalid.",
+        "wg": []
+      },
+      {
+        "t": "將 DLQ 的來源設定改為指向主 Queue，讓訊息自動流回。",
+        "en": "Change the source setting of the DLQ to point to the main Queue so messages flow back automatically.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "AWS 提供了原生的 DLQ Redrive 功能，可以輕鬆將訊息從 DLQ 移回來源 Queue，無需自行撰寫腳本，既安全又方便。自行寫腳本容易出錯且需處理額外的權限與網路設定。",
+      "en": "AWS provides a native DLQ Redrive feature that easily moves messages from the DLQ back to the source Queue without writing custom scripts, making it safe and convenient. Writing your own script is error-prone and requires handling extra permissions and network settings.",
+      "wg": [
+        {
+          "t": "原生的",
+          "en": "native",
+          "ps": "adjective"
+        }
+      ]
+    }
+  },
+  {
+    "no": "12",
+    "level": "Medium",
+    "keywords": "SNS, Lambda, Anti-pattern, Throttling",
+    "parentNo": null,
+    "images": "",
+    "codeSnippet": "",
+    "question": [
+      {
+        "t": "你正在設計一個行銷電子郵件系統。當行銷活動開始時，會瞬間產生 100 萬個發信請求。目前的架構是 `Producer -> SNS -> Lambda (發信)`。",
+        "en": "You are designing a marketing email system. When a campaign starts, 1 million email requests are generated instantly. The current architecture is `Producer -> SNS -> Lambda (Send Email)`.",
+        "wg": [
+          {
+            "t": "行銷活動",
+            "en": "marketing campaign",
+            "ps": "noun"
+          },
+          {
+            "t": "瞬間產生",
+            "en": "generated instantly",
+            "ps": "verb phrase"
+          }
+        ]
+      },
+      {
+        "t": "根據 Handbook 的「反模式 (Anti-patterns)」警告，這個架構最大的風險是什麼？",
+        "en": "According to the 'Anti-patterns' warning in the Handbook, what is the biggest risk of this architecture?",
+        "wg": [
+          {
+            "t": "反模式",
+            "en": "Anti-patterns",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single",
+    "options": [
+      {
+        "t": "SNS 無法處理 100 萬個請求的吞吐量。",
+        "en": "SNS cannot handle the throughput of 1 million requests.",
+        "wg": []
+      },
+      {
+        "t": "Lambda 會因為沒有 SQS 緩衝而被瞬間大量觸發，可能導致被限流 (Throttling) 或打掛下游服務，且 SNS 的重試機制有限，容易遺失訊息。",
+        "en": "Lambda will be triggered massively and instantly without an SQS buffer, potentially causing throttling or crashing downstream services. Also, SNS has limited retry mechanisms, leading to message loss.",
+        "wg": [
+          {
+            "t": "限流",
+            "en": "Throttling",
+            "ps": "noun"
+          },
+          {
+            "t": "緩衝",
+            "en": "buffer",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "SNS 傳遞訊息給 Lambda 的延遲太高，不適合即時系統。",
+        "en": "The latency of SNS delivering messages to Lambda is too high for real-time systems.",
+        "wg": []
+      },
+      {
+        "t": "Lambda 無法直接訂閱 SNS Topic。",
+        "en": "Lambda cannot directly subscribe to an SNS Topic.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "這是經典的 Fan-out Anti-pattern。SNS 是 Push 模型，會試圖立即將所有訊息推給 Lambda。如果沒有 SQS 作為緩衝區 (Buffer) 來進行削峰填谷 (Load Leveling)，Lambda 的並發數會瞬間飆升，導致 Throttling 或下游資料庫崩潰，且失敗的訊息很難被保存。",
+      "en": "This is a classic Fan-out Anti-pattern. SNS uses a Push model and tries to deliver all messages to Lambda immediately. Without SQS as a buffer for Load Leveling, Lambda concurrency will spike instantly, causing throttling or crashing downstream databases, and failed messages are hard to recover.",
+      "wg": [
+        {
+          "t": "削峰填谷",
+          "en": "Load Leveling",
+          "ps": "noun"
+        }
+      ]
+    }
+  }
+]

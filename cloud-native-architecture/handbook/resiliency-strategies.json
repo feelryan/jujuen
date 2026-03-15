@@ -1,0 +1,871 @@
+[
+  {
+    "no": "1",
+    "level": "Easy",
+    "keywords": "Circuit Breaker,State Machine,Resiliency",
+    "parentNo": null,
+    "images": "",
+    "codeSnippet": "",
+    "question": [
+      {
+        "t": "在斷路器 (Circuit Breaker) 模式中，當斷路器處於「Open (斷開)」狀態並經過了設定的重置時間 (Reset Timeout) 後，它會轉變為哪種狀態，且行為為何？",
+        "en": "In the Circuit Breaker pattern, after the circuit has been in the 'Open' state for the configured reset timeout, which state does it transition to, and what is its behavior?",
+        "wg": [
+          {
+            "t": "斷路器",
+            "en": "Circuit Breaker",
+            "ps": "noun"
+          },
+          {
+            "t": "重置時間",
+            "en": "Reset Timeout",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "Closed (閉合)：允許所有請求通過，並重新開始計算錯誤率。",
+        "en": "Closed: Allows all requests to pass and restarts error rate calculation.",
+        "wg": []
+      },
+      {
+        "t": "Half-Open (半開)：允許有限數量的請求通過，以測試下游服務是否已恢復。",
+        "en": "Half-Open: Allows a limited number of requests to pass to test if the downstream service has recovered.",
+        "wg": [
+          {
+            "t": "半開",
+            "en": "Half-Open",
+            "ps": "adjective"
+          }
+        ]
+      },
+      {
+        "t": "Open (斷開)：繼續拒絕所有請求，直到人工介入重置。",
+        "en": "Open: Continues to reject all requests until manual intervention resets it.",
+        "wg": []
+      },
+      {
+        "t": "Fallback (降級)：永久切換至備援邏輯，不再嘗試呼叫原服務。",
+        "en": "Fallback: Permanently switches to backup logic and no longer attempts to call the original service.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "正確答案是 Half-Open (半開)。斷路器的狀態機邏輯是：Open -> (經過 Reset Timeout) -> Half-Open。在半開狀態下，系統會放行少量流量作為「探針」。如果這些請求成功，斷路器會切回 Closed；若失敗，則重新回到 Open。這能確保系統在下游恢復時自動復原，同時避免瞬間大量流量再次壓垮剛恢復的服務。",
+      "en": "The correct answer is Half-Open. The state machine logic of a Circuit Breaker is: Open -> (after Reset Timeout) -> Half-Open. In the Half-Open state, the system allows a small amount of traffic as a 'probe'. If these requests succeed, the breaker switches back to Closed; if they fail, it returns to Open. This ensures the system automatically recovers when the downstream service is back, while avoiding overwhelming a recovering service with a sudden flood of traffic.",
+      "wg": [
+        {
+          "t": "狀態機",
+          "en": "state machine",
+          "ps": "noun"
+        },
+        {
+          "t": "探針",
+          "en": "probe",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "2",
+    "level": "Medium",
+    "keywords": "Retry,Jitter,Thundering Herd,Anti-pattern",
+    "parentNo": null,
+    "images": "",
+    "codeSnippet": "",
+    "question": [
+      {
+        "t": "你的系統實作了「指數退避 (Exponential Backoff)」重試機制，但在高併發場景下，當下游服務短暫故障後恢復，卻立刻又被大量同步的重試請求打掛。這通常被稱為「驚群效應 (Thundering Herd)」。請問在重試策略中缺少了什麼關鍵機制？",
+        "en": "Your system implements an 'Exponential Backoff' retry mechanism. However, in a high-concurrency scenario, when a downstream service recovers from a glitch, it is immediately overwhelmed again by a massive wave of synchronized retry requests. This is often called the 'Thundering Herd' problem. What key mechanism is missing from your retry strategy?",
+        "wg": [
+          {
+            "t": "指數退避",
+            "en": "Exponential Backoff",
+            "ps": "noun"
+          },
+          {
+            "t": "驚群效應",
+            "en": "Thundering Herd",
+            "ps": "noun"
+          },
+          {
+            "t": "同步的",
+            "en": "synchronized",
+            "ps": "adjective"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "Circuit Breaker (斷路器)",
+        "en": "Circuit Breaker",
+        "wg": []
+      },
+      {
+        "t": "Bulkhead (隔艙)",
+        "en": "Bulkhead",
+        "wg": []
+      },
+      {
+        "t": "Jitter (抖動)",
+        "en": "Jitter",
+        "wg": [
+          {
+            "t": "抖動",
+            "en": "Jitter",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "Timeout (逾時)",
+        "en": "Timeout",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "正確答案是 Jitter (抖動)。即使使用了指數退避，如果所有客戶端都在同一時間點發起第一次請求並失敗，它們的重試時間點（如 1s, 2s, 4s...）仍然會高度同步。加入隨機的 Jitter（例如 `WaitTime = Base * 2^n + Random`）可以將重試請求分散在不同時間點，平滑流量峰值，避免伺服器剛重啟就被同步流量再次擊倒。",
+      "en": "The correct answer is Jitter. Even with exponential backoff, if all clients initiate the first request at the same time and fail, their retry intervals (e.g., 1s, 2s, 4s...) will still be highly synchronized. Adding random Jitter (e.g., `WaitTime = Base * 2^n + Random`) spreads out the retry requests over time, smoothing out traffic peaks and preventing the server from being knocked down again immediately after recovery.",
+      "wg": [
+        {
+          "t": "平滑",
+          "en": "smooth out",
+          "ps": "verb"
+        },
+        {
+          "t": "高度同步",
+          "en": "highly synchronized",
+          "ps": "adjective"
+        }
+      ]
+    }
+  },
+  {
+    "no": "3",
+    "level": "Medium",
+    "keywords": "Bulkhead,Resource Isolation,Thread Pool",
+    "parentNo": null,
+    "images": "",
+    "codeSnippet": "",
+    "question": [
+      {
+        "t": "在一個電子商務系統中，「使用者登入」與「產生銷售報表」共用同一個應用程式執行個體。某次因為報表查詢過於複雜，導致資料庫回應變慢，進而佔滿了所有的 Tomcat 執行緒，導致一般使用者無法登入。請問下列哪種模式最能直接解決此類「資源耗盡」問題？",
+        "en": "In an e-commerce system, 'User Login' and 'Sales Report Generation' share the same application instance. Once, due to a complex report query, the database response slowed down, causing all Tomcat threads to be occupied, preventing normal users from logging in. Which pattern best directly addresses this type of 'resource exhaustion' problem?",
+        "wg": [
+          {
+            "t": "執行緒",
+            "en": "threads",
+            "ps": "noun"
+          },
+          {
+            "t": "資源耗盡",
+            "en": "resource exhaustion",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "Retry (重試模式)",
+        "en": "Retry Pattern",
+        "wg": []
+      },
+      {
+        "t": "Circuit Breaker (斷路器模式)",
+        "en": "Circuit Breaker Pattern",
+        "wg": []
+      },
+      {
+        "t": "Bulkhead (隔艙模式)",
+        "en": "Bulkhead Pattern",
+        "wg": [
+          {
+            "t": "隔艙模式",
+            "en": "Bulkhead Pattern",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "Rate Limiting (限流模式)",
+        "en": "Rate Limiting Pattern",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "正確答案是 Bulkhead (隔艙模式)。此情境是典型的「資源爭用」問題。雖然斷路器可以在錯誤率高時切斷，但它無法防止單一功能的慢速請求佔滿所有執行緒。隔艙模式透過將資源（如 Thread Pool）隔離（例如：登入用 Pool A，報表用 Pool B），確保即使報表功能卡死，登入功能仍有獨立的執行緒可用，就像船艙進水不會導致整艘船沉沒一樣。",
+      "en": "The correct answer is Bulkhead Pattern. This scenario is a classic 'resource contention' issue. While a Circuit Breaker cuts off requests when error rates are high, it doesn't prevent slow requests from a single feature from occupying all threads. The Bulkhead pattern isolates resources (e.g., Thread Pools) — for instance, Pool A for login, Pool B for reports — ensuring that even if the report feature hangs, the login feature still has independent threads available, much like how a flooded compartment doesn't sink the whole ship.",
+      "wg": [
+        {
+          "t": "資源爭用",
+          "en": "resource contention",
+          "ps": "noun"
+        },
+        {
+          "t": "隔離",
+          "en": "isolate",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "4",
+    "level": "Medium",
+    "keywords": "Timeout,Configuration,Anti-pattern",
+    "parentNo": null,
+    "images": "",
+    "codeSnippet": "Gateway Timeout: 2000ms\nService A Timeout: 5000ms\nService B Timeout: 3000ms\n\nCall Chain: Gateway -> Service A -> Service B",
+    "question": [
+      {
+        "t": "請檢視上方的逾時 (Timeout) 設定。這樣的配置存在什麼主要問題？",
+        "en": "Review the Timeout configuration above. What is the main issue with this setup?",
+        "wg": [
+          {
+            "t": "逾時",
+            "en": "Timeout",
+            "ps": "noun"
+          },
+          {
+            "t": "配置",
+            "en": "configuration",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "Service B 的 Timeout 太短，應該要比 Service A 長。",
+        "en": "Service B's timeout is too short; it should be longer than Service A's.",
+        "wg": []
+      },
+      {
+        "t": "配置混亂 (Configuration Chaos)：上游的 Timeout 短於下游，導致資源浪費。",
+        "en": "Configuration Chaos: Upstream timeout is shorter than downstream, leading to wasted resources.",
+        "wg": [
+          {
+            "t": "配置混亂",
+            "en": "Configuration Chaos",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "Gateway 的 Timeout 應該設定為無限大，以確保請求完成。",
+        "en": "Gateway's timeout should be set to infinite to ensure request completion.",
+        "wg": []
+      },
+      {
+        "t": "沒有問題，這能確保 Gateway 快速失敗 (Fail Fast)。",
+        "en": "No issue; this ensures the Gateway fails fast.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "正確答案是「配置混亂：上游的 Timeout 短於下游」。在這個設定中，Gateway 只會等待 2 秒，但 Service A 卻被允許執行長達 5 秒。如果 Service A 執行了 3 秒，Gateway 早在第 2 秒就已經放棄並回傳錯誤給使用者了，但 Service A 仍在後台繼續運算（甚至呼叫 Service B），這些運算結果最終無人接收，造成了伺服器資源的無謂浪費 (Orphaned Processing)。正確的設定應為層級遞減：Gateway > Service A > Service B。",
+      "en": "The correct answer is 'Configuration Chaos: Upstream timeout is shorter than downstream'. In this setup, the Gateway waits only 2 seconds, but Service A is allowed to run for up to 5 seconds. If Service A runs for 3 seconds, the Gateway has already given up and returned an error to the user at the 2-second mark, yet Service A continues processing in the background (potentially calling Service B). This computation result goes nowhere, causing wasted server resources (Orphaned Processing). The correct setup should be hierarchical: Gateway > Service A > Service B.",
+      "wg": [
+        {
+          "t": "層級遞減",
+          "en": "hierarchical decrease / cascading",
+          "ps": "noun"
+        },
+        {
+          "t": "無謂浪費",
+          "en": "wasted",
+          "ps": "adjective"
+        }
+      ]
+    }
+  },
+  {
+    "no": "5",
+    "level": "Hard",
+    "keywords": "Idempotency,Retry,Payment,Best Practices",
+    "parentNo": null,
+    "images": "",
+    "codeSnippet": "POST /api/v1/payments/charge\nBody: { \"userId\": \"u123\", \"amount\": 100 }",
+    "question": [
+      {
+        "t": "你的服務呼叫第三方支付 API 進行扣款 (Charge)，但收到了 `503 Service Unavailable` 錯誤。該 API 文件未明確說明是否支援冪等性 (Idempotency)。請問你的系統應該如何處理此錯誤？",
+        "en": "Your service calls a third-party payment API to execute a charge, but receives a `503 Service Unavailable` error. The API documentation does not explicitly state support for idempotency. How should your system handle this error?",
+        "wg": [
+          {
+            "t": "冪等性",
+            "en": "Idempotency",
+            "ps": "noun"
+          },
+          {
+            "t": "扣款",
+            "en": "Charge",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "立即重試 (Retry)，因為 503 代表暫時性錯誤。",
+        "en": "Retry immediately, as 503 indicates a transient error.",
+        "wg": []
+      },
+      {
+        "t": "使用指數退避 (Exponential Backoff) 進行重試。",
+        "en": "Retry using Exponential Backoff.",
+        "wg": []
+      },
+      {
+        "t": "絕對不要自動重試，應標記為「狀態未明」並透過查詢或人工介入確認。",
+        "en": "Do NOT retry automatically; mark as 'status unknown' and verify via query or manual intervention.",
+        "wg": [
+          {
+            "t": "狀態未明",
+            "en": "status unknown",
+            "ps": "adjective"
+          }
+        ]
+      },
+      {
+        "t": "切換到斷路器 (Circuit Breaker) 的 Fallback 流程並回傳扣款成功。",
+        "en": "Switch to Circuit Breaker Fallback flow and return charge success.",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "正確答案是「絕對不要自動重試」。對於非冪等 (Non-idempotent) 的寫入操作（如扣款），503 錯誤可能發生在請求到達伺服器「前」或處理完成「後」。如果伺服器已經扣款成功但在回傳回應時網路中斷，自動重試會導致使用者被重複扣款 (Double Charge)。除非 API 支援冪等金鑰 (Idempotency Key)，否則這類操作必須視為不安全，需透過查詢狀態 (Query State) 或人工對帳來解決。",
+      "en": "The correct answer is 'Do NOT retry automatically'. For non-idempotent write operations (like charging), a 503 error can occur either 'before' the request reaches the server or 'after' processing is done. If the server successfully charged but the network failed while returning the response, automatic retry would cause a double charge. Unless the API supports an Idempotency Key, such operations must be treated as unsafe and resolved via state query or manual reconciliation.",
+      "wg": [
+        {
+          "t": "重複扣款",
+          "en": "Double Charge",
+          "ps": "noun"
+        },
+        {
+          "t": "對帳",
+          "en": "reconciliation",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "6",
+    "level": "Medium",
+    "keywords": "Fallback,Observability,Anti-pattern,Silent Failure",
+    "parentNo": null,
+    "images": "",
+    "codeSnippet": "try {\n  return remoteService.getData();\n} catch (Exception e) {\n  return null; // Fallback to null\n}",
+    "question": [
+      {
+        "t": "在實作 Fallback (降級) 邏輯時，開發者寫出了如上方的程式碼：捕捉所有例外並回傳 `null`，讓前端顯示空白區塊。這段程式碼犯了什麼嚴重的「反模式 (Anti-pattern)」錯誤？",
+        "en": "When implementing Fallback logic, a developer wrote the code snippet above: catching all exceptions and returning `null` so the frontend displays a blank section. What serious 'Anti-pattern' does this code commit?",
+        "wg": [
+          {
+            "t": "反模式",
+            "en": "Anti-pattern",
+            "ps": "noun"
+          },
+          {
+            "t": "捕捉",
+            "en": "catch",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "分散式單體 (Distributed Monolith)",
+        "en": "Distributed Monolith",
+        "wg": []
+      },
+      {
+        "t": "靜默失敗 (Silent Failure)",
+        "en": "Silent Failure",
+        "wg": [
+          {
+            "t": "靜默失敗",
+            "en": "Silent Failure",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "重試風暴 (Retry Storm)",
+        "en": "Retry Storm",
+        "wg": []
+      },
+      {
+        "t": "過度設計 (Over-engineering)",
+        "en": "Over-engineering",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "正確答案是「靜默失敗 (Silent Failure)」。這段程式碼雖然保護了系統不崩潰（優雅降級），但它「吞掉」了例外且沒有留下任何 Log 或 Metric。這會導致維運團隊無法察覺系統異常，監控儀表板看起來一切正常，但使用者體驗實際上已經受損。正確的做法是在 Fallback 中必須記錄錯誤 Log 或增加監控計數器 (Counter)，以確保具備可觀測性 (Observability)。",
+      "en": "The correct answer is 'Silent Failure'. While this code protects the system from crashing (graceful degradation), it 'swallows' the exception without leaving any Log or Metric. This prevents the operations team from detecting anomalies; monitoring dashboards look green, but user experience is actually degraded. The correct practice is to log the error or increment a monitoring counter within the Fallback to ensure Observability.",
+      "wg": [
+        {
+          "t": "吞掉",
+          "en": "swallow",
+          "ps": "verb"
+        },
+        {
+          "t": "可觀測性",
+          "en": "Observability",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "7",
+    "level": "Medium",
+    "keywords": "Retry Storm, Cascading Failure, Microservices, Anti-pattern",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在微服務架構中，服務 A 呼叫服務 B，服務 B 呼叫服務 C。若這三個服務都設定了「失敗時重試 3 次」的策略，當服務 C 發生完全中斷 (Outage) 時，會發生什麼現象？",
+        "en": "In a microservices architecture, Service A calls Service B, and Service B calls Service C. If all three services are configured with a 'retry 3 times on failure' policy, what phenomenon will occur when Service C experiences a complete outage?",
+        "wg": [
+          {
+            "t": "完全中斷",
+            "en": "complete outage",
+            "ps": "noun"
+          },
+          {
+            "t": "重試",
+            "en": "retry",
+            "ps": "verb/noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "服務 C 的流量會線性增加，因為每個上游只會重試 3 次。",
+        "en": "Traffic to Service C will increase linearly because each upstream service only retries 3 times.",
+        "wg": []
+      },
+      {
+        "t": "會引發重試風暴 (Retry Storm)，導致服務 C 承受指數級放大的流量衝擊。",
+        "en": "It will trigger a Retry Storm, causing Service C to suffer from exponentially amplified traffic surges.",
+        "wg": [
+          {
+            "t": "重試風暴",
+            "en": "Retry Storm",
+            "ps": "noun"
+          },
+          {
+            "t": "指數級放大",
+            "en": "exponentially amplified",
+            "ps": "adjective"
+          }
+        ]
+      },
+      {
+        "t": "斷路器會自動偵測並在第一次失敗後立即切斷所有連線，不會有額外流量。",
+        "en": "The circuit breaker will automatically detect and cut off all connections immediately after the first failure, resulting in no extra traffic.",
+        "wg": []
+      },
+      {
+        "t": "服務 B 會吸收所有重試請求，服務 C 不會收到任何額外請求。",
+        "en": "Service B will absorb all retry requests, and Service C will not receive any additional requests.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "這被稱為「重試風暴 (Retry Storm)」。當底層服務 C 失敗時，服務 B 會重試 3 次；而對於服務 B 的每一次失敗，服務 A 也會重試 3 次。這導致請求量呈現乘數效應 (Multiplicative Effect)，例如 1 個請求可能變成 1 + 3 + (3*3) = 13 次甚至更多，極易將剛重啟的服務再次打掛。",
+      "en": "This is known as a 'Retry Storm'. When the underlying Service C fails, Service B retries 3 times; for each of Service B's failures, Service A also retries 3 times. This causes a multiplicative effect on request volume (e.g., 1 request could become 1 + 3 + (3*3) = 13 or more), which can easily overwhelm a service that is trying to recover.",
+      "wg": [
+        {
+          "t": "乘數效應",
+          "en": "Multiplicative Effect",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "8",
+    "level": "Hard",
+    "keywords": "Service Mesh, Fallback, Business Logic, Istio, Resilience4j",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你的團隊決定將彈性邏輯從應用程式碼 (如 Resilience4j) 遷移至 Service Mesh (如 Istio)。在規劃「降級 (Fallback)」策略時，下列哪項需求是 Service Mesh **無法** 直接滿足的？",
+        "en": "Your team decides to migrate resiliency logic from application code (e.g., Resilience4j) to a Service Mesh (e.g., Istio). When planning the 'Fallback' strategy, which of the following requirements CANNOT be directly met by the Service Mesh?",
+        "wg": [
+          {
+            "t": "降級",
+            "en": "Fallback",
+            "ps": "noun"
+          },
+          {
+            "t": "應用程式碼",
+            "en": "application code",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "當下游服務回應 503 時，自動重試請求。",
+        "en": "Automatically retry the request when the downstream service responds with a 503.",
+        "wg": []
+      },
+      {
+        "t": "當錯誤率過高時，對下游服務開啟斷路器 (Circuit Breaker)。",
+        "en": "Open a Circuit Breaker for the downstream service when the error rate is too high.",
+        "wg": []
+      },
+      {
+        "t": "當推薦服務失敗時，執行一段 Java 程式碼以讀取使用者的「個人化快取」並回傳。",
+        "en": "Execute a piece of Java code to read the user's 'personalized cache' and return it when the recommendation service fails.",
+        "wg": [
+          {
+            "t": "個人化快取",
+            "en": "personalized cache",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "當請求逾時時，回傳固定的 HTTP 504 錯誤。",
+        "en": "Return a fixed HTTP 504 error when the request times out.",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "Service Mesh 運作於網路層 (Infrastructure Layer)，它無法感知或執行應用程式內部的業務邏輯。它可以回傳標準的錯誤碼或靜態內容，但無法執行如「讀取特定快取」、「計算預設值」或「查詢備用資料庫」等複雜的業務降級邏輯。這類邏輯仍需在應用層實作。",
+      "en": "Service Mesh operates at the network layer (Infrastructure Layer) and cannot perceive or execute internal application business logic. While it can return standard error codes or static content, it cannot execute complex business fallback logic such as 'reading a specific cache', 'calculating default values', or 'querying a backup database'. Such logic must still be implemented in the application layer.",
+      "wg": [
+        {
+          "t": "網路層",
+          "en": "Infrastructure Layer",
+          "ps": "noun"
+        },
+        {
+          "t": "業務邏輯",
+          "en": "business logic",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "9",
+    "level": "Hard",
+    "keywords": "Bulkhead, Semaphore, Thread Pool, Performance, Overhead",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在設計隔艙模式 (Bulkhead Pattern) 時，你需要在「執行緒池隔離 (Thread Pool Isolation)」與「信號量隔離 (Semaphore Isolation)」之間做選擇。若你的服務是高併發且對延遲極度敏感 (Latency Sensitive)，且下游依賴的回應非常快，你應優先選擇哪種方式？為什麼？",
+        "en": "When designing a Bulkhead Pattern, you need to choose between 'Thread Pool Isolation' and 'Semaphore Isolation'. If your service is high-concurrency and extremely latency-sensitive, and the downstream dependency responds very quickly, which approach should you prioritize and why?",
+        "wg": [
+          {
+            "t": "信號量隔離",
+            "en": "Semaphore Isolation",
+            "ps": "noun"
+          },
+          {
+            "t": "對延遲極度敏感",
+            "en": "latency-sensitive",
+            "ps": "adjective"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "執行緒池隔離，因為它能提供最強的資源隔離保證。",
+        "en": "Thread Pool Isolation, because it provides the strongest resource isolation guarantee.",
+        "wg": []
+      },
+      {
+        "t": "信號量隔離，因為它避免了執行緒切換 (Context Switch) 的額外開銷 (Overhead)。",
+        "en": "Semaphore Isolation, because it avoids the overhead of thread context switching.",
+        "wg": [
+          {
+            "t": "執行緒切換",
+            "en": "Context Switch",
+            "ps": "noun"
+          },
+          {
+            "t": "額外開銷",
+            "en": "Overhead",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "執行緒池隔離，因為它支援非同步 (Async) 處理。",
+        "en": "Thread Pool Isolation, because it supports asynchronous processing.",
+        "wg": []
+      },
+      {
+        "t": "兩者效能差異可以忽略，應選擇實作最簡單的。",
+        "en": "The performance difference is negligible; choose the simplest implementation.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "執行緒池隔離雖然強大，但會引入額外的執行緒管理與 Context Switch 開銷。對於高併發且任務極短（下游回應快）的場景，這些開銷會顯著增加延遲。信號量 (Semaphore) 僅是計數器檢查，幾乎沒有額外開銷，更適合此類場景。",
+      "en": "While Thread Pool Isolation is powerful, it introduces overhead from thread management and context switching. For scenarios with high concurrency and very short tasks (fast downstream responses), this overhead can significantly increase latency. Semaphores are just counter checks with almost no overhead, making them more suitable for such cases.",
+      "wg": [
+        {
+          "t": "計數器",
+          "en": "counter",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "10",
+    "level": "Medium",
+    "keywords": "Timeout, Configuration, Wasted Resources, Anti-pattern",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你的系統呼叫鏈路為：`Gateway` -> `Service A` -> `Service B`。目前的逾時 (Timeout) 設定如下：`Gateway: 2s`, `Service A: 5s`, `Service B: 3s`。這種配置存在什麼主要問題？",
+        "en": "Your system call chain is: `Gateway` -> `Service A` -> `Service B`. The current timeout settings are: `Gateway: 2s`, `Service A: 5s`, `Service B: 3s`. What is the main problem with this configuration?",
+        "wg": [
+          {
+            "t": "呼叫鏈路",
+            "en": "call chain",
+            "ps": "noun"
+          },
+          {
+            "t": "逾時",
+            "en": "Timeout",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "Service B 的逾時太短，容易導致請求失敗。",
+        "en": "Service B's timeout is too short, likely causing request failures.",
+        "wg": []
+      },
+      {
+        "t": "Gateway 的逾時應設定為所有下游逾時的總和 (8s)。",
+        "en": "Gateway's timeout should be set to the sum of all downstream timeouts (8s).",
+        "wg": []
+      },
+      {
+        "t": "會造成資源浪費：Gateway 已經放棄等待 (2s)，但 Service A 可能仍在處理 (直到 5s)，這是在做白工。",
+        "en": "It causes wasted resources: The Gateway gives up waiting after 2s, but Service A might still be processing (up to 5s), performing useless work.",
+        "wg": [
+          {
+            "t": "資源浪費",
+            "en": "wasted resources",
+            "ps": "noun"
+          },
+          {
+            "t": "做白工",
+            "en": "performing useless work",
+            "ps": "verb phrase"
+          }
+        ]
+      },
+      {
+        "t": "Service A 的逾時必須小於 Service B，否則會發生死鎖。",
+        "en": "Service A's timeout must be smaller than Service B's, otherwise a deadlock will occur.",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "逾時設定應遵循「層級遞減」原則，即上游的 Timeout 必須大於下游。在此例中，Gateway 2秒就會斷開連線回傳錯誤給使用者，但 Service A 卻被允許執行長達 5秒。這意味著 Service A 在 2秒到 5秒期間所消耗的 CPU 與 I/O 資源都是無效的（因為結果已經沒人要了）。",
+      "en": "Timeout settings should follow a 'decreasing hierarchy' principle, meaning upstream timeouts must be greater than downstream ones. In this case, the Gateway disconnects and returns an error after 2 seconds, but Service A is allowed to run for up to 5 seconds. This means any CPU and I/O resources consumed by Service A between 2 and 5 seconds are wasted (since no one is waiting for the result anymore).",
+      "wg": [
+        {
+          "t": "層級遞減",
+          "en": "decreasing hierarchy",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "11",
+    "level": "Medium",
+    "keywords": "Circuit Breaker, Half-Open, State Transition, Probing",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "當斷路器 (Circuit Breaker) 處於 `Half-Open` (半開) 狀態時，系統允許發送一個探測請求 (Probe Request) 到下游。如果這個探測請求失敗 (拋出例外)，斷路器接下來會進入什麼狀態？",
+        "en": "When a Circuit Breaker is in the `Half-Open` state, the system allows a probe request to be sent downstream. If this probe request fails (throws an exception), what state will the Circuit Breaker enter next?",
+        "wg": [
+          {
+            "t": "探測請求",
+            "en": "Probe Request",
+            "ps": "noun"
+          },
+          {
+            "t": "半開",
+            "en": "Half-Open",
+            "ps": "adjective"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "Closed (閉合)，因為需要重新累積錯誤率。",
+        "en": "Closed, because the error rate needs to be accumulated again.",
+        "wg": []
+      },
+      {
+        "t": "Open (斷開)，並重新開始計時 Reset Timeout。",
+        "en": "Open, and the Reset Timeout timer restarts.",
+        "wg": [
+          {
+            "t": "重新開始計時",
+            "en": "timer restarts",
+            "ps": "verb phrase"
+          }
+        ]
+      },
+      {
+        "t": "Half-Open (半開)，系統會立即再試一次。",
+        "en": "Half-Open, the system will immediately try again.",
+        "wg": []
+      },
+      {
+        "t": "Disabled (停用)，需要人工介入。",
+        "en": "Disabled, requiring manual intervention.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "在 Half-Open 狀態下，探測請求的結果決定了斷路器的去向。若成功，代表下游已恢復，轉為 Closed；若失敗，代表下游仍未恢復，斷路器會立即轉回 Open 狀態，並重新等待一段冷卻時間 (Reset Timeout) 後才允許再次嘗試。",
+      "en": "In the Half-Open state, the result of the probe request determines the Circuit Breaker's next move. If successful, it implies the downstream has recovered, switching to Closed. If it fails, it implies the downstream is still down, so the Circuit Breaker immediately reverts to the Open state and waits for the Reset Timeout again before allowing another attempt.",
+      "wg": [
+        {
+          "t": "冷卻時間",
+          "en": "Reset Timeout / Cooldown",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "12",
+    "level": "Medium",
+    "keywords": "Distributed Monolith, Async, Architecture, Coupling",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你發現系統中存在「分散式單體 (Distributed Monolith)」現象：Service A 呼叫 B，B 呼叫 C，C 呼叫 D，所有呼叫都是同步 HTTP。這導致延遲嚴重且任一節點故障都會導致全鏈路失敗。除了加裝斷路器外，最根本的架構解決方案是什麼？",
+        "en": "You identify a 'Distributed Monolith' phenomenon in your system: Service A calls B, B calls C, and C calls D, all via synchronous HTTP. This causes high latency, and a failure in any node fails the entire chain. Besides adding Circuit Breakers, what is the fundamental architectural solution?",
+        "wg": [
+          {
+            "t": "分散式單體",
+            "en": "Distributed Monolith",
+            "ps": "noun"
+          },
+          {
+            "t": "全鏈路失敗",
+            "en": "entire chain failure",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "將所有服務合併回一個單體應用 (Monolith)。",
+        "en": "Merge all services back into a single monolithic application.",
+        "wg": []
+      },
+      {
+        "t": "改用非同步訊息傳遞 (Async Messaging / Event-Driven) 來解耦服務。",
+        "en": "Switch to Async Messaging / Event-Driven architecture to decouple services.",
+        "wg": [
+          {
+            "t": "非同步訊息傳遞",
+            "en": "Async Messaging",
+            "ps": "noun"
+          },
+          {
+            "t": "解耦",
+            "en": "decouple",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "增加每個服務的 Timeout 時間，確保請求能完成。",
+        "en": "Increase the Timeout duration for each service to ensure requests can complete.",
+        "wg": []
+      },
+      {
+        "t": "使用 GraphQL 來減少網路請求次數。",
+        "en": "Use GraphQL to reduce the number of network requests.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "同步呼叫鏈 (Synchronous Call Chain) 會導致時間耦合 (Temporal Coupling) 與可用性耦合。最根本的解法是引入訊息佇列 (Message Queue) 進行非同步通訊。例如，Service A 發出事件後即回應使用者，Service B/C/D 在背景消費事件。這樣即使 C 掛掉，A 也不會受影響，且訊息會保留在佇列中待處理。",
+      "en": "Synchronous call chains cause temporal and availability coupling. The fundamental solution is to introduce Message Queues for asynchronous communication. For example, Service A responds to the user immediately after publishing an event, while Services B/C/D consume the event in the background. This way, even if C is down, A is unaffected, and the message remains in the queue for later processing.",
+      "wg": [
+        {
+          "t": "時間耦合",
+          "en": "Temporal Coupling",
+          "ps": "noun"
+        },
+        {
+          "t": "訊息佇列",
+          "en": "Message Queue",
+          "ps": "noun"
+        }
+      ]
+    }
+  }
+]
