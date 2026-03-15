@@ -1,0 +1,827 @@
+[
+  {
+    "no": "1",
+    "level": "medium",
+    "keywords": "Gradle,Lifecycle,Configuration Phase,Execution Phase,Anti-pattern",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "tasks.register('deploy') {\n    println \"Deploying to server...\"\n    doLast {\n        // Actual deployment logic\n    }\n}",
+    "question": [
+      {
+        "t": "一名工程師在 `build.gradle` 中編寫了上述的 Task 定義。當他執行 `./gradlew clean` 指令時，發生了什麼事？",
+        "en": "An engineer wrote the above task definition in `build.gradle`. What happens when they run the command `./gradlew clean`?",
+        "wg": [
+          {
+            "t": "指令",
+            "en": "command",
+            "ps": "noun"
+          },
+          {
+            "t": "定義",
+            "en": "definition",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "控制台只會顯示 `clean` 相關的輸出，不會出現 \"Deploying to server...\"。",
+        "en": "The console will only show `clean` related output; \"Deploying to server...\" will not appear.",
+        "wg": []
+      },
+      {
+        "t": "控制台會印出 \"Deploying to server...\"，即使 `deploy` 任務並沒有被請求執行。",
+        "en": "The console will print \"Deploying to server...\" even though the `deploy` task was not requested.",
+        "wg": []
+      },
+      {
+        "t": "建置會失敗，因為 `deploy` 任務依賴於 `build`，而 `clean` 會刪除建置目錄。",
+        "en": "The build will fail because the `deploy` task depends on `build`, and `clean` removes the build directory.",
+        "wg": []
+      },
+      {
+        "t": "Gradle 會跳過 Configuration Phase，直接執行 `clean`。",
+        "en": "Gradle will skip the Configuration Phase and execute `clean` directly.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "這是 Gradle 新手最常見的錯誤（Configuration Phase Logic Injection）。`println` 語句位於 Task 的配置區塊（Configuration block）中，而非 `doLast` 或 `doFirst`（Execution block）。因此，無論執行哪個 Task，Gradle 在建構 Task Graph 的配置階段都會執行這行程式碼。",
+      "en": "This is the most common mistake for Gradle beginners (Configuration Phase Logic Injection). The `println` statement is inside the Task's configuration block, not in `doLast` or `doFirst` (Execution block). Therefore, Gradle executes this code during the Configuration Phase while building the Task Graph, regardless of which task is actually run.",
+      "wg": [
+        {
+          "t": "配置區塊",
+          "en": "Configuration block",
+          "ps": "noun"
+        },
+        {
+          "t": "執行區塊",
+          "en": "Execution block",
+          "ps": "noun"
+        },
+        {
+          "t": "任務圖",
+          "en": "Task Graph",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "2",
+    "level": "medium",
+    "keywords": "Maven,Lifecycle,Phases,Integration Test",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你正在維護一個 Maven 專案，需要在執行整合測試（Integration Tests）之前，先啟動一個 Docker 資料庫容器。根據 Maven 的生命週期模型，以下哪種做法最符合最佳實務？",
+        "en": "You are maintaining a Maven project and need to spin up a Docker database container before running Integration Tests. Based on Maven's lifecycle model, which of the following approaches is the best practice?",
+        "wg": [
+          {
+            "t": "整合測試",
+            "en": "Integration Tests",
+            "ps": "noun"
+          },
+          {
+            "t": "最佳實務",
+            "en": "best practice",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "在 `pom.xml` 中定義一個全新的 `<phase>pre-test-setup</phase>` 並將 Docker plugin 綁定上去。",
+        "en": "Define a brand new `<phase>pre-test-setup</phase>` in `pom.xml` and bind the Docker plugin to it.",
+        "wg": []
+      },
+      {
+        "t": "將 Docker plugin 的執行綁定到 `validate` phase，確保在任何動作開始前資料庫都已就緒。",
+        "en": "Bind the Docker plugin execution to the `validate` phase to ensure the database is ready before anything starts.",
+        "wg": []
+      },
+      {
+        "t": "將 Docker plugin 的啟動綁定到 `pre-integration-test` phase，並將關閉綁定到 `post-integration-test` phase。",
+        "en": "Bind the Docker plugin startup to the `pre-integration-test` phase and shutdown to the `post-integration-test` phase.",
+        "wg": []
+      },
+      {
+        "t": "使用 `maven-antrun-plugin` 在 `test` phase 中撰寫腳本來啟動 Docker。",
+        "en": "Use `maven-antrun-plugin` to write a script within the `test` phase to start Docker.",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "Maven 的生命週期是線性且固定的（火車時刻表），你不能自定義新的 Phase，只能使用現有的。`pre-integration-test` 是專門設計用來在整合測試前進行環境準備的標準 Phase。綁定到 `validate` 會導致 IDE 匯入專案時卡死（因為 IDE 會執行早期 Phase）；而在 `test` phase 處理則混淆了單元測試與整合測試的職責。",
+      "en": "Maven's lifecycle is linear and rigid (Train Schedule); you cannot define new phases, only use existing ones. `pre-integration-test` is the standard phase designed specifically for setting up the environment before integration tests. Binding to `validate` would cause the IDE to freeze during import (as IDEs run early phases); handling it in the `test` phase confuses the responsibilities of unit tests and integration tests.",
+      "wg": [
+        {
+          "t": "線性且固定",
+          "en": "linear and rigid",
+          "ps": "adjective"
+        },
+        {
+          "t": "環境準備",
+          "en": "environment setup",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "3",
+    "level": "hard",
+    "keywords": "Gradle,Performance,Configuration Avoidance,Lazy Configuration",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "// Option A\ntasks.create(\"myHeavyTask\") { ... }\n\n// Option B\ntasks.register(\"myHeavyTask\") { ... }",
+    "question": [
+      {
+        "t": "在大型 Gradle 專案中，為了縮短 Configuration Phase 的時間（加快 `gradle help` 或 `gradle tasks` 的反應速度），你應該優先選擇哪種方式來定義 Task？",
+        "en": "In a large Gradle project, to reduce the time spent in the Configuration Phase (speeding up response for `gradle help` or `gradle tasks`), which approach should you prioritize for defining tasks?",
+        "wg": [
+          {
+            "t": "縮短",
+            "en": "reduce/shorten",
+            "ps": "verb"
+          },
+          {
+            "t": "反應速度",
+            "en": "response speed",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "Option A (`tasks.create`)，因為它會立即建立 Task 物件，確保依賴關係正確。",
+        "en": "Option A (`tasks.create`), because it immediately creates the Task object, ensuring correct dependencies.",
+        "wg": []
+      },
+      {
+        "t": "Option B (`tasks.register`)，因為它使用「配置迴避」API，只有在 Task 真正需要參與執行時才進行配置。",
+        "en": "Option B (`tasks.register`), because it uses the \"Configuration Avoidance\" API, configuring the task only when it is actually needed for execution.",
+        "wg": []
+      },
+      {
+        "t": "兩者效能相同，差別只在語法風格。",
+        "en": "Both have the same performance; the difference is only in syntax style.",
+        "wg": []
+      },
+      {
+        "t": "Option A 較好，因為 Option B 不支援 `doLast` 區塊。",
+        "en": "Option A is better because Option B does not support the `doLast` block.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "這是 Gradle 的「配置迴避（Configuration Avoidance）」模式。`tasks.register` 是惰性（Lazy）的，它只註冊 Task 的提供者（Provider），除非該 Task 被明確請求或被其他即將執行的 Task 依賴，否則不會執行其配置閉包（Configuration Closure）。相反，`tasks.create` 會在每次建置的配置階段都立即實例化並配置 Task，這在大型專案中會顯著拖慢速度。",
+      "en": "This is Gradle's \"Configuration Avoidance\" pattern. `tasks.register` is lazy; it only registers a Provider for the task. The configuration closure is not executed unless the task is explicitly requested or depended upon by another task that is about to run. In contrast, `tasks.create` immediately instantiates and configures the task during the configuration phase of every build, which significantly slows down large projects.",
+      "wg": [
+        {
+          "t": "配置迴避",
+          "en": "Configuration Avoidance",
+          "ps": "noun"
+        },
+        {
+          "t": "惰性",
+          "en": "Lazy",
+          "ps": "adjective"
+        },
+        {
+          "t": "實例化",
+          "en": "instantiate",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "4",
+    "level": "medium",
+    "keywords": "Gradle,Incremental Build,Custom Task,Inputs/Outputs",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "abstract class GenerateDocs extends DefaultTask {\n    String docTitle\n    File outputDir\n\n    @TaskAction\n    void generate() {\n        // logic to write file to outputDir\n    }\n}",
+    "question": [
+      {
+        "t": "你編寫了一個 Custom Task Class（如上圖）來生成文件。然而你發現，即使 `docTitle` 沒有改變且 `outputDir` 已經存在檔案，每次執行 `gradle build` 時這個 Task 仍然會重新執行（沒有顯示 `UP-TO-DATE`）。這是什麼原因？",
+        "en": "You wrote a Custom Task Class (as shown above) to generate documentation. However, you notice that even if `docTitle` hasn't changed and `outputDir` already contains files, this task re-runs every time you execute `gradle build` (it doesn't show `UP-TO-DATE`). What is the reason?",
+        "wg": [
+          {
+            "t": "重新執行",
+            "en": "re-runs",
+            "ps": "verb"
+          },
+          {
+            "t": "顯示",
+            "en": "show/display",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "Custom Task 必須繼承 `AbstractTask` 而不是 `DefaultTask`。",
+        "en": "Custom Tasks must extend `AbstractTask` instead of `DefaultTask`.",
+        "wg": []
+      },
+      {
+        "t": "缺少了 `@Input` 與 `@OutputFile` 等註解，Gradle 無法追蹤輸入輸出的變化以判斷是否需要重跑。",
+        "en": "Missing annotations like `@Input` and `@OutputFile`, so Gradle cannot track changes in inputs/outputs to decide whether to rerun.",
+        "wg": []
+      },
+      {
+        "t": "Gradle 的增量建置功能預設是關閉的，需要在 `gradle.properties` 中開啟。",
+        "en": "Gradle's incremental build feature is disabled by default and needs to be enabled in `gradle.properties`.",
+        "wg": []
+      },
+      {
+        "t": "`@TaskAction` 方法必須回傳 `boolean` 來告訴 Gradle 執行是否成功。",
+        "en": "The `@TaskAction` method must return a `boolean` to tell Gradle if the execution was successful.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "Gradle 的增量建置（Incremental Build）依賴於對 Inputs 和 Outputs 的快照比較。如果沒有使用 `@Input`（針對屬性）和 `@OutputFile`/`@OutputDirectory`（針對檔案）標記欄位，Gradle 就不知道該監控什麼，為了安全起見，它會假設該 Task 永遠不是最新的（Never UP-TO-DATE）並每次都執行。",
+      "en": "Gradle's Incremental Build relies on snapshot comparisons of Inputs and Outputs. If fields are not marked with `@Input` (for properties) and `@OutputFile`/`@OutputDirectory` (for files), Gradle doesn't know what to monitor. To be safe, it assumes the task is never UP-TO-DATE and executes it every time.",
+      "wg": [
+        {
+          "t": "增量建置",
+          "en": "Incremental Build",
+          "ps": "noun"
+        },
+        {
+          "t": "快照比較",
+          "en": "snapshot comparison",
+          "ps": "noun"
+        },
+        {
+          "t": "監控",
+          "en": "monitor",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "5",
+    "level": "medium",
+    "keywords": "Maven,Anti-pattern,Maintainability,Plugins",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你在審查同事的 Pull Request 時，發現 `pom.xml` 中有一個 `maven-antrun-plugin`，裡面包含了超過 150 行的 XML 腳本，用來處理複雜的檔案搬移與字串取代邏輯。根據 Handbook 的建議，你應該給予什麼回饋？",
+        "en": "While reviewing a colleague's Pull Request, you find a `maven-antrun-plugin` in `pom.xml` containing over 150 lines of XML script for complex file moving and string replacement logic. Based on the Handbook's recommendation, what feedback should you give?",
+        "wg": [
+          {
+            "t": "審查",
+            "en": "reviewing",
+            "ps": "verb"
+          },
+          {
+            "t": "回饋",
+            "en": "feedback",
+            "ps": "noun"
+          },
+          {
+            "t": "字串取代",
+            "en": "string replacement",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "LGTM (Looks Good To Me)，Antrun 是處理這類雜事的標準做法。",
+        "en": "LGTM (Looks Good To Me), Antrun is the standard way to handle such chores.",
+        "wg": []
+      },
+      {
+        "t": "建議將邏輯改寫為 Shell Script，並用 `exec-maven-plugin` 呼叫，或者封裝成一個專屬的 Custom Maven Plugin。",
+        "en": "Suggest rewriting the logic as a Shell Script and calling it with `exec-maven-plugin`, or encapsulating it into a dedicated Custom Maven Plugin.",
+        "wg": []
+      },
+      {
+        "t": "建議將這些邏輯移到 `validate` phase 以加速執行。",
+        "en": "Suggest moving this logic to the `validate` phase to speed up execution.",
+        "wg": []
+      },
+      {
+        "t": "建議改用 Gradle，因為 Maven 無法處理這種複雜度。",
+        "en": "Suggest switching to Gradle because Maven cannot handle this level of complexity.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "這是一個典型的 Anti-pattern。在 XML 中撰寫大量程式邏輯（如 Ant 腳本）會導致難以閱讀、無法除錯且缺乏語法檢查。對於複雜邏輯（超過簡單的複製/印出），最佳實務是將其提取為外部腳本（透過 `exec-maven-plugin` 執行）或編寫一個簡單的 Java/Groovy Maven Plugin，這樣可以利用完整的程式語言功能與測試工具。",
+      "en": "This is a typical Anti-pattern. Writing extensive program logic (like Ant scripts) in XML leads to unreadable, undebuggable code with no syntax checking. For complex logic (beyond simple copy/print), the best practice is to extract it to an external script (executed via `exec-maven-plugin`) or write a simple Java/Groovy Maven Plugin, allowing the use of full programming language features and testing tools.",
+      "wg": [
+        {
+          "t": "難以閱讀",
+          "en": "unreadable",
+          "ps": "adjective"
+        },
+        {
+          "t": "語法檢查",
+          "en": "syntax checking",
+          "ps": "noun"
+        },
+        {
+          "t": "提取",
+          "en": "extract",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "6",
+    "level": "medium",
+    "keywords": "Gradle,Debugging,Tooling,Dry Run",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你剛剛接手一個複雜的 Gradle 專案，想要了解執行 `gradle build` 時具體會跑哪些 Task 以及它們的執行順序，但又不想花時間真的去編譯或下載依賴。你應該使用什麼參數？",
+        "en": "You just took over a complex Gradle project and want to understand exactly which tasks will run and in what order when executing `gradle build`, but you don't want to spend time actually compiling or downloading dependencies. Which parameter should you use?",
+        "wg": [
+          {
+            "t": "接手",
+            "en": "took over",
+            "ps": "verb"
+          },
+          {
+            "t": "具體",
+            "en": "exactly/specifically",
+            "ps": "adverb"
+          },
+          {
+            "t": "依賴",
+            "en": "dependencies",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "`--dry-run` (或 `-m`)",
+        "en": "`--dry-run` (or `-m`)",
+        "wg": []
+      },
+      {
+        "t": "`--info` (或 `-i`)",
+        "en": "`--info` (or `-i`)",
+        "wg": []
+      },
+      {
+        "t": "`--refresh-dependencies`",
+        "en": "`--refresh-dependencies`",
+        "wg": []
+      },
+      {
+        "t": "`--no-daemon`",
+        "en": "`--no-daemon`",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "`--dry-run` (或 `-m`) 會讓 Gradle 執行完整的 Configuration Phase 來建立 Task Graph，並印出所有將被執行的 Task 順序，但會跳過所有 Task 的實際動作（Actions）。這是檢查依賴關係與執行順序最快速的方法。",
+      "en": "`--dry-run` (or `-m`) causes Gradle to execute the full Configuration Phase to build the Task Graph and print the order of all tasks to be executed, but it skips the actual actions of all tasks. This is the fastest way to check dependencies and execution order.",
+      "wg": [
+        {
+          "t": "跳過",
+          "en": "skip",
+          "ps": "verb"
+        },
+        {
+          "t": "實際動作",
+          "en": "actual actions",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "7",
+    "level": "medium",
+    "keywords": "Maven,Lifecycle,IDE,Performance,Anti-pattern",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "<plugin>\n  <groupId>com.example</groupId>\n  <artifactId>heavy-dataset-downloader</artifactId>\n  <executions>\n    <execution>\n      <phase>validate</phase>\n      <goals><goal>download</goal></goals>\n    </execution>\n  </executions>\n</plugin>",
+    "question": [
+      {
+        "t": "一位開發者在 `pom.xml` 中加入了上述設定，目的是確保在建置開始前就先下載好所需的測試資料集（約 500MB）。雖然 `mvn clean install` 指令運作正常，但團隊成員開始抱怨 IDE（如 IntelliJ IDEA 或 Eclipse）的使用體驗變得很差。請問最可能的原因是什麼？",
+        "en": "A developer added the above configuration to `pom.xml` to ensure a heavy test dataset (approx. 500MB) is downloaded before the build starts. While `mvn clean install` works fine, team members started complaining about poor IDE experience (e.g., in IntelliJ IDEA or Eclipse). What is the most likely reason?",
+        "wg": [
+          {
+            "t": "使用體驗",
+            "en": "user experience",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "IDE 無法解析自定義的 Plugin，導致語法底色標示失效。",
+        "en": "The IDE cannot resolve the custom plugin, causing syntax highlighting to fail.",
+        "wg": []
+      },
+      {
+        "t": "將耗時任務綁定在 `validate` 階段會導致 IDE 在匯入或同步專案模型時卡住，因為 IDE 通常會執行早期階段來解析專案結構。",
+        "en": "Binding heavy tasks to the `validate` phase causes the IDE to hang during project import or sync, as IDEs typically execute early phases to resolve the project structure.",
+        "wg": [
+          {
+            "t": "匯入",
+            "en": "import",
+            "ps": "verb"
+          },
+          {
+            "t": "同步",
+            "en": "sync",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "`validate` 階段在 Maven 中並不存在，這會導致 IDE 不斷拋出錯誤。",
+        "en": "The `validate` phase does not exist in Maven, causing the IDE to throw errors continuously.",
+        "wg": []
+      },
+      {
+        "t": "下載大檔案應該使用 `maven-antrun-plugin`，而不是自定義 Plugin。",
+        "en": "Downloading large files should be done using `maven-antrun-plugin` instead of a custom plugin.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "IDE（如 IntelliJ）在匯入 Maven 專案時，為了建立專案模型（Project Model），通常會執行生命週期的早期階段（如 `validate` 或 `initialize`）。若將繁重的下載或編譯工作綁定在此階段，會導致 IDE 介面凍結或匯入時間過長。應將此類工作延後至 `generate-resources` 或 `process-test-resources` 等階段。",
+      "en": "IDEs (like IntelliJ) typically execute early lifecycle phases (such as `validate` or `initialize`) when importing a Maven project to build the project model. Binding heavy downloads or compilation tasks to these phases causes the IDE UI to freeze or the import to take excessively long. Such tasks should be deferred to phases like `generate-resources` or `process-test-resources`.",
+      "wg": [
+        {
+          "t": "專案模型",
+          "en": "Project Model",
+          "ps": "noun"
+        },
+        {
+          "t": "凍結",
+          "en": "freeze",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "8",
+    "level": "medium",
+    "keywords": "Gradle,Task Ordering,Dependencies,mustRunAfter,Anti-pattern",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "tasks.register('prepareDb') {\n    doLast { println 'Database prepared.' }\n}\n\ntasks.register('runTests') {\n    mustRunAfter 'prepareDb'\n    doLast { println 'Tests running...' }\n}",
+    "question": [
+      {
+        "t": "你希望在執行測試前總是先準備好資料庫。根據上述 Gradle 設定，當你執行 `./gradlew runTests` 時，會發生什麼事？",
+        "en": "You want to always prepare the database before running tests. Based on the Gradle configuration above, what happens when you run `./gradlew runTests`?",
+        "wg": []
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "會先執行 `prepareDb`，然後執行 `runTests`。",
+        "en": "`prepareDb` will execute first, followed by `runTests`.",
+        "wg": []
+      },
+      {
+        "t": "只會執行 `runTests`，`prepareDb` 不會被執行。",
+        "en": "Only `runTests` will execute; `prepareDb` will not be executed.",
+        "wg": []
+      },
+      {
+        "t": "Gradle 會報錯，因為 `mustRunAfter` 必須配合 `dependsOn` 使用。",
+        "en": "Gradle will throw an error because `mustRunAfter` must be used with `dependsOn`.",
+        "wg": []
+      },
+      {
+        "t": "兩個 Task 都會執行，但順序隨機。",
+        "en": "Both tasks will execute, but in random order.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "`mustRunAfter` 僅定義「排序規則」（若兩者都要執行，誰先誰後），並不隱含「依賴關係」（Dependency）。因為 `runTests` 沒有宣告 `dependsOn 'prepareDb'`，Gradle 計算 Task Graph 時只會包含 `runTests`，因此 `prepareDb` 不會被執行。正確做法是使用 `dependsOn`。",
+      "en": "`mustRunAfter` only defines an \"ordering rule\" (if both are to be executed, which comes first) and does not imply a \"dependency\". Since `runTests` does not declare `dependsOn 'prepareDb'`, Gradle only includes `runTests` in the Task Graph, so `prepareDb` is not executed. The correct approach is to use `dependsOn`.",
+      "wg": [
+        {
+          "t": "排序規則",
+          "en": "ordering rule",
+          "ps": "noun"
+        },
+        {
+          "t": "隱含",
+          "en": "imply",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "9",
+    "level": "medium",
+    "keywords": "Maven,Code Generation,Lifecycle,Compiler,Plugin",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "<plugin>\n    <groupId>org.openapitools</groupId>\n    <artifactId>openapi-generator-maven-plugin</artifactId>\n    <executions>\n        <execution>\n            <phase>generate-sources</phase>\n            <goals><goal>generate</goal></goals>\n            <configuration>\n                <output>${project.build.directory}/generated-sources/openapi</output>\n            </configuration>\n        </execution>\n    </executions>\n</plugin>",
+    "question": [
+      {
+        "t": "你在 Maven 專案中設定了 OpenAPI Generator（如上），並成功在 `target/generated-sources/openapi` 目錄下看到了生成的 Java 檔案。然而，當執行 `mvn compile` 時，編譯器卻報錯說找不到這些生成的類別。最可能缺少了什麼步驟？",
+        "en": "You configured the OpenAPI Generator in a Maven project (as above) and successfully saw the generated Java files in the `target/generated-sources/openapi` directory. However, when running `mvn compile`, the compiler fails stating it cannot find these generated classes. What step is most likely missing?",
+        "wg": [
+          {
+            "t": "生成的類別",
+            "en": "generated classes",
+            "ps": "noun"
+          },
+          {
+            "t": "缺少",
+            "en": "missing",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "必須將 `phase` 改為 `compile`，否則編譯器來不及看到檔案。",
+        "en": "The `phase` must be changed to `compile`, otherwise the compiler won't see the files in time.",
+        "wg": []
+      },
+      {
+        "t": "缺少 `build-helper-maven-plugin` 來將生成的目錄加入 Source Root。",
+        "en": "Missing `build-helper-maven-plugin` to add the generated directory to the Source Root.",
+        "wg": [
+          {
+            "t": "加入",
+            "en": "add",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "生成的檔案必須手動複製到 `src/main/java` 目錄下。",
+        "en": "The generated files must be manually copied to the `src/main/java` directory.",
+        "wg": []
+      },
+      {
+        "t": "OpenAPI Plugin 的 `goal` 應該設為 `compile` 而不是 `generate`。",
+        "en": "The OpenAPI Plugin's `goal` should be set to `compile` instead of `generate`.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "Maven 的編譯器外掛（maven-compiler-plugin）預設只會編譯 `src/main/java`。若有額外生成的原始碼目錄，必須明確告知 Maven。標準做法是使用 `build-helper-maven-plugin` 的 `add-source` goal，將生成目錄加入編譯路徑。",
+      "en": "The Maven compiler plugin (`maven-compiler-plugin`) defaults to compiling only `src/main/java`. If there are additional generated source directories, Maven must be explicitly informed. The standard practice is to use the `build-helper-maven-plugin` with the `add-source` goal to add the generated directory to the compilation path.",
+      "wg": [
+        {
+          "t": "編譯路徑",
+          "en": "compilation path",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "10",
+    "level": "medium",
+    "keywords": "Gradle,Refactoring,buildSrc,Best Practice,Maintainability",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "task generateComplexReport {\n    doLast {\n        // ... 50 lines of complex Groovy code ...\n        // ... parsing files, making network requests ...\n    }\n}",
+    "question": [
+      {
+        "t": "你的 `build.gradle` 中包含一個如上所示的 Ad-hoc Task，邏輯日益複雜且難以維護。根據 Gradle 的最佳實務，你應該如何重構這段程式碼？",
+        "en": "Your `build.gradle` contains an Ad-hoc Task as shown above, and the logic is becoming increasingly complex and hard to maintain. According to Gradle best practices, how should you refactor this code?",
+        "wg": [
+          {
+            "t": "重構",
+            "en": "refactor",
+            "ps": "verb"
+          },
+          {
+            "t": "日益複雜",
+            "en": "increasingly complex",
+            "ps": "adjective"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "將邏輯移至 `buildSrc` 目錄下，定義一個繼承自 `DefaultTask` 的 Custom Task Class。",
+        "en": "Move the logic to the `buildSrc` directory and define a Custom Task Class extending `DefaultTask`.",
+        "wg": [
+          {
+            "t": "繼承",
+            "en": "extending",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "將程式碼複製到另一個 `.gradle` 檔案中，並使用 `apply from:` 引入。",
+        "en": "Copy the code to another `.gradle` file and include it using `apply from:`.",
+        "wg": []
+      },
+      {
+        "t": "將邏輯改寫為 Shell Script，並使用 `Exec` task 呼叫它。",
+        "en": "Rewrite the logic as a Shell Script and call it using an `Exec` task.",
+        "wg": []
+      },
+      {
+        "t": "使用 `doFirst` 區塊來分散程式碼複雜度。",
+        "en": "Use a `doFirst` block to distribute the code complexity.",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "當 Task 邏輯變得複雜（通常指超過 10 行或包含非標準邏輯）時，最佳實務是將其提取為強型別的 Custom Task Class。放在 `buildSrc` 目錄下可以讓 Gradle 自動編譯並在腳本中使用，這樣能獲得更好的可讀性、可測試性，並支援增量建置（Incremental Build）。",
+      "en": "When task logic becomes complex (typically more than 10 lines or involving non-standard logic), the best practice is to extract it into a strongly-typed Custom Task Class. Placing it in the `buildSrc` directory allows Gradle to automatically compile and use it in scripts, providing better readability, testability, and support for incremental builds.",
+      "wg": [
+        {
+          "t": "強型別",
+          "en": "strongly-typed",
+          "ps": "adjective"
+        },
+        {
+          "t": "可讀性",
+          "en": "readability",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "11",
+    "level": "medium",
+    "keywords": "Maven,Debugging,Tooling,Inheritance,POM",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你接手了一個繼承層級很深的 Maven 專案（有多層 Parent POM）。你發現某個 Plugin 的行為與預期不符，懷疑是某個 Parent POM 覆蓋了設定。請問哪一個指令能最快幫助你查看最終合併後的 Plugin 設定？",
+        "en": "You have taken over a Maven project with a deep inheritance hierarchy (multiple layers of Parent POMs). You notice a plugin is behaving unexpectedly and suspect a Parent POM has overridden the configuration. Which command would most quickly help you view the final merged plugin configuration?",
+        "wg": [
+          {
+            "t": "繼承層級",
+            "en": "inheritance hierarchy",
+            "ps": "noun"
+          },
+          {
+            "t": "覆蓋",
+            "en": "override",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "`mvn dependency:tree`",
+        "en": "`mvn dependency:tree`",
+        "wg": []
+      },
+      {
+        "t": "`mvn help:effective-pom`",
+        "en": "`mvn help:effective-pom`",
+        "wg": []
+      },
+      {
+        "t": "`mvn clean install -X`",
+        "en": "`mvn clean install -X`",
+        "wg": []
+      },
+      {
+        "t": "`mvn plugin:describe`",
+        "en": "`mvn plugin:describe`",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "`mvn help:effective-pom` 會計算並顯示專案在繼承所有 Parent POM、套用 Profiles 之後的最終 XML 模型。這是排查設定繼承與覆蓋問題最直接的工具。`-X` 雖然提供 Debug 資訊，但輸出過於龐雜，不如 effective-pom 直觀。",
+      "en": "`mvn help:effective-pom` calculates and displays the final XML model of the project after inheriting all Parent POMs and applying Profiles. This is the most direct tool for troubleshooting configuration inheritance and override issues. While `-X` provides debug info, the output is too verbose and less intuitive than effective-pom.",
+      "wg": [
+        {
+          "t": "直觀",
+          "en": "intuitive",
+          "ps": "adjective"
+        },
+        {
+          "t": "龐雜",
+          "en": "verbose/complex",
+          "ps": "adjective"
+        }
+      ]
+    }
+  },
+  {
+    "no": "12",
+    "level": "medium",
+    "keywords": "Maven,Profiles,Environment,CI/CD,Best Practice",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你的專案需要在發布版本時使用 GPG 簽署 Artifacts，但開發者在本地執行 `mvn package` 時不應該觸發此步驟（因為他們沒有私鑰）。請問在 Maven 中實現此「環境隔離」邏輯的最佳實務是什麼？",
+        "en": "Your project needs to GPG sign artifacts during release, but developers should not trigger this step when running `mvn package` locally (as they don't have the private keys). What is the best practice in Maven to implement this \"environment isolation\" logic?",
+        "wg": [
+          {
+            "t": "環境隔離",
+            "en": "environment isolation",
+            "ps": "noun"
+          },
+          {
+            "t": "觸發",
+            "en": "trigger",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "使用 `<profiles>` 定義一個僅在 CI 或 Release 時啟用的 Profile，將 GPG Plugin 設定在其中。",
+        "en": "Use `<profiles>` to define a profile that is only active during CI or Release, and configure the GPG Plugin within it.",
+        "wg": [
+          {
+            "t": "啟用",
+            "en": "active/enabled",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "在 `pom.xml` 中使用 `maven-antrun-plugin` 的 `if` 條件判斷式來檢查環境變數。",
+        "en": "Use `maven-antrun-plugin` with an `if` condition in `pom.xml` to check environment variables.",
+        "wg": []
+      },
+      {
+        "t": "建立兩個不同的 `pom.xml` 檔案，一個給開發用，一個給發布用。",
+        "en": "Create two different `pom.xml` files, one for development and one for release.",
+        "wg": []
+      },
+      {
+        "t": "將 GPG Plugin 的 `phase` 設為 `deploy`，因為開發者通常只執行到 `package`。",
+        "en": "Set the GPG Plugin's `phase` to `deploy`, since developers usually only run up to `package`.",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "Maven 的 `<profiles>` 是專門設計用來處理不同環境（開發 vs CI/CD）或特定需求（如 Release）的機制。透過 Profile，可以根據屬性、檔案存在與否或指令參數（如 `-P release`）來動態加入 Plugin 設定，避免影響日常開發流程。",
+      "en": "Maven's `<profiles>` mechanism is specifically designed to handle different environments (Development vs CI/CD) or specific requirements (like Release). Through Profiles, you can dynamically add Plugin configurations based on properties, file existence, or command-line arguments (e.g., `-P release`), avoiding impact on the daily development workflow.",
+      "wg": [
+        {
+          "t": "動態加入",
+          "en": "dynamically add",
+          "ps": "verb"
+        }
+      ]
+    }
+  }
+]

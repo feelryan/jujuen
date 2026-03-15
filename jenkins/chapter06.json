@@ -1,0 +1,1413 @@
+[
+  {
+    "no": "1",
+    "level": "intermediate",
+    "keywords": "Kubernetes, Caching, Maven, Performance",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在 Jenkins on Kubernetes 的架構中，您發現 Java 專案的建置時間過長。",
+        "en": "In a Jenkins on Kubernetes architecture, you notice that Java project build times are excessive.",
+        "wg": [
+          {
+            "t": "架構",
+            "en": "architecture",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "分析後發現，大部分時間都花費在每次建置時重新下載 Maven 依賴套件 (Dependencies)。",
+        "en": "Analysis reveals that most of the time is spent re-downloading Maven dependencies during each build.",
+        "wg": [
+          {
+            "t": "依賴套件",
+            "en": "dependencies",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "考慮到 Agent Pod 是短暫存在的 (Ephemeral)，下列哪項優化策略最為有效且符合最佳實務？",
+        "en": "Considering that Agent Pods are ephemeral, which of the following optimization strategies is most effective and aligns with best practices?",
+        "wg": [
+          {
+            "t": "短暫存在的",
+            "en": "ephemeral",
+            "ps": "Adj"
+          },
+          {
+            "t": "最佳實務",
+            "en": "best practices",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 在每次建置前，使用 `stash` 指令將依賴套件備份到 Master，下次再 `unstash` 回來。",
+        "en": "(A) Use the `stash` command to back up dependencies to the Master before each build, and `unstash` them next time.",
+        "wg": []
+      },
+      {
+        "t": "(B) 建立一個包含所有可能依賴套件的巨大 Docker Image，並以此作為 Agent。",
+        "en": "(B) Create a huge Docker Image containing all possible dependencies and use it as the Agent.",
+        "wg": []
+      },
+      {
+        "t": "(C) 使用 Persistent Volume Claim (PVC) 掛載到 Pod 內的 `.m2/repository` 路徑，作為跨建置的共享快取。",
+        "en": "(C) Use a Persistent Volume Claim (PVC) mounted to the `.m2/repository` path within the Pod as a shared cache across builds.",
+        "wg": [
+          {
+            "t": "掛載",
+            "en": "mount",
+            "ps": "V"
+          },
+          {
+            "t": "共享快取",
+            "en": "shared cache",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(D) 增加 Agent Pod 的 CPU Request 與 Limit，以加快下載速度。",
+        "en": "(D) Increase the CPU Request and Limit of the Agent Pod to speed up download speed.",
+        "wg": []
+      }
+    ],
+    "answer": "(C)",
+    "why": {
+      "t": "在 Kubernetes 環境中，Pod 銷毀後資料會遺失。透過掛載 PVC 到依賴套件目錄 (如 Maven 的 `.m2`)，可以讓下載過的檔案在不同 Pod 之間保留，顯著減少重複下載時間。(A) 會導致 Master 負載過重；(B) 維護成本過高且不靈活；(D) 無法解決重複下載的根本問題。",
+      "en": "In a Kubernetes environment, data is lost when a Pod is destroyed. By mounting a PVC to the dependency directory (e.g., Maven's `.m2`), downloaded files can be persisted across different Pods, significantly reducing repetitive download time. (A) overloads the Master; (B) is high-maintenance and inflexible; (D) does not solve the root cause of repetitive downloads.",
+      "wg": [
+        {
+          "t": "遺失",
+          "en": "lost",
+          "ps": "V"
+        },
+        {
+          "t": "顯著",
+          "en": "significantly",
+          "ps": "Adv"
+        }
+      ]
+    }
+  },
+  {
+    "no": "2",
+    "level": "advanced",
+    "keywords": "Stash, Master Performance, OOM, Anti-pattern",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您的 Jenkins Master 最近頻繁發生 OutOfMemory (OOM) 錯誤並當機。",
+        "en": "Your Jenkins Master has recently been crashing frequently with OutOfMemory (OOM) errors.",
+        "wg": [
+          {
+            "t": "當機",
+            "en": "crash",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "經檢查 Heap Dump，發現記憶體中充滿了大量的 `StashManager` 相關物件。",
+        "en": "After examining the Heap Dump, you find the memory filled with a large number of `StashManager` related objects.",
+        "wg": [
+          {
+            "t": "堆積傾印",
+            "en": "Heap Dump",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "檢查 Pipeline 程式碼後，發現開發團隊在 Build Stage 與 Deploy Stage 之間傳遞了一個 800MB 的 `node_modules` 壓縮檔。",
+        "en": "Reviewing the Pipeline code, you discover the development team is transferring an 800MB `node_modules` archive between the Build and Deploy stages.",
+        "wg": []
+      },
+      {
+        "t": "請問這是什麼問題，該如何修正？",
+        "en": "What is the issue, and how should it be fixed?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 這是正常的記憶體使用，應該直接增加 Master 的 JVM Heap Size。",
+        "en": "(A) This is normal memory usage; you should simply increase the Master's JVM Heap Size.",
+        "wg": []
+      },
+      {
+        "t": "(B) 這是 `stash` 的反模式使用。`stash` 會經過 Master 記憶體與磁碟，不適合傳輸大檔。應改用外部儲存 (如 S3) 或共享 Workspace。",
+        "en": "(B) This is an anti-pattern usage of `stash`. `stash` passes through Master memory and disk and is unsuitable for large files. Use external storage (e.g., S3) or a shared Workspace instead.",
+        "wg": [
+          {
+            "t": "反模式",
+            "en": "anti-pattern",
+            "ps": "N"
+          },
+          {
+            "t": "外部儲存",
+            "en": "external storage",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) 這是 Agent 連線不穩導致的。應該更換 Agent 的連線協定。",
+        "en": "(C) This is caused by unstable Agent connections. You should change the Agent connection protocol.",
+        "wg": []
+      },
+      {
+        "t": "(D) 應該在 Pipeline 中使用 `System.gc()` 強制回收記憶體。",
+        "en": "(D) You should use `System.gc()` in the Pipeline to force memory collection.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "`stash` 與 `unstash` 設計用於傳輸小型檔案 (如原始碼、配置檔)。大檔案通過 Master 會導致 Heap 暴增與 I/O 阻塞。最佳實務是利用雲端儲存 (S3/GCS) 或 Artifact Repository (Artifactory) 作為中介，或確保相關步驟在同一個 Agent Workspace 內執行。",
+      "en": "`stash` and `unstash` are designed for transferring small files (e.g., source code, config files). Passing large files through the Master causes Heap spikes and I/O blocking. Best practice is to use cloud storage (S3/GCS) or an Artifact Repository (Artifactory) as an intermediary, or ensure related steps run within the same Agent Workspace.",
+      "wg": [
+        {
+          "t": "中介",
+          "en": "intermediary",
+          "ps": "N"
+        },
+        {
+          "t": "阻塞",
+          "en": "blocking",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "3",
+    "level": "intermediate",
+    "keywords": "Metrics, Queue Time, Scaling, Performance",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您正在分析 Jenkins 的效能指標 (Metrics)。",
+        "en": "You are analyzing Jenkins performance metrics.",
+        "wg": [
+          {
+            "t": "效能指標",
+            "en": "metrics",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "您發現「Queue Time」數值很高 (平均 > 10 分鐘)，但實際的「Build Time」與預期相符。",
+        "en": "You notice that the \"Queue Time\" is high (averaging > 10 minutes), but the actual \"Build Time\" aligns with expectations.",
+        "wg": [
+          {
+            "t": "與...相符",
+            "en": "aligns with",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "Master 的 CPU 與記憶體負載皆在正常範圍內。請問最可能的瓶頸與解決方案為何？",
+        "en": "Master CPU and memory loads are within normal ranges. What is the most likely bottleneck and solution?",
+        "wg": [
+          {
+            "t": "瓶頸",
+            "en": "bottleneck",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 瓶頸是 Master I/O 速度。解決方案是升級 Master 的 SSD。",
+        "en": "(A) The bottleneck is Master I/O speed. The solution is to upgrade the Master's SSD.",
+        "wg": []
+      },
+      {
+        "t": "(B) 瓶頸是 Agent 數量不足 (Concurrency Limit)。解決方案是水平擴展 (Scale Out) 增加更多 Agent。",
+        "en": "(B) The bottleneck is insufficient Agent quantity (Concurrency Limit). The solution is to scale out by adding more Agents.",
+        "wg": [
+          {
+            "t": "併發限制",
+            "en": "concurrency limit",
+            "ps": "N"
+          },
+          {
+            "t": "水平擴展",
+            "en": "scale out",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(C) 瓶頸是網路頻寬。解決方案是升級網路卡。",
+        "en": "(C) The bottleneck is network bandwidth. The solution is to upgrade the network card.",
+        "wg": []
+      },
+      {
+        "t": "(D) 瓶頸是單一建置過於複雜。解決方案是拆分 Pipeline。",
+        "en": "(D) The bottleneck is that individual builds are too complex. The solution is to split the Pipeline.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "Queue Time 代表任務在隊列中等待可用 Executor 的時間。若 Master 資源充足但 Queue Time 高，通常表示可用的 Agent (Executor) 數量不足以處理當前的併發請求，應增加 Agent 數量。",
+      "en": "Queue Time represents the time a job waits in the queue for an available Executor. If Master resources are sufficient but Queue Time is high, it usually indicates that the number of available Agents (Executors) is insufficient to handle the current concurrent requests; you should increase the number of Agents.",
+      "wg": [
+        {
+          "t": "充足",
+          "en": "sufficient",
+          "ps": "Adj"
+        },
+        {
+          "t": "併發請求",
+          "en": "concurrent requests",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "4",
+    "level": "advanced",
+    "keywords": "Master Protection, Git, Disk I/O, Troubleshooting",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您的團隊回報 Jenkins Master 的 UI 介面反應非常遲緩，甚至偶爾會出現 HTTP 502 錯誤。",
+        "en": "Your team reports that the Jenkins Master UI is very sluggish and occasionally returns HTTP 502 errors.",
+        "wg": [
+          {
+            "t": "遲緩",
+            "en": "sluggish",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "登入 Master 伺服器檢查後，發現 Disk I/O Wait 非常高，且 `.jenkins/workspace` 目錄佔用了大量空間。",
+        "en": "After logging into the Master server, you find that Disk I/O Wait is very high, and the `.jenkins/workspace` directory is consuming a lot of space.",
+        "wg": []
+      },
+      {
+        "t": "下列哪一個 Pipeline 設定最可能是造成此問題的元兇？",
+        "en": "Which of the following Pipeline configurations is the most likely culprit for this issue?",
+        "wg": [
+          {
+            "t": "元兇",
+            "en": "culprit",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 使用了 `parallel` 語法同時執行多個測試。",
+        "en": "(A) Using `parallel` syntax to run multiple tests simultaneously.",
+        "wg": []
+      },
+      {
+        "t": "(B) 在 Pipeline 頂層未指定 `agent` 或使用了 `agent any`，且 Master 節點未設定 Executor 數量限制 (NumExecutors > 0)。",
+        "en": "(B) Not specifying an `agent` at the top level or using `agent any`, and the Master node has no Executor limit set (NumExecutors > 0).",
+        "wg": []
+      },
+      {
+        "t": "(C) 使用了 Kubernetes Agent plugin。",
+        "en": "(C) Using the Kubernetes Agent plugin.",
+        "wg": []
+      },
+      {
+        "t": "(D) Pipeline 中使用了太多的 `echo` 指令輸出日誌。",
+        "en": "(D) Using too many `echo` commands in the Pipeline to output logs.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "若 Master 節點保有 Executor (非 0)，且 Pipeline 分配到 Master 執行，則 `git checkout` 與建置過程會直接消耗 Master 的磁碟 I/O 與 CPU。這會與 Jenkins 核心服務競爭資源，導致 UI 變慢。最佳實務是將 Master 的 Executors 設為 0，強制所有建置在 Agent 上執行。",
+      "en": "If the Master node retains Executors (non-zero) and the Pipeline is assigned to run on the Master, `git checkout` and the build process will directly consume the Master's disk I/O and CPU. This competes for resources with Jenkins core services, causing the UI to slow down. Best practice is to set Master Executors to 0, forcing all builds to run on Agents.",
+      "wg": [
+        {
+          "t": "競爭",
+          "en": "compete",
+          "ps": "V"
+        },
+        {
+          "t": "強制",
+          "en": "force",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "5",
+    "level": "intermediate",
+    "keywords": "Zombie Processes, Debugging, Shell, Resource Leak",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "sh 'npm start &'\nsh 'npm test'",
+    "question": [
+      {
+        "t": "您發現某個特定的 Jenkins Agent 節點在運行幾天後，可用記憶體逐漸減少，最終導致建置失敗。",
+        "en": "You notice that a specific Jenkins Agent node gradually loses available memory after running for a few days, eventually causing build failures.",
+        "wg": [
+          {
+            "t": "逐漸",
+            "en": "gradually",
+            "ps": "Adv"
+          }
+        ]
+      },
+      {
+        "t": "檢查該節點的 Process 列表，發現有大量殘留的 `node` 程序。審查 Pipeline 程式碼發現了如上方的片段。",
+        "en": "Checking the process list on that node, you find a large number of residual `node` processes. Reviewing the Pipeline code reveals the snippet above.",
+        "wg": [
+          {
+            "t": "殘留的",
+            "en": "residual",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "請問造成此問題的原因為何？",
+        "en": "What is the cause of this issue?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) Jenkins 無法正確釋放 Java Heap Memory。",
+        "en": "(A) Jenkins cannot correctly release Java Heap Memory.",
+        "wg": []
+      },
+      {
+        "t": "(B) Shell Script 使用 `&` 背景執行程序，但在 Pipeline 結束時未將其殺死，形成 Zombie Processes。",
+        "en": "(B) The Shell Script uses `&` to run a process in the background but fails to kill it when the Pipeline ends, creating Zombie Processes.",
+        "wg": [
+          {
+            "t": "背景執行",
+            "en": "run in background",
+            "ps": "V"
+          },
+          {
+            "t": "殭屍程序",
+            "en": "Zombie Processes",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) `npm test` 消耗了過多記憶體。",
+        "en": "(C) `npm test` consumed too much memory.",
+        "wg": []
+      },
+      {
+        "t": "(D) 這是 Docker Container 的正常行為。",
+        "en": "(D) This is normal behavior for Docker Containers.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "在 Jenkins Shell 步驟中使用 `&` 啟動背景程序後，若沒有在 script 結尾明確 kill 掉它，該程序可能會在建置結束後繼續存活 (視 Jenkins Process Tree Killer 設定而定，但在某些環境下會洩漏)。長期累積會耗盡 Agent 資源。應使用 `timeout` 或確保有 cleanup 步驟。",
+      "en": "Using `&` to start a background process in a Jenkins Shell step without explicitly killing it at the end of the script can cause the process to persist after the build finishes (depending on Jenkins Process Tree Killer settings, but it leaks in some environments). Long-term accumulation depletes Agent resources. You should use `timeout` or ensure there is a cleanup step.",
+      "wg": [
+        {
+          "t": "耗盡",
+          "en": "deplete",
+          "ps": "V"
+        },
+        {
+          "t": "累積",
+          "en": "accumulation",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "6",
+    "level": "intermediate",
+    "keywords": "Parallel, Optimization, Pipeline Syntax",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "stage('Test') {\n    parallel {\n        stage('Unit') { steps { ... } }\n        stage('Integration') { steps { ... } }\n    }\n}",
+    "question": [
+      {
+        "t": "為了縮短建置時間，您將原本循序執行的測試階段改寫為如上的 `parallel` 區塊。",
+        "en": "To reduce build time, you rewrote the originally sequential test stage into a `parallel` block as shown above.",
+        "wg": [
+          {
+            "t": "循序執行",
+            "en": "sequential execution",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "在實作此優化時，下列哪一個考量點最為關鍵，否則可能導致測試不穩定 (Flaky Tests)？",
+        "en": "When implementing this optimization, which of the following considerations is most critical, otherwise it may lead to unstable (Flaky) tests?",
+        "wg": [
+          {
+            "t": "不穩定的測試",
+            "en": "flaky tests",
+            "ps": "N"
+          },
+          {
+            "t": "關鍵",
+            "en": "critical",
+            "ps": "Adj"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 確保所有平行階段都使用相同的 Docker Image。",
+        "en": "(A) Ensure all parallel stages use the same Docker Image.",
+        "wg": []
+      },
+      {
+        "t": "(B) 確保測試之間沒有共用的外部狀態 (如資料庫資料、固定 Port 號)，避免資源爭奪。",
+        "en": "(B) Ensure there is no shared external state (e.g., database data, fixed ports) between tests to avoid resource contention.",
+        "wg": [
+          {
+            "t": "外部狀態",
+            "en": "external state",
+            "ps": "N"
+          },
+          {
+            "t": "資源爭奪",
+            "en": "resource contention",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) 確保 Master 節點有足夠的 CPU。",
+        "en": "(C) Ensure the Master node has sufficient CPU.",
+        "wg": []
+      },
+      {
+        "t": "(D) 平行階段的數量不能超過 2 個。",
+        "en": "(D) The number of parallel stages cannot exceed 2.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "平行執行意味著多個測試會同時運行。如果它們連線到同一個測試資料庫且會修改資料，或者嘗試綁定同一個 Local Port，就會發生衝突導致測試失敗。隔離性 (Isolation) 是平行測試成功的先決條件。",
+      "en": "Parallel execution means multiple tests run simultaneously. If they connect to the same test database and modify data, or try to bind to the same local port, conflicts will occur causing test failures. Isolation is a prerequisite for successful parallel testing.",
+      "wg": [
+        {
+          "t": "衝突",
+          "en": "conflict",
+          "ps": "N"
+        },
+        {
+          "t": "先決條件",
+          "en": "prerequisite",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "7",
+    "level": "advanced",
+    "keywords": "Shared Libraries, Docker, Performance, CPS, Groovy",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您的團隊編寫了一個複雜的資料處理邏輯，用於解析大型 JSON 報告並生成統計數據。",
+        "en": "Your team has written complex data processing logic to parse large JSON reports and generate statistics.",
+        "wg": [
+          {
+            "t": "資料處理邏輯",
+            "en": "data processing logic",
+            "ps": "NP"
+          },
+          {
+            "t": "解析",
+            "en": "parse",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "目前該邏輯實作於 Jenkins Shared Library (Groovy) 中，但在執行時發現 Master 的 CPU 使用率顯著飆升，且處理速度緩慢。",
+        "en": "Currently, this logic is implemented in a Jenkins Shared Library (Groovy), but you notice a significant spike in Master CPU usage and slow processing speed during execution.",
+        "wg": [
+          {
+            "t": "飆升",
+            "en": "spike",
+            "ps": "V"
+          },
+          {
+            "t": "實作",
+            "en": "implemented",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "為了優化效能並降低 Master 負載，下列哪項重構方案最為合適？",
+        "en": "To optimize performance and reduce the load on the Master, which refactoring approach is most appropriate?",
+        "wg": [
+          {
+            "t": "重構",
+            "en": "refactoring",
+            "ps": "N"
+          },
+          {
+            "t": "負載",
+            "en": "load",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 將該邏輯封裝成一個獨立的 Docker Image（如 Python 或 Node.js 工具），並在 Agent 上執行。",
+        "en": "(A) Encapsulate the logic into a standalone Docker Image (e.g., a Python or Node.js tool) and run it on the Agent.",
+        "wg": [
+          {
+            "t": "封裝",
+            "en": "encapsulate",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(B) 在 Shared Library 中使用 `@NonCPS` 註解來繞過 CPS 轉換，直接在 Master 上執行。",
+        "en": "(B) Use the `@NonCPS` annotation in the Shared Library to bypass CPS transformation and run directly on the Master.",
+        "wg": [
+          {
+            "t": "繞過",
+            "en": "bypass",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(C) 增加 Jenkins Master 的 Heap Memory 設定。",
+        "en": "(C) Increase the Heap Memory settings of the Jenkins Master.",
+        "wg": []
+      },
+      {
+        "t": "(D) 將該邏輯移至 `Jenkinsfile` 的 `script` 區塊中直接撰寫。",
+        "en": "(D) Move the logic directly into the `script` block of the `Jenkinsfile`.",
+        "wg": []
+      }
+    ],
+    "answer": "(A)",
+    "why": {
+      "t": "Jenkins Shared Libraries 的 Groovy 程式碼是在 Master 上執行的，且受限於 CPS (Continuation Passing Style) 轉換，運算效能極差且消耗 Master CPU。將複雜運算封裝至 Docker Image 中，可以利用 Agent 的資源進行高效處理，實現資源隔離。",
+      "en": "Groovy code in Jenkins Shared Libraries runs on the Master and is subject to CPS (Continuation Passing Style) transformation, resulting in poor computational performance and high Master CPU consumption. Encapsulating complex computation in a Docker Image allows leveraging Agent resources for efficient processing and achieves resource isolation.",
+      "wg": [
+        {
+          "t": "資源隔離",
+          "en": "resource isolation",
+          "ps": "N"
+        },
+        {
+          "t": "運算效能",
+          "en": "computational performance",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "8",
+    "level": "intermediate",
+    "keywords": "Artifacts, Stash, S3, Performance, Network I/O",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您的 Pipeline 包含兩個在不同 Agent 節點上執行的階段：`Build` 階段會產生一個 2GB 的二進位檔案，隨後的 `Deploy` 階段需要使用該檔案。",
+        "en": "Your Pipeline consists of two stages running on different Agent nodes: the `Build` stage produces a 2GB binary file, which is required by the subsequent `Deploy` stage.",
+        "wg": [
+          {
+            "t": "二進位檔案",
+            "en": "binary file",
+            "ps": "N"
+          },
+          {
+            "t": "隨後的",
+            "en": "subsequent",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "為了避免影響 Jenkins Master 的穩定性與網路頻寬，下列哪種傳輸方式是最佳實務？",
+        "en": "To avoid impacting the stability and network bandwidth of the Jenkins Master, which transfer method is the best practice?",
+        "wg": [
+          {
+            "t": "頻寬",
+            "en": "bandwidth",
+            "ps": "N"
+          },
+          {
+            "t": "最佳實務",
+            "en": "best practice",
+            "ps": "NP"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 使用 `stash` 指令暫存檔案，並在部署階段使用 `unstash` 取回。",
+        "en": "(A) Use the `stash` command to temporarily store the file and `unstash` to retrieve it in the deploy stage.",
+        "wg": [
+          {
+            "t": "暫存",
+            "en": "temporarily store",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(B) 使用 `archiveArtifacts` 將檔案封存回 Master，再由部署階段下載。",
+        "en": "(B) Use `archiveArtifacts` to archive the file back to the Master, then download it in the deploy stage.",
+        "wg": [
+          {
+            "t": "封存",
+            "en": "archive",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(C) 在 `Build` 階段將檔案上傳至外部儲存（如 S3 或 Artifactory），`Deploy` 階段直接從該處下載。",
+        "en": "(C) Upload the file to external storage (e.g., S3 or Artifactory) in the `Build` stage, and download it directly from there in the `Deploy` stage.",
+        "wg": [
+          {
+            "t": "外部儲存",
+            "en": "external storage",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(D) 使用 `base64` 編碼將檔案內容存入 Jenkins 環境變數中傳遞。",
+        "en": "(D) Encode the file content using `base64` and store it in a Jenkins environment variable to pass it along.",
+        "wg": []
+      }
+    ],
+    "answer": "(C)",
+    "why": {
+      "t": "`stash` 與 `archiveArtifacts` 都會強制資料流經 Jenkins Master，對於大檔案（如 2GB）會導致 Master 的記憶體與網路 I/O 嚴重瓶頸。使用外部儲存作為中介可以讓流量繞過 Master，直接在 Agent 與儲存服務間傳輸。",
+      "en": "Both `stash` and `archiveArtifacts` force data to flow through the Jenkins Master. For large files (e.g., 2GB), this causes severe bottlenecks in the Master's memory and network I/O. Using external storage as an intermediary allows traffic to bypass the Master, transferring directly between the Agent and the storage service.",
+      "wg": [
+        {
+          "t": "繞過",
+          "en": "bypass",
+          "ps": "V"
+        },
+        {
+          "t": "中介",
+          "en": "intermediary",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "9",
+    "level": "advanced",
+    "keywords": "Monorepo, Microservices, Optimization, Git",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您的團隊在一個 Monorepo 中管理著 20 個微服務，目前每次提交代碼都會觸發所有服務的重新建置，導致 Feedback Loop 長達數小時。",
+        "en": "Your team manages 20 microservices in a single Monorepo. Currently, every code commit triggers a rebuild of all services, causing the Feedback Loop to last for hours.",
+        "wg": [
+          {
+            "t": "重新建置",
+            "en": "rebuild",
+            "ps": "N"
+          },
+          {
+            "t": "觸發",
+            "en": "trigger",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "為了優化此流程，您計畫引入「變更檢測」機制。下列哪種實作策略最為有效？",
+        "en": "To optimize this process, you plan to introduce a 'Change Detection' mechanism. Which implementation strategy is most effective?",
+        "wg": [
+          {
+            "t": "變更檢測",
+            "en": "change detection",
+            "ps": "N"
+          },
+          {
+            "t": "實作策略",
+            "en": "implementation strategy",
+            "ps": "NP"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 使用 `git diff` 比較本次 Commit 與上一次成功建置的 Commit，僅建置受影響目錄下的服務。",
+        "en": "(A) Use `git diff` to compare the current Commit with the last successful build's Commit, and only build services in the affected directories.",
+        "wg": [
+          {
+            "t": "受影響",
+            "en": "affected",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "(B) 將所有微服務拆分到獨立的 Git Repository 中。",
+        "en": "(B) Split all microservices into separate Git Repositories.",
+        "wg": [
+          {
+            "t": "拆分",
+            "en": "split",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(C) 設定 Jenkins 每晚僅執行一次完整建置（Nightly Build），白天不執行 CI。",
+        "en": "(C) Configure Jenkins to run a full build only once a night (Nightly Build) and disable CI during the day.",
+        "wg": []
+      },
+      {
+        "t": "(D) 為每個微服務設定獨立的 Jenkins Job，並使用 `Poll SCM` 監控變更。",
+        "en": "(D) Configure a separate Jenkins Job for each microservice and use `Poll SCM` to monitor changes.",
+        "wg": []
+      }
+    ],
+    "answer": "(A)",
+    "why": {
+      "t": "在 Monorepo 架構下，利用 `git diff` 檢測變更範圍是避免重複建置未修改服務的標準做法。這能顯著縮短建置時間並節省資源。拆分 Repo (B) 雖可行但涉及架構大改；(C) 犧牲了即時回饋；(D) 在 Monorepo 中管理困難且易造成配置混亂。",
+      "en": "In a Monorepo architecture, using `git diff` to detect the scope of changes is the standard practice to avoid rebuilding unmodified services. This significantly reduces build time and saves resources. Splitting Repos (B) is viable but involves major architectural changes; (C) sacrifices immediate feedback; (D) is difficult to manage in a Monorepo and can lead to configuration chaos.",
+      "wg": [
+        {
+          "t": "即時回饋",
+          "en": "immediate feedback",
+          "ps": "N"
+        },
+        {
+          "t": "配置混亂",
+          "en": "configuration chaos",
+          "ps": "NP"
+        }
+      ]
+    }
+  },
+  {
+    "no": "10",
+    "level": "intermediate",
+    "keywords": "Master Protection, Executors, Security, Best Practices",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在審查 Jenkins Master 的節點配置時，您發現 Master 節點上設定了 4 個 Executors。",
+        "en": "While reviewing the Jenkins Master node configuration, you notice that the Master node is set with 4 Executors.",
+        "wg": [
+          {
+            "t": "審查",
+            "en": "reviewing",
+            "ps": "V"
+          },
+          {
+            "t": "配置",
+            "en": "configuration",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "根據效能優化與安全性的最佳實務，您應該採取什麼行動？",
+        "en": "According to performance optimization and security best practices, what action should you take?",
+        "wg": [
+          {
+            "t": "最佳實務",
+            "en": "best practices",
+            "ps": "NP"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 將 Master 的 Executors 數量設為 0，強制所有建置在 Agent 節點上執行。",
+        "en": "(A) Set the number of Executors on the Master to 0, forcing all builds to run on Agent nodes.",
+        "wg": [
+          {
+            "t": "強制",
+            "en": "forcing",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(B) 增加 Master 的 Executors 到 8，以充分利用 Master 的 CPU。",
+        "en": "(B) Increase the Master's Executors to 8 to fully utilize the Master's CPU.",
+        "wg": [
+          {
+            "t": "充分利用",
+            "en": "fully utilize",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(C) 保持現狀，因為 Master 執行建置的速度通常比 Agent 快。",
+        "en": "(C) Keep it as is, because the Master usually executes builds faster than Agents.",
+        "wg": []
+      },
+      {
+        "t": "(D) 僅允許 Master 執行輕量級的 Job，如觸發下游任務。",
+        "en": "(D) Only allow the Master to run lightweight Jobs, such as triggering downstream tasks.",
+        "wg": [
+          {
+            "t": "輕量級",
+            "en": "lightweight",
+            "ps": "Adj"
+          }
+        ]
+      }
+    ],
+    "answer": "(A)",
+    "why": {
+      "t": "Master 的職責是調度與管理（大腦），而非執行建置（肌肉）。在 Master 上執行建置會消耗 CPU 與 I/O，可能導致 UI 無回應或影響整體調度能力，且存在安全風險（建置腳本可存取 Master 檔案系統）。最佳實務是將 Master Executors 設為 0。",
+      "en": "The Master's role is orchestration and management (the brain), not executing builds (the muscle). Running builds on the Master consumes CPU and I/O, potentially causing UI unresponsiveness or affecting overall scheduling capabilities, and poses security risks (build scripts can access the Master's file system). The best practice is to set Master Executors to 0.",
+      "wg": [
+        {
+          "t": "調度",
+          "en": "orchestration",
+          "ps": "N"
+        },
+        {
+          "t": "無回應",
+          "en": "unresponsiveness",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "11",
+    "level": "intermediate",
+    "keywords": "Queue Time, Horizontal Scaling, Metrics, Capacity Planning",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您注意到 Jenkins 的 `Queue Time` 指標在尖峰時段顯著增加，但實際的 `Build Time` 維持正常。",
+        "en": "You notice that the Jenkins `Queue Time` metric increases significantly during peak hours, but the actual `Build Time` remains normal.",
+        "wg": [
+          {
+            "t": "尖峰時段",
+            "en": "peak hours",
+            "ps": "N"
+          },
+          {
+            "t": "維持正常",
+            "en": "remains normal",
+            "ps": "VP"
+          }
+        ]
+      },
+      {
+        "t": "這通常暗示系統面臨什麼瓶頸，以及應採取何種擴展策略？",
+        "en": "What bottleneck does this usually imply, and what scaling strategy should be adopted?",
+        "wg": [
+          {
+            "t": "暗示",
+            "en": "imply",
+            "ps": "V"
+          },
+          {
+            "t": "擴展策略",
+            "en": "scaling strategy",
+            "ps": "NP"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 併發能力不足；應增加 Agent 數量（水平擴展）。",
+        "en": "(A) Insufficient concurrency; increase the number of Agents (Horizontal Scaling).",
+        "wg": [
+          {
+            "t": "併發能力",
+            "en": "concurrency",
+            "ps": "N"
+          },
+          {
+            "t": "水平擴展",
+            "en": "horizontal scaling",
+            "ps": "NP"
+          }
+        ]
+      },
+      {
+        "t": "(B) 單一建置運算資源不足；應增加 Agent 的 CPU/Memory（垂直擴展）。",
+        "en": "(B) Insufficient compute resources for single builds; increase Agent CPU/Memory (Vertical Scaling).",
+        "wg": [
+          {
+            "t": "垂直擴展",
+            "en": "vertical scaling",
+            "ps": "NP"
+          }
+        ]
+      },
+      {
+        "t": "(C) Master 負載過高；應增加 Master 的 Heap Size。",
+        "en": "(C) Master load is too high; increase the Master's Heap Size.",
+        "wg": []
+      },
+      {
+        "t": "(D) 網路頻寬不足；應升級網路設備。",
+        "en": "(D) Insufficient network bandwidth; upgrade network equipment.",
+        "wg": []
+      }
+    ],
+    "answer": "(A)",
+    "why": {
+      "t": "`Queue Time` 代表任務在隊列中等待可用 Executor 的時間。若 `Build Time` 正常，表示個別節點效能無虞，問題在於沒有足夠的「空閒插槽」來處理同時進來的任務，因此需要透過增加 Agent 數量（水平擴展）來提升併發處理能力。",
+      "en": "`Queue Time` represents the time a job waits in the queue for an available Executor. If `Build Time` is normal, it means individual node performance is fine; the issue is the lack of available 'slots' to handle incoming tasks simultaneously. Therefore, you need to increase the number of Agents (Horizontal Scaling) to improve concurrency.",
+      "wg": [
+        {
+          "t": "空閒插槽",
+          "en": "available slots",
+          "ps": "NP"
+        },
+        {
+          "t": "併發處理能力",
+          "en": "concurrency",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "12",
+    "level": "intermediate",
+    "keywords": "Kubernetes, OOMKilled, Resource Limits, Exit Code 137",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在 Jenkins on Kubernetes 環境中，您發現某些大型 Java 專案的建置經常失敗，日誌顯示 Exit Code 為 `137`，且 Jenkins Console Log 中斷。",
+        "en": "In a Jenkins on Kubernetes environment, you find that builds for certain large Java projects frequently fail with Exit Code `137`, and the Jenkins Console Log is interrupted.",
+        "wg": [
+          {
+            "t": "中斷",
+            "en": "interrupted",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "最可能的原因是什麼，以及應如何解決？",
+        "en": "What is the most likely cause, and how should it be resolved?",
+        "wg": [
+          {
+            "t": "最可能的",
+            "en": "most likely",
+            "ps": "Adj"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) Pod 記憶體不足被 OOMKilled；應在 Pod Template 中調高 Container 的 Memory Limit。",
+        "en": "(A) The Pod ran out of memory and was OOMKilled; increase the Container's Memory Limit in the Pod Template.",
+        "wg": [
+          {
+            "t": "調高",
+            "en": "increase",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(B) 磁碟空間不足；應增加 PVC 的容量。",
+        "en": "(B) Insufficient disk space; increase the PVC capacity.",
+        "wg": []
+      },
+      {
+        "t": "(C) 網路連線逾時；應增加 Jenkins Agent 的連線 Timeout 設定。",
+        "en": "(C) Network connection timeout; increase the Jenkins Agent connection Timeout setting.",
+        "wg": []
+      },
+      {
+        "t": "(D) Java 版本不相容；應更換 Maven 映像檔版本。",
+        "en": "(D) Incompatible Java version; change the Maven image version.",
+        "wg": []
+      }
+    ],
+    "answer": "(A)",
+    "why": {
+      "t": "Exit Code `137` 在 Linux/Kubernetes 中通常表示程序收到 `SIGKILL` (9) 信號，最常見的原因是觸發了 OOM (Out Of Memory) Killer。這意味著容器使用的記憶體超過了 Kubernetes 資源限制 (Limit)，解決方案是增加該容器的 Memory Request/Limit。",
+      "en": "Exit Code `137` in Linux/Kubernetes usually indicates the process received a `SIGKILL` (9) signal, most commonly caused by the OOM (Out Of Memory) Killer. This means the container exceeded its Kubernetes resource limit. The solution is to increase the Memory Request/Limit for that container.",
+      "wg": [
+        {
+          "t": "觸發",
+          "en": "trigger",
+          "ps": "V"
+        },
+        {
+          "t": "資源限制",
+          "en": "resource limit",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "13",
+    "level": "intermediate",
+    "keywords": "Parallel, Database Contention, Isolation, Flaky Tests",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "為了加速測試，您使用 `parallel` 語法將整合測試拆分為多個階段同時執行。",
+        "en": "To speed up testing, you use the `parallel` syntax to split integration tests into multiple stages running simultaneously.",
+        "wg": [
+          {
+            "t": "整合測試",
+            "en": "integration tests",
+            "ps": "N"
+          },
+          {
+            "t": "拆分",
+            "en": "split",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "然而，您發現測試開始隨機失敗（Flaky），且錯誤訊息顯示資料庫鎖定（Deadlock）或資料不一致。",
+        "en": "However, you notice tests start failing randomly (Flaky), with error messages indicating database locks (Deadlock) or data inconsistency.",
+        "wg": [
+          {
+            "t": "隨機失敗",
+            "en": "failing randomly",
+            "ps": "VP"
+          },
+          {
+            "t": "資料不一致",
+            "en": "data inconsistency",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "這反映了什麼問題？",
+        "en": "What issue does this reflect?",
+        "wg": [
+          {
+            "t": "反映",
+            "en": "reflect",
+            "ps": "V"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 測試環境缺乏資源隔離，多個平行執行的測試共用了同一個資料庫實例。",
+        "en": "(A) Lack of resource isolation in the test environment; multiple parallel tests are sharing the same database instance.",
+        "wg": [
+          {
+            "t": "資源隔離",
+            "en": "resource isolation",
+            "ps": "N"
+          },
+          {
+            "t": "共用",
+            "en": "sharing",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(B) Jenkins 的 `parallel` 語法不支援資料庫操作。",
+        "en": "(B) Jenkins `parallel` syntax does not support database operations.",
+        "wg": []
+      },
+      {
+        "t": "(C) 資料庫連線池（Connection Pool）已滿，需要重啟資料庫。",
+        "en": "(C) The database connection pool is full and the database needs a restart.",
+        "wg": []
+      },
+      {
+        "t": "(D) 測試腳本執行速度過快，導致資料庫無法回應。",
+        "en": "(D) The test scripts are executing too fast for the database to respond.",
+        "wg": []
+      }
+    ],
+    "answer": "(A)",
+    "why": {
+      "t": "平行化測試的前提是「狀態隔離」。如果多個測試線程或容器同時讀寫同一個資料庫，必然會發生資源爭奪（Race Condition）與資料汙染。解決方案是為每個平行分支動態建立獨立的資料庫容器（Service Containers）。",
+      "en": "The prerequisite for parallel testing is 'state isolation'. If multiple test threads or containers read/write to the same database simultaneously, Race Conditions and data corruption are inevitable. The solution is to dynamically spin up independent database containers (Service Containers) for each parallel branch.",
+      "wg": [
+        {
+          "t": "狀態隔離",
+          "en": "state isolation",
+          "ps": "N"
+        },
+        {
+          "t": "資源爭奪",
+          "en": "race condition",
+          "ps": "N"
+        },
+        {
+          "t": "資料汙染",
+          "en": "data corruption",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "14",
+    "level": "advanced",
+    "keywords": "Troubleshooting, Thread Dump, Master Performance, Blocked Threads",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "Jenkins Master 的 UI 突然變得完全無回應，但監控顯示 CPU 使用率極低。",
+        "en": "The Jenkins Master UI suddenly becomes completely unresponsive, but monitoring shows very low CPU usage.",
+        "wg": [
+          {
+            "t": "無回應",
+            "en": "unresponsive",
+            "ps": "Adj"
+          },
+          {
+            "t": "極低",
+            "en": "very low",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "您抓取了 Java Thread Dump 進行分析。下列哪種線程狀態最能解釋此現象？",
+        "en": "You capture a Java Thread Dump for analysis. Which thread state best explains this phenomenon?",
+        "wg": [
+          {
+            "t": "線程狀態",
+            "en": "thread state",
+            "ps": "N"
+          },
+          {
+            "t": "解釋",
+            "en": "explain",
+            "ps": "V"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 大量線程處於 `BLOCKED` 或 `WAITING` 狀態，且堆疊追蹤顯示正在等待 Disk I/O 或網路回應。",
+        "en": "(A) A large number of threads are in `BLOCKED` or `WAITING` state, and stack traces show they are waiting for Disk I/O or network response.",
+        "wg": [
+          {
+            "t": "堆疊追蹤",
+            "en": "stack traces",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(B) 大量線程處於 `RUNNABLE` 狀態，且正在執行複雜的 Groovy 運算。",
+        "en": "(B) A large number of threads are in `RUNNABLE` state and are executing complex Groovy computations.",
+        "wg": []
+      },
+      {
+        "t": "(C) Garbage Collection (GC) 線程佔用了所有 CPU 資源。",
+        "en": "(C) Garbage Collection (GC) threads are consuming all CPU resources.",
+        "wg": []
+      },
+      {
+        "t": "(D) 線程池是空的，沒有任何活動線程。",
+        "en": "(D) The thread pool is empty, with no active threads.",
+        "wg": []
+      }
+    ],
+    "answer": "(A)",
+    "why": {
+      "t": "如果 CPU 使用率低但系統無回應，通常意味著線程並非在進行運算（這會導致高 CPU），而是被「卡住」了。這通常是因為等待慢速 I/O（如 NFS 延遲、磁碟寫入滿載）或死鎖（Deadlock），導致處理 HTTP 請求的線程耗盡。",
+      "en": "If CPU usage is low but the system is unresponsive, it usually means threads are not computing (which would cause high CPU) but are 'stuck'. This is typically due to waiting on slow I/O (e.g., NFS latency, disk saturation) or Deadlocks, causing the threads handling HTTP requests to be exhausted.",
+      "wg": [
+        {
+          "t": "卡住",
+          "en": "stuck",
+          "ps": "V"
+        },
+        {
+          "t": "死鎖",
+          "en": "deadlock",
+          "ps": "N"
+        },
+        {
+          "t": "耗盡",
+          "en": "exhausted",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "15",
+    "level": "intermediate",
+    "keywords": "Cron, Thundering Herd, Scheduling, Performance",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您的團隊設定了許多每日執行的 Cron Job，時間都設為 `0 0 * * *`（午夜整點）。",
+        "en": "Your team has configured many daily Cron Jobs, all scheduled for `0 0 * * *` (midnight sharp).",
+        "wg": [
+          {
+            "t": "午夜整點",
+            "en": "midnight sharp",
+            "ps": "Adv"
+          }
+        ]
+      },
+      {
+        "t": "這導致每天午夜 Jenkins 負載瞬間飆高（Thundering Herd），影響系統穩定性。應如何修改 Cron 表達式來解決此問題？",
+        "en": "This causes a massive load spike (Thundering Herd) on Jenkins every midnight, affecting stability. How should you modify the Cron expression to resolve this?",
+        "wg": [
+          {
+            "t": "負載瞬間飆高",
+            "en": "load spike",
+            "ps": "N"
+          },
+          {
+            "t": "修改",
+            "en": "modify",
+            "ps": "V"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 使用 `H H * * *`，讓 Jenkins 自動根據 Job 名稱雜湊分散執行時間。",
+        "en": "(A) Use `H H * * *` to let Jenkins automatically distribute execution times based on a hash of the Job name.",
+        "wg": [
+          {
+            "t": "雜湊",
+            "en": "hash",
+            "ps": "N"
+          },
+          {
+            "t": "分散",
+            "en": "distribute",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(B) 使用 `@midnight` 關鍵字。",
+        "en": "(B) Use the `@midnight` keyword.",
+        "wg": []
+      },
+      {
+        "t": "(C) 手動為每個 Job 分配不同的分鐘數，如 `1 0 * * *`, `2 0 * * *`。",
+        "en": "(C) Manually assign different minutes for each Job, e.g., `1 0 * * *`, `2 0 * * *`.",
+        "wg": [
+          {
+            "t": "手動",
+            "en": "manually",
+            "ps": "Adv"
+          }
+        ]
+      },
+      {
+        "t": "(D) 增加 Master 的 Executor 數量以應對瞬間流量。",
+        "en": "(D) Increase the number of Master Executors to handle the burst traffic.",
+        "wg": []
+      }
+    ],
+    "answer": "(A)",
+    "why": {
+      "t": "Jenkins 提供了 `H` (Hash) 符號來解決驚群效應（Thundering Herd）。`H H * * *` 會確保 Job 雖然都在「午夜左右」執行，但確切的分鐘與小時會根據 Job 名稱的 Hash 值分散開來，從而平滑負載。",
+      "en": "Jenkins provides the `H` (Hash) symbol to solve the Thundering Herd problem. `H H * * *` ensures that while Jobs run 'around midnight', the exact minute and hour are distributed based on the Hash of the Job name, thereby smoothing out the load.",
+      "wg": [
+        {
+          "t": "驚群效應",
+          "en": "thundering herd problem",
+          "ps": "N"
+        },
+        {
+          "t": "平滑負載",
+          "en": "smoothing out the load",
+          "ps": "VP"
+        }
+      ]
+    }
+  }
+]

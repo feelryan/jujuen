@@ -1,0 +1,949 @@
+[
+  {
+    "no": "1",
+    "level": "Medium",
+    "keywords": "Gradle, Lifecycle, Configuration Phase, Execution Phase, Anti-pattern",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "task mySetup {\n    println(\"Setting up environment...\") // Line A\n}\n\ntask buildApp {\n    doLast {\n        println(\"Building application...\") // Line B\n    }\n}",
+    "question": [
+      {
+        "t": "一位工程師在 `build.gradle` 中撰寫了如上所示的任務定義。當他在終端機執行 `./gradlew help` 指令時，會發生什麼事？",
+        "en": "An engineer wrote the task definitions shown above in `build.gradle`. What happens when they run the `./gradlew help` command in the terminal?",
+        "wg": [
+          {
+            "t": "終端機",
+            "en": "terminal",
+            "ps": "noun"
+          },
+          {
+            "t": "指令",
+            "en": "command",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "只會顯示 help 資訊，不會印出 Line A 或 Line B 的內容。",
+        "en": "Only help information is displayed; neither Line A nor Line B is printed.",
+        "wg": []
+      },
+      {
+        "t": "會印出 \"Setting up environment...\" (Line A)，但不會印出 Line B。",
+        "en": "It prints \"Setting up environment...\" (Line A), but not Line B.",
+        "wg": []
+      },
+      {
+        "t": "會同時印出 Line A 與 Line B，因為 Gradle 會解析所有任務。",
+        "en": "It prints both Line A and Line B because Gradle resolves all tasks.",
+        "wg": []
+      },
+      {
+        "t": "會報錯，因為 `println` 不能直接寫在 Task 閉包中。",
+        "en": "It throws an error because `println` cannot be written directly inside a Task closure.",
+        "wg": [
+          {
+            "t": "閉包",
+            "en": "closure",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "這是 Gradle 初學者最常見的錯誤（Logic in Configuration Phase）。Line A 直接寫在 Task 的閉包中，屬於配置階段（Configuration Phase）的一部分。無論你執行哪個 Task（甚至是 `help`），Gradle 都必須先讀取並執行所有配置腳本來建立 DAG 圖，因此 Line A 總是會被執行。Line B 包在 `doLast` 中，屬於執行階段（Execution Phase），只有當 `buildApp` 被明確執行時才會跑。",
+      "en": "This is the most common mistake for Gradle beginners (Logic in Configuration Phase). Line A is written directly inside the Task closure, making it part of the Configuration Phase. Regardless of which task you run (even `help`), Gradle must read and execute all configuration scripts to build the DAG, so Line A is always executed. Line B is wrapped in `doLast`, belonging to the Execution Phase, and runs only when `buildApp` is explicitly executed.",
+      "wg": [
+        {
+          "t": "配置階段",
+          "en": "Configuration Phase",
+          "ps": "noun"
+        },
+        {
+          "t": "執行階段",
+          "en": "Execution Phase",
+          "ps": "noun"
+        },
+        {
+          "t": "有向無環圖",
+          "en": "DAG (Directed Acyclic Graph)",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "2",
+    "level": "Easy",
+    "keywords": "Maven, Lifecycle, Phases, Mental Model",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "關於 Maven 的核心心智模型「流水線工廠 (The Assembly Line)」，下列敘述何者正確？",
+        "en": "Regarding Maven's core mental model \"The Assembly Line\", which of the following statements is true?",
+        "wg": [
+          {
+            "t": "流水線",
+            "en": "assembly line",
+            "ps": "noun"
+          },
+          {
+            "t": "敘述",
+            "en": "statement",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "你可以像 Gradle 一樣，隨意定義新的 Phase 並插入到現有的生命週期順序中。",
+        "en": "Like Gradle, you can define new Phases and insert them into the existing lifecycle order at will.",
+        "wg": []
+      },
+      {
+        "t": "Maven 的 Phase 是固定的（如 compile, test, package），你只能將 Plugin 的 Goal 綁定到這些既有的 Phase 上。",
+        "en": "Maven's Phases are fixed (e.g., compile, test, package); you can only bind Plugin Goals to these existing Phases.",
+        "wg": [
+          {
+            "t": "綁定",
+            "en": "bind",
+            "ps": "verb"
+          },
+          {
+            "t": "既有的",
+            "en": "existing",
+            "ps": "adjective"
+          }
+        ]
+      },
+      {
+        "t": "執行 `mvn install` 時，Maven 會自動跳過前面的 `test` Phase 以節省時間，除非加上參數。",
+        "en": "When running `mvn install`, Maven automatically skips the preceding `test` Phase to save time unless a parameter is added.",
+        "wg": []
+      },
+      {
+        "t": "Maven 的建置過程是由 Task 之間的依賴關係圖（DAG）動態決定的，沒有線性順序。",
+        "en": "Maven's build process is dynamically determined by a dependency graph (DAG) of Tasks, with no linear order.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "Maven 的特點是「約定優於配置」，其生命週期（Lifecycle）是線性的且階段（Phases）是固定的。你不能改變車站（Phase）的順序或插入新車站，只能決定在某個車站「上下貨物」（綁定 Plugin Goal）。選項 0 和 3 描述的是 Gradle 的特性；選項 2 錯誤，因為 Maven 是線性執行的，`install` 必定會經過 `test`。",
+      "en": "Maven is characterized by \"Convention over Configuration,\" where the Lifecycle is linear and Phases are fixed. You cannot change the order of stations (Phases) or insert new ones; you can only decide to \"load/unload cargo\" (bind Plugin Goals) at a specific station. Options 0 and 3 describe Gradle's characteristics; Option 2 is incorrect because Maven executes linearly, so `install` implies passing through `test`.",
+      "wg": [
+        {
+          "t": "約定優於配置",
+          "en": "Convention over Configuration",
+          "ps": "phrase"
+        },
+        {
+          "t": "線性",
+          "en": "linear",
+          "ps": "adjective"
+        }
+      ]
+    }
+  },
+  {
+    "no": "3",
+    "level": "Medium",
+    "keywords": "Maven, Debugging, Effective POM, Inheritance",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在一個繼承層級複雜的 Maven 多模組專案中，你發現某個 Plugin 的行為不如預期，懷疑是某個 Parent POM 的配置覆蓋了你的設定。哪一個指令能讓你看到「最終合併後」的完整 POM 內容？",
+        "en": "In a Maven multi-module project with complex inheritance, you find a Plugin behaving unexpectedly and suspect a Parent POM configuration is overriding your settings. Which command allows you to see the full \"merged\" POM content?",
+        "wg": [
+          {
+            "t": "繼承層級",
+            "en": "inheritance hierarchy",
+            "ps": "noun"
+          },
+          {
+            "t": "覆蓋",
+            "en": "override",
+            "ps": "verb"
+          },
+          {
+            "t": "合併後",
+            "en": "merged",
+            "ps": "adjective"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "mvn dependency:tree",
+        "en": "mvn dependency:tree",
+        "wg": []
+      },
+      {
+        "t": "mvn clean install -X",
+        "en": "mvn clean install -X",
+        "wg": []
+      },
+      {
+        "t": "mvn help:effective-pom",
+        "en": "mvn help:effective-pom",
+        "wg": []
+      },
+      {
+        "t": "mvn validate",
+        "en": "mvn validate",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "`mvn help:effective-pom` 是查看 Maven 配置的「最終真理」，它會展示所有 Parent POM 繼承、Profile 激活與預設值合併後的最終 XML。`dependency:tree` 用於查看依賴衝突；`-X` 是 Debug 模式，雖然能看到執行細節，但不如 effective-pom 能直接呈現結構面的合併結果。",
+      "en": "`mvn help:effective-pom` is the \"ultimate truth\" for viewing Maven configuration. It displays the final XML after merging all Parent POM inheritance, Profile activations, and defaults. `dependency:tree` is for checking dependency conflicts; `-X` is Debug mode, which shows execution details but doesn't structurally present the merged result as clearly as effective-pom.",
+      "wg": [
+        {
+          "t": "最終真理",
+          "en": "ultimate truth",
+          "ps": "metaphor"
+        },
+        {
+          "t": "依賴衝突",
+          "en": "dependency conflicts",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "4",
+    "level": "Hard",
+    "keywords": "Gradle, Performance, Configuration Avoidance, API",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "// Option A\ntasks.create(\"myTask\") { ... }\n\n// Option B\ntasks.register(\"myTask\") { ... }",
+    "question": [
+      {
+        "t": "為了優化 Gradle 大型專案的建置速度，Gradle 官方推薦使用「配置迴避 (Configuration Avoidance)」模式。在定義新任務時，應優先選擇上述哪種寫法？為什麼？",
+        "en": "To optimize build speed in large Gradle projects, Gradle officially recommends the \"Configuration Avoidance\" pattern. When defining new tasks, which of the above approaches should be preferred, and why?",
+        "wg": [
+          {
+            "t": "配置迴避",
+            "en": "Configuration Avoidance",
+            "ps": "noun"
+          },
+          {
+            "t": "優先選擇",
+            "en": "prefer",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "Option A，因為 `create` 會立即建立任務，確保依賴關係正確。",
+        "en": "Option A, because `create` instantiates the task immediately, ensuring correct dependencies.",
+        "wg": []
+      },
+      {
+        "t": "Option B，因為 `register` 是惰性的 (Lazy)，只有當任務真的需要參與建置時，才會執行其配置區塊。",
+        "en": "Option B, because `register` is lazy; it only executes the configuration block when the task is actually needed for the build.",
+        "wg": [
+          {
+            "t": "惰性的",
+            "en": "lazy",
+            "ps": "adjective"
+          }
+        ]
+      },
+      {
+        "t": "兩者效能相同，差別只在於語法風格。",
+        "en": "Both have the same performance; the difference is only in syntax style.",
+        "wg": []
+      },
+      {
+        "t": "Option A，因為 `register` 只能用於 Kotlin DSL，不支援 Groovy。",
+        "en": "Option A, because `register` can only be used in Kotlin DSL and does not support Groovy.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "這是 Gradle 效能優化的關鍵模式。`tasks.register(...)` 僅註冊任務的存在，而不會立即執行配置閉包（Configuration Closure）。這能顯著減少 Configuration Phase 的時間，特別是當專案有數百個任務但你只執行其中一個時。`tasks.create(...)` 則會迫使該任務立即被配置（Eagerly configured）。",
+      "en": "This is a key pattern for Gradle performance optimization. `tasks.register(...)` only registers the task's existence without immediately executing the configuration closure. This significantly reduces Configuration Phase time, especially when a project has hundreds of tasks but you only run one. `tasks.create(...)` forces the task to be configured eagerly.",
+      "wg": [
+        {
+          "t": "配置閉包",
+          "en": "Configuration Closure",
+          "ps": "noun"
+        },
+        {
+          "t": "迫使",
+          "en": "force",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "5",
+    "level": "Medium",
+    "keywords": "Gradle, Debugging, Dry Run, Task Graph",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你剛接手一個複雜的 Gradle 專案，想要知道執行 `./gradlew build` 時具體會跑哪些 Task 以及它們的順序，但又不想花時間真的去執行編譯和測試。你應該使用什麼參數？",
+        "en": "You just took over a complex Gradle project and want to know exactly which tasks will run and in what order when executing `./gradlew build`, but you don't want to spend time actually running compilation and tests. Which parameter should you use?",
+        "wg": [
+          {
+            "t": "接手",
+            "en": "take over",
+            "ps": "verb"
+          },
+          {
+            "t": "具體",
+            "en": "specifically",
+            "ps": "adverb"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "--debug",
+        "en": "--debug",
+        "wg": []
+      },
+      {
+        "t": "--scan",
+        "en": "--scan",
+        "wg": []
+      },
+      {
+        "t": "--dry-run (or -m)",
+        "en": "--dry-run (or -m)",
+        "wg": []
+      },
+      {
+        "t": "--info",
+        "en": "--info",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "`--dry-run` (或 `-m`) 會讓 Gradle 建立完整的 Task Graph 並計算順序，但跳過所有 Task 的實際 Action。這是檢查依賴關係與執行順序最快的方法。`--scan` 會產生網頁報告，通常用於事後分析效能；`--debug` 則會產出極大量的 Log。",
+      "en": "`--dry-run` (or `-m`) causes Gradle to build the complete Task Graph and calculate the order, but skips the actual Actions of all tasks. This is the fastest way to check dependencies and execution order. `--scan` generates a web report, usually for post-execution performance analysis; `--debug` produces an overwhelming amount of logs.",
+      "wg": [
+        {
+          "t": "跳過",
+          "en": "skip",
+          "ps": "verb"
+        },
+        {
+          "t": "事後分析",
+          "en": "post-mortem analysis / post-execution analysis",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "6",
+    "level": "Medium",
+    "keywords": "Maven, Anti-pattern, Dependency Management, Best Practice",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "<!-- Parent POM -->\n<dependencies>\n    <dependency>\n        <groupId>com.google.guava</groupId>\n        <artifactId>guava</artifactId>\n        <version>31.0-jre</version>\n    </dependency>\n    <!-- ... 20 other dependencies ... -->\n</dependencies>",
+    "question": [
+      {
+        "t": "上述 Parent POM 的寫法展示了 Maven 的「God Parent」反模式 (Anti-pattern)。這種寫法會造成什麼主要問題？",
+        "en": "The Parent POM snippet above demonstrates the Maven \"God Parent\" anti-pattern. What is the main problem caused by this approach?",
+        "wg": [
+          {
+            "t": "反模式",
+            "en": "anti-pattern",
+            "ps": "noun"
+          },
+          {
+            "t": "造成",
+            "en": "cause",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "會導致循環依賴 (Circular Dependency)。",
+        "en": "It leads to circular dependencies.",
+        "wg": []
+      },
+      {
+        "t": "所有繼承此 Parent 的子模組都會被迫引入這些依賴，即使它們根本不需要，導致專案臃腫與潛在衝突。",
+        "en": "All child modules inheriting from this Parent are forced to include these dependencies even if they don't need them, leading to bloat and potential conflicts.",
+        "wg": [
+          {
+            "t": "被迫",
+            "en": "forced",
+            "ps": "verb"
+          },
+          {
+            "t": "臃腫",
+            "en": "bloated",
+            "ps": "adjective"
+          }
+        ]
+      },
+      {
+        "t": "Maven 無法解析寫在 Parent 中的具體版本號。",
+        "en": "Maven cannot resolve concrete version numbers defined in the Parent.",
+        "wg": []
+      },
+      {
+        "t": "這會破壞 Maven 的 Reactor 建置順序。",
+        "en": "This disrupts the Maven Reactor build order.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "在 Parent POM 的 `<dependencies>` 區塊中直接定義依賴，會導致所有子模組無條件繼承這些依賴。正確的做法是使用 `<dependencyManagement>` 來定義版本（BOM pattern），讓子模組可以按需引用（不寫版本號），從而保持子模組的輕量與乾淨。",
+      "en": "Defining dependencies directly in the `<dependencies>` block of a Parent POM causes all child modules to inherit them unconditionally. The correct approach is to use `<dependencyManagement>` to define versions (BOM pattern), allowing child modules to reference them as needed (without version numbers), thus keeping child modules lightweight and clean.",
+      "wg": [
+        {
+          "t": "無條件",
+          "en": "unconditionally",
+          "ps": "adverb"
+        },
+        {
+          "t": "按需引用",
+          "en": "reference as needed",
+          "ps": "verb phrase"
+        }
+      ]
+    }
+  },
+  {
+    "no": "7",
+    "level": "Medium",
+    "keywords": "Maven, Lifecycle, Phases, Best Practice, Integration Test",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "<plugin>\n  <groupId>org.apache.maven.plugins</groupId>\n  <artifactId>maven-failsafe-plugin</artifactId>\n  <executions>\n    <execution>\n      <goals>\n        <goal>integration-test</goal>\n        <goal>verify</goal>\n      </goals>\n      <!-- Missing <phase> configuration, defaulting to 'integration-test' -->\n    </execution>\n  </executions>\n</plugin>",
+    "question": [
+      {
+        "t": "在 Maven 的最佳實務中，我們通常將整合測試 (Integration Tests) 綁定在 `integration-test` 與 `verify` 階段，而非 `test` 階段。",
+        "en": "In Maven best practices, integration tests are typically bound to the `integration-test` and `verify` phases, rather than the `test` phase.",
+        "wg": [
+          {
+            "t": "整合測試",
+            "en": "Integration Tests",
+            "ps": "noun"
+          },
+          {
+            "t": "綁定",
+            "en": "bound",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "若開發者錯誤地將耗時的整合測試綁定到了 `test` 階段，會對開發流程造成什麼最直接的負面影響？",
+        "en": "If a developer incorrectly binds time-consuming integration tests to the `test` phase, what is the most direct negative impact on the development workflow?",
+        "wg": [
+          {
+            "t": "耗時的",
+            "en": "time-consuming",
+            "ps": "adjective"
+          },
+          {
+            "t": "負面影響",
+            "en": "negative impact",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "會導致 `mvn package` 無法產出 JAR 檔，因為測試尚未通過。",
+        "en": "It will prevent `mvn package` from producing the JAR file because the tests have not passed.",
+        "wg": []
+      },
+      {
+        "t": "破壞了快速回饋迴圈，因為每次執行單元測試時都會被迫執行緩慢的整合測試。",
+        "en": "It breaks the fast feedback loop because slow integration tests are forced to run every time unit tests are executed.",
+        "wg": [
+          {
+            "t": "回饋迴圈",
+            "en": "feedback loop",
+            "ps": "noun"
+          },
+          {
+            "t": "單元測試",
+            "en": "unit tests",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "會造成 Maven 無法解析依賴關係，因為整合測試通常需要額外的依賴。",
+        "en": "It causes Maven to fail dependency resolution because integration tests usually require additional dependencies.",
+        "wg": []
+      },
+      {
+        "t": "沒有影響，因為 `test` 與 `integration-test` 在 Maven 內部是同一個階段的別名。",
+        "en": "No impact, as `test` and `integration-test` are aliases for the same phase internally in Maven.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "Maven 的 `test` 階段設計用於執行快速的單元測試。若將整合測試綁定於此，開發者在日常執行 `mvn test` 進行快速驗證時，會被迫等待耗時的整合測試，嚴重降低開發效率。",
+      "en": "The Maven `test` phase is designed for fast unit tests. Binding integration tests here forces developers to wait for slow tests during daily `mvn test` runs, severely reducing development efficiency.",
+      "wg": [
+        {
+          "t": "開發效率",
+          "en": "development efficiency",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "8",
+    "level": "Hard",
+    "keywords": "Gradle, Incremental Build, Inputs, Outputs, Performance",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "task generateDocs {\n    doLast {\n        def docsDir = file(\"build/docs\")\n        docsDir.mkdirs()\n        new File(docsDir, \"readme.txt\").text = \"Documentation generated at ${System.currentTimeMillis()}\"\n    }\n}",
+    "question": [
+      {
+        "t": "觀察上方的 Gradle Task 定義。即使沒有任何相關檔案變更，每次執行 `./gradlew generateDocs` 時，這個任務都會重新執行，而不會顯示 `UP-TO-DATE`。",
+        "en": "Observe the Gradle Task definition above. Even if no relevant files have changed, this task re-runs every time `./gradlew generateDocs` is executed, never showing `UP-TO-DATE`.",
+        "wg": [
+          {
+            "t": "重新執行",
+            "en": "re-runs",
+            "ps": "verb"
+          },
+          {
+            "t": "相關檔案",
+            "en": "relevant files",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "為了啟用 Gradle 的增量建置 (Incremental Build) 功能，你需要在此 Task 中加入什麼關鍵配置？",
+        "en": "To enable Gradle's Incremental Build feature for this task, what key configuration needs to be added?",
+        "wg": [
+          {
+            "t": "增量建置",
+            "en": "Incremental Build",
+            "ps": "noun"
+          },
+          {
+            "t": "關鍵配置",
+            "en": "key configuration",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "必須將 `doLast` 改為 `doFirst` 以確保優先執行。",
+        "en": "Must change `doLast` to `doFirst` to ensure priority execution.",
+        "wg": []
+      },
+      {
+        "t": "必須明確宣告 Task 的 `inputs` 與 `outputs`。",
+        "en": "Must explicitly declare the Task's `inputs` and `outputs`.",
+        "wg": [
+          {
+            "t": "宣告",
+            "en": "declare",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "必須使用 `tasks.register` 而非直接定義 task。",
+        "en": "Must use `tasks.register` instead of defining the task directly.",
+        "wg": []
+      },
+      {
+        "t": "必須在 Task 中加入 `onlyIf { true }` 判斷式。",
+        "en": "Must add an `onlyIf { true }` condition to the Task.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "Gradle 的增量建置依賴於檢查輸入 (Inputs) 與輸出 (Outputs) 的快照 (Snapshot)。若未定義這些，Gradle 無法判斷任務是否需要重跑，因此預設每次都會執行。",
+      "en": "Gradle's incremental build relies on checking snapshots of Inputs and Outputs. Without these definitions, Gradle cannot determine if the task needs to be re-run, so it defaults to executing it every time.",
+      "wg": [
+        {
+          "t": "快照",
+          "en": "snapshot",
+          "ps": "noun"
+        },
+        {
+          "t": "預設",
+          "en": "defaults to",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "9",
+    "level": "Medium",
+    "keywords": "Maven, Dependency Management, BOM, Best Practice",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "<dependencyManagement>\n  <dependencies>\n    <dependency>\n      <groupId>com.example</groupId>\n      <artifactId>my-project-bom</artifactId>\n      <version>1.0.0</version>\n      <type>pom</type>\n      <scope>import</scope>\n    </dependency>\n  </dependencies>\n</dependencyManagement>",
+    "question": [
+      {
+        "t": "在大型 Maven 多模組專案中，使用 BOM (Bill of Materials) 是避免「依賴地獄 (Dependency Hell)」的標準模式。",
+        "en": "In large Maven multi-module projects, using a BOM (Bill of Materials) is the standard pattern to avoid 'Dependency Hell'.",
+        "wg": [
+          {
+            "t": "依賴地獄",
+            "en": "Dependency Hell",
+            "ps": "noun"
+          },
+          {
+            "t": "標準模式",
+            "en": "standard pattern",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "關於上述 XML 片段的配置，下列敘述何者正確？",
+        "en": "Regarding the XML configuration snippet above, which of the following statements is correct?",
+        "wg": []
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "這會將 `my-project-bom` 中的所有依賴直接下載並加入到當前專案的 Classpath 中。",
+        "en": "This will download all dependencies from `my-project-bom` and add them directly to the current project's Classpath.",
+        "wg": [
+          {
+            "t": "當前專案",
+            "en": "current project",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "這僅定義了依賴的版本約束，子模組仍需明確宣告需要的依賴，但可省略版本號。",
+        "en": "This only defines dependency version constraints; sub-modules must still explicitly declare needed dependencies but can omit the version number.",
+        "wg": [
+          {
+            "t": "版本約束",
+            "en": "version constraints",
+            "ps": "noun"
+          },
+          {
+            "t": "省略",
+            "en": "omit",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "`scope` 設為 `import` 是錯誤的，應該使用 `compile` 才能讓子模組繼承。",
+        "en": "Setting `scope` to `import` is incorrect; it should be `compile` for sub-modules to inherit.",
+        "wg": []
+      },
+      {
+        "t": "這種寫法只適用於 Spring Boot 專案，標準 Maven 不支援 `import` scope。",
+        "en": "This syntax is only applicable to Spring Boot projects; standard Maven does not support the `import` scope.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "在 `<dependencyManagement>` 中使用 `import` scope 匯入 BOM，是為了集中管理版本號。這不會實際引入 jar 檔，而是讓子模組在引用依賴時可以不寫 `<version>`，確保專案版本一致性。",
+      "en": "Using `import` scope in `<dependencyManagement>` to import a BOM is for centralized version management. It doesn't actually bring in jars but allows sub-modules to reference dependencies without specifying `<version>`, ensuring project consistency.",
+      "wg": [
+        {
+          "t": "集中管理",
+          "en": "centralized management",
+          "ps": "verb"
+        },
+        {
+          "t": "一致性",
+          "en": "consistency",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "10",
+    "level": "Medium",
+    "keywords": "Gradle, Anti-pattern, Incremental Build, Performance",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "tasks.withType(JavaCompile) {\n    dependsOn 'clean'\n}",
+    "question": [
+      {
+        "t": "某位工程師為了確保每次編譯都是「乾淨」的，在 `build.gradle` 中加入了上述配置。",
+        "en": "To ensure every compilation is 'clean', an engineer added the above configuration to `build.gradle`.",
+        "wg": [
+          {
+            "t": "乾淨",
+            "en": "clean",
+            "ps": "adjective"
+          },
+          {
+            "t": "配置",
+            "en": "configuration",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "為什麼這被視為 Gradle 的反模式 (Anti-pattern)？",
+        "en": "Why is this considered a Gradle Anti-pattern?",
+        "wg": [
+          {
+            "t": "反模式",
+            "en": "Anti-pattern",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "因為 `clean` 任務在 Gradle 中不存在，這會導致建置失敗。",
+        "en": "Because the `clean` task does not exist in Gradle, causing the build to fail.",
+        "wg": []
+      },
+      {
+        "t": "這會導致無限遞迴呼叫，因為 `clean` 也可能依賴編譯任務。",
+        "en": "This causes infinite recursive calls because `clean` might also depend on compilation tasks.",
+        "wg": [
+          {
+            "t": "無限遞迴",
+            "en": "infinite recursive",
+            "ps": "adjective"
+          }
+        ]
+      },
+      {
+        "t": "這完全抹殺了 Gradle 增量建置 (Incremental Build) 的優勢，導致建置時間大幅增加。",
+        "en": "This completely negates the advantage of Gradle's Incremental Build, leading to significantly increased build times.",
+        "wg": [
+          {
+            "t": "抹殺",
+            "en": "negates",
+            "ps": "verb"
+          },
+          {
+            "t": "大幅增加",
+            "en": "significantly increased",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "這會導致 IDE 無法正確索引類別檔案。",
+        "en": "This prevents the IDE from correctly indexing class files.",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "Gradle 的核心優勢之一是增量建置（只重新編譯變更的部分）。強制依賴 `clean` 會在每次執行前刪除所有產出物，迫使 Gradle 每次都從頭編譯，浪費大量時間。",
+      "en": "One of Gradle's core strengths is incremental builds (recompiling only what changed). Forcing a dependency on `clean` deletes all outputs before every run, forcing Gradle to recompile from scratch every time, wasting significant time.",
+      "wg": [
+        {
+          "t": "從頭編譯",
+          "en": "compile from scratch",
+          "ps": "verb"
+        },
+        {
+          "t": "浪費",
+          "en": "wasting",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "11",
+    "level": "Easy",
+    "keywords": "Gradle, Debugging, Build Scan, Tooling",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你的 Gradle 建置速度變慢了，你想要獲得一份詳細的網頁版報告，分析 Configuration Time 與 Execution Time 的佔比，以及每個 Task 的執行效能。",
+        "en": "Your Gradle build has slowed down, and you want a detailed web-based report analyzing the breakdown of Configuration Time vs. Execution Time, and the performance of each Task.",
+        "wg": [
+          {
+            "t": "網頁版報告",
+            "en": "web-based report",
+            "ps": "noun"
+          },
+          {
+            "t": "執行效能",
+            "en": "performance",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "你應該使用哪一個指令？",
+        "en": "Which command should you use?",
+        "wg": []
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "`./gradlew build --debug`",
+        "en": "`./gradlew build --debug`",
+        "wg": []
+      },
+      {
+        "t": "`./gradlew build --scan`",
+        "en": "`./gradlew build --scan`",
+        "wg": []
+      },
+      {
+        "t": "`./gradlew build --profile`",
+        "en": "`./gradlew build --profile`",
+        "wg": []
+      },
+      {
+        "t": "`./gradlew build --dry-run`",
+        "en": "`./gradlew build --dry-run`",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "`--scan` 會產生 Gradle Build Scan，這是一個可分享的互動式網頁報告，提供最深入的建置效能洞察。雖然 `--profile` 也提供報告，但功能遠不如 Build Scan 強大且詳細。",
+      "en": "`--scan` generates a Gradle Build Scan, a shareable interactive web report providing the deepest insights into build performance. While `--profile` also provides a report, it is far less powerful and detailed than a Build Scan.",
+      "wg": [
+        {
+          "t": "洞察",
+          "en": "insights",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "12",
+    "level": "Medium",
+    "keywords": "Maven, Gradle, Architecture Decision, Scenarios",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "假設你正在啟動一個新的 Android App 專案，該專案需要高度客製化的建置邏輯（例如：動態生成程式碼、多種產品變體 Product Flavors），且團隊對 Kotlin 非常熟悉。",
+        "en": "Suppose you are starting a new Android App project that requires highly customized build logic (e.g., dynamic code generation, multiple Product Flavors), and the team is very familiar with Kotlin.",
+        "wg": [
+          {
+            "t": "高度客製化",
+            "en": "highly customized",
+            "ps": "adjective"
+          },
+          {
+            "t": "產品變體",
+            "en": "Product Flavors",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "根據心智模型與工具特性，哪一個建置工具是較佳的選擇？為什麼？",
+        "en": "Based on mental models and tool characteristics, which build tool is the better choice? Why?",
+        "wg": [
+          {
+            "t": "較佳的選擇",
+            "en": "better choice",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "Maven，因為它的「流水線工廠」模型最穩定，適合所有類型的專案。",
+        "en": "Maven, because its 'Assembly Line' model is the most stable and suitable for all types of projects.",
+        "wg": []
+      },
+      {
+        "t": "Gradle，因為它的「可程式化圖形」模型與 Kotlin DSL 提供了處理複雜客製化邏輯所需的靈活性。",
+        "en": "Gradle, because its 'Programmable Graph' model and Kotlin DSL provide the flexibility needed to handle complex customization logic.",
+        "wg": [
+          {
+            "t": "靈活性",
+            "en": "flexibility",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "Maven，因為 Android 官方文件主要推薦使用 Maven 進行開發。",
+        "en": "Maven, because official Android documentation primarily recommends using Maven for development.",
+        "wg": []
+      },
+      {
+        "t": "兩者皆不適合，應該使用 Shell Script 來處理這種高度動態的需求。",
+        "en": "Neither is suitable; Shell Scripts should be used to handle such highly dynamic requirements.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "Gradle 的 DAG（有向無環圖）模型允許開發者像寫程式一樣定義任務間的依賴，非常適合複雜且非標準的建置流程（如 Android）。加上團隊熟悉 Kotlin，使用 Gradle Kotlin DSL 會比 XML 配置更具生產力。",
+      "en": "Gradle's DAG (Directed Acyclic Graph) model allows developers to define task dependencies programmatically, making it ideal for complex, non-standard build processes (like Android). Plus, with the team's Kotlin familiarity, using Gradle Kotlin DSL is more productive than XML configuration.",
+      "wg": [
+        {
+          "t": "非標準的",
+          "en": "non-standard",
+          "ps": "adjective"
+        },
+        {
+          "t": "生產力",
+          "en": "productive",
+          "ps": "adjective"
+        }
+      ]
+    }
+  }
+]

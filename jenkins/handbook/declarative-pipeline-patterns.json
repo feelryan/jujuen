@@ -1,0 +1,851 @@
+[
+  {
+    "no": "1",
+    "level": "Intermediate",
+    "keywords": "agent, optimization, resource",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "pipeline {\n    agent none \n    stages {\n        stage('Build') {\n            agent { label 'linux-large' }\n            steps { ... }\n        }\n        stage('Approval') {\n            agent none\n            steps { input 'Deploy?' }\n        }\n    }\n}",
+    "question": [
+      {
+        "t": "在 Declarative Pipeline 的頂層定義 `agent none`，並在個別 Stage 定義具體 Agent，這種做法的主要優勢是什麼？",
+        "en": "What is the primary benefit of defining `agent none` at the top level of a Declarative Pipeline and specifying agents within individual stages?",
+        "wg": [
+          {
+            "t": "頂層",
+            "en": "top level",
+            "ps": "noun"
+          },
+          {
+            "t": "個別",
+            "en": "individual",
+            "ps": "adjective"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "它強制所有 Stage 必須並行執行。",
+        "en": "It forces all stages to execute in parallel.",
+        "wg": []
+      },
+      {
+        "t": "它允許更精細的資源分配，避免在不需要執行器（Executor）的階段（如等待審核）佔用資源。",
+        "en": "It allows for more granular resource allocation, avoiding executor consumption during stages that don't need one (like waiting for approval).",
+        "wg": [
+          {
+            "t": "精細的",
+            "en": "granular",
+            "ps": "adjective"
+          },
+          {
+            "t": "執行器",
+            "en": "executor",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "它是使用 Docker Agent 的必要條件，否則 Docker 指令會失敗。",
+        "en": "It is a prerequisite for using Docker agents; otherwise, Docker commands will fail.",
+        "wg": []
+      },
+      {
+        "t": "它會自動停用所有 `post` 區塊的執行。",
+        "en": "It automatically disables the execution of all `post` blocks.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "若在頂層使用 `agent any`，Jenkins 會在 Pipeline 開始時就分配一個執行器（Executor）並佔用直到結束。使用 `agent none` 配合 Stage 級別的 agent 設定，可以確保只有在真正需要運算資源的階段才佔用節點，對於包含手動審核（Input）或跨平台建置的 Pipeline 特別有效。",
+      "en": "If `agent any` is used at the top level, Jenkins allocates an executor at the start and holds it until the pipeline finishes. Using `agent none` with stage-level agent settings ensures that nodes are occupied only when computational resources are actually needed, which is particularly effective for pipelines involving manual approval (Input) or cross-platform builds.",
+      "wg": [
+        {
+          "t": "佔用",
+          "en": "occupy/hold",
+          "ps": "verb"
+        },
+        {
+          "t": "跨平台",
+          "en": "cross-platform",
+          "ps": "adjective"
+        }
+      ]
+    }
+  },
+  {
+    "no": "2",
+    "level": "Intermediate",
+    "keywords": "when, conditional, pattern",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "// Option A\nstage('Deploy') {\n    steps {\n        script {\n            if (env.BRANCH_NAME == 'main') {\n                sh 'deploy.sh'\n            }\n        }\n    }\n}\n\n// Option B\nstage('Deploy') {\n    when {\n        branch 'main'\n    }\n    steps {\n        sh 'deploy.sh'\n    }\n}",
+    "question": [
+      {
+        "t": "根據「乾淨的條件判斷（Clean Conditional）」模式，哪一種寫法較佳？為什麼？",
+        "en": "According to the 'Clean Conditional' pattern, which approach is better and why?",
+        "wg": [
+          {
+            "t": "乾淨的條件判斷",
+            "en": "Clean Conditional",
+            "ps": "pattern name"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "Option A，因為 Groovy 的 `if` 語法比 Jenkins DSL 更靈活且強大。",
+        "en": "Option A, because Groovy's `if` syntax is more flexible and powerful than Jenkins DSL.",
+        "wg": []
+      },
+      {
+        "t": "Option B，因為 `when` 指令能讓 Pipeline 視覺化圖表正確顯示該階段被「跳過」，且語法更具聲明性。",
+        "en": "Option B, because the `when` directive allows the pipeline visualization to correctly show the stage as 'skipped' and the syntax is more declarative.",
+        "wg": [
+          {
+            "t": "視覺化圖表",
+            "en": "visualization graph",
+            "ps": "noun"
+          },
+          {
+            "t": "聲明性",
+            "en": "declarative",
+            "ps": "adjective"
+          }
+        ]
+      },
+      {
+        "t": "Option A，因為它避免了使用 `when` 區塊可能造成的效能開銷。",
+        "en": "Option A, because it avoids the potential performance overhead of using a `when` block.",
+        "wg": []
+      },
+      {
+        "t": "兩者在功能與視覺化效果上完全相同，僅是個人偏好問題。",
+        "en": "Both are identical in functionality and visualization; it's purely a matter of preference.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "使用 `when` 指令（Option B）符合 Declarative Pipeline 的設計哲學。它不僅讓程式碼更易讀，更重要的是 Jenkins UI 能識別該條件，在條件不滿足時將 Stage 標記為 `Skipped`，而不是像 Option A 那樣顯示為 `Success`（但實際上什麼都沒做），這有助於正確反映 Pipeline 狀態。",
+      "en": "Using the `when` directive (Option B) aligns with the design philosophy of Declarative Pipelines. It not only makes the code more readable but, crucially, allows the Jenkins UI to recognize the condition. When the condition is not met, the stage is marked as `Skipped`, whereas Option A would show as `Success` (despite doing nothing), helping to accurately reflect the pipeline state.",
+      "wg": [
+        {
+          "t": "設計哲學",
+          "en": "design philosophy",
+          "ps": "noun"
+        },
+        {
+          "t": "識別",
+          "en": "recognize/identify",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "3",
+    "level": "Beginner",
+    "keywords": "post, cleanup, resilience",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "pipeline {\n    agent any\n    stages { ... }\n    // Missing block here\n}",
+    "question": [
+      {
+        "t": "為了確保無論建置成功或失敗，都能收集到 JUnit 測試報告並清理 Workspace，你應該使用哪一個區塊？",
+        "en": "To ensure that JUnit test reports are collected and the workspace is cleaned up regardless of build success or failure, which block should you use?",
+        "wg": [
+          {
+            "t": "收集",
+            "en": "collect",
+            "ps": "verb"
+          },
+          {
+            "t": "清理",
+            "en": "cleanup",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "在 `steps` 中使用 `try-catch-finally` 包裹所有指令。",
+        "en": "Wrap all commands with `try-catch-finally` inside `steps`.",
+        "wg": []
+      },
+      {
+        "t": "在 Pipeline 結尾添加 `post { always { ... } }` 區塊。",
+        "en": "Add a `post { always { ... } }` block at the end of the pipeline.",
+        "wg": []
+      },
+      {
+        "t": "在 `options` 區塊中設定 `skipDefaultCheckout(false)`。",
+        "en": "Set `skipDefaultCheckout(false)` in the `options` block.",
+        "wg": []
+      },
+      {
+        "t": "依賴 Jenkins Agent 的自動垃圾回收機制。",
+        "en": "Rely on the Jenkins Agent's automatic garbage collection mechanism.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "`post` 區塊是處理建置後動作的標準位置。`always` 條件保證了無論 Pipeline 狀態為何（Success, Failure, Aborted），該區塊內的步驟都會執行，非常適合用於測試報告收集與資源清理。",
+      "en": "The `post` block is the standard place for post-build actions. The `always` condition ensures that the steps within it are executed regardless of the pipeline state (Success, Failure, Aborted), making it ideal for test report collection and resource cleanup.",
+      "wg": [
+        {
+          "t": "建置後動作",
+          "en": "post-build actions",
+          "ps": "noun"
+        },
+        {
+          "t": "保證",
+          "en": "ensure/guarantee",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "4",
+    "level": "Intermediate",
+    "keywords": "docker, environment, consistency",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "stage('Build') {\n    agent {\n        docker { \n            image 'node:14-alpine'\n            args '-v /cache:/root/.npm'\n        }\n    }\n    steps {\n        sh 'npm install && npm run build'\n    }\n}",
+    "question": [
+      {
+        "t": "使用上述 `agent { docker { ... } }` 模式的主要好處是什麼？",
+        "en": "What is the main benefit of using the `agent { docker { ... } }` pattern shown above?",
+        "wg": [
+          {
+            "t": "模式",
+            "en": "pattern",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "它能讓 Jenkins Master 自動管理 Docker Daemon 的升級。",
+        "en": "It allows the Jenkins Master to automatically manage Docker Daemon upgrades.",
+        "wg": []
+      },
+      {
+        "t": "它確保了建置環境的一致性，開發者不需依賴 Agent 主機上預裝的工具版本。",
+        "en": "It ensures build environment consistency, so developers don't have to rely on tool versions pre-installed on the Agent host.",
+        "wg": [
+          {
+            "t": "一致性",
+            "en": "consistency",
+            "ps": "noun"
+          },
+          {
+            "t": "預裝的",
+            "en": "pre-installed",
+            "ps": "adjective"
+          }
+        ]
+      },
+      {
+        "t": "它能繞過 Jenkins 的權限控管，讓腳本以 root 權限執行。",
+        "en": "It bypasses Jenkins permission controls, allowing scripts to run with root privileges.",
+        "wg": []
+      },
+      {
+        "t": "它主要用於加速 `git checkout` 的速度。",
+        "en": "It is primarily used to speed up `git checkout`.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "透過指定 Docker image 作為執行環境，Pipeline 定義了明確的工具鏈版本（如 node:14）。這消除了「在我的機器上可以跑，但在 CI Server 上失敗」的問題，因為不再依賴 Agent 主機上可能隨時變動或版本不符的預裝軟體。",
+      "en": "By specifying a Docker image as the execution environment, the pipeline defines an explicit toolchain version (e.g., node:14). This eliminates 'it works on my machine but fails on the CI server' issues, as it no longer relies on pre-installed software on the Agent host that might change or have mismatched versions.",
+      "wg": [
+        {
+          "t": "工具鏈",
+          "en": "toolchain",
+          "ps": "noun"
+        },
+        {
+          "t": "消除",
+          "en": "eliminate",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "5",
+    "level": "Advanced",
+    "keywords": "anti-pattern, sh, maintainability",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "steps {\n    sh \"\"\"\n        if [ -f \"config.json\" ]; then\n            echo \"Config found\"\n            # ... 50 lines of complex logic ...\n        else\n            echo \"Config missing\"\n            exit 1\n        fi\n    \"\"\"\n}",
+    "question": [
+      {
+        "t": "這段程式碼展示了哪一種常見的 Anti-pattern？應如何改進？",
+        "en": "What common Anti-pattern does this code demonstrate, and how should it be improved?",
+        "wg": [
+          {
+            "t": "展示",
+            "en": "demonstrate",
+            "ps": "verb"
+          },
+          {
+            "t": "改進",
+            "en": "improve",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "這是「Hardcoding Paths」，應改用環境變數。",
+        "en": "This is 'Hardcoding Paths'; environment variables should be used instead.",
+        "wg": []
+      },
+      {
+        "t": "這是「Logic inside sh Steps」，應將複雜邏輯移至專案內的 Shell script 檔案，並由 Pipeline 呼叫。",
+        "en": "This is 'Logic inside sh Steps'; complex logic should be moved to a Shell script file within the project and called by the Pipeline.",
+        "wg": [
+          {
+            "t": "複雜邏輯",
+            "en": "complex logic",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "這是「Script Block Abuse」，應改用 Groovy 寫邏輯。",
+        "en": "This is 'Script Block Abuse'; the logic should be written in Groovy instead.",
+        "wg": []
+      },
+      {
+        "t": "這是「Ignoring Agent None」，應在 stage 層級指定 agent。",
+        "en": "This is 'Ignoring Agent None'; an agent should be specified at the stage level.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "在 `sh` 步驟中嵌入大量 Shell 邏輯會導致 Pipeline 難以閱讀、除錯困難且無法重用。最佳實務是將邏輯封裝在專案儲存庫中的腳本檔案（如 `./scripts/build.sh`），Pipeline 僅負責呼叫該腳本。這樣也可以在本地端單獨測試該腳本。",
+      "en": "Embedding large amounts of Shell logic inside `sh` steps makes the pipeline hard to read, difficult to debug, and impossible to reuse. The best practice is to encapsulate the logic in a script file within the project repository (e.g., `./scripts/build.sh`), with the pipeline only responsible for calling it. This also allows the script to be tested independently locally.",
+      "wg": [
+        {
+          "t": "嵌入",
+          "en": "embed",
+          "ps": "verb"
+        },
+        {
+          "t": "封裝",
+          "en": "encapsulate",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "6",
+    "level": "Intermediate",
+    "keywords": "environment, scope, hierarchy",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "pipeline {\n    agent any\n    environment {\n        TIMEOUT = '10m'\n    }\n    stages {\n        stage('A') {\n            environment {\n                TIMEOUT = '20m'\n            }\n            steps { echo \"Timeout is ${env.TIMEOUT}\" }\n        }\n        stage('B') {\n            steps { echo \"Timeout is ${env.TIMEOUT}\" }\n        }\n    }\n}",
+    "question": [
+      {
+        "t": "根據環境變數的作用域規則，Stage A 與 Stage B 印出的 `TIMEOUT` 值分別為何？",
+        "en": "Based on environment variable scoping rules, what will be the `TIMEOUT` values printed in Stage A and Stage B respectively?",
+        "wg": [
+          {
+            "t": "作用域",
+            "en": "scope",
+            "ps": "noun"
+          },
+          {
+            "t": "分別",
+            "en": "respectively",
+            "ps": "adverb"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "Stage A: 10m, Stage B: 10m",
+        "en": "Stage A: 10m, Stage B: 10m",
+        "wg": []
+      },
+      {
+        "t": "Stage A: 20m, Stage B: 20m",
+        "en": "Stage A: 20m, Stage B: 20m",
+        "wg": []
+      },
+      {
+        "t": "Stage A: 20m, Stage B: 10m",
+        "en": "Stage A: 20m, Stage B: 10m",
+        "wg": []
+      },
+      {
+        "t": "Stage A: 10m, Stage B: 20m",
+        "en": "Stage A: 10m, Stage B: 20m",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "環境變數遵循層級覆蓋原則。Stage A 定義了局部的 `TIMEOUT`，因此在該 Stage 內會覆蓋全域設定（印出 20m）。Stage B 沒有局部定義，因此繼承頂層的 `environment` 設定（印出 10m）。",
+      "en": "Environment variables follow a hierarchy override principle. Stage A defines a local `TIMEOUT`, which overrides the global setting within that stage (printing 20m). Stage B does not have a local definition, so it inherits the top-level `environment` setting (printing 10m).",
+      "wg": [
+        {
+          "t": "覆蓋",
+          "en": "override",
+          "ps": "verb"
+        },
+        {
+          "t": "繼承",
+          "en": "inherit",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "7",
+    "level": "Intermediate",
+    "keywords": "parallel, optimization, feedback loop",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "stage('Quality Checks') {\n    steps {\n        sh 'mvn test'      // Takes 5 mins\n        sh 'mvn sonar:sonar' // Takes 3 mins\n    }\n}",
+    "question": [
+      {
+        "t": "目前的 Pipeline 依序執行單元測試與靜態分析，總共耗時約 8 分鐘。若這兩個步驟互不依賴，應如何修改以最有效率地縮短回饋時間？",
+        "en": "The current Pipeline executes unit tests and static analysis sequentially, taking about 8 minutes in total. If these two steps are independent, how should you modify it to shorten the feedback time most efficiently?",
+        "wg": [
+          {
+            "t": "依序執行",
+            "en": "execute sequentially",
+            "ps": "verb phrase"
+          },
+          {
+            "t": "互不依賴",
+            "en": "independent",
+            "ps": "adjective"
+          },
+          {
+            "t": "回饋時間",
+            "en": "feedback time",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "將這兩個步驟放入 `parallel` 區塊中，使其同時執行。",
+        "en": "Place these two steps into a `parallel` block to execute them concurrently.",
+        "wg": [
+          {
+            "t": "並行",
+            "en": "parallel",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "將這兩個步驟移至 `post` 區塊執行。",
+        "en": "Move these two steps to the `post` block for execution.",
+        "wg": []
+      },
+      {
+        "t": "為每個步驟分配不同的 `agent`，但仍保持在同一個 `stage` 內。",
+        "en": "Assign different `agents` for each step but keep them within the same `stage`.",
+        "wg": []
+      },
+      {
+        "t": "使用 `script` 區塊並透過 Shell 的 `&` 符號背景執行。",
+        "en": "Use a `script` block and execute them in the background using the Shell `&` symbol.",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "根據手冊中的「並行執行加速回饋」模式，將互不依賴的任務放入 `parallel` 區塊可以顯著減少等待時間（Fail fast）。Shell 背景執行 (`&`) 難以追蹤狀態且不符合 Declarative 風格。",
+      "en": "According to the 'Parallel Execution for Feedback Loop' pattern in the handbook, placing independent tasks in a `parallel` block significantly reduces wait time (Fail fast). Background execution in Shell (`&`) makes state tracking difficult and does not align with the Declarative style.",
+      "wg": [
+        {
+          "t": "加速回饋",
+          "en": "accelerate feedback",
+          "ps": "verb phrase"
+        },
+        {
+          "t": "難以追蹤",
+          "en": "hard to track",
+          "ps": "adjective phrase"
+        }
+      ]
+    }
+  },
+  {
+    "no": "8",
+    "level": "Intermediate",
+    "keywords": "options, maintenance, disk space",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你的 Jenkins 伺服器經常發生硬碟空間不足的問題，經檢查發現是因為舊的建置紀錄（Builds）與產出物（Artifacts）被永久保留。你應該在 Pipeline 的 `options` 區塊加入什麼設定來解決此問題？",
+        "en": "Your Jenkins server frequently runs out of disk space. Investigation reveals that old build records and artifacts are being kept forever. What setting should you add to the `options` block of the Pipeline to resolve this?",
+        "wg": [
+          {
+            "t": "硬碟空間不足",
+            "en": "run out of disk space",
+            "ps": "verb phrase"
+          },
+          {
+            "t": "產出物",
+            "en": "artifacts",
+            "ps": "noun"
+          },
+          {
+            "t": "永久保留",
+            "en": "kept forever",
+            "ps": "verb phrase"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "buildDiscarder(logRotator(numToKeepStr: '10'))",
+        "en": "buildDiscarder(logRotator(numToKeepStr: '10'))",
+        "wg": []
+      },
+      {
+        "t": "timeout(time: 1, unit: 'HOURS')",
+        "en": "timeout(time: 1, unit: 'HOURS')",
+        "wg": []
+      },
+      {
+        "t": "disableConcurrentBuilds()",
+        "en": "disableConcurrentBuilds()",
+        "wg": []
+      },
+      {
+        "t": "skipDefaultCheckout()",
+        "en": "skipDefaultCheckout()",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "`buildDiscarder` 搭配 `logRotator` 可以設定保留的建置數量或天數，自動清理舊的建置以釋放空間。`timeout` 是處理執行時間過長，`disableConcurrentBuilds` 是防止並發衝突。",
+      "en": "`buildDiscarder` with `logRotator` allows configuring the number or days of builds to keep, automatically cleaning up old builds to free up space. `timeout` handles excessive execution time, and `disableConcurrentBuilds` prevents concurrency conflicts.",
+      "wg": [
+        {
+          "t": "釋放空間",
+          "en": "free up space",
+          "ps": "verb phrase"
+        },
+        {
+          "t": "並發衝突",
+          "en": "concurrency conflicts",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "9",
+    "level": "Advanced",
+    "keywords": "anti-pattern, script block, maintainability",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "steps {\n    script {\n        def buildNum = env.BUILD_NUMBER\n        if (buildNum.toInteger() % 2 == 0) {\n            // 20 lines of complex Groovy logic...\n        } else {\n            // Another 20 lines...\n        }\n    }\n}",
+    "question": [
+      {
+        "t": "上述程式碼展示了「濫用 Script 區塊（Script Block Abuse）」的反模式。根據手冊，這種寫法最大的缺點是什麼？且若邏輯過於複雜，最佳的重構方式為何？",
+        "en": "The code above demonstrates the 'Script Block Abuse' anti-pattern. According to the handbook, what is the main drawback of this approach? And if the logic is too complex, what is the best way to refactor it?",
+        "wg": [
+          {
+            "t": "反模式",
+            "en": "anti-pattern",
+            "ps": "noun"
+          },
+          {
+            "t": "重構",
+            "en": "refactor",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "缺點是破壞了 Declarative 的結構與視覺化功能；應將邏輯移至 Shared Library 或外部 Script。",
+        "en": "The drawback is that it breaks the Declarative structure and visualization features; logic should be moved to a Shared Library or external script.",
+        "wg": [
+          {
+            "t": "視覺化功能",
+            "en": "visualization features",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "缺點是 Groovy 執行速度比 Shell 慢；應全部改寫為 `sh` 指令。",
+        "en": "The drawback is that Groovy execution speed is slower than Shell; it should be rewritten entirely as `sh` commands.",
+        "wg": []
+      },
+      {
+        "t": "缺點是無法存取環境變數；應改用 `environment` 區塊定義變數。",
+        "en": "The drawback is the inability to access environment variables; it should be switched to defining variables in the `environment` block.",
+        "wg": []
+      },
+      {
+        "t": "缺點是 `script` 區塊不支援 `try-catch`；應改用 `post` 區塊。",
+        "en": "The drawback is that `script` blocks do not support `try-catch`; it should be switched to using `post` blocks.",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "手冊指出，濫用 `script` 區塊會將 Declarative Pipeline 變成難以維護的 Scripted Pipeline，破壞結構驗證與 Blue Ocean 等工具的視覺化呈現。複雜邏輯應封裝至 Shared Library 或外部腳本中。",
+      "en": "The handbook states that abusing `script` blocks turns a Declarative Pipeline into a hard-to-maintain Scripted Pipeline, breaking structure validation and visualization in tools like Blue Ocean. Complex logic should be encapsulated in a Shared Library or external scripts.",
+      "wg": [
+        {
+          "t": "難以維護",
+          "en": "hard-to-maintain",
+          "ps": "adjective"
+        },
+        {
+          "t": "封裝",
+          "en": "encapsulate",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "10",
+    "level": "Intermediate",
+    "keywords": "credentials, security, environment",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你需要將一組儲存在 Jenkins Credentials 中的 API Key 注入到環境變數 `API_KEY` 中，以供後續步驟使用。為了避免在日誌中洩漏密碼，下列哪一種語法是正確且安全的 Declarative 寫法？",
+        "en": "You need to inject an API Key stored in Jenkins Credentials into the environment variable `API_KEY` for use in subsequent steps. To avoid leaking the password in the logs, which of the following syntaxes is the correct and secure Declarative approach?",
+        "wg": [
+          {
+            "t": "注入",
+            "en": "inject",
+            "ps": "verb"
+          },
+          {
+            "t": "洩漏",
+            "en": "leak",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "environment { API_KEY = credentials('my-api-key-id') }",
+        "en": "environment { API_KEY = credentials('my-api-key-id') }",
+        "wg": []
+      },
+      {
+        "t": "environment { API_KEY = 'my-api-key-id' }",
+        "en": "environment { API_KEY = 'my-api-key-id' }",
+        "wg": []
+      },
+      {
+        "t": "steps { sh \"export API_KEY=${credentials('my-api-key-id')}\" }",
+        "en": "steps { sh \"export API_KEY=${credentials('my-api-key-id')}\" }",
+        "wg": []
+      },
+      {
+        "t": "options { credentials('my-api-key-id') }",
+        "en": "options { credentials('my-api-key-id') }",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "在 `environment` 區塊中使用 `credentials('id')` 是 Declarative Pipeline 綁定憑證的標準做法。Jenkins 會自動處理遮罩（Masking），避免密碼在 Console Log 中以明文顯示。",
+      "en": "Using `credentials('id')` within the `environment` block is the standard practice for binding credentials in Declarative Pipeline. Jenkins automatically handles masking to prevent passwords from appearing as plain text in the Console Log.",
+      "wg": [
+        {
+          "t": "綁定",
+          "en": "binding",
+          "ps": "verb"
+        },
+        {
+          "t": "遮罩",
+          "en": "masking",
+          "ps": "noun"
+        },
+        {
+          "t": "明文",
+          "en": "plain text",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "11",
+    "level": "Intermediate",
+    "keywords": "race condition, options, concurrency",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在持續整合（CI）環境中，若短時間內有多個 commit 推送，可能會導致多個 Pipeline 同時執行並爭奪部署資源（Race Condition）。參考實戰案例，哪一個 `options` 設定可以防止此情況？",
+        "en": "In a Continuous Integration (CI) environment, multiple commits pushed in a short time can cause multiple Pipelines to run simultaneously and compete for deployment resources (Race Condition). Referring to the real-world examples, which `options` setting prevents this?",
+        "wg": [
+          {
+            "t": "爭奪",
+            "en": "compete for",
+            "ps": "verb"
+          },
+          {
+            "t": "部署資源",
+            "en": "deployment resources",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "disableConcurrentBuilds()",
+        "en": "disableConcurrentBuilds()",
+        "wg": []
+      },
+      {
+        "t": "parallelsAlwaysFailFast()",
+        "en": "parallelsAlwaysFailFast()",
+        "wg": []
+      },
+      {
+        "t": "timeout(time: 10, unit: 'MINUTES')",
+        "en": "timeout(time: 10, unit: 'MINUTES')",
+        "wg": []
+      },
+      {
+        "t": "retry(3)",
+        "en": "retry(3)",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "`disableConcurrentBuilds()` 選項確保同一時間該 Job 只有一個建置在執行，這對於防止部署衝突或資源競爭至關重要。",
+      "en": "The `disableConcurrentBuilds()` option ensures that only one build of the job is running at a time, which is crucial for preventing deployment conflicts or resource contention.",
+      "wg": [
+        {
+          "t": "資源競爭",
+          "en": "resource contention",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "12",
+    "level": "Advanced",
+    "keywords": "mental model, state machine, error handling",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "steps {\n    script {\n        try {\n            sh 'make build'\n        } catch (Exception e) {\n            // Handle error\n        }\n    }\n}",
+    "question": [
+      {
+        "t": "根據「心智模型（Mental Model）」章節，為什麼我們應該避免在 Steps 中使用 `try-catch`（如上圖），而應改用 `post` 區塊？",
+        "en": "According to the 'Mental Model' section, why should we avoid using `try-catch` inside Steps (as shown above) and use `post` blocks instead?",
+        "wg": [
+          {
+            "t": "心智模型",
+            "en": "Mental Model",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "因為 Declarative Pipeline 應被視為狀態機配置，`post` 區塊專門用於處理狀態轉換後的結果（如 Success/Failure），使邏輯更清晰。",
+        "en": "Because Declarative Pipeline should be viewed as a state machine configuration; `post` blocks are specifically designed to handle outcomes after state transitions (like Success/Failure), making the logic clearer.",
+        "wg": [
+          {
+            "t": "狀態機",
+            "en": "state machine",
+            "ps": "noun"
+          },
+          {
+            "t": "狀態轉換",
+            "en": "state transitions",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "因為 `try-catch` 無法捕捉 Shell 指令 (`sh`) 的錯誤代碼。",
+        "en": "Because `try-catch` cannot capture the error codes from Shell commands (`sh`).",
+        "wg": []
+      },
+      {
+        "t": "因為 `post` 區塊執行的速度比 `try-catch` 快。",
+        "en": "Because `post` blocks execute faster than `try-catch`.",
+        "wg": []
+      },
+      {
+        "t": "因為 `try-catch` 只能在 Scripted Pipeline 中使用，Declarative Pipeline 不支援。",
+        "en": "Because `try-catch` can only be used in Scripted Pipeline and is not supported in Declarative Pipeline.",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "Declarative Pipeline 的核心理念是「設定優於程式」。將結果處理（Outcome）委派給 `post` 區塊，符合狀態機的設計思維，避免在執行步驟中混雜控制流邏輯。",
+      "en": "The core philosophy of Declarative Pipeline is 'Configuration over Code'. Delegating outcome handling to `post` blocks aligns with the state machine design mindset, avoiding mixing control flow logic within execution steps.",
+      "wg": [
+        {
+          "t": "委派",
+          "en": "delegate",
+          "ps": "verb"
+        },
+        {
+          "t": "控制流",
+          "en": "control flow",
+          "ps": "noun"
+        }
+      ]
+    }
+  }
+]

@@ -1,0 +1,774 @@
+[
+  {
+    "no": "1",
+    "level": "Easy",
+    "keywords": "Gradle, Incremental Build, Fingerprinting",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "關於 Gradle 的「增量建置」(Incremental Build) 機制，以下描述何者最準確？",
+        "en": "Which of the following descriptions regarding Gradle's 'Incremental Build' mechanism is the most accurate?",
+        "wg": [
+          {
+            "t": "增量建置",
+            "en": "Incremental Build",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "Gradle 主要依賴檔案的「最後修改時間戳記」來判斷是否需要重新執行 Task。",
+        "en": "Gradle primarily relies on the file's 'last modified timestamp' to determine if a task needs to be rerun.",
+        "wg": []
+      },
+      {
+        "t": "Gradle 會計算 Task 輸入(Inputs)與輸出(Outputs)的雜湊指紋(Fingerprint)，若指紋未變則標記為 UP-TO-DATE 並跳過。",
+        "en": "Gradle calculates hash fingerprints for Task Inputs and Outputs; if fingerprints are unchanged, it marks the task as UP-TO-DATE and skips it.",
+        "wg": [
+          {
+            "t": "雜湊指紋",
+            "en": "Hash Fingerprint",
+            "ps": "noun"
+          },
+          {
+            "t": "跳過",
+            "en": "Skip",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "只要 Task 的輸出檔案存在，Gradle 就會自動跳過該 Task，不進行任何檢查。",
+        "en": "As long as the task's output files exist, Gradle automatically skips the task without any checks.",
+        "wg": []
+      },
+      {
+        "t": "增量建置僅在開啟 Build Cache 功能時才會生效。",
+        "en": "Incremental build only takes effect when the Build Cache feature is enabled.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "Gradle 的核心機制是透過計算輸入與輸出的內容雜湊值（指紋）來判斷狀態，而非單純依賴時間戳記（這是 Maven 的傳統做法）或檔案是否存在。即使未開啟遠端 Build Cache，本地的增量檢查（UP-TO-DATE）依然預設運作。",
+      "en": "Gradle's core mechanism relies on calculating content hashes (fingerprints) of inputs and outputs, rather than solely relying on timestamps (which is the traditional Maven approach) or file existence. Even without remote Build Cache, local incremental checks (UP-TO-DATE) work by default.",
+      "wg": []
+    }
+  },
+  {
+    "no": "2",
+    "level": "Medium",
+    "keywords": "Cache Miss, Anti-pattern, Gradle",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "task generateConfig {\n    inputs.property(\"timestamp\", System.currentTimeMillis())\n    outputs.file(\"$buildDir/config.properties\")\n    doLast {\n        // generate file...\n    }\n}",
+    "question": [
+      {
+        "t": "在診斷 Gradle 建置效能時，你發現上述 Task 每次執行都會發生 Cache Miss（無法命中快取），導致重新執行。請問根本原因為何？",
+        "en": "When diagnosing Gradle build performance, you notice the above Task experiences a Cache Miss every time, causing it to rerun. What is the root cause?",
+        "wg": [
+          {
+            "t": "無法命中快取",
+            "en": "Cache Miss",
+            "ps": "noun"
+          },
+          {
+            "t": "根本原因",
+            "en": "Root Cause",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "因為沒有宣告 `outputs.upToDateWhen { true }`。",
+        "en": "Because `outputs.upToDateWhen { true }` was not declared.",
+        "wg": []
+      },
+      {
+        "t": "這是一個「非決定性輸入」(Non-deterministic Input) 的反模式，時間戳記每次都在變，導致 Cache Key 永遠不同。",
+        "en": "This is a 'Non-deterministic Input' anti-pattern; the timestamp changes every time, causing the Cache Key to be different forever.",
+        "wg": [
+          {
+            "t": "非決定性輸入",
+            "en": "Non-deterministic Input",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "Gradle 預設不支援自定義 Task 的快取，必須手動實作 Cacheable 介面。",
+        "en": "Gradle does not support caching for custom tasks by default; the Cacheable interface must be implemented manually.",
+        "wg": []
+      },
+      {
+        "t": "因為 `doLast` 區塊中的程式碼太過複雜，超出了快取限制。",
+        "en": "Because the code in the `doLast` block is too complex and exceeds the cache limit.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "將 `System.currentTimeMillis()` 作為輸入屬性會導致每次建置時輸入指紋都不同，因此 Gradle 認為輸入已變更，必須重新執行。這是典型的非決定性輸入反模式。",
+      "en": "Using `System.currentTimeMillis()` as an input property causes the input fingerprint to be different for every build. Consequently, Gradle considers the inputs changed and must rerun the task. This is a typical non-deterministic input anti-pattern.",
+      "wg": []
+    }
+  },
+  {
+    "no": "3",
+    "level": "Medium",
+    "keywords": "Maven, mvnd, Performance",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你的團隊正在使用 Maven，且專案模組眾多。為了提升本地開發速度，你建議引入 `mvnd` (Maven Daemon)。請問 `mvnd` 相較於傳統 `mvn -T 1C` (並行建置) 的主要優勢為何？",
+        "en": "Your team uses Maven with many project modules. To speed up local development, you suggest introducing `mvnd` (Maven Daemon). What is the primary advantage of `mvnd` over traditional `mvn -T 1C` (parallel builds)?",
+        "wg": [
+          {
+            "t": "並行建置",
+            "en": "Parallel Builds",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "`mvnd` 可以自動將 Maven 專案轉換為 Gradle 專案。",
+        "en": "`mvnd` can automatically convert Maven projects into Gradle projects.",
+        "wg": []
+      },
+      {
+        "t": "`mvnd` 預設會略過所有單元測試，因此速度較快。",
+        "en": "`mvnd` skips all unit tests by default, so it is faster.",
+        "wg": []
+      },
+      {
+        "t": "`mvnd` 擁有常駐的背景行程 (Daemon)，能保持 JVM 熱機狀態 (JIT 優化) 並重用類別載入器，減少啟動與暖機時間。",
+        "en": "`mvnd` has a resident background process (Daemon) that keeps the JVM warm (JIT optimization) and reuses class loaders, reducing startup and warm-up time.",
+        "wg": [
+          {
+            "t": "常駐",
+            "en": "Resident",
+            "ps": "adjective"
+          },
+          {
+            "t": "熱機狀態",
+            "en": "Warm-up state",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "`mvnd` 使用了更強大的壓縮演算法來處理 JAR 檔。",
+        "en": "`mvnd` uses a more powerful compression algorithm to process JAR files.",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "雖然 `mvn -T` 提供了並行編譯能力，但每次執行指令都會重新啟動 JVM，導致重複的 JIT 編譯與記憶體載入開銷。`mvnd` 借鑑了 Gradle Daemon 的概念，透過常駐行程解決了 JVM 啟動慢與冷啟動的問題。",
+      "en": "While `mvn -T` provides parallel compilation, every command execution restarts the JVM, leading to repeated JIT compilation and memory loading overhead. `mvnd` borrows the concept of the Gradle Daemon, solving the slow JVM startup and cold start issues via a resident process.",
+      "wg": []
+    }
+  },
+  {
+    "no": "4",
+    "level": "Hard",
+    "keywords": "Gradle, Dependency Management, Recompilation",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在多模組專案中，模組依賴關係為 `App -> Lib A -> Lib B`。若 `Lib A` 使用 `implementation project(':Lib B')` 來依賴 `Lib B`。當開發者修改了 `Lib B` 的程式碼（改變了公開介面）時，會發生什麼連鎖反應？",
+        "en": "In a multi-module project with dependency chain `App -> Lib A -> Lib B`. If `Lib A` depends on `Lib B` using `implementation project(':Lib B')`. What chain reaction occurs when a developer modifies `Lib B`'s code (changing its public interface)?",
+        "wg": [
+          {
+            "t": "連鎖反應",
+            "en": "Chain Reaction",
+            "ps": "noun"
+          },
+          {
+            "t": "公開介面",
+            "en": "Public Interface",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "`Lib A` 需要重新編譯，但 `App` 不需要重新編譯（除非 `Lib A` 的公開介面也跟著變了）。",
+        "en": "`Lib A` needs to be recompiled, but `App` does not (unless `Lib A`'s public interface also changes).",
+        "wg": []
+      },
+      {
+        "t": "`Lib A` 與 `App` 都必須重新編譯，因為 `Lib B` 改變了。",
+        "en": "Both `Lib A` and `App` must be recompiled because `Lib B` changed.",
+        "wg": []
+      },
+      {
+        "t": "只有 `Lib B` 需要重新編譯，`Lib A` 與 `App` 都不受影響。",
+        "en": "Only `Lib B` needs to be recompiled; `Lib A` and `App` are unaffected.",
+        "wg": []
+      },
+      {
+        "t": "建置會失敗，因為 `implementation` 不允許模組間的依賴傳遞。",
+        "en": "The build will fail because `implementation` does not allow transitive dependencies between modules.",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "使用 `implementation` 會將依賴限制在該模組內部。`Lib B` 的變更會迫使直接依賴它的 `Lib A` 重新編譯。但由於 `Lib B` 沒有洩漏到 `Lib A` 的 Compile Classpath 中（對 `App` 不可見），只要 `Lib A` 的 ABI (Application Binary Interface) 沒變，`App` 就不需要重新編譯。這能有效阻斷重新編譯的連鎖反應。",
+      "en": "Using `implementation` restricts the dependency to the module internally. Changes in `Lib B` force its direct dependent `Lib A` to recompile. However, since `Lib B` does not leak into `Lib A`'s Compile Classpath (invisible to `App`), as long as `Lib A`'s ABI (Application Binary Interface) remains unchanged, `App` does not need to recompile. This effectively blocks the recompilation chain reaction.",
+      "wg": [
+        {
+          "t": "阻斷",
+          "en": "Block/Interrupt",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "5",
+    "level": "Medium",
+    "keywords": "Remote Build Cache, CI/CD, Best Practice",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "關於「遠端建置快取」(Remote Build Cache) 的存取權限策略，下列哪種配置是業界建議的最佳實務？",
+        "en": "Regarding access permission strategies for 'Remote Build Cache', which of the following configurations is the recommended industry best practice?",
+        "wg": [
+          {
+            "t": "存取權限",
+            "en": "Access Permissions",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "CI Server 與所有開發者本地環境皆設定為「讀寫」(Read/Write)。",
+        "en": "CI Server and all developers' local environments are set to 'Read/Write'.",
+        "wg": []
+      },
+      {
+        "t": "CI Server 設定為「讀寫」(Push/Pull)，開發者本地環境僅設定為「唯讀」(Pull only)。",
+        "en": "CI Server is set to 'Read/Write' (Push/Pull), while developers' local environments are set to 'Read-only' (Pull only).",
+        "wg": []
+      },
+      {
+        "t": "CI Server 設定為「唯讀」，開發者本地環境設定為「讀寫」。",
+        "en": "CI Server is set to 'Read-only', while developers' local environments are set to 'Read/Write'.",
+        "wg": []
+      },
+      {
+        "t": "僅有 Release 分支的建置可以讀取快取，其餘皆不使用。",
+        "en": "Only builds on the Release branch can read the cache; others do not use it.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "為了避免開發者本地環境的差異（如 OS、JDK 版本微小差異、未追蹤的檔案）汙染共用的遠端快取，通常只允許受控的 CI 環境寫入快取 (Push)，而開發者僅從中讀取 (Pull) 以加速建置。",
+      "en": "To prevent developers' local environment differences (e.g., OS, minor JDK version diffs, untracked files) from poisoning the shared remote cache, it is typically recommended to allow only the controlled CI environment to write to the cache (Push), while developers only read from it (Pull) to speed up builds.",
+      "wg": [
+        {
+          "t": "汙染",
+          "en": "Poison/Contaminate",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "6",
+    "level": "Easy",
+    "keywords": "Workflow, Clean Build, Anti-pattern",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "許多開發者習慣每次建置前都執行 `clean` 指令（如 `mvn clean install` 或 `./gradlew clean build`）。根據效能優化原則，這種習慣的影響為何？",
+        "en": "Many developers have a habit of running the `clean` command before every build (e.g., `mvn clean install` or `./gradlew clean build`). According to performance optimization principles, what is the impact of this habit?",
+        "wg": [
+          {
+            "t": "習慣",
+            "en": "Habit",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "這是好習慣，能確保每次建置都是乾淨且正確的，對效能影響可忽略。",
+        "en": "This is a good habit, ensuring every build is clean and correct, with negligible impact on performance.",
+        "wg": []
+      },
+      {
+        "t": "這是一個反模式 (Anti-pattern)，它刪除了所有增量編譯的基礎與快取，強迫工具從零開始，大幅增加等待時間。",
+        "en": "This is an Anti-pattern; it deletes all bases for incremental compilation and caches, forcing the tool to start from scratch and significantly increasing wait time.",
+        "wg": [
+          {
+            "t": "反模式",
+            "en": "Anti-pattern",
+            "ps": "noun"
+          },
+          {
+            "t": "從零開始",
+            "en": "Start from scratch",
+            "ps": "phrase"
+          }
+        ]
+      },
+      {
+        "t": "這對 Maven 是必要的，但對 Gradle 則無所謂。",
+        "en": "This is necessary for Maven but doesn't matter for Gradle.",
+        "wg": []
+      },
+      {
+        "t": "執行 `clean` 可以幫助 IDE 重新索引，提升 IDE 的反應速度。",
+        "en": "Running `clean` helps the IDE re-index, improving the IDE's responsiveness.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "現代建置工具（Gradle/Maven）的增量編譯機制已經相當成熟。頻繁執行 `clean` 會主動放棄這些優化成果。應信任 `UP-TO-DATE` 機制，僅在遇到無法解釋的建置錯誤或切換重大分支時才使用 `clean`。",
+      "en": "Incremental compilation mechanisms in modern build tools (Gradle/Maven) are quite mature. Frequently running `clean` actively discards these optimization benefits. One should trust the `UP-TO-DATE` mechanism and use `clean` only when encountering inexplicable build errors or switching major branches.",
+      "wg": []
+    }
+  },
+  {
+    "no": "7",
+    "level": "Medium",
+    "keywords": "Maven, Parallel Build, Optimization, CLI",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你的 CI 環境目前僅支援標準 Maven (`mvn`)，無法安裝 `mvnd` 等第三方工具。面對一個擁有數十個模組的大型專案，且 CI 伺服器配備了 8 核心 CPU，下列哪一個指令參數最能有效縮短整體建置時間？",
+        "en": "Your CI environment only supports standard Maven (`mvn`) and cannot install third-party tools like `mvnd`. Facing a large project with dozens of modules on a CI server with an 8-core CPU, which command-line argument is most effective for reducing overall build time?",
+        "wg": [
+          {
+            "t": "標準 Maven",
+            "en": "standard Maven",
+            "ps": "noun"
+          },
+          {
+            "t": "指令參數",
+            "en": "command-line argument",
+            "ps": "noun"
+          },
+          {
+            "t": "建置時間",
+            "en": "build time",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "mvn clean install -U",
+        "en": "mvn clean install -U",
+        "wg": []
+      },
+      {
+        "t": "mvn clean install -T 1C",
+        "en": "mvn clean install -T 1C",
+        "wg": []
+      },
+      {
+        "t": "mvn clean install -DskipTests",
+        "en": "mvn clean install -DskipTests",
+        "wg": []
+      },
+      {
+        "t": "mvn clean install --offline",
+        "en": "mvn clean install --offline",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "選項 2 正確：`-T 1C` 參數指示 Maven 為每個 CPU 核心分配一個執行緒進行並行建置 (Parallel Build)，能充分利用多核心優勢加速多模組專案。選項 1 (`-U`) 強制更新 Snapshot，反而會變慢；選項 3 跳過測試雖快但犧牲品質；選項 4 離線模式不適用於 CI 需要下載依賴的情境。",
+      "en": "Option 2 is correct: The `-T 1C` argument instructs Maven to allocate one thread per CPU core for parallel builds, leveraging multi-core architecture to accelerate multi-module projects. Option 1 (`-U`) forces Snapshot updates, which slows down the build; Option 3 skips tests, sacrificing quality for speed; Option 4 (offline mode) is unsuitable for CI environments that need to download dependencies.",
+      "wg": [
+        {
+          "t": "並行建置",
+          "en": "Parallel Build",
+          "ps": "noun"
+        },
+        {
+          "t": "多核心優勢",
+          "en": "multi-core advantage",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "8",
+    "level": "Hard",
+    "keywords": "Gradle, Compile Avoidance, ABI, Performance",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "Project App -> depends on -> Project Lib",
+    "question": [
+      {
+        "t": "在 Gradle 多模組專案中，`App` 依賴於 `Lib`。你修改了 `Lib` 中某個 public method 的「實作內容」(method body)，但未改變其「簽章」(method signature，如名稱、參數與回傳型別)。當你隨後建置 `App` 時，根據 Gradle 的 Compile Avoidance 機制，會發生什麼事？",
+        "en": "In a Gradle multi-module project where `App` depends on `Lib`, you modify the 'method body' (implementation) of a public method in `Lib` without changing its 'signature' (name, parameters, return type). When you subsequently build `App`, what happens according to Gradle's Compile Avoidance mechanism?",
+        "wg": [
+          {
+            "t": "實作內容",
+            "en": "method body / implementation",
+            "ps": "noun"
+          },
+          {
+            "t": "簽章",
+            "en": "signature",
+            "ps": "noun"
+          },
+          {
+            "t": "編譯迴避",
+            "en": "Compile Avoidance",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "App 會重新編譯，因為它依賴的 Lib jar 檔的雜湊值 (Hash) 已經改變。",
+        "en": "App will recompile because the hash of the Lib jar it depends on has changed.",
+        "wg": []
+      },
+      {
+        "t": "App 不會重新編譯，因為 Lib 的 ABI (Application Binary Interface) 並未改變。",
+        "en": "App will NOT recompile because the ABI (Application Binary Interface) of Lib has not changed.",
+        "wg": []
+      },
+      {
+        "t": "App 會重新編譯，因為 Gradle 無法區分實作變更與介面變更。",
+        "en": "App will recompile because Gradle cannot distinguish between implementation changes and interface changes.",
+        "wg": []
+      },
+      {
+        "t": "App 不會重新編譯，但會在執行期拋出 NoSuchMethodError。",
+        "en": "App will NOT recompile, but will throw a NoSuchMethodError at runtime.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "選項 2 正確：Gradle 支援 Compile Avoidance，它會分析類別的 ABI (Application Binary Interface)。若僅有方法內容 (Method Body) 改變而簽章未變，依賴該模組的下游專案 (App) 不需要重新編譯，因為介面契約維持一致。這能大幅減少大型專案的重編譯時間。",
+      "en": "Option 2 is correct: Gradle supports Compile Avoidance by analyzing the ABI (Application Binary Interface) of classes. If only the method body changes but the signature remains the same, downstream projects (App) depending on it do not need to recompile, as the interface contract remains consistent. This significantly reduces recompilation time in large projects.",
+      "wg": [
+        {
+          "t": "介面契約",
+          "en": "interface contract",
+          "ps": "noun"
+        },
+        {
+          "t": "下游專案",
+          "en": "downstream project",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "9",
+    "level": "Medium",
+    "keywords": "Maven, Gradle, Anti-pattern, Snapshot Dependencies, Network I/O",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你的團隊發現建置過程非常緩慢，分析後發現大量時間花在「解析依賴」(Resolving dependencies) 階段。檢查設定發現專案依賴了許多 `-SNAPSHOT` 版本，且設定為 `always update`。請問這為何被視為效能反模式 (Anti-pattern)？",
+        "en": "Your team notices the build process is very slow, with a significant amount of time spent in the 'Resolving dependencies' phase. Upon inspection, you find the project depends on many `-SNAPSHOT` versions configured with `always update`. Why is this considered a performance anti-pattern?",
+        "wg": [
+          {
+            "t": "解析依賴",
+            "en": "Resolving dependencies",
+            "ps": "verb/noun"
+          },
+          {
+            "t": "效能反模式",
+            "en": "performance anti-pattern",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "因為 Snapshot 版本通常包含未經優化的除錯程式碼，導致編譯變慢。",
+        "en": "Because Snapshot versions usually contain unoptimized debug code, causing slower compilation.",
+        "wg": []
+      },
+      {
+        "t": "因為這會迫使建置工具頻繁發起網路請求，檢查遠端儲存庫是否有更新的時間戳記。",
+        "en": "Because it forces the build tool to frequently make network requests to check remote repositories for newer timestamps.",
+        "wg": []
+      },
+      {
+        "t": "因為 Snapshot 版本無法被本地快取 (Local Cache) 儲存。",
+        "en": "Because Snapshot versions cannot be stored in the local cache.",
+        "wg": []
+      },
+      {
+        "t": "因為 Snapshot 版本會導致 Gradle Daemon 頻繁崩潰。",
+        "en": "Because Snapshot versions cause the Gradle Daemon to crash frequently.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "選項 2 正確：依賴 Snapshot 版本且設定為頻繁更新，會導致建置工具在每次執行時都必須連線到遠端 Repository 檢查 metadata (如 `maven-metadata.xml`) 以確認是否有新版。這種頻繁的網路 I/O 延遲是導致依賴解析緩慢的主因。",
+      "en": "Option 2 is correct: Depending on Snapshot versions with frequent update settings forces the build tool to connect to remote repositories every time to check metadata (like `maven-metadata.xml`) for new versions. This frequent network I/O latency is the primary cause of slow dependency resolution.",
+      "wg": [
+        {
+          "t": "網路 I/O 延遲",
+          "en": "network I/O latency",
+          "ps": "noun"
+        },
+        {
+          "t": "遠端儲存庫",
+          "en": "remote repository",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "10",
+    "level": "Easy",
+    "keywords": "Performance Diagnosis, Build Scan, Workflow",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "當開發者反應「今天的建置感覺變慢了」，根據「效能診斷流程」(Performance Diagnosis Workflow)，在進行任何記憶體調整或修改設定之前，你應該採取的「第一步」行動是什麼？",
+        "en": "When a developer complains that 'the build feels slower today', according to the 'Performance Diagnosis Workflow', what is the 'first step' you should take before adjusting memory or changing configurations?",
+        "wg": [
+          {
+            "t": "效能診斷流程",
+            "en": "Performance Diagnosis Workflow",
+            "ps": "noun"
+          },
+          {
+            "t": "第一步",
+            "en": "first step",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "直接執行 `clean` 指令清除所有快取，確保環境乾淨。",
+        "en": "Immediately run the `clean` command to clear all caches and ensure a clean environment.",
+        "wg": []
+      },
+      {
+        "t": "增加 JVM Heap Size (如 `-Xmx8g`) 以排除記憶體不足的可能性。",
+        "en": "Increase the JVM Heap Size (e.g., `-Xmx8g`) to rule out memory insufficiency.",
+        "wg": []
+      },
+      {
+        "t": "使用 `--scan` (Gradle) 或類似工具進行「測量」(Measure)，產生可視化報告。",
+        "en": "Use `--scan` (Gradle) or similar tools to 'Measure' and generate a visual report.",
+        "wg": []
+      },
+      {
+        "t": "停用所有並行處理 (Parallelism) 以隔離問題。",
+        "en": "Disable all parallelism to isolate the problem.",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "選項 3 正確：優化的第一原則是「測量而非猜測」(Measure, don't guess)。透過產生 Build Scan 報告，你可以準確看到哪個 Task 耗時最長、是否發生 Cache Miss 以及其原因，從而對症下藥。盲目執行 `clean` (選項 1) 或調整記憶體 (選項 2) 往往無法解決根本問題。",
+      "en": "Option 3 is correct: The first rule of optimization is 'Measure, don't guess'. By generating a Build Scan report, you can accurately see which tasks take the longest, whether Cache Misses occur, and why, allowing for targeted fixes. Blindly running `clean` (Option 1) or adjusting memory (Option 2) often fails to address the root cause.",
+      "wg": [
+        {
+          "t": "測量而非猜測",
+          "en": "Measure, don't guess",
+          "ps": "phrase"
+        },
+        {
+          "t": "對症下藥",
+          "en": "apply targeted remedy",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "11",
+    "level": "Hard",
+    "keywords": "Gradle, Memory Tuning, OOM, Parallel Build",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "org.gradle.parallel=true\n# Machine: 16 Cores, 16GB RAM",
+    "question": [
+      {
+        "t": "你在 CI 機器上啟用了 Gradle 的並行建置 (`parallel=true`)，該機器擁有 16 核心 CPU 與 16GB 記憶體。然而，建置開始頻繁出現 `OutOfMemoryError`。為了在維持並行優勢的同時穩定建置，下列哪項調整最為合理？",
+        "en": "You enabled Gradle parallel builds (`parallel=true`) on a CI machine with 16 CPU cores and 16GB RAM. However, the build frequently fails with `OutOfMemoryError`. To stabilize the build while maintaining parallel benefits, which adjustment is most reasonable?",
+        "wg": [
+          {
+            "t": "並行建置",
+            "en": "parallel builds",
+            "ps": "noun"
+          },
+          {
+            "t": "記憶體不足錯誤",
+            "en": "OutOfMemoryError",
+            "ps": "noun"
+          },
+          {
+            "t": "穩定建置",
+            "en": "stabilize the build",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "完全關閉 `org.gradle.daemon`，強制每次啟動新的 JVM。",
+        "en": "Completely disable `org.gradle.daemon` to force a new JVM start every time.",
+        "wg": []
+      },
+      {
+        "t": "限制並行 Worker 的數量 (如 `org.gradle.workers.max=4`)，避免過多 Worker 同時搶佔記憶體。",
+        "en": "Limit the number of parallel workers (e.g., `org.gradle.workers.max=4`) to prevent too many workers from competing for memory.",
+        "wg": []
+      },
+      {
+        "t": "將 `org.gradle.jvmargs` 的 Heap Size 設定為機器的 100% (16GB)。",
+        "en": "Set the Heap Size in `org.gradle.jvmargs` to 100% of the machine's RAM (16GB).",
+        "wg": []
+      },
+      {
+        "t": "改用 `mvn` 取代 Gradle，因為 Maven 不會使用記憶體。",
+        "en": "Switch to `mvn` instead of Gradle, as Maven does not use memory.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "選項 2 正確：Gradle 預設會嘗試使用所有 CPU 核心數量的 Worker。當每個 Worker 都需要消耗大量記憶體時，16 個 Worker 同時運作很容易耗盡 16GB RAM。透過 `org.gradle.workers.max` 限制並行數，可以在「速度」與「記憶體穩定性」之間取得平衡。選項 1 會導致效能大幅下降；選項 3 會導致作業系統無記憶體可用而當機。",
+      "en": "Option 2 is correct: Gradle defaults to using as many workers as CPU cores. If each worker consumes significant memory, 16 concurrent workers can easily exhaust 16GB of RAM. Limiting concurrency via `org.gradle.workers.max` balances speed and memory stability. Option 1 would drastically reduce performance; Option 3 would leave no memory for the OS, causing a crash.",
+      "wg": [
+        {
+          "t": "搶佔記憶體",
+          "en": "compete for memory",
+          "ps": "verb"
+        },
+        {
+          "t": "取得平衡",
+          "en": "strike a balance",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "12",
+    "level": "Easy",
+    "keywords": "Gradle, Configuration, Best Practice, Performance Trinity",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "gradle.properties",
+    "question": [
+      {
+        "t": "在設定 `gradle.properties` 以建立高效能專案基線時，所謂的「Gradle 效能黃金三角」(The Gradle Performance Trinity) 指的是哪三個必須開啟的設定？",
+        "en": "When configuring `gradle.properties` to establish a high-performance project baseline, what are the three settings referred to as 'The Gradle Performance Trinity' that must be enabled?",
+        "wg": [
+          {
+            "t": "高效能專案基線",
+            "en": "high-performance project baseline",
+            "ps": "noun"
+          },
+          {
+            "t": "效能黃金三角",
+            "en": "Performance Trinity",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "parallel, daemon, caching",
+        "en": "parallel, daemon, caching",
+        "wg": []
+      },
+      {
+        "t": "offline, quiet, parallel",
+        "en": "offline, quiet, parallel",
+        "wg": []
+      },
+      {
+        "t": "debug, stacktrace, scan",
+        "en": "debug, stacktrace, scan",
+        "wg": []
+      },
+      {
+        "t": "clean, install, test",
+        "en": "clean, install, test",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "選項 1 正確：這三個設定是現代 Gradle 效能的基石。`parallel` 允許模組並行建置；`daemon` 保持 JVM 熱機以減少啟動與 JIT 時間；`caching` 啟用 Build Cache 以重用先前的建置結果。這三者缺一不可。",
+      "en": "Option 1 is correct: These three settings are the cornerstones of modern Gradle performance. `parallel` allows modules to build concurrently; `daemon` keeps the JVM warm to reduce startup and JIT time; `caching` enables the Build Cache to reuse previous build results. All three are essential.",
+      "wg": [
+        {
+          "t": "基石",
+          "en": "cornerstone",
+          "ps": "noun"
+        },
+        {
+          "t": "缺一不可",
+          "en": "indispensable / none can be omitted",
+          "ps": "phrase"
+        }
+      ]
+    }
+  }
+]

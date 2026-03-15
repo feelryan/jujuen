@@ -1,0 +1,751 @@
+[
+  {
+    "no": "1",
+    "level": "Easy",
+    "keywords": "Master Node, Executors, Anti-pattern",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在審查 Jenkins 基礎設施時，你發現 Master (Controller) 節點上配置了 4 個 Executors。根據「指揮官與工廠」的心智模型，為什麼這通常被視為一種反模式 (Anti-pattern)？",
+        "en": "While auditing the Jenkins infrastructure, you notice that the Master (Controller) node is configured with 4 executors. Based on the 'Orchestrator vs. Factory' mental model, why is this generally considered an anti-pattern?",
+        "wg": [
+          {
+            "t": "指揮官與工廠",
+            "en": "Orchestrator vs. Factory",
+            "ps": "phrase"
+          },
+          {
+            "t": "反模式",
+            "en": "Anti-pattern",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "因為 Master 節點通常沒有安裝足夠的編譯工具 (如 Maven, Node.js)。",
+        "en": "Because the Master node usually does not have enough build tools (e.g., Maven, Node.js) installed.",
+        "wg": []
+      },
+      {
+        "t": "因為 Master 的職責是大腦 (調度與監控)，執行建置會消耗 CPU 與 I/O，導致整體 CI/CD 流程與 UI 癱瘓。",
+        "en": "Because the Master's role is the brain (scheduling and monitoring); running builds consumes CPU and I/O, potentially paralyzing the entire CI/CD process and UI.",
+        "wg": [
+          {
+            "t": "調度",
+            "en": "Scheduling",
+            "ps": "verb"
+          },
+          {
+            "t": "癱瘓",
+            "en": "Paralyze",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "因為 Master 節點的磁碟空間通常比 Agent 小，無法存放 Artifacts。",
+        "en": "Because the Master node usually has less disk space than Agents and cannot store artifacts.",
+        "wg": []
+      },
+      {
+        "t": "這不是反模式，Master 應該盡可能分擔建置工作以最大化資源利用率。",
+        "en": "This is not an anti-pattern; the Master should share the build workload to maximize resource utilization.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "Master 節點應專注於調度任務、監控狀態與處理 HTTP 請求。若在 Master 上執行建置 (Muscles)，高強度的 CPU 運算與 I/O 操作會搶佔資源，導致 Jenkins UI 卡頓甚至 Master 當機 (Crash)。最佳實務是將 Master 的 Executors 設為 0。",
+      "en": "The Master node should focus on scheduling tasks, monitoring status, and handling HTTP requests. Running builds (Muscles) on the Master consumes CPU and I/O resources, causing Jenkins UI sluggishness or even Master crashes. The best practice is to set executors to 0 on the Master.",
+      "wg": [
+        {
+          "t": "當機",
+          "en": "Crash",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "2",
+    "level": "Medium",
+    "keywords": "JVM Tuning, Garbage Collection, Heap Size",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你正在設定一台擁有 16GB RAM 的新 Jenkins Master 伺服器。為了優化 JVM 效能並減少長時間的 GC 停頓 (Stop-the-world pauses)，下列哪一組 JVM 參數設定最為推薦？",
+        "en": "You are setting up a new Jenkins Master server with 16GB of RAM. To optimize JVM performance and minimize long GC pauses (Stop-the-world pauses), which of the following JVM argument combinations is most recommended?",
+        "wg": [
+          {
+            "t": "GC 停頓",
+            "en": "GC pauses",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "`-Xms2g -Xmx8g -XX:+UseParallelGC`",
+        "en": "`-Xms2g -Xmx8g -XX:+UseParallelGC`",
+        "wg": []
+      },
+      {
+        "t": "`-Xms8g -Xmx8g -XX:+UseG1GC`",
+        "en": "`-Xms8g -Xmx8g -XX:+UseG1GC`",
+        "wg": []
+      },
+      {
+        "t": "`-Xms4g -Xmx12g -XX:+UseSerialGC`",
+        "en": "`-Xms4g -Xmx12g -XX:+UseSerialGC`",
+        "wg": []
+      },
+      {
+        "t": "`-Xms1g -Xmx16g` (讓 JVM 自動管理)",
+        "en": "`-Xms1g -Xmx16g` (Let JVM manage automatically)",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "對於 Heap 大於 4GB 的現代 Jenkins 實例，推薦使用 G1GC 以減少停頓時間。同時，應將初始 Heap (`-Xms`) 與最大 Heap (`-Xmx`) 設為相同數值 (如 8GB)，以避免 JVM 在執行期間動態調整記憶體大小帶來的效能損耗。",
+      "en": "For modern Jenkins instances with Heap larger than 4GB, G1GC is recommended to minimize pause times. Additionally, the initial Heap (`-Xms`) and maximum Heap (`-Xmx`) should be set to the same value (e.g., 8GB) to avoid performance penalties caused by dynamic memory resizing during runtime.",
+      "wg": [
+        {
+          "t": "動態調整",
+          "en": "Dynamic resizing",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "3",
+    "level": "Hard",
+    "keywords": "Groovy, CPS, Performance Troubleshooting, CPU",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "stage('Parse Logs') {\n    steps {\n        script {\n            def logs = readFile('large.log').split('\\n')\n            for (line in logs) {\n                // Complex regex parsing logic in Groovy\n                if (line =~ /ERROR/) { ... }\n            }\n        }\n    }\n}",
+    "question": [
+      {
+        "t": "開發團隊反映 Jenkins UI 反應極慢，且許多 Job 卡在 'Waiting for executor' 狀態。經檢查 Master CPU 使用率飆高，Thread Dump 顯示大量執行緒停留在 `CpsGroovyShell`。請分析右側 (或下方) 的程式碼片段，指出造成此問題的主因與最佳修正方案。",
+        "en": "The development team reports that the Jenkins UI is extremely sluggish, and many jobs are stuck in 'Waiting for executor'. Investigation shows high Master CPU usage, and a Thread Dump reveals many threads stuck in `CpsGroovyShell`. Analyze the code snippet provided. What is the root cause and the best fix?",
+        "wg": [
+          {
+            "t": "執行緒",
+            "en": "Thread",
+            "ps": "noun"
+          },
+          {
+            "t": "程式碼片段",
+            "en": "Code snippet",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "主因是 `readFile` 消耗過多 I/O。修正方案是改用 `stash/unstash`。",
+        "en": "The root cause is `readFile` consuming too much I/O. The fix is to use `stash/unstash`.",
+        "wg": []
+      },
+      {
+        "t": "主因是 Groovy 邏輯過重 (Heavy Groovy Logic)。Pipeline 的 CPS 轉換機制導致複雜迴圈在 Master 上執行極慢且消耗大量 CPU。修正方案是將邏輯移至 Shell 或 Python script。",
+        "en": "The root cause is Heavy Groovy Logic. The CPS transformation mechanism in Pipelines causes complex loops to run very slowly on the Master and consume excessive CPU. The fix is to move the logic to a Shell or Python script.",
+        "wg": [
+          {
+            "t": "CPS 轉換機制",
+            "en": "CPS transformation mechanism",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "主因是沒有使用 `parallel`。修正方案是將迴圈內的處理並行化。",
+        "en": "The root cause is the lack of `parallel` execution. The fix is to parallelize the processing within the loop.",
+        "wg": []
+      },
+      {
+        "t": "主因是 Regex 效率不佳。修正方案是優化 Groovy 中的 Regex 表達式。",
+        "en": "The root cause is inefficient Regex. The fix is to optimize the Regex expressions within Groovy.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "Jenkins Pipeline 依賴 CPS (Continuation Passing Style) 來支援暫停與恢復，這使得在 `Jenkinsfile` 中執行複雜的 Groovy 運算（如處理數萬行 Log 的迴圈）非常低效且消耗 Master CPU。正確做法是將運算邏輯封裝到外部 Script (如 Python/Shell)，Pipeline 僅負責呼叫。",
+      "en": "Jenkins Pipeline relies on CPS (Continuation Passing Style) to support pausing and resuming, making complex Groovy computations (like loops processing thousands of log lines) in `Jenkinsfile` extremely inefficient and CPU-intensive on the Master. The correct approach is to encapsulate the logic in an external script (e.g., Python/Shell), with the Pipeline only responsible for invoking it.",
+      "wg": [
+        {
+          "t": "封裝",
+          "en": "Encapsulate",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "4",
+    "level": "Medium",
+    "keywords": "Workspace, Disk Management, CleanWs",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你的 Jenkins Agent 經常因為磁碟空間不足而導致建置失敗。經檢查發現許多舊的 Workspace 佔用了大量空間。為了從 Pipeline 層級解決此問題，下列哪項措施最為有效且符合最佳實務？",
+        "en": "Your Jenkins Agents frequently fail builds due to insufficient disk space. Investigation reveals that many old Workspaces are consuming a lot of space. To address this at the Pipeline level, which of the following measures is most effective and aligns with best practices?",
+        "wg": [
+          {
+            "t": "磁碟空間不足",
+            "en": "Insufficient disk space",
+            "ps": "phrase"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "在 Pipeline 的 `post { always { ... } }` 區塊中執行 `cleanWs()`。",
+        "en": "Execute `cleanWs()` in the `post { always { ... } }` block of the Pipeline.",
+        "wg": []
+      },
+      {
+        "t": "在每個 Stage 結束後手動執行 `rm -rf *`。",
+        "en": "Manually execute `rm -rf *` after each Stage.",
+        "wg": []
+      },
+      {
+        "t": "增加 Agent 的硬碟容量，避免刪除可能還需要的檔案。",
+        "en": "Increase the Agent's hard drive capacity to avoid deleting files that might still be needed.",
+        "wg": []
+      },
+      {
+        "t": "設定 Cron Job 每天晚上清理所有 Agent 的 `/workspace` 目錄。",
+        "en": "Set up a Cron Job to clean the `/workspace` directory on all Agents every night.",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "Workspace 應視為「暫時性」資源。在 `post { always { ... } }` 中使用 `cleanWs()` 可以確保無論建置成功或失敗，Workspace 都會被清理，防止磁碟膨脹並避免舊檔案污染下一次建置。這是最標準且自動化的做法。",
+      "en": "Workspaces should be treated as 'ephemeral' resources. Using `cleanWs()` in `post { always { ... } }` ensures that the Workspace is cleaned up regardless of build success or failure, preventing disk bloat and avoiding contamination of subsequent builds by old files. This is the most standard and automated approach.",
+      "wg": [
+        {
+          "t": "磁碟膨脹",
+          "en": "Disk bloat",
+          "ps": "noun"
+        },
+        {
+          "t": "污染",
+          "en": "Contamination",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "5",
+    "level": "Medium",
+    "keywords": "Artifacts, Storage, Best Practice",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "某個 Pipeline 產出了一個 2GB 的 Docker Image 壓縮檔，並需要長期保存以供後續部署使用。下列哪種處理方式是**錯誤**的 (Anti-pattern)？",
+        "en": "A pipeline produces a 2GB Docker Image tarball that needs to be stored long-term for future deployments. Which of the following approaches is an **Anti-pattern**?",
+        "wg": [
+          {
+            "t": "長期保存",
+            "en": "Stored long-term",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "使用 `archiveArtifacts` 將該檔案保存在 Jenkins Master 中。",
+        "en": "Use `archiveArtifacts` to store the file on the Jenkins Master.",
+        "wg": []
+      },
+      {
+        "t": "使用 `docker push` 將 Image 上傳至 Docker Registry (如 Harbor, ECR)。",
+        "en": "Use `docker push` to upload the Image to a Docker Registry (e.g., Harbor, ECR).",
+        "wg": []
+      },
+      {
+        "t": "將檔案上傳至 S3 或 Artifactory 等專用儲存庫。",
+        "en": "Upload the file to a dedicated repository like S3 or Artifactory.",
+        "wg": []
+      },
+      {
+        "t": "僅在 Pipeline 執行期間保留該檔案，部署完成後即刪除。",
+        "en": "Keep the file only during the pipeline execution and delete it immediately after deployment.",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "Jenkins 不應被當作二進位檔案儲存庫 (Artifact Repository)。使用 `archiveArtifacts` 儲存大型檔案會迅速耗盡 Master 的磁碟空間，增加備份難度，並拖慢 Jenkins 效能。大型或長期保存的檔案應上傳至 Nexus, Artifactory 或 S3。",
+      "en": "Jenkins should not be used as an Artifact Repository. Using `archiveArtifacts` to store large files quickly depletes the Master's disk space, complicates backups, and degrades Jenkins performance. Large or long-term files should be uploaded to Nexus, Artifactory, or S3.",
+      "wg": [
+        {
+          "t": "二進位檔案儲存庫",
+          "en": "Artifact Repository",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "6",
+    "level": "Medium",
+    "keywords": "Build History, Performance, Startup Time",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你的 Jenkins 實例在重新啟動時需要花費 20 分鐘以上才能準備就緒。這最可能是由於下列哪項配置不當所導致？",
+        "en": "Your Jenkins instance takes over 20 minutes to become ready after a restart. This is most likely caused by improper configuration of which of the following?",
+        "wg": [
+          {
+            "t": "重新啟動",
+            "en": "Restart",
+            "ps": "verb"
+          },
+          {
+            "t": "配置不當",
+            "en": "Improper configuration",
+            "ps": "phrase"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "未設定 `buildDiscarder`，導致系統需載入數千個歷史建置的 XML metadata。",
+        "en": "Failure to configure `buildDiscarder`, causing the system to load XML metadata for thousands of historical builds.",
+        "wg": []
+      },
+      {
+        "t": "Agent 節點數量過多，導致連線握手時間過長。",
+        "en": "Too many Agent nodes, leading to excessive connection handshake time.",
+        "wg": []
+      },
+      {
+        "t": "Pipeline 中使用了過多的 `parallel` 區塊。",
+        "en": "Excessive use of `parallel` blocks in Pipelines.",
+        "wg": []
+      },
+      {
+        "t": "JVM Heap Size 設定過大 (例如 > 32GB)。",
+        "en": "JVM Heap Size is set too large (e.g., > 32GB).",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "Jenkins 在啟動時需要從磁碟讀取所有 Job 與 Build 的 Metadata (XML 檔案)。若未設定 `buildDiscarder` (Log Rotator) 來定期清理舊的建置紀錄，累積成千上萬的歷史檔案會導致啟動時的 I/O 瓶頸與記憶體載入時間大幅增加。",
+      "en": "Upon startup, Jenkins needs to read Metadata (XML files) for all Jobs and Builds from the disk. If `buildDiscarder` (Log Rotator) is not configured to regularly clean up old build records, the accumulation of thousands of historical files causes I/O bottlenecks and significantly increases memory loading time during startup.",
+      "wg": [
+        {
+          "t": "瓶頸",
+          "en": "Bottleneck",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "7",
+    "level": "Easy",
+    "keywords": "Pipeline, Wait, Anti-pattern",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "stage('Deploy') {\n    steps {\n        sh './deploy.sh'\n        sh 'sleep 300' // Wait for service to start\n        sh './health_check.sh'\n    }\n}",
+    "question": [
+      {
+        "t": "在 Pipeline 中使用 `sleep 300` 來等待服務啟動是一種反模式 (Sleeping Wait)。為什麼這種做法不好？",
+        "en": "Using `sleep 300` in a Pipeline to wait for a service to start is an anti-pattern (Sleeping Wait). Why is this practice discouraged?",
+        "wg": [
+          {
+            "t": "反模式",
+            "en": "Anti-pattern",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "因為它會佔用 Executor Slot 資源，即使什麼事都沒做。",
+        "en": "Because it occupies an Executor Slot resource, even though it is doing nothing.",
+        "wg": []
+      },
+      {
+        "t": "因為 `sleep` 指令在不同作業系統間不相容。",
+        "en": "Because the `sleep` command is incompatible across different operating systems.",
+        "wg": []
+      },
+      {
+        "t": "因為它會導致 Master CPU 飆高。",
+        "en": "Because it causes the Master CPU usage to spike.",
+        "wg": []
+      },
+      {
+        "t": "因為它無法被使用者手動中止。",
+        "en": "Because it cannot be manually aborted by the user.",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "使用硬性的 `sleep` 會長時間佔用一個 Executor (Agent 的執行緒)，導致資源浪費，且無法確定服務是否提早啟動完成。更好的做法是使用 `timeout` 搭配 `waitUntil` 或迴圈主動檢查健康端點 (Health Check Endpoint)，一旦服務就緒即繼續執行。",
+      "en": "Using a hard `sleep` occupies an Executor (Agent thread) for a long time, leading to resource waste, and it doesn't account for the service starting earlier. A better approach is to use `timeout` combined with `waitUntil` or a loop to actively check a Health Check Endpoint, proceeding as soon as the service is ready.",
+      "wg": [
+        {
+          "t": "資源浪費",
+          "en": "Resource waste",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "8",
+    "level": "Medium",
+    "keywords": "Parallel, Pipeline Optimization, Fail Fast, Syntax",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "stage('Tests') {\n    parallel {\n        stage('Unit') { steps { ... } }\n        stage('Lint') { steps { ... } }\n        stage('Security') { steps { ... } }\n    }\n}",
+    "question": [
+      {
+        "t": "你的 Pipeline 包含三個互不相依的測試階段（單元測試、Lint 檢查、安全掃描），目前已設定為並行執行 (Parallel Execution)。為了進一步節省資源，你希望當其中任何一個並行分支失敗時，能立即中止其他正在執行的分支。你應該在 `parallel` 區塊中加入什麼設定？",
+        "en": "Your pipeline contains three independent test stages (Unit Test, Lint, Security Scan) configured for parallel execution. To further save resources, you want to immediately abort other running branches if any one of them fails. What configuration should you add to the `parallel` block?",
+        "wg": [
+          {
+            "t": "並行執行",
+            "en": "Parallel Execution",
+            "ps": "noun phrase"
+          },
+          {
+            "t": "互不相依",
+            "en": "independent",
+            "ps": "adjective"
+          },
+          {
+            "t": "中止",
+            "en": "abort",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "failFast true",
+        "en": "failFast true",
+        "wg": []
+      },
+      {
+        "t": "abortOnFailure true",
+        "en": "abortOnFailure true",
+        "wg": []
+      },
+      {
+        "t": "stopOnFailure true",
+        "en": "stopOnFailure true",
+        "wg": []
+      },
+      {
+        "t": "fastKill true",
+        "en": "fastKill true",
+        "wg": []
+      }
+    ],
+    "answer": "failFast true",
+    "why": {
+      "t": "在 Declarative Pipeline 中，於 `parallel` 區塊內設定 `failFast true` 可以確保一旦某個並行分支失敗，Jenkins 會強制中止其他並行分支，從而實現「快速失敗」(Fail Fast) 並節省不必要的運算資源。",
+      "en": "In Declarative Pipeline, setting `failFast true` within a `parallel` block ensures that if one parallel branch fails, Jenkins forces the other branches to abort. This achieves 'Fail Fast' and saves unnecessary computational resources.",
+      "wg": [
+        {
+          "t": "快速失敗",
+          "en": "Fail Fast",
+          "ps": "noun phrase"
+        }
+      ]
+    }
+  },
+  {
+    "no": "9",
+    "level": "Hard",
+    "keywords": "Stash, ArchiveArtifacts, Data Transfer, Pipeline",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你需要將一個在 Linux Agent 上編譯產生的小型設定檔 (config.json)，傳遞給後續在 Windows Agent 上執行的測試階段使用。這兩個階段屬於同一次 Pipeline 執行。根據最佳實務，下列哪種方法最適合此場景？",
+        "en": "You need to pass a small configuration file (config.json) generated on a Linux Agent to a subsequent test stage running on a Windows Agent. Both stages belong to the same pipeline run. According to best practices, which method is most suitable for this scenario?",
+        "wg": [
+          {
+            "t": "傳遞",
+            "en": "pass/transfer",
+            "ps": "verb"
+          },
+          {
+            "t": "最佳實務",
+            "en": "best practice",
+            "ps": "noun phrase"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "使用 `stash` 與 `unstash` 指令。",
+        "en": "Use `stash` and `unstash` commands.",
+        "wg": []
+      },
+      {
+        "t": "使用 `archiveArtifacts` 將檔案封存，再由下個階段下載。",
+        "en": "Use `archiveArtifacts` to archive the file, then download it in the next stage.",
+        "wg": []
+      },
+      {
+        "t": "使用 `scp` 或 `rsync` 直接在 Agent 間傳輸。",
+        "en": "Use `scp` or `rsync` to transfer directly between Agents.",
+        "wg": []
+      },
+      {
+        "t": "將檔案 commit 到 Git repository，再由下個階段 pull 下來。",
+        "en": "Commit the file to the Git repository, then pull it in the next stage.",
+        "wg": []
+      }
+    ],
+    "answer": "使用 `stash` 與 `unstash` 指令。",
+    "why": {
+      "t": "`stash` 與 `unstash` 專門設計用於在「同一個 Pipeline 的不同 Stage 或 Agent 之間」傳遞暫存檔案（特別是小檔案）。`archiveArtifacts` 則主要用於長期保存供使用者下載或供下游其他 Job 使用，不應濫用於 Pipeline 內部的暫時性傳遞。",
+      "en": "`stash` and `unstash` are specifically designed to transfer temporary files (especially small ones) between different stages or agents within the 'same Pipeline'. `archiveArtifacts` is primarily for long-term storage for user download or downstream jobs, and should not be misused for internal temporary transfer within a pipeline.",
+      "wg": [
+        {
+          "t": "暫存檔案",
+          "en": "temporary files",
+          "ps": "noun phrase"
+        },
+        {
+          "t": "濫用",
+          "en": "misuse",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "10",
+    "level": "Medium",
+    "keywords": "Timeout, Resource Management, Anti-pattern",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你的團隊發現某個 Pipeline 偶爾會因為外部 API 沒有回應而卡住 (Hang)，導致 Executor 被佔用長達數小時直到手動中止。為了自動解決此問題並釋放資源，你應該在該 Stage 實作什麼機制？",
+        "en": "Your team notices that a pipeline occasionally hangs due to an unresponsive external API, causing an Executor to be occupied for hours until manually aborted. To automatically resolve this and free up resources, what mechanism should you implement in that stage?",
+        "wg": [
+          {
+            "t": "卡住",
+            "en": "hang",
+            "ps": "verb"
+          },
+          {
+            "t": "釋放資源",
+            "en": "free up resources",
+            "ps": "verb phrase"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "使用 `timeout` 區塊包覆該步驟，設定合理的時間限制。",
+        "en": "Wrap the step in a `timeout` block with a reasonable time limit.",
+        "wg": []
+      },
+      {
+        "t": "使用 `sleep` 指令定期檢查狀態。",
+        "en": "Use the `sleep` command to check status periodically.",
+        "wg": []
+      },
+      {
+        "t": "增加 Master 節點的 Executor 數量以容許更多卡住的 Job。",
+        "en": "Increase the number of Executors on the Master node to tolerate more stuck jobs.",
+        "wg": []
+      },
+      {
+        "t": "設定 `retry(10)` 讓它無限重試直到成功。",
+        "en": "Set `retry(10)` to let it retry indefinitely until success.",
+        "wg": []
+      }
+    ],
+    "answer": "使用 `timeout` 區塊包覆該步驟，設定合理的時間限制。",
+    "why": {
+      "t": "設定 `timeout` 是防止 Process 卡死佔用資源的最佳實務。當執行時間超過設定值（例如 1 小時），Jenkins 會自動中止該步驟並釋放 Executor。增加 Executor 只是掩蓋問題，而 `retry` 無法解決卡死 (Hang) 的狀況。",
+      "en": "Setting a `timeout` is the best practice to prevent stuck processes from consuming resources. When the execution time exceeds the limit (e.g., 1 hour), Jenkins automatically aborts the step and frees the Executor. Increasing Executors only masks the problem, and `retry` does not solve a hanging situation.",
+      "wg": [
+        {
+          "t": "掩蓋問題",
+          "en": "mask the problem",
+          "ps": "verb phrase"
+        }
+      ]
+    }
+  },
+  {
+    "no": "11",
+    "level": "Medium",
+    "keywords": "Maintenance, Plugins, Performance, Memory",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在維護一台效能不佳的 Jenkins Master 時，你發現雖然 Heap Size 設定正確且使用了 G1GC，但系統回應仍然遲緩。檢查後發現該實例安裝了超過 800 個 Plugin，其中許多已不再使用。為什麼這會導致效能問題？",
+        "en": "While maintaining a poorly performing Jenkins Master, you notice that despite correct Heap Size settings and G1GC usage, the system remains sluggish. Upon inspection, you find over 800 plugins installed, many of which are unused. Why does this cause performance issues?",
+        "wg": [
+          {
+            "t": "效能不佳",
+            "en": "poorly performing",
+            "ps": "adjective phrase"
+          },
+          {
+            "t": "遲緩",
+            "en": "sluggish",
+            "ps": "adjective"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "Plugin 越多，Master 啟動時需載入的 ClassLoader 與記憶體負擔越重，且可能增加背景任務的開銷。",
+        "en": "The more plugins, the heavier the ClassLoader and memory burden during Master startup, and it may increase the overhead of background tasks.",
+        "wg": []
+      },
+      {
+        "t": "Plugin 會佔用大量的 Agent CPU 資源，導致建置變慢。",
+        "en": "Plugins consume a large amount of Agent CPU resources, causing builds to slow down.",
+        "wg": []
+      },
+      {
+        "t": "未使用的 Plugin 會自動刪除舊的建置紀錄，導致 I/O 繁忙。",
+        "en": "Unused plugins automatically delete old build records, causing high I/O.",
+        "wg": []
+      },
+      {
+        "t": "Plugin 數量過多會導致 Jenkins 強制切換回 ParallelGC。",
+        "en": "Too many plugins cause Jenkins to forcibly switch back to ParallelGC.",
+        "wg": []
+      }
+    ],
+    "answer": "Plugin 越多，Master 啟動時需載入的 ClassLoader 與記憶體負擔越重，且可能增加背景任務的開銷。",
+    "why": {
+      "t": "每個 Plugin 都會增加 Master 的記憶體佔用（透過 ClassLoader）並可能註冊全域的監聽器或背景任務。即使不使用，過多的 Plugin 仍會顯著拖慢 Master 的啟動速度與執行效能。定期移除未使用的 Plugin 是重要的維運檢查項目。",
+      "en": "Each plugin increases the Master's memory footprint (via ClassLoaders) and may register global listeners or background tasks. Even if unused, too many plugins significantly slow down Master startup and runtime performance. Regularly removing unused plugins is a crucial maintenance checklist item.",
+      "wg": [
+        {
+          "t": "記憶體佔用",
+          "en": "memory footprint",
+          "ps": "noun phrase"
+        },
+        {
+          "t": "背景任務",
+          "en": "background tasks",
+          "ps": "noun phrase"
+        }
+      ]
+    }
+  },
+  {
+    "no": "12",
+    "level": "Medium",
+    "keywords": "Mental Model, I/O, Performance, Bottleneck",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "根據 Jenkins 效能優化的心智模型，當你發現 CI/CD 流程整體變慢，但 Master 與 Agent 的 CPU 使用率卻都很低時，最可能的瓶頸是什麼？",
+        "en": "According to the mental model of Jenkins performance optimization, when you notice the overall CI/CD process slowing down but CPU usage on both Master and Agents is low, what is the most likely bottleneck?",
+        "wg": [
+          {
+            "t": "心智模型",
+            "en": "mental model",
+            "ps": "noun phrase"
+          },
+          {
+            "t": "瓶頸",
+            "en": "bottleneck",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "磁碟 I/O (Disk I/O) 與網路延遲。",
+        "en": "Disk I/O and network latency.",
+        "wg": []
+      },
+      {
+        "t": "JVM Heap Size 設定過大。",
+        "en": "JVM Heap Size is set too large.",
+        "wg": []
+      },
+      {
+        "t": "Groovy 程式碼運算過於複雜。",
+        "en": "Groovy code logic is too complex.",
+        "wg": []
+      },
+      {
+        "t": "Executor 數量過多導致 Context Switch。",
+        "en": "Too many Executors causing Context Switching.",
+        "wg": []
+      }
+    ],
+    "answer": "磁碟 I/O (Disk I/O) 與網路延遲。",
+    "why": {
+      "t": "Jenkins 的效能問題約有 70% 來自磁碟 I/O 與網路延遲。大量的 Log 寫入、巨大的 Artifacts 傳輸以及未清理的 Workspace 都是常見的 I/O 殺手。若 CPU 使用率低但系統慢，通常代表系統正在等待 I/O 完成。",
+      "en": "About 70% of Jenkins performance issues stem from Disk I/O and network latency. Excessive log writing, huge artifact transfers, and uncleaned workspaces are common I/O killers. If CPU usage is low but the system is slow, it usually indicates the system is waiting for I/O completion.",
+      "wg": [
+        {
+          "t": "殺手",
+          "en": "killers/culprits",
+          "ps": "noun"
+        }
+      ]
+    }
+  }
+]

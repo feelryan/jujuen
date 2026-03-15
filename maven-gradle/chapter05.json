@@ -1,0 +1,1206 @@
+[
+  {
+    "no": "1",
+    "level": "intermediate",
+    "keywords": "Gradle, Lifecycle, Configuration Phase, Performance",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "class HeavyTaskPlugin : Plugin<Project> {\n    override fun apply(project: Project) {\n        project.tasks.register(\"deployArtifacts\") {\n            // 模擬繁重的網路請求或檔案掃描\n            // Simulating heavy network requests or file scanning\n            println(\"Scanning files for deployment...\")\n            Thread.sleep(2000) \n            \n            doLast {\n                println(\"Deploying...\")\n            }\n        }\n    }\n}",
+    "question": [
+      {
+        "t": "一位資深工程師正在審查上述的 Gradle 插件程式碼。",
+        "en": "A senior engineer is reviewing the Gradle plugin code above.",
+        "wg": []
+      },
+      {
+        "t": "開發團隊抱怨即使只是執行 `gradle help` 或列出任務，建置的初始化時間也非常長。",
+        "en": "The development team complains that build initialization takes a very long time, even when just running `gradle help` or listing tasks.",
+        "wg": [
+          {
+            "t": "初始化時間",
+            "en": "initialization time",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "請問這段程式碼的主要問題是什麼？",
+        "en": "What is the primary issue with this code?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) `Thread.sleep` 應該被包裝在 `try-catch` 區塊中以避免中斷異常。",
+        "en": "(A) `Thread.sleep` should be wrapped in a `try-catch` block to avoid interruption exceptions.",
+        "wg": []
+      },
+      {
+        "t": "(B) 繁重的邏輯被放置在「配置階段」，這會在每次建置時都執行，無論執行哪個任務。",
+        "en": "(B) Heavy logic is placed in the 'Configuration Phase', which executes on every build regardless of which task is run.",
+        "wg": [
+          {
+            "t": "配置階段",
+            "en": "Configuration Phase",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) `project.tasks.register` 是過時的 API，應該改用 `project.tasks.create`。",
+        "en": "(C) `project.tasks.register` is a deprecated API; `project.tasks.create` should be used instead.",
+        "wg": [
+          {
+            "t": "過時的",
+            "en": "deprecated",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "(D) Gradle 插件不支援在任務定義中直接列印輸出 (println)。",
+        "en": "(D) Gradle plugins do not support printing output (println) directly within task definitions.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "在 Gradle 中，任務閉包（Closure）內的程式碼（但在 `doFirst` 或 `doLast` 之外）屬於配置階段。Gradle 會在執行任何任務之前評估所有專案的配置。將耗時操作放在此處會拖慢所有 Gradle 指令的執行速度。",
+      "en": "In Gradle, code inside the task closure (but outside `doFirst` or `doLast`) belongs to the Configuration Phase. Gradle evaluates the configuration of all projects before executing any task. Placing time-consuming operations here slows down the execution of all Gradle commands.",
+      "wg": [
+        {
+          "t": "閉包",
+          "en": "Closure",
+          "ps": "N"
+        },
+        {
+          "t": "評估",
+          "en": "evaluate",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "2",
+    "level": "advanced",
+    "keywords": "Maven, Mojo, Thread Safety, Parallel Builds",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "@Mojo(name = \"process-data\", defaultPhase = LifecyclePhase.COMPILE)\npublic class DataProcessorMojo extends AbstractMojo {\n    // 為了方便存取跨方法的資料\n    private static Map<String, String> cache = new HashMap<>();\n\n    @Parameter(defaultValue = \"${project}\", readonly = true)\n    private MavenProject project;\n\n    public void execute() throws MojoExecutionException {\n        cache.put(project.getArtifactId(), \"processed\");\n        // ... 處理邏輯 ...\n    }\n}",
+    "question": [
+      {
+        "t": "您正在維護一個企業內部的 Maven Plugin。",
+        "en": "You are maintaining an internal enterprise Maven Plugin.",
+        "wg": []
+      },
+      {
+        "t": "當開發者使用 `mvn clean install` 時一切正常，但當 CI 伺服器啟用平行建置（例如 `mvn -T 4 clean install`）時，偶爾會發生資料錯亂或 NullPointerException。",
+        "en": "Everything works fine when developers use `mvn clean install`, but when the CI server enables parallel builds (e.g., `mvn -T 4 clean install`), data corruption or NullPointerExceptions occur occasionally.",
+        "wg": [
+          {
+            "t": "平行建置",
+            "en": "parallel builds",
+            "ps": "N"
+          },
+          {
+            "t": "資料錯亂",
+            "en": "data corruption",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "根據上述程式碼片段，最根本的原因是什麼？",
+        "en": "Based on the code snippet above, what is the root cause?",
+        "wg": [
+          {
+            "t": "根本原因",
+            "en": "root cause",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) `AbstractMojo` 不支援在編譯階段（Compile Phase）執行。",
+        "en": "(A) `AbstractMojo` does not support execution during the Compile Phase.",
+        "wg": []
+      },
+      {
+        "t": "(B) 使用了 `static` 欄位來儲存狀態，這在多執行緒環境下是不安全的。",
+        "en": "(B) A `static` field is used to store state, which is unsafe in a multi-threaded environment.",
+        "wg": [
+          {
+            "t": "多執行緒環境",
+            "en": "multi-threaded environment",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) `@Parameter` 注入的 `MavenProject` 物件在平行建置中是單例（Singleton）的。",
+        "en": "(C) The `MavenProject` object injected by `@Parameter` is a Singleton in parallel builds.",
+        "wg": []
+      },
+      {
+        "t": "(D) HashMap 在 Java 8 之後已經是執行緒安全的，問題出在 Maven 版本。",
+        "en": "(D) HashMap is thread-safe after Java 8; the issue lies with the Maven version.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "Maven 3+ 支援平行建置，這意味著多個模組可能同時由不同的執行緒建置。Mojo 類別會被實例化多次（每個模組一次），但 `static` 欄位是類別層級的共享資源。在沒有同步機制的情況下並發存取 `static Map` 會導致競態條件（Race Condition）。",
+      "en": "Maven 3+ supports parallel builds, meaning multiple modules may be built simultaneously by different threads. The Mojo class is instantiated multiple times (once per module), but `static` fields are shared at the class level. Concurrent access to a `static Map` without synchronization causes race conditions.",
+      "wg": [
+        {
+          "t": "競態條件",
+          "en": "Race Condition",
+          "ps": "N"
+        },
+        {
+          "t": "並發存取",
+          "en": "concurrent access",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "3",
+    "level": "intermediate",
+    "keywords": "Gradle, Incremental Build, Inputs/Outputs, Optimization",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "open class GenerateConfig : DefaultTask() {\n    var configFile: File? = null\n    var template: String = \"\"\n\n    @TaskAction\n    fun generate() {\n        val content = template.replace(\"%ENV%\", \"PROD\")\n        configFile?.writeText(content)\n    }\n}",
+    "question": [
+      {
+        "t": "您撰寫了一個 Gradle Custom Task 來生成配置檔案。",
+        "en": "You wrote a Gradle Custom Task to generate configuration files.",
+        "wg": []
+      },
+      {
+        "t": "然而，您發現即使 `template` 字串或 `configFile` 路徑沒有變更，Gradle 每次執行時都會顯示該任務為 `UP-TO-DATE` 失敗（即重新執行了任務）。",
+        "en": "However, you notice that even if the `template` string or `configFile` path hasn't changed, Gradle fails to mark the task as `UP-TO-DATE` every time it runs (i.e., it re-executes the task).",
+        "wg": [
+          {
+            "t": "重新執行",
+            "en": "re-executes",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "為了啟用增量建置（Incremental Build），您需要對程式碼做什麼修改？",
+        "en": "To enable Incremental Build, what modification do you need to make to the code?",
+        "wg": [
+          {
+            "t": "增量建置",
+            "en": "Incremental Build",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 將類別宣告為 `final`。",
+        "en": "(A) Declare the class as `final`.",
+        "wg": []
+      },
+      {
+        "t": "(B) 使用 `@Input` 註解 `template` 屬性，並使用 `@OutputFile` 註解 `configFile` 屬性。",
+        "en": "(B) Annotate the `template` property with `@Input` and the `configFile` property with `@OutputFile`.",
+        "wg": [
+          {
+            "t": "註解",
+            "en": "annotate",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(C) 在 `@TaskAction` 方法中手動檢查檔案是否存在。",
+        "en": "(C) Manually check if the file exists within the `@TaskAction` method.",
+        "wg": []
+      },
+      {
+        "t": "(D) 實作 `Serializable` 介面。",
+        "en": "(D) Implement the `Serializable` interface.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "Gradle 依賴輸入（Inputs）與輸出（Outputs）的註解來判斷任務是否需要重新執行。如果沒有宣告這些屬性，Gradle 無法計算雜湊值（Hash）來比較狀態，因此為了安全起見，它會假設任務總是需要執行。",
+      "en": "Gradle relies on Input and Output annotations to determine if a task needs to be re-executed. Without declaring these properties, Gradle cannot calculate hashes to compare states, so it assumes the task always needs to run for safety.",
+      "wg": [
+        {
+          "t": "雜湊值",
+          "en": "hash",
+          "ps": "N"
+        },
+        {
+          "t": "宣告",
+          "en": "declare",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "4",
+    "level": "intermediate",
+    "keywords": "Gradle, DSL, Extension, Kotlin DSL",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "plugins {\n    id(\"com.company.deploy\")\n}\n\n// 目標是讓開發者能寫出這樣的配置：\n// The goal is to allow developers to write configuration like this:\ndeploy {\n    region = \"us-west-1\"\n    replicas = 3\n}",
+    "question": [
+      {
+        "t": "您正在設計一個 Gradle 插件來簡化微服務的部署配置。",
+        "en": "You are designing a Gradle plugin to simplify microservice deployment configuration.",
+        "wg": [
+          {
+            "t": "簡化",
+            "en": "simplify",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "為了支援如上所示的 DSL 語法，您需要在插件的 `apply` 方法中使用哪個 API 來建立 `deploy` 區塊？",
+        "en": "To support the DSL syntax shown above, which API do you need to use in the plugin's `apply` method to create the `deploy` block?",
+        "wg": [
+          {
+            "t": "語法",
+            "en": "syntax",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) `project.tasks.create(\"deploy\", DeployExtension::class.java)`",
+        "en": "(A) `project.tasks.create(\"deploy\", DeployExtension::class.java)`",
+        "wg": []
+      },
+      {
+        "t": "(B) `project.extensions.create(\"deploy\", DeployExtension::class.java)`",
+        "en": "(B) `project.extensions.create(\"deploy\", DeployExtension::class.java)`",
+        "wg": []
+      },
+      {
+        "t": "(C) `project.configurations.register(\"deploy\")`",
+        "en": "(C) `project.configurations.register(\"deploy\")`",
+        "wg": []
+      },
+      {
+        "t": "(D) `project.properties.put(\"deploy\", new DeployExtension())`",
+        "en": "(D) `project.properties.put(\"deploy\", new DeployExtension())`",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "在 Gradle 中，要建立自定義的配置區塊（DSL），必須使用 `project.extensions` 容器。`create` 方法會將一個 Java/Kotlin Bean 註冊為擴充物件，讓使用者可以在建置腳本中以閉包（Closure）或 Lambda 的方式配置它。",
+      "en": "In Gradle, to create a custom configuration block (DSL), you must use the `project.extensions` container. The `create` method registers a Java/Kotlin Bean as an extension object, allowing users to configure it via a closure or lambda in the build script.",
+      "wg": [
+        {
+          "t": "容器",
+          "en": "container",
+          "ps": "N"
+        },
+        {
+          "t": "註冊",
+          "en": "register",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "5",
+    "level": "intermediate",
+    "keywords": "System Design, Build Standardization, Microservices, Governance",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您的組織擁有 50 個以上的微服務，目前每個服務的 `pom.xml` 中都重複複製貼上了相同的 Checkstyle 配置、Nexus Repository URL 以及發布邏輯。",
+        "en": "Your organization has over 50 microservices, and currently, the same Checkstyle configuration, Nexus Repository URL, and release logic are copy-pasted into every service's `pom.xml`.",
+        "wg": [
+          {
+            "t": "複製貼上",
+            "en": "copy-pasted",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "為了提高維護性並強制執行治理規範（Governance），下列哪種架構模式最為合適？",
+        "en": "To improve maintainability and enforce governance, which of the following architectural patterns is most appropriate?",
+        "wg": [
+          {
+            "t": "維護性",
+            "en": "maintainability",
+            "ps": "N"
+          },
+          {
+            "t": "強制執行",
+            "en": "enforce",
+            "ps": "V"
+          },
+          {
+            "t": "治理規範",
+            "en": "governance",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 建立一個共用的 Shell Script，在 CI Pipeline 中執行以覆蓋每個專案的設定。",
+        "en": "(A) Create a shared Shell Script executed in the CI Pipeline to override settings for each project.",
+        "wg": []
+      },
+      {
+        "t": "(B) 開發一個「企業級 Parent POM」或「Gradle Convention Plugin」，封裝共用邏輯與版本控制，並讓所有微服務繼承或套用它。",
+        "en": "(B) Develop an 'Enterprise Parent POM' or 'Gradle Convention Plugin' that encapsulates shared logic and versioning, and have all microservices inherit or apply it.",
+        "wg": [
+          {
+            "t": "封裝",
+            "en": "encapsulate",
+            "ps": "V"
+          },
+          {
+            "t": "繼承",
+            "en": "inherit",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(C) 使用 Git Submodule 將共用的配置檔案連結到每個專案中。",
+        "en": "(C) Use Git Submodules to link shared configuration files into each project.",
+        "wg": []
+      },
+      {
+        "t": "(D) 要求所有團隊在 Wiki 上遵循最新的配置範本，並定期進行人工審查。",
+        "en": "(D) Require all teams to follow the latest configuration template on the Wiki and conduct periodic manual reviews.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "這是標準的「企業級建置插件」模式。透過 Parent POM (Maven) 或 Convention Plugin (Gradle)，可以集中管理依賴版本、Repository 定義與插件配置。當需要更新規則時，只需發布新版本的 Parent/Plugin，服務端只需升級版本號即可，這是最符合「建置即程式碼」原則的擴展方式。",
+      "en": "This is the standard 'Enterprise Build Plugin' pattern. By using a Parent POM (Maven) or Convention Plugin (Gradle), you can centrally manage dependency versions, repository definitions, and plugin configurations. When rules need updating, you only need to publish a new version of the Parent/Plugin, and services only need to upgrade the version number. This scales best with 'Build as Code' principles.",
+      "wg": [
+        {
+          "t": "集中管理",
+          "en": "centrally manage",
+          "ps": "V"
+        },
+        {
+          "t": "擴展方式",
+          "en": "scaling approach",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "6",
+    "level": "intermediate",
+    "keywords": "Maven, Mojo, Dependency Injection, Parameters",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "public class MyCustomMojo extends AbstractMojo {\n    // ... other code ...\n\n    // 試圖注入 Maven Project 物件\n    private MavenProject project;\n\n    public void execute() throws MojoExecutionException {\n        // Runtime NullPointerException here\n        getLog().info(\"Building version: \" + project.getVersion());\n    }\n}",
+    "question": [
+      {
+        "t": "您正在撰寫一個 Maven Custom Mojo 來讀取當前專案的版本資訊。",
+        "en": "You are writing a Maven Custom Mojo to read the current project's version information.",
+        "wg": []
+      },
+      {
+        "t": "但在執行 `mvn myplugin:mygoal` 時，程式拋出了 `NullPointerException`，指出 `project` 變數為 null。",
+        "en": "However, when running `mvn myplugin:mygoal`, the program throws a `NullPointerException`, indicating that the `project` variable is null.",
+        "wg": []
+      },
+      {
+        "t": "根據上述程式碼片段，您遺漏了什麼關鍵配置？",
+        "en": "Based on the code snippet above, what critical configuration did you miss?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 必須在 `pom.xml` 中明確宣告 `<project>${project}</project>`。",
+        "en": "(A) You must explicitly declare `<project>${project}</project>` in the `pom.xml`.",
+        "wg": []
+      },
+      {
+        "t": "(B) 變數 `project` 缺少 `@Parameter(defaultValue = \"${project}\", readonly = true)` 註解。",
+        "en": "(B) The variable `project` is missing the `@Parameter(defaultValue = \"${project}\", readonly = true)` annotation.",
+        "wg": [
+          {
+            "t": "註解",
+            "en": "annotation",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) 類別必須實作 `ContextEnabled` 介面才能存取 Maven Project。",
+        "en": "(C) The class must implement the `ContextEnabled` interface to access the Maven Project.",
+        "wg": []
+      },
+      {
+        "t": "(D) 應該使用 `System.getProperty(\"project.version\")` 來獲取版本，而不是注入物件。",
+        "en": "(D) You should use `System.getProperty(\"project.version\")` to get the version instead of injecting the object.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "在 Maven Mojo 中，欄位不會自動注入。必須使用 `@Parameter` 註解並指定表達式（如 `${project}`）來告訴 Maven 容器如何注入依賴。",
+      "en": "In Maven Mojo, fields are not automatically injected. You must use the `@Parameter` annotation and specify an expression (like `${project}`) to tell the Maven container how to inject the dependency.",
+      "wg": [
+        {
+          "t": "注入",
+          "en": "inject",
+          "ps": "V"
+        },
+        {
+          "t": "容器",
+          "en": "container",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "7",
+    "level": "advanced",
+    "keywords": "Gradle, Lazy Configuration, Property API, Kotlin DSL",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "// Plugin Code\nopen class MyExtension {\n    var message: String = \"default\"\n}\n\nproject.tasks.register(\"greet\") {\n    val ext = project.extensions.getByType(MyExtension::class.java)\n    // Problematic line:\n    doLast { println(ext.message) }\n}\n\n// Consumer build.gradle.kts\nconfigure<MyExtension> {\n    message = \"Hello World\"\n}",
+    "question": [
+      {
+        "t": "您正在開發一個 Gradle 插件，並希望支援「惰性配置 (Lazy Configuration)」，以便使用者可以在建置腳本的任何位置設定屬性。",
+        "en": "You are developing a Gradle plugin and want to support 'Lazy Configuration' so that users can set properties anywhere in the build script.",
+        "wg": [
+          {
+            "t": "惰性配置",
+            "en": "Lazy Configuration",
+            "ps": "NP"
+          }
+        ]
+      },
+      {
+        "t": "目前的實作使用原生的 `String` 型別。",
+        "en": "The current implementation uses the native `String` type.",
+        "wg": []
+      },
+      {
+        "t": "為了符合現代 Gradle 最佳實務並確保屬性變更能在執行時正確反映，您應該如何重構 `MyExtension`？",
+        "en": "To align with modern Gradle best practices and ensure property changes are correctly reflected at execution time, how should you refactor `MyExtension`?",
+        "wg": [
+          {
+            "t": "重構",
+            "en": "refactor",
+            "ps": "V"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 將 `var message: String` 改為 `abstract val message: Property<String>`。",
+        "en": "(A) Change `var message: String` to `abstract val message: Property<String>`.",
+        "wg": []
+      },
+      {
+        "t": "(B) 將 `var message: String` 改為 `volatile var message: String`。",
+        "en": "(B) Change `var message: String` to `volatile var message: String`.",
+        "wg": []
+      },
+      {
+        "t": "(C) 在 Task 中使用 `project.afterEvaluate` 來讀取 `message`。",
+        "en": "(C) Use `project.afterEvaluate` in the Task to read `message`.",
+        "wg": []
+      },
+      {
+        "t": "(D) 將 `message` 宣告為 `lateinit var`。",
+        "en": "(D) Declare `message` as `lateinit var`.",
+        "wg": []
+      }
+    ],
+    "answer": "(A)",
+    "why": {
+      "t": "Gradle 的 `Property<T>` API 專為惰性計算設計，允許將值的解析推遲到執行階段，並自動處理依賴關係。使用 `String` 會在配置階段立即讀取值，可能導致讀到舊值。",
+      "en": "Gradle's `Property<T>` API is designed for lazy evaluation, allowing value resolution to be deferred until the execution phase and automatically handling dependencies. Using `String` reads the value immediately during the configuration phase, which may result in reading a stale value.",
+      "wg": [
+        {
+          "t": "推遲",
+          "en": "defer",
+          "ps": "V"
+        },
+        {
+          "t": "解析",
+          "en": "resolution",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "8",
+    "level": "advanced",
+    "keywords": "Gradle, Architecture, buildSrc, Composite Builds",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您的團隊在一個大型 Monorepo 中使用 Gradle，目前所有的客製化建置邏輯都放在 `buildSrc` 目錄中。",
+        "en": "Your team uses Gradle in a large Monorepo, and currently all custom build logic is placed in the `buildSrc` directory.",
+        "wg": [
+          {
+            "t": "單一儲存庫",
+            "en": "Monorepo",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "隨著專案增長，您發現每次修改 `buildSrc` 中的一行程式碼，都會導致整個專案的所有模組重新建置，嚴重影響開發效率。",
+        "en": "As the project grows, you notice that changing a single line of code in `buildSrc` causes all modules in the entire project to rebuild, severely impacting development efficiency.",
+        "wg": [
+          {
+            "t": "重新建置",
+            "en": "rebuild",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "下列哪種架構調整最能解決此效能瓶頸？",
+        "en": "Which of the following architectural adjustments best solves this performance bottleneck?",
+        "wg": [
+          {
+            "t": "瓶頸",
+            "en": "bottleneck",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 將 `buildSrc` 中的邏輯遷移到獨立的 Gradle 專案，並使用「複合建置 (Composite Builds)」或是發布二進位插件。",
+        "en": "(A) Migrate the logic from `buildSrc` to a separate Gradle project and use 'Composite Builds' or publish binary plugins.",
+        "wg": [
+          {
+            "t": "複合建置",
+            "en": "Composite Builds",
+            "ps": "NP"
+          }
+        ]
+      },
+      {
+        "t": "(B) 在 `buildSrc` 的 `build.gradle.kts` 中啟用 `--parallel` 參數。",
+        "en": "(B) Enable the `--parallel` parameter in `buildSrc`'s `build.gradle.kts`.",
+        "wg": []
+      },
+      {
+        "t": "(C) 將所有邏輯直接寫入根目錄的 `build.gradle.kts` 以避免類別路徑變更。",
+        "en": "(C) Write all logic directly into the root `build.gradle.kts` to avoid classpath changes.",
+        "wg": []
+      },
+      {
+        "t": "(D) 使用 Maven 替換 Gradle，因為 Maven 不會重新編譯插件。",
+        "en": "(D) Replace Gradle with Maven, as Maven does not recompile plugins.",
+        "wg": []
+      }
+    ],
+    "answer": "(A)",
+    "why": {
+      "t": "`buildSrc` 的變更被視為建置腳本類別路徑 (Classpath) 的變更，因此會使所有專案的快取失效。將插件移至獨立專案並透過版本控制或複合建置引用，可以隔離變更影響。",
+      "en": "Changes in `buildSrc` are treated as changes to the build script classpath, thus invalidating the cache for all projects. Moving plugins to a separate project and referencing them via versioning or composite builds isolates the impact of changes.",
+      "wg": [
+        {
+          "t": "類別路徑",
+          "en": "classpath",
+          "ps": "N"
+        },
+        {
+          "t": "失效",
+          "en": "invalidate",
+          "ps": "V"
+        },
+        {
+          "t": "隔離",
+          "en": "isolate",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "9",
+    "level": "intermediate",
+    "keywords": "Maven, Lifecycle, Mojo, Execution",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "@Mojo(name = \"scan\", defaultPhase = LifecyclePhase.VERIFY)\npublic class SecurityScanMojo extends AbstractMojo { ... }",
+    "question": [
+      {
+        "t": "您定義了一個 Maven Mojo，如上所示，將其預設階段綁定至 `VERIFY`。",
+        "en": "You defined a Maven Mojo as shown above, binding its default phase to `VERIFY`.",
+        "wg": [
+          {
+            "t": "綁定",
+            "en": "bind",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "使用者在命令列執行 `mvn compile`。",
+        "en": "The user executes `mvn compile` on the command line.",
+        "wg": []
+      },
+      {
+        "t": "請問此 Mojo 是否會被執行？為什麼？",
+        "en": "Will this Mojo be executed? Why?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 會，因為 `defaultPhase` 確保它總是會執行。",
+        "en": "(A) Yes, because `defaultPhase` ensures it always runs.",
+        "wg": []
+      },
+      {
+        "t": "(B) 不會，因為 `compile` 階段發生在 `verify` 階段之前，生命週期尚未到達該點。",
+        "en": "(B) No, because the `compile` phase occurs before the `verify` phase, and the lifecycle has not reached that point yet.",
+        "wg": []
+      },
+      {
+        "t": "(C) 會，只要該插件有在 `pom.xml` 的 `<plugins>` 區塊中宣告即可。",
+        "en": "(C) Yes, as long as the plugin is declared in the `<plugins>` section of the `pom.xml`.",
+        "wg": []
+      },
+      {
+        "t": "(D) 不會，除非使用者明確執行 `mvn myplugin:scan`。",
+        "en": "(D) No, unless the user explicitly executes `mvn myplugin:scan`.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "Maven 的預設生命週期是線性的。`compile` 階段早於 `verify`。當執行 `mvn compile` 時，Maven 只會執行到 `compile` 為止，因此綁定在 `verify` 的 Mojo 不會被觸發。",
+      "en": "Maven's default lifecycle is linear. The `compile` phase precedes `verify`. When running `mvn compile`, Maven only executes up to `compile`, so Mojos bound to `verify` are not triggered.",
+      "wg": [
+        {
+          "t": "線性的",
+          "en": "linear",
+          "ps": "Adj"
+        },
+        {
+          "t": "早於",
+          "en": "precede",
+          "ps": "V"
+        },
+        {
+          "t": "觸發",
+          "en": "trigger",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "10",
+    "level": "intermediate",
+    "keywords": "Gradle, Testing, ProjectBuilder, Unit Test",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您正在為一個複雜的 Gradle 插件撰寫單元測試。",
+        "en": "You are writing unit tests for a complex Gradle plugin.",
+        "wg": []
+      },
+      {
+        "t": "您希望在不啟動完整 Gradle Daemon 或執行實際建置的情況下，快速驗證 Task 是否正確被加入專案，以及其配置是否正確。",
+        "en": "You want to quickly verify that Tasks are correctly added to the project and configured correctly without starting a full Gradle Daemon or running an actual build.",
+        "wg": [
+          {
+            "t": "驗證",
+            "en": "verify",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "您應該使用哪種工具或方法？",
+        "en": "Which tool or method should you use?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 使用 `GradleRunner` 執行功能測試 (Functional Tests)。",
+        "en": "(A) Use `GradleRunner` to execute Functional Tests.",
+        "wg": []
+      },
+      {
+        "t": "(B) 使用 `ProjectBuilder` 來實例化輕量級的 Project 物件。",
+        "en": "(B) Use `ProjectBuilder` to instantiate a lightweight Project object.",
+        "wg": [
+          {
+            "t": "實例化",
+            "en": "instantiate",
+            "ps": "V"
+          },
+          {
+            "t": "輕量級",
+            "en": "lightweight",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "(C) 撰寫 Shell Script 呼叫 `./gradlew tasks` 並解析輸出。",
+        "en": "(C) Write a Shell Script to call `./gradlew tasks` and parse the output.",
+        "wg": []
+      },
+      {
+        "t": "(D) 使用 Mockito 模擬整個 `Project` 介面。",
+        "en": "(D) Use Mockito to mock the entire `Project` interface.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "`ProjectBuilder` 是 Gradle 提供的 API，用於在單元測試中建立 Project 實例，適合測試插件的配置邏輯（Configuration Phase），且速度比 `GradleRunner` 快得多。",
+      "en": "`ProjectBuilder` is an API provided by Gradle to create Project instances in unit tests. It is suitable for testing plugin configuration logic (Configuration Phase) and is much faster than `GradleRunner`.",
+      "wg": []
+    }
+  },
+  {
+    "no": "11",
+    "level": "intermediate",
+    "keywords": "Gradle, Task Graph, finalizedBy, dependsOn",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "tasks.register(\"integrationTest\") {\n    dependsOn(\"startDatabase\")\n    // Missing logic here\n}",
+    "question": [
+      {
+        "t": "您有一個 `integrationTest` 任務，需要在執行前啟動資料庫 (`startDatabase`)，並在執行後關閉資料庫 (`stopDatabase`)。",
+        "en": "You have an `integrationTest` task that needs to start the database (`startDatabase`) before execution and stop the database (`stopDatabase`) after execution.",
+        "wg": []
+      },
+      {
+        "t": "即使測試失敗，`stopDatabase` 也必須執行以釋放資源。",
+        "en": "`stopDatabase` must execute to release resources even if the test fails.",
+        "wg": [
+          {
+            "t": "釋放",
+            "en": "release",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "下列哪種配置是正確的？",
+        "en": "Which of the following configurations is correct?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) `integrationTest.dependsOn(\"stopDatabase\")`",
+        "en": "(A) `integrationTest.dependsOn(\"stopDatabase\")`",
+        "wg": []
+      },
+      {
+        "t": "(B) `integrationTest.doLast { tasks.stopDatabase.execute() }`",
+        "en": "(B) `integrationTest.doLast { tasks.stopDatabase.execute() }`",
+        "wg": []
+      },
+      {
+        "t": "(C) `integrationTest.finalizedBy(\"stopDatabase\")`",
+        "en": "(C) `integrationTest.finalizedBy(\"stopDatabase\")`",
+        "wg": []
+      },
+      {
+        "t": "(D) `stopDatabase.mustRunAfter(\"integrationTest\")`",
+        "en": "(D) `stopDatabase.mustRunAfter(\"integrationTest\")`",
+        "wg": []
+      }
+    ],
+    "answer": "(C)",
+    "why": {
+      "t": "`finalizedBy` 確保了無論指定的任務成功或失敗，後續任務都會被執行，非常適合用於資源清理。`dependsOn` 表示依賴關係（會在之前執行），而 `mustRunAfter` 僅控制順序但不強制執行。",
+      "en": "`finalizedBy` ensures that the subsequent task is executed regardless of whether the specified task succeeds or fails, making it ideal for resource cleanup. `dependsOn` implies a dependency (runs before), while `mustRunAfter` only controls ordering but does not enforce execution.",
+      "wg": [
+        {
+          "t": "清理",
+          "en": "cleanup",
+          "ps": "N"
+        },
+        {
+          "t": "強制",
+          "en": "enforce",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "12",
+    "level": "advanced",
+    "keywords": "Gradle, Performance, Configuration Avoidance, Task Container",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "class DeploymentPlugin : Plugin<Project> {\n    override fun apply(project: Project) {\n        // Option A\n        project.tasks.create(\"deployToProd\") {\n            doLast { /* deployment logic */ }\n        }\n\n        // Option B\n        project.tasks.register(\"deployToStaging\") {\n            doLast { /* deployment logic */ }\n        }\n    }\n}",
+    "question": [
+      {
+        "t": "您正在審查一個 Gradle 插件的程式碼，該插件定義了兩個任務，如上所示。",
+        "en": "You are reviewing the code for a Gradle plugin that defines two tasks as shown above.",
+        "wg": []
+      },
+      {
+        "t": "關於這兩種定義方式對建置效能的影響，下列敘述何者正確？",
+        "en": "Which of the following statements is true regarding the impact of these two definition styles on build performance?",
+        "wg": [
+          {
+            "t": "建置效能",
+            "en": "build performance",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "Option A 與 Option B 在效能上完全相同，因為實際邏輯都在 `doLast` 區塊中。",
+        "en": "Option A and Option B are identical in performance because the actual logic is in the `doLast` block.",
+        "wg": []
+      },
+      {
+        "t": "Option A 會導致 `deployToProd` 在配置階段就被立即配置與實例化，即使使用者沒有執行該任務。",
+        "en": "Option A causes `deployToProd` to be configured and instantiated immediately during the Configuration Phase, even if the user does not run that task.",
+        "wg": [
+          {
+            "t": "配置階段",
+            "en": "Configuration Phase",
+            "ps": "N"
+          },
+          {
+            "t": "實例化",
+            "en": "instantiated",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "Option B 的 `register` 方法會將任務的建立推遲到執行階段 (Execution Phase) 才進行。",
+        "en": "The `register` method in Option B defers the creation of the task until the Execution Phase.",
+        "wg": [
+          {
+            "t": "推遲",
+            "en": "defers",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "Option B 是錯誤的寫法，因為 `register` 僅適用於內建任務，客製化任務必須使用 `create`。",
+        "en": "Option B is incorrect syntax because `register` is only for built-in tasks; custom tasks must use `create`.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "Gradle 的 `tasks.create` 會立即建立並配置任務物件（Eager Configuration），這會增加配置階段的時間。而 `tasks.register` 使用「任務配置迴避 (Task Configuration Avoidance)」API，僅在任務被請求執行或被其他任務依賴時，才會進行配置與實例化，這是現代 Gradle 插件開發的最佳實踐。",
+      "en": "Gradle's `tasks.create` immediately creates and configures the task object (Eager Configuration), adding time to the Configuration Phase. `tasks.register` uses the 'Task Configuration Avoidance' API, configuring and instantiating the task only if it is requested or required by another task, which is a best practice for modern Gradle plugin development.",
+      "wg": [
+        {
+          "t": "任務配置迴避",
+          "en": "Task Configuration Avoidance",
+          "ps": "N"
+        },
+        {
+          "t": "最佳實踐",
+          "en": "best practice",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "13",
+    "level": "intermediate",
+    "keywords": "Maven, Testing, Plugin Testing Harness, Integration Test",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您正在為團隊開發的 Maven Plugin 撰寫整合測試。",
+        "en": "You are writing integration tests for a Maven Plugin developed by your team.",
+        "wg": [
+          {
+            "t": "整合測試",
+            "en": "integration tests",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "與 Gradle 使用 `ProjectBuilder` 的程式化測試方式不同，使用 `maven-plugin-testing-harness` 進行測試時，通常需要依賴下列哪項機制？",
+        "en": "Unlike Gradle's programmatic testing with `ProjectBuilder`, what mechanism is typically relied upon when testing with `maven-plugin-testing-harness`?",
+        "wg": [
+          {
+            "t": "程式化",
+            "en": "programmatic",
+            "ps": "Adj"
+          },
+          {
+            "t": "依賴",
+            "en": "rely upon",
+            "ps": "V"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "在測試程式碼中直接實例化 Mojo 類別並手動注入相依物件。",
+        "en": "Directly instantiating the Mojo class in the test code and manually injecting dependencies.",
+        "wg": []
+      },
+      {
+        "t": "建立包含完整插件配置的虛擬 `pom.xml` 檔案，由 Harness 讀取以配置 Mojo 實例。",
+        "en": "Creating dummy `pom.xml` files containing full plugin configuration, which the Harness reads to configure the Mojo instance.",
+        "wg": [
+          {
+            "t": "虛擬",
+            "en": "dummy",
+            "ps": "Adj"
+          },
+          {
+            "t": "配置",
+            "en": "configure",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "使用 Mockito 模擬 Maven 的 `Session` 與 `Project` 物件，完全跳過 XML 配置。",
+        "en": "Using Mockito to mock Maven's `Session` and `Project` objects, skipping XML configuration entirely.",
+        "wg": []
+      },
+      {
+        "t": "撰寫 Groovy 腳本來動態生成 Maven 執行環境。",
+        "en": "Writing Groovy scripts to dynamically generate the Maven execution environment.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "Maven 的插件測試框架 (`maven-plugin-testing-harness`) 傳統上依賴於建立測試用的 `pom.xml` 檔案（通常位於 `src/test/resources`），Harness 會解析這些 XML 來注入參數並配置 Mojo，這與 Gradle 直接在程式碼中建構物件的方式形成對比。",
+      "en": "The Maven plugin testing framework (`maven-plugin-testing-harness`) traditionally relies on creating test `pom.xml` files (usually in `src/test/resources`). The Harness parses these XMLs to inject parameters and configure the Mojo, contrasting with Gradle's approach of constructing objects directly in code.",
+      "wg": [
+        {
+          "t": "注入",
+          "en": "inject",
+          "ps": "V"
+        },
+        {
+          "t": "對比",
+          "en": "contrast",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "14",
+    "level": "intermediate",
+    "keywords": "Maven, Mojo, Parameters, CLI",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "@Parameter(property = \"app.version\", defaultValue = \"${project.version}\")\nprivate String appVersion;",
+    "question": [
+      {
+        "t": "您在 Maven Mojo 中定義了一個參數，如上所示。",
+        "en": "You have defined a parameter in a Maven Mojo as shown above.",
+        "wg": []
+      },
+      {
+        "t": "這段程式碼啟用了哪項關鍵功能，讓使用者在執行 Maven 指令時能靈活控制此參數？",
+        "en": "What key feature does this code enable, allowing users to flexibly control this parameter when running Maven commands?",
+        "wg": [
+          {
+            "t": "靈活控制",
+            "en": "flexibly control",
+            "ps": "V"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "它強制使用者必須在 `pom.xml` 中定義 `<app.version>` 標籤，否則建置會失敗。",
+        "en": "It forces the user to define the `<app.version>` tag in `pom.xml`, otherwise the build fails.",
+        "wg": []
+      },
+      {
+        "t": "它允許使用者透過命令列引數 `-Dapp.version=1.0.0` 來覆蓋預設值。",
+        "en": "It allows the user to override the default value via the command line argument `-Dapp.version=1.0.0`.",
+        "wg": [
+          {
+            "t": "命令列引數",
+            "en": "command line argument",
+            "ps": "N"
+          },
+          {
+            "t": "覆蓋",
+            "en": "override",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "它會自動將該參數寫入 `MANIFEST.MF` 檔案中。",
+        "en": "It automatically writes this parameter into the `MANIFEST.MF` file.",
+        "wg": []
+      },
+      {
+        "t": "它確保該變數是執行緒安全的 (Thread-Safe)。",
+        "en": "It ensures that the variable is Thread-Safe.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "`@Parameter` 註解中的 `property` 屬性將該 Java 欄位綁定到 Maven 的系統屬性。這允許使用者在執行 `mvn` 指令時，使用 `-D<property_name>=<value>` 的方式從外部注入值，覆蓋 `defaultValue` 或 `pom.xml` 中的配置。",
+      "en": "The `property` attribute in the `@Parameter` annotation binds the Java field to a Maven system property. This allows users to inject values externally using `-D<property_name>=<value>` when running `mvn`, overriding the `defaultValue` or configuration in `pom.xml`.",
+      "wg": [
+        {
+          "t": "系統屬性",
+          "en": "system property",
+          "ps": "N"
+        },
+        {
+          "t": "綁定",
+          "en": "bind",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "15",
+    "level": "intermediate",
+    "keywords": "Gradle, Convention Plugin, Composition, Architecture",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "class CompanyJavaConventions : Plugin<Project> {\n    override fun apply(project: Project) {\n        // TODO: Apply the standard 'java' plugin here\n        \n        project.extensions.configure(JavaPluginExtension::class.java) {\n            sourceCompatibility = JavaVersion.VERSION_17\n        }\n    }\n}",
+    "question": [
+      {
+        "t": "您正在開發一個「慣例插件 (Convention Plugin)」，目的是統一公司內部所有 Java 專案的設定。",
+        "en": "You are developing a 'Convention Plugin' to standardize settings for all Java projects within the company.",
+        "wg": [
+          {
+            "t": "慣例插件",
+            "en": "Convention Plugin",
+            "ps": "N"
+          },
+          {
+            "t": "統一",
+            "en": "standardize",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "為了確保套用此插件的專案都具備 Java 編譯能力，您應該在 `TODO` 處填入什麼程式碼？",
+        "en": "To ensure that projects applying this plugin have Java compilation capabilities, what code should you insert at the `TODO`?",
+        "wg": [
+          {
+            "t": "編譯能力",
+            "en": "compilation capabilities",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "project.plugins.apply(\"java\")",
+        "en": "project.plugins.apply(\"java\")",
+        "wg": []
+      },
+      {
+        "t": "project.tasks.register(\"java\")",
+        "en": "project.tasks.register(\"java\")",
+        "wg": []
+      },
+      {
+        "t": "include(\"java\")",
+        "en": "include(\"java\")",
+        "wg": []
+      },
+      {
+        "t": "System.setProperty(\"apply.java\", \"true\")",
+        "en": "System.setProperty(\"apply.java\", \"true\")",
+        "wg": []
+      }
+    ],
+    "answer": "(A)",
+    "why": {
+      "t": "在開發 Gradle 插件時，若要組合其他插件的功能（Plugin Composition），應使用 `project.plugins.apply()` 或 `project.pluginManager.apply()`。這是實作「慣例插件」的核心模式，讓單一插件可以封裝並自動套用多個底層插件（如 `java`, `checkstyle` 等）。",
+      "en": "When developing Gradle plugins, to compose functionality from other plugins (Plugin Composition), you should use `project.plugins.apply()` or `project.pluginManager.apply()`. This is the core pattern for implementing 'Convention Plugins', allowing a single plugin to encapsulate and automatically apply multiple underlying plugins (like `java`, `checkstyle`, etc.).",
+      "wg": [
+        {
+          "t": "組合",
+          "en": "compose",
+          "ps": "V"
+        },
+        {
+          "t": "封裝",
+          "en": "encapsulate",
+          "ps": "V"
+        }
+      ]
+    }
+  }
+]

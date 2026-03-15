@@ -1,0 +1,836 @@
+[
+  {
+    "no": "1",
+    "level": "Easy",
+    "keywords": "Controller, Master-Agent, Architecture",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在 Jenkins 的架構設計中，關於 Controller (舊稱 Master) 的職責，下列哪一種描述最符合「指揮家 (Conductor)」的心智模型？",
+        "en": "In Jenkins architecture design, regarding the responsibility of the Controller (formerly Master), which of the following descriptions best fits the 'Conductor' mental model?",
+        "wg": [
+          {
+            "t": "指揮家",
+            "en": "Conductor",
+            "ps": "noun"
+          },
+          {
+            "t": "心智模型",
+            "en": "mental model",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single",
+    "options": [
+      {
+        "t": "Controller 應負責執行所有的編譯、測試與打包工作，以確保環境的一致性。",
+        "en": "The Controller should be responsible for executing all compilation, testing, and packaging tasks to ensure environmental consistency.",
+        "wg": []
+      },
+      {
+        "t": "Controller 的 Executors 數量應設為 0，其主要職責是排程、分派任務與監控，而非執行繁重的構建工作。",
+        "en": "The number of Executors on the Controller should be set to 0; its primary duties are scheduling, dispatching tasks, and monitoring, rather than executing heavy build workloads.",
+        "wg": [
+          {
+            "t": "排程",
+            "en": "scheduling",
+            "ps": "verb/noun"
+          },
+          {
+            "t": "分派",
+            "en": "dispatching",
+            "ps": "verb/noun"
+          }
+        ]
+      },
+      {
+        "t": "Controller 應該安裝所有專案所需的工具 (如 Maven, Node.js)，以便隨時支援任何類型的 Job。",
+        "en": "The Controller should have all tools required by projects (e.g., Maven, Node.js) installed to support any type of Job at any time.",
+        "wg": []
+      },
+      {
+        "t": "Controller 是一個執行指令的 Shell，主要功能是替代開發者的本地終端機。",
+        "en": "The Controller is a shell for executing commands, primarily functioning to replace the developer's local terminal.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "根據「Thin Controller」哲學，Controller 應專注於協調 (Coordinating) 而非執行 (Working)。將 Executors 設為 0 可避免單一 Build 耗盡資源導致整個系統崩潰。選項 0 與 2 描述的是 'Heavy Master' 反模式；選項 3 則將 Jenkins 視為單純的 Shell，忽略了其作為流程編排器的核心價值。",
+      "en": "According to the 'Thin Controller' philosophy, the Controller should focus on coordinating rather than working. Setting Executors to 0 prevents a single build from exhausting resources and crashing the entire system. Options 0 and 2 describe the 'Heavy Master' anti-pattern; Option 3 treats Jenkins merely as a shell, ignoring its core value as a process orchestrator.",
+      "wg": [
+        {
+          "t": "反模式",
+          "en": "anti-pattern",
+          "ps": "noun"
+        },
+        {
+          "t": "流程編排器",
+          "en": "orchestrator",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "2",
+    "level": "Medium",
+    "keywords": "Groovy, Pipeline, Anti-Pattern, CPS",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "pipeline {\n    agent any\n    stages {\n        stage('Logic') {\n            steps {\n                script {\n                    def data = new URL(\"http://api/data\").getText()\n                    def json = new groovy.json.JsonSlurper().parseText(data)\n                    // Complex loop and logic here...\n                }\n            }\n        }\n    }\n}",
+    "question": [
+      {
+        "t": "你在 Code Review 時看到了上述的 `Jenkinsfile` 片段。根據手冊中的「反模式」章節，這段程式碼主要存在什麼風險？",
+        "en": "You see the above `Jenkinsfile` snippet during a Code Review. According to the 'Anti-Patterns' section in the handbook, what is the primary risk associated with this code?",
+        "wg": [
+          {
+            "t": "片段",
+            "en": "snippet",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single",
+    "options": [
+      {
+        "t": "使用了 `agent any`，這會導致無法指定特定的 Docker Image。",
+        "en": "It uses `agent any`, which prevents specifying a particular Docker Image.",
+        "wg": []
+      },
+      {
+        "t": "在 Pipeline 中直接撰寫複雜 Groovy 邏輯與物件操作 (如 JsonSlurper)，容易引發 `NonSerializableException` 並難以在本地除錯。",
+        "en": "Writing complex Groovy logic and object manipulation (like JsonSlurper) directly in the Pipeline can easily trigger `NonSerializableException` and is difficult to debug locally.",
+        "wg": [
+          {
+            "t": "序列化異常",
+            "en": "NonSerializableException",
+            "ps": "noun"
+          },
+          {
+            "t": "除錯",
+            "en": "debug",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "使用 `script` 區塊是過時的語法，應該完全移除。",
+        "en": "Using the `script` block is deprecated syntax and should be completely removed.",
+        "wg": []
+      },
+      {
+        "t": "URL 請求應該使用 FTP 協定而不是 HTTP。",
+        "en": "URL requests should use the FTP protocol instead of HTTP.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "這是典型的「濫用 Groovy (Abuse of Groovy)」反模式。Jenkins Pipeline 依賴 CPS 機制，複雜的 Groovy 物件（如 `JsonSlurper` 產生的物件）往往無法序列化，導致執行失敗。最佳實務是將邏輯移至 Shell Script 或 Python 腳本中，並使用 `jq` 等工具處理。",
+      "en": "This is a typical 'Abuse of Groovy' anti-pattern. Jenkins Pipeline relies on the CPS mechanism, and complex Groovy objects (like those created by `JsonSlurper`) often fail to serialize, causing execution failures. The best practice is to move logic to Shell Scripts or Python scripts and use tools like `jq`.",
+      "wg": [
+        {
+          "t": "最佳實務",
+          "en": "best practice",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "3",
+    "level": "Medium",
+    "keywords": "Plugins, Maintenance, Anti-Pattern",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "團隊成員建議安裝一個新的 Jenkins Plugin 來處理簡單的 JSON 解析與 Slack 通知發送。身為資深工程師，你應該如何評估此建議？",
+        "en": "A team member suggests installing a new Jenkins Plugin to handle simple JSON parsing and sending Slack notifications. As a senior engineer, how should you evaluate this suggestion?",
+        "wg": [
+          {
+            "t": "評估",
+            "en": "evaluate",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "type": "Single",
+    "options": [
+      {
+        "t": "同意安裝。Jenkins 的優勢就在於豐富的生態系，應盡量利用 Plugin 來減少撰寫程式碼。",
+        "en": "Agree to install. Jenkins' strength lies in its rich ecosystem, and we should use Plugins as much as possible to reduce coding.",
+        "wg": []
+      },
+      {
+        "t": "拒絕安裝。應優先考慮使用 Shell Script 搭配 Docker Image (如 `jq`, `curl`) 來解決，以避免「插件囤積症 (Plugin Hoarding)」帶來的依賴地獄與安全風險。",
+        "en": "Refuse to install. Prioritize using Shell Scripts with Docker Images (e.g., `jq`, `curl`) to solve this, avoiding the dependency hell and security risks associated with 'Plugin Hoarding'.",
+        "wg": [
+          {
+            "t": "插件囤積症",
+            "en": "Plugin Hoarding",
+            "ps": "noun"
+          },
+          {
+            "t": "依賴地獄",
+            "en": "dependency hell",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "同意安裝，但必須將該 Plugin 的原始碼複製到專案中自行維護。",
+        "en": "Agree to install, but must copy the Plugin's source code into the project for self-maintenance.",
+        "wg": []
+      },
+      {
+        "t": "拒絕安裝。Jenkins 不應該用來發送通知，這應該是 CD 系統的工作。",
+        "en": "Refuse to install. Jenkins should not be used to send notifications; this should be the job of the CD system.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "「插件囤積症」會導致版本衝突、安全漏洞以及啟動變慢。對於可以用標準 Linux 工具 (如 `curl`, `jq`) 解決的小問題，不應引入額外的 Plugin 依賴。保持 Jenkins 核心輕量化是維護健康的關鍵。",
+      "en": "'Plugin Hoarding' leads to version conflicts, security holes, and slow startup times. For small problems that can be solved with standard Linux tools (like `curl`, `jq`), extra Plugin dependencies should not be introduced. Keeping the Jenkins core lightweight is key to maintenance health.",
+      "wg": [
+        {
+          "t": "輕量化",
+          "en": "lightweight",
+          "ps": "adjective"
+        }
+      ]
+    }
+  },
+  {
+    "no": "4",
+    "level": "Medium",
+    "keywords": "Shared Library, Design Pattern, Refactoring",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "某公司的 Shared Library 提供了一個名為 `buildEverything()` 的函式，所有專案的 Jenkinsfile 都只有這一行。這屬於哪種反模式？有什麼潛在後果？",
+        "en": "A company's Shared Library provides a function called `buildEverything()`, and every project's Jenkinsfile consists of only this single line. Which anti-pattern is this, and what is the potential consequence?",
+        "wg": [
+          {
+            "t": "潛在後果",
+            "en": "potential consequence",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single",
+    "options": [
+      {
+        "t": "這是「Configuration as Code」的最佳實踐，後果是開發效率極高。",
+        "en": "This is a best practice of 'Configuration as Code', resulting in extremely high development efficiency.",
+        "wg": []
+      },
+      {
+        "t": "這是「Shared Library Over-engineering」。它變成了「黑盒子 (Black Box)」，開發者無法理解底層邏輯，且 Library 的變更會瞬間影響所有專案 (Blast Radius 太大)。",
+        "en": "This is 'Shared Library Over-engineering'. It becomes a 'Black Box' where developers cannot understand the underlying logic, and changes to the Library instantly affect all projects (Blast Radius is too large).",
+        "wg": [
+          {
+            "t": "黑盒子",
+            "en": "Black Box",
+            "ps": "noun"
+          },
+          {
+            "t": "爆炸半徑",
+            "en": "Blast Radius",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "這是「ClickOps」反模式，因為開發者只需要點擊執行即可。",
+        "en": "This is the 'ClickOps' anti-pattern because developers only need to click to execute.",
+        "wg": []
+      },
+      {
+        "t": "這是「The Heavy Master」反模式，因為所有邏輯都在 Master 上執行。",
+        "en": "This is 'The Heavy Master' anti-pattern because all logic is executed on the Master.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "過度封裝的 Shared Library 會隱藏實作細節，使開發者難以除錯或客製化。Shared Library 應定位為提供「工具 (Tools)」而非「魔法 (Magic)」。當所有專案都依賴單一函式時，該函式的任何錯誤都會造成全公司構建失敗。",
+      "en": "Over-encapsulated Shared Libraries hide implementation details, making it difficult for developers to debug or customize. Shared Libraries should be positioned as providing 'Tools', not 'Magic'. When all projects rely on a single function, any error in that function causes build failures across the entire company.",
+      "wg": [
+        {
+          "t": "過度封裝",
+          "en": "over-encapsulated",
+          "ps": "verb/adjective"
+        },
+        {
+          "t": "客製化",
+          "en": "customize",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "5",
+    "level": "Hard",
+    "keywords": "Docker Agent, Environment, Reproducibility",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "為了避免 \"Works on my machine\" 以及不同專案間的環境衝突 (例如專案 A 需要 Node 14，專案 B 需要 Node 18)，下列哪一種做法是手冊推薦的最佳實務？",
+        "en": "To avoid 'Works on my machine' issues and environmental conflicts between projects (e.g., Project A needs Node 14, Project B needs Node 18), which of the following is the best practice recommended by the handbook?",
+        "wg": [
+          {
+            "t": "環境衝突",
+            "en": "environmental conflicts",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single",
+    "options": [
+      {
+        "t": "在 Jenkins Controller 的 Global Tool Configuration 中設定多個 Node.js 版本，並在 Job 中選擇。",
+        "en": "Configure multiple Node.js versions in the Jenkins Controller's Global Tool Configuration and select them in the Job.",
+        "wg": []
+      },
+      {
+        "t": "要求維運團隊在所有 Agent 機器上預先安裝好所有可能用到的 Node.js 版本。",
+        "en": "Request the operations team to pre-install all potentially used Node.js versions on all Agent machines.",
+        "wg": []
+      },
+      {
+        "t": "使用 Ephemeral Agents (Containerized Agents)。在 Pipeline 中指定 `agent { docker { image 'node:14-alpine' } }`，讓環境跟隨程式碼定義。",
+        "en": "Use Ephemeral Agents (Containerized Agents). Specify `agent { docker { image 'node:14-alpine' } }` in the Pipeline, allowing the environment to be defined by the code.",
+        "wg": [
+          {
+            "t": "短暫的",
+            "en": "Ephemeral",
+            "ps": "adjective"
+          },
+          {
+            "t": "容器化",
+            "en": "Containerized",
+            "ps": "adjective"
+          }
+        ]
+      },
+      {
+        "t": "使用 Shared Library 來動態下載並編譯 Node.js 原始碼。",
+        "en": "Use a Shared Library to dynamically download and compile Node.js source code.",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "使用 Docker Agent (Ephemeral Agents) 可以確保每次 Build 都在乾淨、隔離且版本精確的環境中執行。這符合 Configuration as Code 原則，避免了手動管理 Agent 環境 (Snowflake Server) 的負擔與衝突。",
+      "en": "Using Docker Agents (Ephemeral Agents) ensures that each build runs in a clean, isolated, and version-precise environment. This aligns with the Configuration as Code principle, avoiding the burden and conflicts of manually managing Agent environments (Snowflake Servers).",
+      "wg": [
+        {
+          "t": "隔離",
+          "en": "isolated",
+          "ps": "adjective"
+        }
+      ]
+    }
+  },
+  {
+    "no": "6",
+    "level": "Easy",
+    "keywords": "Checklist, Maintenance, Workspace",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在進行 Pipeline Code Review 時，為了防止磁碟空間被耗盡，下列哪一個檢查項目是必須的？",
+        "en": "During a Pipeline Code Review, which of the following checklist items is mandatory to prevent disk space exhaustion?",
+        "wg": [
+          {
+            "t": "耗盡",
+            "en": "exhaustion",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single",
+    "options": [
+      {
+        "t": "檢查是否使用了 `agent any`。",
+        "en": "Check if `agent any` is used.",
+        "wg": []
+      },
+      {
+        "t": "檢查 Pipeline 結束後 (如 `post { always { ... } }`) 是否執行了 `cleanWs()`。",
+        "en": "Check if `cleanWs()` is executed after the Pipeline finishes (e.g., in `post { always { ... } }`).",
+        "wg": [
+          {
+            "t": "清理工作區",
+            "en": "clean workspace",
+            "ps": "verb phrase"
+          }
+        ]
+      },
+      {
+        "t": "檢查是否備份了 `$JENKINS_HOME`。",
+        "en": "Check if `$JENKINS_HOME` is backed up.",
+        "wg": []
+      },
+      {
+        "t": "檢查是否使用了 `withCredentials`。",
+        "en": "Check if `withCredentials` is used.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "Workspace 殘留是導致 Jenkins Agent 磁碟空間不足的主因之一。最佳實務是在 Pipeline 的 `post` 區塊中使用 `cleanWs()` 來確保每次構建後清理垃圾檔案。",
+      "en": "Workspace residue is one of the main causes of Jenkins Agent disk space shortage. The best practice is to use `cleanWs()` in the Pipeline's `post` block to ensure garbage files are cleaned up after each build.",
+      "wg": [
+        {
+          "t": "殘留",
+          "en": "residue",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "7",
+    "level": "Medium",
+    "keywords": "ClickOps, Version Control, Reproducibility",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "什麼是「ClickOps」反模式？為什麼它被認為是危險的？",
+        "en": "What is the 'ClickOps' anti-pattern, and why is it considered dangerous?",
+        "wg": [
+          {
+            "t": "危險的",
+            "en": "dangerous",
+            "ps": "adjective"
+          }
+        ]
+      }
+    ],
+    "type": "Single",
+    "options": [
+      {
+        "t": "指透過點擊滑鼠來部署程式碼；危險是因為速度太快容易出錯。",
+        "en": "Refers to deploying code by clicking the mouse; dangerous because it's too fast and prone to errors.",
+        "wg": []
+      },
+      {
+        "t": "指在 Jenkins UI 手動設定 Job (如 Freestyle Project) 而非使用程式碼定義；危險是因為無法版控、難以 Review 且無法災難復原。",
+        "en": "Refers to manually configuring Jobs in the Jenkins UI (e.g., Freestyle Project) instead of defining them in code; dangerous because there is no version control, it's hard to review, and disaster recovery is impossible.",
+        "wg": [
+          {
+            "t": "災難復原",
+            "en": "disaster recovery",
+            "ps": "noun"
+          },
+          {
+            "t": "版控",
+            "en": "version control",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "指過度依賴 CLI 指令；危險是因為指令太複雜。",
+        "en": "Refers to over-reliance on CLI commands; dangerous because commands are too complex.",
+        "wg": []
+      },
+      {
+        "t": "指開發者頻繁點擊「Build Now」按鈕；危險是因為會造成伺服器過載。",
+        "en": "Refers to developers frequently clicking the 'Build Now' button; dangerous because it overloads the server.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "ClickOps 違反了 Configuration as Code 的原則。當 Job 設定僅存在於 UI 中時，無法追蹤變更歷史，也無法在 Jenkins 損壞時快速重建。正確做法是使用 Pipeline (`Jenkinsfile`) 或 Job DSL。",
+      "en": "ClickOps violates the Configuration as Code principle. When Job configurations exist only in the UI, change history cannot be tracked, and quick reconstruction is impossible if Jenkins breaks. The correct approach is to use Pipeline (`Jenkinsfile`) or Job DSL.",
+      "wg": [
+        {
+          "t": "違反",
+          "en": "violate",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "8",
+    "level": "Medium",
+    "keywords": "Security, Controller, Isolation, Anti-Pattern",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在「Heavy Master」反模式中，除了效能問題外，為什麼在 Jenkins Controller 上直接執行 Build 腳本被視為重大的安全風險？",
+        "en": "In the 'Heavy Master' anti-pattern, besides performance issues, why is executing build scripts directly on the Jenkins Controller considered a major security risk?",
+        "wg": [
+          {
+            "t": "安全風險",
+            "en": "security risk",
+            "ps": "noun"
+          },
+          {
+            "t": "執行",
+            "en": "execute",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "type": "Single",
+    "options": [
+      {
+        "t": "因為 Controller 的網路頻寬通常比 Agent 小，容易被 DDoS 攻擊。",
+        "en": "Because the Controller usually has less network bandwidth than Agents, making it vulnerable to DDoS attacks.",
+        "wg": []
+      },
+      {
+        "t": "因為 Build 腳本可能會讀取 Controller 上的系統檔案 (如 credentials.xml) 或存取其他 Job 的敏感資訊。",
+        "en": "Because build scripts might read system files (like credentials.xml) on the Controller or access sensitive information of other jobs.",
+        "wg": [
+          {
+            "t": "敏感資訊",
+            "en": "sensitive information",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "因為 Controller 不支援 HTTPS 連線，導致傳輸內容外洩。",
+        "en": "Because the Controller does not support HTTPS connections, leading to data leakage.",
+        "wg": []
+      },
+      {
+        "t": "因為 Controller 無法執行 Docker 指令，導致容器逃逸 (Container Escape)。",
+        "en": "Because the Controller cannot execute Docker commands, leading to Container Escape.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "根據手冊，Controller 存放了所有的系統設定與憑證。若允許在 Controller 上執行任意 Build Script，惡意或寫錯的腳本可能有權限讀取 `$JENKINS_HOME` 下的敏感檔案，造成安全漏洞。",
+      "en": "According to the handbook, the Controller stores all system configurations and credentials. Allowing arbitrary build scripts to run on the Controller means malicious or buggy scripts might have permissions to read sensitive files under `$JENKINS_HOME`, creating a security hole.",
+      "wg": [
+        {
+          "t": "憑證",
+          "en": "credentials",
+          "ps": "noun"
+        },
+        {
+          "t": "漏洞",
+          "en": "hole/vulnerability",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "9",
+    "level": "Easy",
+    "keywords": "Timeout, Checklist, Zombie Process, Maintenance",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "pipeline {\n    agent any\n    stages {\n        stage('Deploy') {\n            steps {\n                sh './deploy.sh' // This script hangs waiting for user input\n            }\n        }\n    }\n}",
+    "question": [
+      {
+        "t": "某個 Jenkins Job 因為 `deploy.sh` 卡在等待使用者輸入，導致 Executor 被佔用超過 24 小時。根據手冊的 Checklists，應該在 Pipeline 中加入什麼機制來預防此類「僵屍行程」？",
+        "en": "A Jenkins Job occupied an Executor for over 24 hours because `deploy.sh` was stuck waiting for user input. According to the handbook's Checklists, what mechanism should be added to the Pipeline to prevent such 'zombie processes'?",
+        "wg": [
+          {
+            "t": "僵屍行程",
+            "en": "zombie process",
+            "ps": "noun"
+          },
+          {
+            "t": "佔用",
+            "en": "occupy",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "type": "Single",
+    "options": [
+      {
+        "t": "Retry: 設定失敗重試次數。",
+        "en": "Retry: Set the number of retry attempts on failure.",
+        "wg": []
+      },
+      {
+        "t": "Timeout: 為 stage 或整個 pipeline 設定執行時間上限。",
+        "en": "Timeout: Set a time limit for a stage or the entire pipeline.",
+        "wg": [
+          {
+            "t": "上限",
+            "en": "limit/cap",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "Parallel: 平行執行以分散風險。",
+        "en": "Parallel: Execute in parallel to distribute risk.",
+        "wg": []
+      },
+      {
+        "t": "Trigger: 設定定期觸發檢查。",
+        "en": "Trigger: Set up periodic trigger checks.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "手冊的 Pipeline Code Review 清單中明確指出，應設定 `timeout` 以防止僵屍行程 (Zombie Processes) 卡住 Executor。Retry 只會讓卡住的情況重複發生。",
+      "en": "The handbook's Pipeline Code Review checklist explicitly states that `timeout` should be set to prevent zombie processes from sticking the Executor. Retry would only cause the stuck situation to happen repeatedly.",
+      "wg": [
+        {
+          "t": "清單",
+          "en": "checklist",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "10",
+    "level": "Medium",
+    "keywords": "Migration, Vendor Lock-in, Shell Script, Best Practice",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你的團隊計畫在未來一年內將 CI/CD 系統從 Jenkins 遷移至 GitHub Actions。為了降低遷移成本並避免「供應商鎖定 (Vendor Lock-in)」，目前的 Jenkins Pipeline 開發應遵循哪項最佳實務？",
+        "en": "Your team plans to migrate the CI/CD system from Jenkins to GitHub Actions within the next year. To reduce migration costs and avoid 'Vendor Lock-in', which best practice should current Jenkins Pipeline development follow?",
+        "wg": [
+          {
+            "t": "供應商鎖定",
+            "en": "Vendor Lock-in",
+            "ps": "noun"
+          },
+          {
+            "t": "遷移",
+            "en": "migrate",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "type": "Single",
+    "options": [
+      {
+        "t": "大量使用 Jenkins Shared Library 來封裝邏輯，因為 Library 可以直接被 GitHub Actions 引用。",
+        "en": "Heavily use Jenkins Shared Library to encapsulate logic, as the Library can be directly imported by GitHub Actions.",
+        "wg": []
+      },
+      {
+        "t": "盡量使用 Jenkins Plugins 提供的功能 (如 Slack Plugin, Git Plugin) 來取代手寫腳本。",
+        "en": "Maximize the use of features provided by Jenkins Plugins (e.g., Slack Plugin, Git Plugin) to replace handwritten scripts.",
+        "wg": []
+      },
+      {
+        "t": "將建置邏輯封裝在專案內的 Shell 或 Python 腳本中，Pipeline 僅負責呼叫這些腳本。",
+        "en": "Encapsulate build logic in Shell or Python scripts within the project, with the Pipeline only responsible for calling these scripts.",
+        "wg": [
+          {
+            "t": "封裝",
+            "en": "encapsulate",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "將所有邏輯寫在 Jenkinsfile 的 `script { ... }` 區塊中，利用 Groovy 的強大功能。",
+        "en": "Write all logic inside the `script { ... }` block of the Jenkinsfile to leverage the power of Groovy.",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "手冊指出「Logic in Scripts, Not Pipeline」是最佳實務。將邏輯寫在 Shell/Python 腳本中具有可移植性，可以在任何 CI 平台 (如 GitHub Actions) 執行；反之，Groovy 邏輯與 Jenkins Plugins 都是 Jenkins 專屬的，會導致難以遷移。",
+      "en": "The handbook states that 'Logic in Scripts, Not Pipeline' is a best practice. Writing logic in Shell/Python scripts ensures portability, allowing execution on any CI platform (like GitHub Actions); conversely, Groovy logic and Jenkins Plugins are specific to Jenkins, making migration difficult.",
+      "wg": [
+        {
+          "t": "可移植性",
+          "en": "portability",
+          "ps": "noun"
+        },
+        {
+          "t": "專屬的",
+          "en": "proprietary/specific",
+          "ps": "adj"
+        }
+      ]
+    }
+  },
+  {
+    "no": "11",
+    "level": "Hard",
+    "keywords": "JCasC, Disaster Recovery, Snowflake Server, Configuration",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "某公司雖然所有專案都使用了 `Jenkinsfile`，但當 Jenkins Server 硬碟損壞後，他們花了一週才重新手動設定好 LDAP 連線、全域憑證與 Docker Cloud 設定。這顯示該團隊陷入了哪種反模式？",
+        "en": "Although a company used `Jenkinsfile` for all projects, it took them a week to manually reconfigure LDAP connections, global credentials, and Docker Cloud settings after the Jenkins Server's hard drive failed. Which anti-pattern does this indicate the team fell into?",
+        "wg": [
+          {
+            "t": "硬碟損壞",
+            "en": "hard drive failure",
+            "ps": "noun"
+          },
+          {
+            "t": "手動設定",
+            "en": "manually configure",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "type": "Single",
+    "options": [
+      {
+        "t": "ClickOps (針對系統設定層面) 導致的 Snowflake Server。",
+        "en": "Snowflake Server caused by ClickOps (at the system configuration level).",
+        "wg": [
+          {
+            "t": "雪花伺服器",
+            "en": "Snowflake Server",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "Plugin Hoarding (插件囤積症)。",
+        "en": "Plugin Hoarding.",
+        "wg": []
+      },
+      {
+        "t": "Heavy Master (繁重的 Controller)。",
+        "en": "Heavy Master.",
+        "wg": []
+      },
+      {
+        "t": "Shared Library Over-engineering (過度設計的共用庫)。",
+        "en": "Shared Library Over-engineering.",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "雖然 Job 本身有版控 (Jenkinsfile)，但系統層級的設定 (System Configuration) 若依賴 UI 手動點擊設定，就會產生 \"Snowflake Server\" (無法複製的伺服器)。解決方案是導入 JCasC (Jenkins Configuration as Code)。",
+      "en": "Even if Jobs are version-controlled (Jenkinsfile), relying on manual UI clicks for System Configuration results in a 'Snowflake Server' (an irreproducible server). The solution is to adopt JCasC (Jenkins Configuration as Code).",
+      "wg": [
+        {
+          "t": "系統層級",
+          "en": "system-level",
+          "ps": "adj"
+        },
+        {
+          "t": "導入",
+          "en": "adopt/introduce",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "12",
+    "level": "Medium",
+    "keywords": "Secrets, Security, Code Review, Anti-Pattern",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "pipeline {\n    agent any\n    environment {\n        DB_PASS = 'mypassword123' // Hardcoded\n    }\n    stages {\n        stage('DB Init') {\n            steps {\n                sh \"echo Connecting with ${DB_PASS}\"\n                sh \"./init-db.sh --password ${DB_PASS}\"\n            }\n        }\n    }\n}",
+    "question": [
+      {
+        "t": "在 Code Review 時，你發現了上述的 Pipeline 片段。除了密碼被硬編碼 (Hardcoded) 的問題外，這段程式碼還違反了手冊中關於 Secrets Management 的哪項重要規則？",
+        "en": "During a Code Review, you noticed the above Pipeline snippet. Besides the issue of the password being hardcoded, which important rule regarding Secrets Management in the handbook does this code violate?",
+        "wg": [
+          {
+            "t": "硬編碼",
+            "en": "hardcoded",
+            "ps": "verb/adj"
+          },
+          {
+            "t": "違反",
+            "en": "violate",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "type": "Single",
+    "options": [
+      {
+        "t": "使用了 `agent any` 而非 Docker agent。",
+        "en": "Used `agent any` instead of a Docker agent.",
+        "wg": []
+      },
+      {
+        "t": "直接使用 `echo` 輸出或在 Shell 指令中明文傳遞密碼變數。",
+        "en": "Directly using `echo` to output or passing password variables in plain text within Shell commands.",
+        "wg": [
+          {
+            "t": "明文",
+            "en": "plain text",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "沒有使用 Shared Library 來隱藏實作細節。",
+        "en": "Did not use Shared Library to hide implementation details.",
+        "wg": []
+      },
+      {
+        "t": "變數名稱 `DB_PASS` 不符合命名慣例。",
+        "en": "The variable name `DB_PASS` does not follow naming conventions.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "手冊明確禁止直接 `echo` 環境變數或將密碼以明文參數傳遞，因為這會導致密碼出現在 Build Log 或系統的 Process List (如 `ps aux`) 中。應使用 `withCredentials` helper 來安全地注入憑證。",
+      "en": "The handbook strictly forbids directly `echo`-ing environment variables or passing passwords as plain text arguments, as this causes passwords to appear in Build Logs or the system Process List (e.g., `ps aux`). The `withCredentials` helper should be used to safely inject credentials.",
+      "wg": [
+        {
+          "t": "注入",
+          "en": "inject",
+          "ps": "verb"
+        },
+        {
+          "t": "禁止",
+          "en": "forbid",
+          "ps": "verb"
+        }
+      ]
+    }
+  }
+]

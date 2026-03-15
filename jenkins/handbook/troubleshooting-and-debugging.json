@@ -1,0 +1,887 @@
+[
+  {
+    "no": "1",
+    "level": "Hard",
+    "keywords": "OOM, Agent, Kubernetes, Troubleshooting",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你在 Kubernetes 環境中執行 Jenkins Build，構建過程突然中斷並失敗。Console Log 最後只顯示 `Channel closed` 或 `Connection reset`，並沒有任何編譯錯誤或具體的腳本失敗訊息。與此同時，你觀察到該 Agent Pod 似乎重啟了或消失了。根據「分層洋蔥」心智模型，這最可能是哪一層的問題，以及根本原因為何？",
+        "en": "You are running a Jenkins Build in a Kubernetes environment. The build abruptly fails, and the Console Log only shows `Channel closed` or `Connection reset` without any specific compilation errors or script failures. At the same time, you notice the Agent Pod seems to have restarted or disappeared. Based on the 'Layered Onion' mental model, which layer is this issue likely in, and what is the root cause?",
+        "wg": [
+          {
+            "t": "分層洋蔥",
+            "en": "Layered Onion",
+            "ps": "noun"
+          },
+          {
+            "t": "根本原因",
+            "en": "root cause",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "Pipeline 邏輯層：Shell script 語法錯誤導致執行緒崩潰。",
+        "en": "Pipeline Logic Layer: Syntax error in the shell script caused the thread to crash.",
+        "wg": []
+      },
+      {
+        "t": "基礎設施層：Agent Pod 記憶體不足被 OOM Killed (Out Of Memory)。",
+        "en": "Infrastructure Layer: The Agent Pod was OOM Killed (Out Of Memory).",
+        "wg": [
+          {
+            "t": "記憶體不足",
+            "en": "Out Of Memory",
+            "ps": "phrase"
+          }
+        ]
+      },
+      {
+        "t": "核心與插件層：Jenkins Master 的 JVM Heap 溢出導致連線中斷。",
+        "en": "Core & Plugins Layer: Jenkins Master JVM Heap overflow caused connection drop.",
+        "wg": []
+      },
+      {
+        "t": "Pipeline 邏輯層：使用了 `@NonCPS` 導致序列化失敗。",
+        "en": "Pipeline Logic Layer: Usage of `@NonCPS` caused serialization failure.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "當 Console Log 顯示 `Channel closed` 且沒有具體錯誤訊息，通常意味著 Master 與 Agent 的通訊中斷。在 Kubernetes 環境中，最常見的原因是 Agent Pod 超過了記憶體限制 (Limit) 而被系統核心的 OOM Killer 強制殺死。這是典型的基礎設施層 (Infrastructure Layer) 問題。",
+      "en": "When the Console Log shows `Channel closed` without specific error messages, it usually indicates a communication breakdown between the Master and the Agent. In a Kubernetes environment, the most common cause is the Agent Pod exceeding its memory limit and being forcibly killed by the system kernel's OOM Killer. This is a typical Infrastructure Layer issue.",
+      "wg": [
+        {
+          "t": "通訊中斷",
+          "en": "communication breakdown",
+          "ps": "noun"
+        },
+        {
+          "t": "強制殺死",
+          "en": "forcibly killed",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "2",
+    "level": "Medium",
+    "keywords": "Pipeline, Groovy, Serialization, CPS",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "def matcher = (text =~ /pattern/)\nsh \"echo processing...\"\nif (matcher.find()) { ... }",
+    "question": [
+      {
+        "t": "你的 Pipeline 包含如上所示的 Groovy 程式碼。執行時拋出了 `java.io.NotSerializableException: java.util.regex.Matcher` 錯誤。這是什麼原因造成的？",
+        "en": "Your Pipeline contains the Groovy code shown above. During execution, it throws a `java.io.NotSerializableException: java.util.regex.Matcher` error. What causes this?",
+        "wg": [
+          {
+            "t": "拋出",
+            "en": "throws",
+            "ps": "verb"
+          },
+          {
+            "t": "序列化",
+            "en": "serialization",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "Groovy 的 Regex 語法錯誤，應該使用 `Pattern.compile()`。",
+        "en": "Groovy Regex syntax error; `Pattern.compile()` should be used.",
+        "wg": []
+      },
+      {
+        "t": "Jenkins Pipeline (CPS) 在 `sh` 步驟執行時試圖序列化當前環境變數，但 `Matcher` 物件無法被序列化。",
+        "en": "Jenkins Pipeline (CPS) attempts to serialize current environment variables during the `sh` step, but the `Matcher` object is not serializable.",
+        "wg": [
+          {
+            "t": "環境變數",
+            "en": "environment variables",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "權限不足，腳本被 Sandbox 拒絕執行。",
+        "en": "Insufficient permissions; the script was rejected by the Sandbox.",
+        "wg": []
+      },
+      {
+        "t": "變數 `matcher` 在 `sh` 執行前已經被 Garbage Collected。",
+        "en": "The variable `matcher` was Garbage Collected before the `sh` execution.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "Jenkins Pipeline 使用 CPS (Continuation Passing Style) 執行模式，會在每個步驟（如 `sh`）執行後將狀態序列化到磁碟以便暫停或恢復。`java.util.regex.Matcher` 是不可序列化的物件，若它在 `sh` 執行時仍存在於 Scope 中，就會導致序列化失敗。解決方案是將邏輯封裝在 `@NonCPS` 方法中或在步驟前清空變數。",
+      "en": "Jenkins Pipeline uses CPS (Continuation Passing Style) execution mode, which serializes the state to disk after each step (like `sh`) to allow pausing or resuming. `java.util.regex.Matcher` is a non-serializable object. If it remains in scope when `sh` executes, serialization fails. The solution is to encapsulate the logic in a `@NonCPS` method or clear the variable before the step.",
+      "wg": [
+        {
+          "t": "不可序列化",
+          "en": "non-serializable",
+          "ps": "adjective"
+        },
+        {
+          "t": "封裝",
+          "en": "encapsulate",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "3",
+    "level": "Medium",
+    "keywords": "Anti-pattern, Logging, Performance",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "某個 Build 導致 Jenkins Master 的 Disk I/O 飆高，且當你試圖在瀏覽器查看該 Build 的 Console Output 時，瀏覽器分頁直接崩潰 (Crash)。經檢查，該 Pipeline 開啟了 `set -x` 並輸出了大量二進制資料。這屬於哪種反模式 (Anti-pattern)？",
+        "en": "A specific Build causes the Jenkins Master's Disk I/O to spike, and when you try to view the Console Output in the browser, the tab crashes. Upon inspection, the Pipeline has `set -x` enabled and outputs a large amount of binary data. Which anti-pattern is this?",
+        "wg": [
+          {
+            "t": "反模式",
+            "en": "anti-pattern",
+            "ps": "noun"
+          },
+          {
+            "t": "二進制資料",
+            "en": "binary data",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "Blind Restarts (盲目重啟)",
+        "en": "Blind Restarts",
+        "wg": []
+      },
+      {
+        "t": "Heavy Lifting on Master (在 Master 執行重量級任務)",
+        "en": "Heavy Lifting on Master",
+        "wg": []
+      },
+      {
+        "t": "Log Flooding (日誌洪水)",
+        "en": "Log Flooding",
+        "wg": []
+      },
+      {
+        "t": "Zombie Builds (殭屍構建)",
+        "en": "Zombie Builds",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "這是典型的「日誌洪水 (Log Flooding)」。當 Pipeline 輸出過多文字（數百 MB 甚至 GB），不僅會佔用 Master 的磁碟 I/O 進行寫入，瀏覽器在渲染如此巨大的 Console Output 時也會耗盡記憶體而崩潰。應使用 `logRotator` 或將詳細日誌重定向到檔案。",
+      "en": "This is typical 'Log Flooding'. When a Pipeline outputs too much text (hundreds of MBs or GBs), it not only consumes Master's Disk I/O for writing but also causes the browser to crash due to memory exhaustion when rendering such a huge Console Output. You should use `logRotator` or redirect detailed logs to a file.",
+      "wg": [
+        {
+          "t": "日誌洪水",
+          "en": "Log Flooding",
+          "ps": "noun"
+        },
+        {
+          "t": "耗盡",
+          "en": "exhaustion",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "4",
+    "level": "Medium",
+    "keywords": "Script Console, Zombie Build, Administration",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你遇到一個「殭屍構建 (Zombie Build)」，點擊 UI 上的 'X' (Abort) 按鈕完全沒有反應，該 Build 依然顯示在執行中並佔用 Executor。根據手冊，最有效的強制終止方法是什麼？",
+        "en": "You encounter a 'Zombie Build'. Clicking the 'X' (Abort) button on the UI has no effect; the build still shows as running and occupies an Executor. According to the handbook, what is the most effective way to forcibly terminate it?",
+        "wg": [
+          {
+            "t": "殭屍構建",
+            "en": "Zombie Build",
+            "ps": "noun"
+          },
+          {
+            "t": "強制終止",
+            "en": "forcibly terminate",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "直接重啟 Jenkins Master 服務。",
+        "en": "Restart the Jenkins Master service directly.",
+        "wg": []
+      },
+      {
+        "t": "進入 `Manage Jenkins` -> `Script Console`，使用 Groovy 腳本呼叫 `doStop()` 或 `doKill()`。",
+        "en": "Go to `Manage Jenkins` -> `Script Console` and use a Groovy script to call `doStop()` or `doKill()`.",
+        "wg": [
+          {
+            "t": "腳本控制台",
+            "en": "Script Console",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "刪除該 Job 的所有歷史紀錄。",
+        "en": "Delete all history records of that Job.",
+        "wg": []
+      },
+      {
+        "t": "等待 24 小時，Jenkins 會自動清理超時任務。",
+        "en": "Wait for 24 hours; Jenkins will automatically clean up timed-out tasks.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "當 UI 無法停止 Build 時，通常是因為執行緒卡死或中斷訊號被忽略。使用 Script Console 可以直接存取 Jenkins 內部 API (如 `Jenkins.instance.getItemByFullName(...).getBuilds()...doStop()`) 來強制停止執行緒，這是處理 Zombie Builds 的標準做法，且無需重啟服務。",
+      "en": "When the UI cannot stop a build, it's usually because the thread is stuck or the interrupt signal is ignored. Using the Script Console allows direct access to internal Jenkins APIs (like `doStop()`) to forcibly terminate the thread. This is the standard practice for handling Zombie Builds without restarting the service.",
+      "wg": [
+        {
+          "t": "中斷訊號",
+          "en": "interrupt signal",
+          "ps": "noun"
+        },
+        {
+          "t": "標準做法",
+          "en": "standard practice",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "5",
+    "level": "Easy",
+    "keywords": "Replay, Workflow, Best Practice",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你在除錯一個 Pipeline 語法錯誤，需要反覆修改腳本並測試。為了避免產生大量無意義的 Git Commit (如 'fix typo', 'try again')，你應該善用哪個 Jenkins 功能？",
+        "en": "You are debugging a Pipeline syntax error and need to repeatedly modify the script and test. To avoid generating a large number of meaningless Git Commits (e.g., 'fix typo', 'try again'), which Jenkins feature should you utilize?",
+        "wg": [
+          {
+            "t": "反覆修改",
+            "en": "repeatedly modify",
+            "ps": "verb"
+          },
+          {
+            "t": "無意義的",
+            "en": "meaningless",
+            "ps": "adjective"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "Replay (重播)",
+        "en": "Replay",
+        "wg": []
+      },
+      {
+        "t": "Restart from Stage (從階段重啟)",
+        "en": "Restart from Stage",
+        "wg": []
+      },
+      {
+        "t": "Parameters (參數化構建)",
+        "en": "Parameters",
+        "wg": []
+      },
+      {
+        "t": "Scan Multibranch Pipeline Now",
+        "en": "Scan Multibranch Pipeline Now",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "「Replay」功能允許開發者直接在 Jenkins UI 中修改當次 Build 的 Pipeline Script 並重新執行，而無需推送到 Git。這對於快速迭代驗證修復方案非常有效。驗證成功後，再將最終代碼 Commit 回 Git。",
+      "en": "The 'Replay' feature allows developers to modify the Pipeline Script for the current build directly in the Jenkins UI and re-run it without pushing to Git. This is highly effective for rapid iteration to verify fixes. Once verified, the final code can be committed to Git.",
+      "wg": [
+        {
+          "t": "快速迭代",
+          "en": "rapid iteration",
+          "ps": "noun"
+        },
+        {
+          "t": "驗證",
+          "en": "verify",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "6",
+    "level": "Medium",
+    "keywords": "Parallel, Workspace, Troubleshooting",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "parallel(\n  \"Test A\": { node('linux') { sh './run-test-a.sh' } },\n  \"Test B\": { node('linux') { sh './run-test-b.sh' } }\n)",
+    "question": [
+      {
+        "t": "你的 Pipeline 使用 `parallel` 同時執行兩個測試階段（如上代碼）。執行時隨機出現 `Workspace in use` 或 `File access denied` 錯誤。這是什麼原因，應如何修復？",
+        "en": "Your Pipeline uses `parallel` to run two test stages simultaneously (as shown in the code). During execution, `Workspace in use` or `File access denied` errors occur randomly. What is the cause, and how should it be fixed?",
+        "wg": [
+          {
+            "t": "隨機出現",
+            "en": "occur randomly",
+            "ps": "verb"
+          },
+          {
+            "t": "存取被拒",
+            "en": "access denied",
+            "ps": "phrase"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "原因：兩個並行任務在同一個 Node 上競爭同一個 Workspace 目錄。修復：使用 `ws('...')` 區塊為每個分支分配獨立的工作目錄。",
+        "en": "Cause: Two parallel tasks are contending for the same Workspace directory on the same Node. Fix: Use `ws('...')` block to assign an isolated workspace for each branch.",
+        "wg": [
+          {
+            "t": "競爭",
+            "en": "contending",
+            "ps": "verb"
+          },
+          {
+            "t": "獨立的",
+            "en": "isolated",
+            "ps": "adjective"
+          }
+        ]
+      },
+      {
+        "t": "原因：Jenkins Master 無法同時調度兩個任務。修復：增加 Master 的 Executor 數量。",
+        "en": "Cause: Jenkins Master cannot schedule two tasks simultaneously. Fix: Increase the number of Executors on the Master.",
+        "wg": []
+      },
+      {
+        "t": "原因：Shell 腳本沒有執行權限。修復：執行 `chmod +x`。",
+        "en": "Cause: The shell script lacks execution permissions. Fix: Run `chmod +x`.",
+        "wg": []
+      },
+      {
+        "t": "原因：Parallel 語法錯誤。修復：改用 `stage` 順序執行。",
+        "en": "Cause: Parallel syntax error. Fix: Use `stage` to execute sequentially instead.",
+        "wg": []
+      }
+    ],
+    "answer": "0",
+    "why": {
+      "t": "當多個並行分支 (Parallel branches) 被調度到同一個 Agent Node 時，預設會使用該 Job 的同一個 Workspace。這會導致檔案讀寫衝突 (Resource Contention)。解決方案是使用 `ws()` 步驟顯式地隔離每個並行任務的工作目錄。",
+      "en": "When multiple parallel branches are scheduled on the same Agent Node, they default to using the same Workspace for that Job. This causes file read/write conflicts (Resource Contention). The solution is to use the `ws()` step to explicitly isolate the working directory for each parallel task.",
+      "wg": [
+        {
+          "t": "資源競爭",
+          "en": "Resource Contention",
+          "ps": "noun"
+        },
+        {
+          "t": "顯式地",
+          "en": "explicitly",
+          "ps": "adverb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "7",
+    "level": "Medium",
+    "keywords": "Anti-pattern, Performance, Thread Dump",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "當 Jenkins 變慢或卡住時，直接重啟 (Blind Restart) 為什麼被視為一種反模式 (Anti-pattern)？",
+        "en": "When Jenkins becomes slow or unresponsive, why is a 'Blind Restart' considered an Anti-pattern?",
+        "wg": [
+          {
+            "t": "變慢",
+            "en": "sluggish / slow",
+            "ps": "adjective"
+          },
+          {
+            "t": "反模式",
+            "en": "Anti-pattern",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "因為重啟會導致所有已安裝的 Plugin 被重置。",
+        "en": "Because a restart will cause all installed Plugins to be reset.",
+        "wg": []
+      },
+      {
+        "t": "因為這會破壞「案發現場」，導致 Thread Dump 等除錯證據遺失，問題下次仍會發生。",
+        "en": "Because this destroys the 'crime scene', causing the loss of debugging evidence like Thread Dumps, so the issue will recur.",
+        "wg": [
+          {
+            "t": "案發現場",
+            "en": "crime scene",
+            "ps": "noun"
+          },
+          {
+            "t": "復發",
+            "en": "recur",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "因為重啟需要花費太長時間，影響 SLA。",
+        "en": "Because a restart takes too long, impacting SLA.",
+        "wg": []
+      },
+      {
+        "t": "因為重啟會刪除所有的 Build History。",
+        "en": "Because a restart will delete all Build History.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "盲目重啟雖然能暫時恢復服務，但會清除 JVM 的記憶體狀態和執行緒資訊 (Thread Dump)。沒有這些「現場證據」，你無法分析出死鎖 (Deadlock) 或效能瓶頸的根本原因，導致問題未來不可避免地再次發生。正確做法是在重啟前先收集 `jstack` 或 Heap Dump。",
+      "en": "While a blind restart might temporarily restore service, it clears the JVM memory state and thread information (Thread Dump). Without this 'on-site evidence', you cannot analyze the root cause of deadlocks or performance bottlenecks, making it inevitable for the problem to happen again. The correct approach is to collect a `jstack` or Heap Dump before restarting.",
+      "wg": [
+        {
+          "t": "死鎖",
+          "en": "Deadlock",
+          "ps": "noun"
+        },
+        {
+          "t": "不可避免地",
+          "en": "inevitable",
+          "ps": "adverb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "8",
+    "level": "Medium",
+    "keywords": "Anti-pattern, Master Node, Performance, Best Practice",
+    "parentNo": null,
+    "images": "",
+    "codeSnippet": "pipeline {\n    agent any\n    stages {\n        stage('Build') {\n            steps {\n                sh 'make -j 8' // Heavy compilation\n            }\n        }\n    }\n}",
+    "question": [
+      {
+        "t": "你觀察到每當上述 Pipeline 執行時，Jenkins Web UI 就會變得極度緩慢甚至出現 502 錯誤，導致其他使用者無法存取。",
+        "en": "You observe that whenever the above Pipeline runs, the Jenkins Web UI becomes extremely sluggish or even returns 502 errors, preventing other users from accessing it.",
+        "wg": []
+      },
+      {
+        "t": "根據手冊中的反模式 (Anti-pattern) 指南，造成此現象最可能的根本原因是什麼？",
+        "en": "According to the Anti-pattern guide in the handbook, what is the most likely root cause of this phenomenon?",
+        "wg": [
+          {
+            "t": "反模式",
+            "en": "Anti-pattern",
+            "ps": "noun"
+          },
+          {
+            "t": "根本原因",
+            "en": "root cause",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "Jenkins Master 的磁碟空間不足，導致日誌寫入失敗。",
+        "en": "The Jenkins Master is running out of disk space, causing log writing failures.",
+        "wg": []
+      },
+      {
+        "t": "在 Master 節點上執行重量級任務耗盡了 CPU 與記憶體資源，影響了 Controller 的核心功能。",
+        "en": "Running heavy tasks on the Master node exhausted CPU and memory resources, impacting the Controller's core functions.",
+        "wg": [
+          {
+            "t": "重量級任務",
+            "en": "heavy tasks",
+            "ps": "noun"
+          },
+          {
+            "t": "耗盡",
+            "en": "exhausted",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "Pipeline 語法錯誤導致 Groovy 解析器陷入無限迴圈。",
+        "en": "A Pipeline syntax error caused the Groovy parser to enter an infinite loop.",
+        "wg": []
+      },
+      {
+        "t": "該 Build 觸發了過多的並行 Agent 連線，導致網路擁塞。",
+        "en": "The build triggered too many concurrent Agent connections, causing network congestion.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "這是一個典型的「在 Master 執行重量級任務 (Heavy Lifting on Master)」反模式。當 `agent any` 選中了 Master (Built-in Node) 且執行高負載編譯時，會搶佔負責處理 HTTP 請求與調度的資源。",
+      "en": "This is a classic 'Heavy Lifting on Master' anti-pattern. When `agent any` selects the Master (Built-in Node) for high-load compilation, it preempts resources needed for handling HTTP requests and scheduling.",
+      "wg": [
+        {
+          "t": "搶佔",
+          "en": "preempts",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "9",
+    "level": "Hard",
+    "keywords": "Security, Sandbox, Shared Library, Best Practice",
+    "parentNo": null,
+    "images": "",
+    "codeSnippet": "Scripts not permitted to use method java.io.File <init> java.lang.String. Administrators can decide whether to approve or reject this signature.",
+    "question": [
+      {
+        "t": "你的 Pipeline 嘗試使用 Java API 讀取檔案時失敗，並出現上述的 Sandbox 安全性錯誤。",
+        "en": "Your Pipeline fails while trying to read a file using Java API, showing the above Sandbox security error.",
+        "wg": [
+          {
+            "t": "安全性錯誤",
+            "en": "security error",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "為了兼顧安全性與可維護性，下列哪一種做法是解決此問題的最佳實務？",
+        "en": "To balance security and maintainability, which of the following is the best practice to resolve this issue?",
+        "wg": [
+          {
+            "t": "最佳實務",
+            "en": "best practice",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "在 'In-process Script Approval' 頁面中手動核准 (Approve) 該簽章。",
+        "en": "Manually approve the signature in the 'In-process Script Approval' page.",
+        "wg": []
+      },
+      {
+        "t": "將該邏輯封裝到 Global Shared Library 中，因為它在受信任的範疇 (Trusted Scope) 內執行。",
+        "en": "Encapsulate the logic in a Global Shared Library, as it runs within the Trusted Scope.",
+        "wg": [
+          {
+            "t": "封裝",
+            "en": "encapsulate",
+            "ps": "verb"
+          },
+          {
+            "t": "受信任的範疇",
+            "en": "Trusted Scope",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "停用 Jenkins 的 Groovy Sandbox 功能以允許所有腳本執行。",
+        "en": "Disable the Jenkins Groovy Sandbox feature to allow all scripts to run.",
+        "wg": []
+      },
+      {
+        "t": "使用 `sudo` 提升權限來執行該 Pipeline。",
+        "en": "Use `sudo` to elevate privileges to run the Pipeline.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "盲目核准簽章或關閉 Sandbox 是反模式，會引入安全漏洞。Shared Library 的程式碼被視為受信任的 (Trusted)，可以繞過 Sandbox 限制，是處理複雜或受限邏輯的正確方式。",
+      "en": "Blindly approving signatures or disabling the Sandbox are anti-patterns that introduce security vulnerabilities. Shared Library code is considered Trusted and can bypass Sandbox restrictions, making it the correct way to handle complex or restricted logic.",
+      "wg": [
+        {
+          "t": "繞過",
+          "en": "bypass",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "10",
+    "level": "Medium",
+    "keywords": "Performance, Logging, Timestamper, Troubleshooting",
+    "parentNo": null,
+    "images": "",
+    "codeSnippet": "",
+    "question": [
+      {
+        "t": "使用者回報某個 Build 雖然成功，但執行時間異常地長。查看 Console Output 只看到大量的執行日誌，卻無法判斷具體是哪一個步驟變慢了。",
+        "en": "Users report that a build succeeded but took an unusually long time. The Console Output shows extensive logs, but it's impossible to tell exactly which step slowed down.",
+        "wg": []
+      },
+      {
+        "t": "根據手冊建議，你應該啟用什麼功能來最有效地定位效能瓶頸？",
+        "en": "According to the handbook recommendations, what feature should you enable to most effectively pinpoint the performance bottleneck?",
+        "wg": [
+          {
+            "t": "定位",
+            "en": "pinpoint",
+            "ps": "verb"
+          },
+          {
+            "t": "效能瓶頸",
+            "en": "performance bottleneck",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "啟用 `set -x` 來顯示詳細的 Shell 執行過程。",
+        "en": "Enable `set -x` to show detailed Shell execution processes.",
+        "wg": []
+      },
+      {
+        "t": "安裝並啟用 Timestamper 插件，在每一行日誌前加上時間戳記。",
+        "en": "Install and enable the Timestamper plugin to prepend timestamps to each log line.",
+        "wg": [
+          {
+            "t": "時間戳記",
+            "en": "timestamps",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "增加 Agent 的 CPU Request 資源配置。",
+        "en": "Increase the CPU Request resource allocation for the Agent.",
+        "wg": []
+      },
+      {
+        "t": "在 Pipeline 結束時發送 Email 通知包含總執行時間。",
+        "en": "Send an Email notification with the total execution time at the end of the Pipeline.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "知道「總時間」不足以除錯。Timestamper 允許你看到每一步驟的開始與結束時間，從而精確找出耗時最長的環節（例如某個 `sh` 指令卡住或下載依賴變慢）。",
+      "en": "Knowing the 'total time' is insufficient for debugging. Timestamper allows you to see the start and end times of each step, enabling you to precisely identify the most time-consuming parts (e.g., a stuck `sh` command or slow dependency download).",
+      "wg": [
+        {
+          "t": "精確找出",
+          "en": "precisely identify",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "11",
+    "level": "Medium",
+    "keywords": "Debugging, Methodology, Pipeline, Efficiency",
+    "parentNo": null,
+    "images": "",
+    "codeSnippet": "",
+    "question": [
+      {
+        "t": "你正在除錯一個長達 50 個 Stage 的複雜 Pipeline，它在中間某處失敗且錯誤訊息非常模糊。你無法在本地重現此問題。",
+        "en": "You are debugging a complex Pipeline with 50 stages that fails somewhere in the middle with a very vague error message. You cannot reproduce the issue locally.",
+        "wg": [
+          {
+            "t": "模糊",
+            "en": "vague",
+            "ps": "adjective"
+          },
+          {
+            "t": "重現",
+            "en": "reproduce",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "根據「二分法除錯 (Binary Search Debugging)」模式，下列哪種策略最有效率？",
+        "en": "According to the 'Binary Search Debugging' pattern, which of the following strategies is the most efficient?",
+        "wg": [
+          {
+            "t": "二分法除錯",
+            "en": "Binary Search Debugging",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "從頭開始逐行閱讀程式碼，尋找可能的語法錯誤。",
+        "en": "Read the code line by line from the beginning to look for possible syntax errors.",
+        "wg": []
+      },
+      {
+        "t": "註解掉一半的 Stage (或使用 `return`) 並執行，依據結果判斷問題在前半段還是後半段，反覆縮小範圍。",
+        "en": "Comment out half of the stages (or use `return`) and run it. Based on the result, determine if the issue is in the first or second half, and iteratively narrow down the scope.",
+        "wg": [
+          {
+            "t": "縮小範圍",
+            "en": "narrow down the scope",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "在每一個 Stage 中都加入 `echo` 指令印出所有變數的值。",
+        "en": "Add `echo` commands in every stage to print the values of all variables.",
+        "wg": []
+      },
+      {
+        "t": "直接重啟 Jenkins Master 以排除暫時性的系統異常。",
+        "en": "Directly restart the Jenkins Master to rule out temporary system anomalies.",
+        "wg": []
+      }
+    ],
+    "answer": "1",
+    "why": {
+      "t": "當日誌不明確時，二分法 (Binary Search) 是最快縮小問題範圍的方法。逐行閱讀效率太低，而全面加 Log 則可能產生過多雜訊。",
+      "en": "When logs are unclear, Binary Search is the fastest way to narrow down the problem scope. Reading line by line is inefficient, and adding logs everywhere can create too much noise.",
+      "wg": [
+        {
+          "t": "雜訊",
+          "en": "noise",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "12",
+    "level": "Hard",
+    "keywords": "Thread Dump, Deadlock, Troubleshooting, Hanging Build",
+    "parentNo": null,
+    "images": "",
+    "codeSnippet": "",
+    "question": [
+      {
+        "t": "一個 Pipeline Build 卡住 (Hanging) 數小時沒有任何進展。你懷疑是死鎖 (Deadlock) 或資源鎖定問題。",
+        "en": "A Pipeline build has been hanging for hours without any progress. You suspect a deadlock or resource locking issue.",
+        "wg": [
+          {
+            "t": "卡住",
+            "en": "hanging",
+            "ps": "verb"
+          },
+          {
+            "t": "死鎖",
+            "en": "deadlock",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "在查看 Jenkins 的 Thread Dump 時，下列哪一個關鍵字或狀態最能證實你的懷疑？",
+        "en": "When examining the Jenkins Thread Dump, which of the following keywords or statuses would best confirm your suspicion?",
+        "wg": [
+          {
+            "t": "證實",
+            "en": "confirm",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "`TIMED_WAITING (sleeping)`",
+        "en": "`TIMED_WAITING (sleeping)`",
+        "wg": []
+      },
+      {
+        "t": "`RUNNABLE` 且正在執行 `SocketInputStream.socketRead0`",
+        "en": "`RUNNABLE` and executing `SocketInputStream.socketRead0`",
+        "wg": []
+      },
+      {
+        "t": "`BLOCKED` 或 `waiting for monitor entry`",
+        "en": "`BLOCKED` or `waiting for monitor entry`",
+        "wg": [
+          {
+            "t": "監視器入口",
+            "en": "monitor entry",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "`Executor.run`",
+        "en": "`Executor.run`",
+        "wg": []
+      }
+    ],
+    "answer": "2",
+    "why": {
+      "t": "`BLOCKED` 狀態意味著執行緒正在等待獲取一個被其他執行緒持有的鎖 (Monitor)，這是死鎖的典型特徵。`TIMED_WAITING` 通常是正常的 `sleep`，而 `socketRead0` 通常表示網路等待。",
+      "en": "The `BLOCKED` status means the thread is waiting to acquire a lock (Monitor) held by another thread, which is a typical sign of a deadlock. `TIMED_WAITING` is usually a normal `sleep`, and `socketRead0` typically indicates network waiting.",
+      "wg": [
+        {
+          "t": "持有",
+          "en": "held by",
+          "ps": "verb"
+        }
+      ]
+    }
+  }
+]
