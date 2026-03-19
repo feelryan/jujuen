@@ -155,7 +155,7 @@ int maxDepthWrong(TreeNode* root) {
 
 ### BFS
 
-``` bfs
+```cpp
 #include <queue>
 
 class Solution {
