@@ -168,6 +168,35 @@ class BadSolution {
 
 ---
 
+### BFS
+
+```java
+class Solution {
+    public int maxDepth(TreeNode root) {
+        if (root == null) {
+            return 0;
+        }
+        Queue<TreeNode> queue = new ArrayDeque<>(Arrays.asList(root)); 
+        int depth = 0;
+        // queue.add(root);
+        while (queue.size() > 0) {
+            depth += 1;
+            int levelDepth = queue.size();
+            for (int i=0 ; i < levelDepth; i++) {
+                TreeNode node = queue.poll();
+                if (node.left != null) {
+                    queue.add(node.left);
+                }
+                if (node.right != null) {
+                    queue.add(node.right);
+                }
+            }
+        }
+        return depth;
+    }
+}
+```
+
 ## 5. Common Pitfalls & Confusing Concepts (常見陷阱與易混淆概念)
 
 | Concept A | Concept B | Distinction (區別) |
