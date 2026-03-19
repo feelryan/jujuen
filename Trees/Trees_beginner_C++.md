@@ -153,6 +153,39 @@ int maxDepthWrong(TreeNode* root) {
 }
 ```
 
+### BFS
+
+``` bfs
+#include <queue>
+
+class Solution {
+public:
+    int maxDepth(TreeNode* root) {
+        if (root == nullptr) {
+            return 0;
+        }
+        std:queue<TreeNode*> q;
+        q.push(root);
+        int depth = 0;
+        while (q.empty() != true) {
+            depth += 1;
+            int depthLevel = q.size();
+            for (int i=0 ; i < depthLevel; i++) {
+                TreeNode *node = q.front();
+                q.pop();
+                if (node->left != nullptr) {
+                    q.push(node->left);
+                }
+                if (node->right != nullptr) {
+                    q.push(node->right);
+                }
+            }
+        }
+        return depth;
+    }
+};
+```
+
 ### Analysis (分析)
 *   **Time Complexity:** $O(N)$ — We visit every node exactly once.
     **時間複雜度：** $O(N)$ — 我們確切地訪問每個節點一次。
