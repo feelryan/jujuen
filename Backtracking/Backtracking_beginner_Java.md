@@ -76,6 +76,41 @@ For beginners, most backtracking problems fall into two categories based on how 
 
 ## 4. Example Walkthrough (範例講解)
 
+### Problem: Permutations (LeetCode 46)
+
+```java
+class Solution {
+    private void backtrack(int[] nums, boolean[] used, 
+                           List<Integer> path, List<List<Integer>> result) {
+
+        if (path.size() == nums.length) {
+            result.add(new ArrayList<>(path));
+            return;
+        }
+
+        for (int i = 0; i < nums.length; i++) {
+
+            if (used[i]) continue;  // 用 index 來判斷
+
+            used[i] = true;
+            path.add(nums[i]);
+
+            backtrack(nums, used, path, result);
+
+            used[i] = false;
+            path.remove(path.size() - 1);
+        }
+    }
+
+    public List<List<Integer>> permute(int[] nums) {
+        List<List<Integer>> result = new ArrayList<>();
+        boolean[] used = new boolean[nums.length];
+        backtrack(nums, used, new ArrayList<>(), result);
+        return result;
+    }
+}
+```
+
 ### Problem: Subsets (LeetCode 78)
 **Problem Statement:** Given an integer array `nums` of unique elements, return all possible subsets (the power set).
 **問題重述：** 給定一個包含唯一元素的整數陣列 `nums`，返回所有可能的子集（冪集）。
