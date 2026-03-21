@@ -74,7 +74,7 @@
         "wg": []
       }
     ],
-    "answer": "(C)",
+    "answer": "C",
     "why": {
       "t": "這是實作 Custom Allocator 時常見的生命週期陷阱。`ArenaAllocator` 內部持有 `Arena` 的指標（Reference Semantics），但 `Arena` 實體是在 `processData` 的 Stack 上建立的。當函式返回時，`localArena` 解構，導致外部的 `vector` 持有一個指向無效記憶體的 Allocator（Dangling Pointer）。",
       "en": "This is a common lifecycle pitfall when implementing Custom Allocators. `ArenaAllocator` holds a pointer to `Arena` (Reference Semantics), but the `Arena` instance is created on the stack of `processData`. When the function returns, `localArena` is destructed, leaving the external `vector` with an allocator pointing to invalid memory (Dangling Pointer).",
@@ -90,7 +90,8 @@
           "ps": "N"
         }
       ]
-    }
+    },
+    "verified": "2026-03-17T14:09:32"
   },
   {
     "no": "chapter02-q13",
@@ -162,7 +163,7 @@
         "wg": []
       }
     ],
-    "answer": "(B)",
+    "answer": "B",
     "why": {
       "t": "`std::list` 是 Node-based 容器，其保證除了被刪除的該元素外，其他元素的記憶體位置永遠不會改變，因此指標穩定性（Pointer Stability）極高。相比之下，`std::vector` 的擴容或插入會導致元素移動；`std::deque` 雖然較穩定，但在中間插入刪除時仍會使 Iterator 失效。",
       "en": "`std::list` is a Node-based container, guaranteeing that the memory address of elements never changes (except for the deleted element itself), offering high Pointer Stability. In contrast, `std::vector` moves elements during reallocation or insertion; `std::deque`, while more stable, still invalidates iterators upon insertion/deletion in the middle.",
@@ -178,7 +179,8 @@
           "ps": "N"
         }
       ]
-    }
+    },
+    "verified": "2026-03-17T14:09:32"
   },
   {
     "no": "chapter02-q14",
@@ -239,7 +241,7 @@
         "wg": []
       }
     ],
-    "answer": "(B)",
+    "answer": "B",
     "why": {
       "t": "`std::deque` 內部通常由一個中央 Map（指向各個 Buffer 的指標陣列）與多個固定大小的 Buffer 組成。存取 `deque[i]` 需先計算出在哪個 Buffer（第一次解引用），再計算 Buffer 內的偏移量（第二次存取）。而 `vector` 保證記憶體連續，僅需 `base + index` 即可。",
       "en": "`std::deque` is typically implemented as a central Map (array of pointers to buffers) and multiple fixed-size buffers. Accessing `deque[i]` requires calculating which buffer it is in (first dereference) and then the offset within that buffer (second access). `vector` guarantees contiguous memory, requiring only `base + index`.",
@@ -255,7 +257,8 @@
           "ps": "Adj"
         }
       ]
-    }
+    },
+    "verified": "2026-03-17T14:09:32"
   },
   {
     "no": "chapter02-q15",
@@ -328,7 +331,7 @@
         "wg": []
       }
     ],
-    "answer": "(B)",
+    "answer": "B",
     "why": {
       "t": "`std::map` 通常以紅黑樹（Red-Black Tree）實作。在 64-bit 系統上，每個節點至少需要 24 bytes 的指標（3 * 8 bytes）加上顏色位元與 Padding，這對於僅存儲 9 bytes 有效資料（8 bytes Key + 1 byte Value）的場景來說，是極大的浪費（Overhead > 300%）。",
       "en": "`std::map` is typically implemented as a Red-Black Tree. On a 64-bit system, each node requires at least 24 bytes for pointers (3 * 8 bytes) plus color bits and padding. For a scenario storing only 9 bytes of effective data (8 bytes Key + 1 byte Value), this is a huge waste (Overhead > 300%).",
@@ -344,6 +347,992 @@
           "ps": "N"
         }
       ]
-    }
+    },
+    "verified": "2026-03-17T14:09:32"
+  },
+  {
+    "no": "5",
+    "level": "intermediate",
+    "keywords": "std::deque, Memory Layout, Iterator Invalidation, Pointers",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "關於 `std::deque` 的內部實作與特性，下列敘述何者正確？",
+        "en": "Regarding the internal implementation and characteristics of `std::deque`, which of the following statements is correct?",
+        "wg": [
+          {
+            "t": "內部實作",
+            "en": "internal implementation",
+            "ps": "N"
+          },
+          {
+            "t": "特性",
+            "en": "characteristics",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) `std::deque` 保證所有元素在記憶體中是連續存放的，因此與 C 語言陣列相容。",
+        "en": "(A) `std::deque` guarantees that all elements are stored contiguously in memory, making it compatible with C-style arrays.",
+        "wg": []
+      },
+      {
+        "t": "(B) 在 `std::deque` 的頭部或尾部插入元素時，雖然會導致迭代器（Iterators）失效，但指向現有元素的指標（Pointers）與參考（References）仍然有效。",
+        "en": "(B) Inserting elements at the front or back of a `std::deque` invalidates iterators, but pointers and references to existing elements remain valid.",
+        "wg": [
+          {
+            "t": "頭部",
+            "en": "front",
+            "ps": "N"
+          },
+          {
+            "t": "尾部",
+            "en": "back",
+            "ps": "N"
+          },
+          {
+            "t": "失效",
+            "en": "invalidate",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(C) `std::deque` 的擴容機制與 `std::vector` 完全相同，都需要將舊資料搬移到新的記憶體區塊。",
+        "en": "(C) The expansion mechanism of `std::deque` is identical to `std::vector`, requiring old data to be moved to a new memory block.",
+        "wg": []
+      },
+      {
+        "t": "(D) 由於 `std::deque` 是 Node-based 容器，因此其 Cache Locality 與 `std::list` 一樣差。",
+        "en": "(D) Since `std::deque` is a Node-based container, its Cache Locality is as poor as `std::list`.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "`std::deque` 通常由多個連續的記憶體區塊（Chunks）組成。C++ 標準規定，在兩端插入元素時，不會導致現有元素的參考或指標失效（因為不需要搬移現有元素，只需分配新 Chunk），但迭代器可能會失效（因為迭代器內部狀態可能需要更新以指向新結構）。",
+      "en": "`std::deque` is typically composed of multiple contiguous memory chunks. The C++ Standard specifies that insertion at either end does not invalidate pointers or references to existing elements (as no moving is required, only allocating new chunks), though iterators may be invalidated (as their internal state might need updating).",
+      "wg": [
+        {
+          "t": "記憶體區塊",
+          "en": "memory chunks",
+          "ps": "N"
+        },
+        {
+          "t": "搬移",
+          "en": "move/relocate",
+          "ps": "V"
+        }
+      ]
+    },
+    "verified": "2026-03-17T14:11:22"
+  },
+  {
+    "no": "6",
+    "level": "intermediate",
+    "keywords": "std::vector, reserve, resize, Undefined Behavior",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "std::vector<int> vec;\nvec.reserve(10);\nvec[0] = 100;\nvec[1] = 200;",
+    "question": [
+      {
+        "t": "請檢視上方的程式碼片段。執行這段程式碼後，最可能發生的結果是什麼？",
+        "en": "Please review the code snippet above. What is the most likely outcome after executing this code?",
+        "wg": [
+          {
+            "t": "檢視",
+            "en": "review",
+            "ps": "V"
+          },
+          {
+            "t": "程式碼片段",
+            "en": "code snippet",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) `vec` 的大小變為 2，內容為 `{100, 200}`。",
+        "en": "(A) The size of `vec` becomes 2, with content `{100, 200}`.",
+        "wg": []
+      },
+      {
+        "t": "(B) `vec` 的大小變為 10，前兩個元素為 100 和 200，其餘為 0。",
+        "en": "(B) The size of `vec` becomes 10, with the first two elements being 100 and 200, and the rest 0.",
+        "wg": []
+      },
+      {
+        "t": "(C) 程式編譯失敗，因為 `operator[]` 會檢查邊界。",
+        "en": "(C) The program fails to compile because `operator[]` checks bounds.",
+        "wg": [
+          {
+            "t": "邊界",
+            "en": "bounds",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(D) 發生未定義行為（Undefined Behavior），可能導致 Segfault 或資料損毀。",
+        "en": "(D) Undefined Behavior occurs, potentially causing a Segfault or data corruption.",
+        "wg": [
+          {
+            "t": "未定義行為",
+            "en": "Undefined Behavior",
+            "ps": "N"
+          },
+          {
+            "t": "資料損毀",
+            "en": "data corruption",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "answer": "D",
+    "why": {
+      "t": "`reserve(10)` 僅分配記憶體容量（Capacity），但不會改變容器的邏輯大小（Size），也不會建構物件。此時 `vec` 仍是空的（Size 為 0）。使用 `[]` 存取越界元素屬於未定義行為。應使用 `push_back` 或改用 `resize(10)`。",
+      "en": "`reserve(10)` only allocates memory capacity but does not change the logical size of the container, nor does it construct objects. `vec` remains empty (Size is 0). Accessing out-of-bounds elements via `[]` is Undefined Behavior. You should use `push_back` or `resize(10)` instead.",
+      "wg": [
+        {
+          "t": "容量",
+          "en": "capacity",
+          "ps": "N"
+        },
+        {
+          "t": "邏輯大小",
+          "en": "logical size",
+          "ps": "N"
+        }
+      ]
+    },
+    "verified": "2026-03-17T14:11:22"
+  },
+  {
+    "no": "7",
+    "level": "advanced",
+    "keywords": "Performance, Cache Locality, std::map, std::vector, Lookup",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在遊戲引擎開發中，您有一組「唯讀」的設定資料（Config Data），包含約 100 個 Key-Value 對。",
+        "en": "In game engine development, you have a set of 'read-only' Config Data containing about 100 Key-Value pairs.",
+        "wg": [
+          {
+            "t": "唯讀",
+            "en": "read-only",
+            "ps": "Adj"
+          },
+          {
+            "t": "設定資料",
+            "en": "config data",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "這組資料在初始化後不會再變動，但在遊戲迴圈（Game Loop）中會被極頻繁地查詢。",
+        "en": "This data will not change after initialization but will be queried extremely frequently inside the Game Loop.",
+        "wg": [
+          {
+            "t": "初始化",
+            "en": "initialization",
+            "ps": "N"
+          },
+          {
+            "t": "極頻繁地",
+            "en": "extremely frequently",
+            "ps": "Adv"
+          }
+        ]
+      },
+      {
+        "t": "為了最佳化效能（Latency），下列哪種資料結構設計最合適？",
+        "en": "To optimize performance (Latency), which of the following data structure designs is most appropriate?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 使用 `std::map`，因為紅黑樹提供穩定的 O(log N) 查詢。",
+        "en": "(A) Use `std::map`, because Red-Black Trees provide stable O(log N) lookups.",
+        "wg": []
+      },
+      {
+        "t": "(B) 使用 `std::list` 並進行線性搜尋，因為資料量小。",
+        "en": "(B) Use `std::list` with linear search, because the dataset is small.",
+        "wg": []
+      },
+      {
+        "t": "(C) 使用排序過的 `std::vector` 搭配 `std::lower_bound` 進行二分搜尋。",
+        "en": "(C) Use a sorted `std::vector` combined with `std::lower_bound` for binary search.",
+        "wg": [
+          {
+            "t": "二分搜尋",
+            "en": "binary search",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(D) 使用 `std::deque`，因為它比 `vector` 更容易擴充。",
+        "en": "(D) Use `std::deque`, because it is easier to expand than `vector`.",
+        "wg": []
+      }
+    ],
+    "answer": "C",
+    "why": {
+      "t": "對於少量且唯讀的資料，排序後的 `std::vector` 記憶體佈局連續，Cache Locality 極佳。相比之下，`std::map` 是 Node-based，每次存取都可能導致 Cache Miss。雖然兩者都是 O(log N)，但 `vector` 的常數因子與 Cache 命中率遠優於 `map`。",
+      "en": "For small, read-only data, a sorted `std::vector` has contiguous memory layout and excellent Cache Locality. In contrast, `std::map` is Node-based, where each access can cause a Cache Miss. Although both are O(log N), `vector`'s constant factor and cache hit rate are far superior to `map`.",
+      "wg": [
+        {
+          "t": "常數因子",
+          "en": "constant factor",
+          "ps": "N"
+        },
+        {
+          "t": "命中率",
+          "en": "hit rate",
+          "ps": "N"
+        }
+      ]
+    },
+    "verified": "2026-03-17T14:11:22"
+  },
+  {
+    "no": "8",
+    "level": "advanced",
+    "keywords": "Custom Allocator, Arena, Destructor, Memory Management",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您實作了一個簡單的 Linear Allocator (Arena) 供 `std::vector` 使用，該 Allocator 的 `deallocate` 函式是空的（no-op）。",
+        "en": "You have implemented a simple Linear Allocator (Arena) for use with `std::vector`, where the Allocator's `deallocate` function is a no-op.",
+        "wg": [
+          {
+            "t": "實作",
+            "en": "implement",
+            "ps": "V"
+          },
+          {
+            "t": "空的",
+            "en": "no-op/empty",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "當您對該 `vector` 呼叫 `pop_back()` 移除最後一個元素時，會發生什麼事？",
+        "en": "What happens when you call `pop_back()` on that `vector` to remove the last element?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 該元素的解構子（Destructor）被呼叫，且其佔用的記憶體立即歸還給作業系統。",
+        "en": "(A) The element's destructor is called, and its occupied memory is immediately returned to the OS.",
+        "wg": []
+      },
+      {
+        "t": "(B) 該元素的解構子被呼叫，但記憶體不會被釋放或標記為可用，直到整個 Arena 被重置。",
+        "en": "(B) The element's destructor is called, but the memory is not freed or marked as available until the entire Arena is reset.",
+        "wg": [
+          {
+            "t": "重置",
+            "en": "reset",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(C) 該元素的解構子不會被呼叫，且記憶體也不會被釋放。",
+        "en": "(C) The element's destructor is not called, and the memory is not freed.",
+        "wg": []
+      },
+      {
+        "t": "(D) 編譯器會報錯，因為 `std::vector` 要求 Allocator 必須實作 `deallocate`。",
+        "en": "(D) The compiler will report an error because `std::vector` requires the Allocator to implement `deallocate`.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "`std::vector` 的 `pop_back` 會呼叫物件的解構子（Destructor），接著呼叫 Allocator 的 `deallocate`。由於我們的 `deallocate` 是 no-op，記憶體實際上並未歸還，這符合 Arena「一次性釋放」的設計模式。",
+      "en": "`std::vector`'s `pop_back` calls the object's destructor, then calls the Allocator's `deallocate`. Since our `deallocate` is a no-op, the memory is not actually returned, which aligns with the Arena's 'release all at once' design pattern.",
+      "wg": [
+        {
+          "t": "解構子",
+          "en": "destructor",
+          "ps": "N"
+        },
+        {
+          "t": "歸還",
+          "en": "return/reclaim",
+          "ps": "V"
+        }
+      ]
+    },
+    "verified": "2026-03-17T14:11:22"
+  },
+  {
+    "no": "9",
+    "level": "intermediate",
+    "keywords": "std::list, Pointer Stability, Iterator Invalidation, Use Case",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "雖然 `std::vector` 在大多數情況下優於 `std::list`，但在下列哪種特定場景中，使用 `std::list` 是較佳的選擇？",
+        "en": "Although `std::vector` outperforms `std::list` in most cases, in which of the following specific scenarios is `std::list` the better choice?",
+        "wg": [
+          {
+            "t": "特定場景",
+            "en": "specific scenario",
+            "ps": "N"
+          },
+          {
+            "t": "較佳的",
+            "en": "better/preferable",
+            "ps": "Adj"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 需要頻繁隨機存取（Random Access）元素時。",
+        "en": "(A) When frequent random access to elements is required.",
+        "wg": [
+          {
+            "t": "隨機存取",
+            "en": "random access",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(B) 系統記憶體非常受限，需要最小化每個元素的記憶體開銷（Overhead）時。",
+        "en": "(B) When system memory is strictly limited and per-element memory overhead needs to be minimized.",
+        "wg": [
+          {
+            "t": "開銷",
+            "en": "overhead",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) 需要在容器中間頻繁插入/刪除，且外部持有指向容器內元素的指標，必須保證這些指標不會失效（Pointer Stability）。",
+        "en": "(C) When frequent insertion/deletion in the middle is required, and external components hold pointers to elements that must remain valid (Pointer Stability).",
+        "wg": [
+          {
+            "t": "指標穩定性",
+            "en": "pointer stability",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(D) 需要極高的 Cache Locality 以提升遍歷速度時。",
+        "en": "(D) When extremely high Cache Locality is needed to improve traversal speed.",
+        "wg": [
+          {
+            "t": "遍歷",
+            "en": "traversal",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "answer": "C",
+    "why": {
+      "t": "`std::list` 是 Node-based 容器，插入或刪除節點只會改變節點間的連結，不會移動元素本身在記憶體中的位置。因此，指向其他元素的指標與迭代器永遠保持有效。相比之下，`vector` 的插入可能觸發擴容，導致所有指標失效。",
+      "en": "`std::list` is a Node-based container; inserting or deleting nodes only changes the links between nodes, not the memory location of the elements themselves. Therefore, pointers and iterators to other elements remain valid. In contrast, insertion in `vector` may trigger reallocation, invalidating all pointers.",
+      "wg": [
+        {
+          "t": "節點",
+          "en": "node",
+          "ps": "N"
+        },
+        {
+          "t": "連結",
+          "en": "link",
+          "ps": "N"
+        }
+      ]
+    },
+    "verified": "2026-03-17T14:11:22"
+  },
+  {
+    "no": "10",
+    "level": "intermediate",
+    "keywords": "std::vector, erase, Loop, Bug",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "std::vector<int> vec = {1, 2, 3, 4, 5};\nfor (auto it = vec.begin(); it != vec.end(); ++it) {\n    if (*it % 2 == 0) {\n        vec.erase(it);\n    }\n}",
+    "question": [
+      {
+        "t": "請分析上方的 C++ 程式碼片段，其目的是移除 `vector` 中的偶數。",
+        "en": "Please analyze the C++ code snippet above, which aims to remove even numbers from the `vector`.",
+        "wg": [
+          {
+            "t": "分析",
+            "en": "analyze",
+            "ps": "V"
+          },
+          {
+            "t": "移除",
+            "en": "remove",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "這段程式碼存在什麼問題？",
+        "en": "What is the problem with this code?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 程式碼正確，可以安全地移除所有偶數。",
+        "en": "(A) The code is correct and safely removes all even numbers.",
+        "wg": []
+      },
+      {
+        "t": "(B) `vec.erase(it)` 會導致 `it` 失效，隨後的 `++it` 操作是未定義行為（Undefined Behavior）。",
+        "en": "(B) `vec.erase(it)` invalidates `it`, making the subsequent `++it` operation Undefined Behavior.",
+        "wg": []
+      },
+      {
+        "t": "(C) `erase` 只能刪除最後一個元素，刪除中間元素需要用 `remove`。",
+        "en": "(C) `erase` can only delete the last element; deleting middle elements requires `remove`.",
+        "wg": []
+      },
+      {
+        "t": "(D) 編譯錯誤，因為 `vector` 的迭代器不支援比較運算子 `!=`。",
+        "en": "(D) Compilation error, because `vector` iterators do not support the comparison operator `!=`.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "在 `vector` 中呼叫 `erase(it)` 會使指向該元素及其後方所有元素的迭代器失效。當迴圈執行 `++it` 時，使用的是已失效的迭代器，導致未定義行為。正確做法是使用 `it = vec.erase(it)` 或 Erase-Remove Idiom。",
+      "en": "Calling `erase(it)` in a `vector` invalidates iterators pointing to that element and all subsequent elements. When the loop executes `++it`, it uses an invalidated iterator, causing Undefined Behavior. The correct approach is to use `it = vec.erase(it)` or the Erase-Remove Idiom.",
+      "wg": [
+        {
+          "t": "失效",
+          "en": "invalidate",
+          "ps": "V"
+        },
+        {
+          "t": "慣用手法",
+          "en": "idiom",
+          "ps": "N"
+        }
+      ]
+    },
+    "verified": "2026-03-17T14:11:22"
+  },
+  {
+    "no": "chapter02-q11",
+    "level": "advanced",
+    "keywords": "Lifetime, Dangling Reference, Custom Allocator, Safety",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "class Arena { /* ... implementation as in text ... */ };\n\ntemplate <typename T>\nstruct ArenaAllocator { /* ... holds Arena* ... */ };\n\nstd::vector<int, ArenaAllocator<int>> createData() {\n    Arena localArena(1024);\n    std::vector<int, ArenaAllocator<int>> v((ArenaAllocator<int>(localArena)));\n    v.push_back(42);\n    return v;\n}",
+    "question": [
+      {
+        "t": "請檢視上方的 C++ 程式碼片段。當呼叫 `createData()` 並嘗試使用回傳的 `vector` 時，會發生什麼情況？",
+        "en": "Please review the C++ code snippet above. What happens when `createData()` is called and the returned `vector` is used?",
+        "wg": [
+          {
+            "t": "回傳",
+            "en": "returned",
+            "ps": "V"
+          },
+          {
+            "t": "發生什麼情況",
+            "en": "what happens",
+            "ps": "Phrase"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 程式正常執行，因為 `vector` 會透過 Move Semantics 轉移所有權。",
+        "en": "(A) The program runs correctly because the `vector` transfers ownership via Move Semantics.",
+        "wg": [
+          {
+            "t": "轉移所有權",
+            "en": "transfers ownership",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(B) 發生 Undefined Behavior (UB) 或崩潰，因為 `vector` 持有的 Allocator 參照了一個已經銷毀的 `Arena` 物件。",
+        "en": "(B) Undefined Behavior (UB) or a crash occurs because the Allocator held by the `vector` references a destroyed `Arena` object.",
+        "wg": [
+          {
+            "t": "銷毀",
+            "en": "destroyed",
+            "ps": "V"
+          },
+          {
+            "t": "參照",
+            "en": "references",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(C) 編譯錯誤，因為 `ArenaAllocator` 不支援 Copy Constructor。",
+        "en": "(C) Compilation error because `ArenaAllocator` does not support Copy Constructor.",
+        "wg": []
+      },
+      {
+        "t": "(D) 記憶體洩漏 (Memory Leak)，因為 `localArena` 的解構子不會釋放已經分配給 `vector` 的記憶體。",
+        "en": "(D) Memory Leak, because the destructor of `localArena` will not free the memory already allocated to the `vector`.",
+        "wg": [
+          {
+            "t": "記憶體洩漏",
+            "en": "Memory Leak",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "`localArena` 是 Stack 上的區域變數，函式結束時會被銷毀。然而 `vector` 內的 `ArenaAllocator` 僅持有 `Arena` 的指標（Pointer/Reference）。當 `vector` 被回傳後，其 Allocator 仍指向已釋放的記憶體位置，導致 Use-After-Free。",
+      "en": "`localArena` is a local variable on the Stack and is destroyed when the function ends. However, the `ArenaAllocator` inside the `vector` only holds a pointer/reference to the `Arena`. After the `vector` is returned, its Allocator still points to the freed memory location, leading to Use-After-Free.",
+      "wg": [
+        {
+          "t": "區域變數",
+          "en": "local variable",
+          "ps": "N"
+        },
+        {
+          "t": "已釋放的",
+          "en": "freed",
+          "ps": "Adj"
+        }
+      ]
+    },
+    "verified": "2026-03-18T18:33:13"
+  },
+  {
+    "no": "chapter02-q12",
+    "level": "intermediate",
+    "keywords": "Memory Overhead, std::map, std::set, Node-based Container",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您正在評估將一個儲存數百萬個整數的容器從 `std::vector<int>`（已排序）遷移到 `std::set<int>`。",
+        "en": "You are evaluating migrating a container storing millions of integers from a sorted `std::vector<int>` to a `std::set<int>`.",
+        "wg": [
+          {
+            "t": "評估",
+            "en": "evaluating",
+            "ps": "V"
+          },
+          {
+            "t": "遷移",
+            "en": "migrating",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "根據教材中的記憶體模型，下列關於記憶體開銷（Memory Overhead）的預估何者最準確？",
+        "en": "Based on the memory model in the material, which of the following estimates regarding Memory Overhead is most accurate?",
+        "wg": [
+          {
+            "t": "記憶體開銷",
+            "en": "Memory Overhead",
+            "ps": "N"
+          },
+          {
+            "t": "預估",
+            "en": "estimates",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) `std::set` 的記憶體使用量約為 `std::vector` 的 3 到 4 倍，因為每個節點需額外儲存指標與顏色位元。",
+        "en": "(A) `std::set` uses approximately 3 to 4 times more memory than `std::vector` because each node must store additional pointers and color bits.",
+        "wg": [
+          {
+            "t": "顏色位元",
+            "en": "color bits",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(B) `std::set` 與 `std::vector` 的記憶體使用量大致相同，因為兩者都只儲存整數資料。",
+        "en": "(B) `std::set` and `std::vector` use roughly the same amount of memory since both only store integer data.",
+        "wg": []
+      },
+      {
+        "t": "(C) `std::set` 較省記憶體，因為它不需要像 `vector` 那樣預留額外的 Capacity。",
+        "en": "(C) `std::set` is more memory-efficient because it doesn't need to reserve extra Capacity like `vector`.",
+        "wg": [
+          {
+            "t": "預留",
+            "en": "reserve",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(D) `std::set` 的記憶體使用量取決於插入順序，最壞情況下可能比 `vector` 多 10 倍。",
+        "en": "(D) The memory usage of `std::set` depends on the insertion order and can be up to 10 times more than `vector` in the worst case.",
+        "wg": []
+      }
+    ],
+    "answer": "A",
+    "why": {
+      "t": "`std::set` 通常以紅黑樹（Red-Black Tree）實作，每個元素都是一個獨立的 Node。除了資料本身（4 bytes），每個 Node 還需包含 3 個指標（Left, Right, Parent，在 64-bit 系統下為 24 bytes）以及顏色資訊，加上記憶體配置器的 Padding，開銷巨大。",
+      "en": "`std::set` is typically implemented as a Red-Black Tree, where each element is an independent Node. Besides the data itself (4 bytes), each Node must contain 3 pointers (Left, Right, Parent; 24 bytes on 64-bit systems) and color information, plus memory allocator padding, resulting in significant overhead.",
+      "wg": [
+        {
+          "t": "紅黑樹",
+          "en": "Red-Black Tree",
+          "ps": "N"
+        },
+        {
+          "t": "開銷",
+          "en": "overhead",
+          "ps": "N"
+        }
+      ]
+    },
+    "verified": "2026-03-18T18:33:13"
+  },
+  {
+    "no": "chapter02-q13",
+    "level": "intermediate",
+    "keywords": "Iterator Invalidation, std::map, Bug, Loop",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "std::map<int, std::string> cache;\n// ... populate cache ...\n\nfor (auto it = cache.begin(); it != cache.end(); ++it) {\n    if (isExpired(it->second)) {\n        cache.erase(it); // BUG HERE\n    }\n}",
+    "question": [
+      {
+        "t": "請分析上方的程式碼片段，其目的是從 `std::map` 中移除過期的項目。",
+        "en": "Analyze the code snippet above, which aims to remove expired items from a `std::map`.",
+        "wg": [
+          {
+            "t": "移除",
+            "en": "remove",
+            "ps": "V"
+          },
+          {
+            "t": "過期的",
+            "en": "expired",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "為什麼這段程式碼會導致錯誤？",
+        "en": "Why does this code cause an error?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) `cache.erase(it)` 會導致所有 Iterators 失效，因此迴圈無法繼續。",
+        "en": "(A) `cache.erase(it)` invalidates all iterators, so the loop cannot continue.",
+        "wg": [
+          {
+            "t": "失效",
+            "en": "invalidates",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(B) `cache.erase(it)` 僅使指向該被刪除元素的 Iterator 失效，但在 `for` 迴圈的更新式中執行的 `++it` 會存取該已失效的 Iterator，導致 Undefined Behavior。",
+        "en": "(B) `cache.erase(it)` only invalidates the iterator pointing to the deleted element, but `++it` in the `for` loop's update expression accesses this invalidated iterator, causing Undefined Behavior.",
+        "wg": [
+          {
+            "t": "更新式",
+            "en": "update expression",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) `std::map` 不支援在遍歷時進行修改，必須先將要刪除的 Key 存入另一個 `vector`。",
+        "en": "(C) `std::map` does not support modification during traversal; keys to be deleted must first be stored in another `vector`.",
+        "wg": [
+          {
+            "t": "遍歷",
+            "en": "traversal",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(D) `erase` 操作的時間複雜度是 O(N)，在迴圈中呼叫會導致整體複雜度退化為 O(N^2)。",
+        "en": "(D) The time complexity of the `erase` operation is O(N), and calling it inside a loop degrades the overall complexity to O(N^2).",
+        "wg": [
+          {
+            "t": "退化",
+            "en": "degrades",
+            "ps": "V"
+          }
+        ]
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "對於 Node-based 容器（如 `map`, `list`），`erase(it)` 只會讓 `it` 失效。然而，`for` 迴圈的機制是在 Body 執行完後執行 `++it`。此時 `it` 已經失效，對其進行遞增操作是未定義行為。正確寫法應為 `cache.erase(it++)` 或使用 `it = cache.erase(it)`。",
+      "en": "For Node-based containers (like `map`, `list`), `erase(it)` only invalidates `it`. However, the `for` loop mechanism executes `++it` after the body. At this point, `it` is already invalid, and incrementing it is Undefined Behavior. The correct approach is `cache.erase(it++)` or using `it = cache.erase(it)`.",
+      "wg": [
+        {
+          "t": "未定義行為",
+          "en": "Undefined Behavior",
+          "ps": "N"
+        },
+        {
+          "t": "遞增",
+          "en": "incrementing",
+          "ps": "V"
+        }
+      ]
+    },
+    "verified": "2026-03-18T18:33:13"
+  },
+  {
+    "no": "chapter02-q14",
+    "level": "advanced",
+    "keywords": "System Design, std::deque, std::vector, Reallocation",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您正在設計一個日誌緩衝區（Log Buffer），該模組會不斷在尾端新增日誌，並從前端移除舊日誌（Sliding Window）。",
+        "en": "You are designing a Log Buffer module that continuously adds logs to the back and removes old logs from the front (Sliding Window).",
+        "wg": [
+          {
+            "t": "日誌緩衝區",
+            "en": "Log Buffer",
+            "ps": "N"
+          },
+          {
+            "t": "滑動視窗",
+            "en": "Sliding Window",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "在記憶體有限且日誌量極大的情況下，為何 `std::deque` 在此場景通常比 `std::vector` 更合適？",
+        "en": "In a scenario with limited memory and a massive volume of logs, why is `std::deque` generally more suitable than `std::vector`?",
+        "wg": [
+          {
+            "t": "合適",
+            "en": "suitable",
+            "ps": "Adj"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) `std::deque` 保證所有元素在記憶體中完全連續，因此 Cache Locality 比 `vector` 更好。",
+        "en": "(A) `std::deque` guarantees all elements are perfectly contiguous in memory, so its Cache Locality is better than `vector`.",
+        "wg": []
+      },
+      {
+        "t": "(B) `std::deque` 支援 O(1) 的隨機存取，而 `std::vector` 不支援。",
+        "en": "(B) `std::deque` supports O(1) random access, whereas `std::vector` does not.",
+        "wg": []
+      },
+      {
+        "t": "(C) `std::deque` 是由多個 Chunk 組成，擴容時不需複製現有元素，且移除前端元素（pop_front）不會導致後續元素記憶體搬移。",
+        "en": "(C) `std::deque` is composed of multiple Chunks; expansion does not require copying existing elements, and removing elements from the front (pop_front) does not cause memory shifting of subsequent elements.",
+        "wg": [
+          {
+            "t": "擴容",
+            "en": "expansion",
+            "ps": "N"
+          },
+          {
+            "t": "記憶體搬移",
+            "en": "memory shifting",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(D) `std::deque` 使用 Linked List 實作，因此完全沒有記憶體碎片化的問題。",
+        "en": "(D) `std::deque` is implemented using a Linked List, so it has absolutely no memory fragmentation issues.",
+        "wg": [
+          {
+            "t": "記憶體碎片化",
+            "en": "memory fragmentation",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "answer": "C",
+    "why": {
+      "t": "`std::vector` 在前端移除元素（pop_front 模擬）需要 O(N) 的搬移，且擴容時需要複製所有元素。`std::deque` 的 Chunk-based 設計允許在頭尾 O(1) 插入與刪除，且擴容時只需分配新的 Chunk，無需搬移舊資料，非常適合 Sliding Window 場景。",
+      "en": "`std::vector` requires O(N) shifting to remove elements from the front (simulating pop_front) and copies all elements during expansion. `std::deque`'s Chunk-based design allows O(1) insertion and deletion at both ends, and expansion only requires allocating new Chunks without moving old data, making it ideal for Sliding Window scenarios.",
+      "wg": [
+        {
+          "t": "搬移",
+          "en": "shifting",
+          "ps": "V"
+        },
+        {
+          "t": "頭尾",
+          "en": "both ends",
+          "ps": "N"
+        }
+      ]
+    },
+    "verified": "2026-03-18T18:33:13"
+  },
+  {
+    "no": "chapter02-q15",
+    "level": "intermediate",
+    "keywords": "Hardware, Cache Miss, Prefetching, std::list",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "教材中提到 `std::list` 在遍歷（Iteration）時通常比 `std::vector` 慢很多，被稱為「Cache Killer」。",
+        "en": "The material mentions that `std::list` is usually much slower than `std::vector` during iteration, referring to it as a \"Cache Killer\".",
+        "wg": [
+          {
+            "t": "遍歷",
+            "en": "iteration",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "除了指標解參考（Dereference）的開銷外，導致效能低落的最主要硬體層面原因是什麼？",
+        "en": "Besides the overhead of pointer dereferencing, what is the primary hardware-level reason for this poor performance?",
+        "wg": [
+          {
+            "t": "指標解參考",
+            "en": "pointer dereferencing",
+            "ps": "N"
+          },
+          {
+            "t": "硬體層面",
+            "en": "hardware-level",
+            "ps": "Adj"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) `std::list` 的節點分散在記憶體各處，導致 CPU 硬體預取器（Hardware Prefetcher）無法預測下一個記憶體位址，產生大量 Cache Miss。",
+        "en": "(A) `std::list` nodes are scattered in memory, causing the CPU Hardware Prefetcher to fail in predicting the next memory address, resulting in massive Cache Misses.",
+        "wg": [
+          {
+            "t": "硬體預取器",
+            "en": "Hardware Prefetcher",
+            "ps": "N"
+          },
+          {
+            "t": "分散",
+            "en": "scattered",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(B) `std::list` 使用了虛擬函式（Virtual Functions），導致 Branch Prediction 失敗。",
+        "en": "(B) `std::list` uses Virtual Functions, causing Branch Prediction failures.",
+        "wg": [
+          {
+            "t": "虛擬函式",
+            "en": "Virtual Functions",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) `std::list` 的迭代器大小比 `vector` 大，佔用了太多的暫存器（Registers）。",
+        "en": "(C) The iterator size of `std::list` is larger than `vector`, occupying too many registers.",
+        "wg": [
+          {
+            "t": "暫存器",
+            "en": "Registers",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(D) `std::list` 在多執行緒環境下會自動加鎖（Locking），導致 Context Switch。",
+        "en": "(D) `std::list` automatically locks in multi-threaded environments, causing Context Switches.",
+        "wg": [
+          {
+            "t": "加鎖",
+            "en": "Locking",
+            "ps": "V"
+          }
+        ]
+      }
+    ],
+    "answer": "A",
+    "why": {
+      "t": "`std::vector` 的記憶體是連續的，CPU 能夠輕易偵測存取模式並預取（Prefetch）後續資料到 L1 Cache。`std::list` 的節點記憶體位置隨機（如同「尋寶遊戲」），破壞了空間局部性（Spatial Locality），使預取機制失效。",
+      "en": "`std::vector` memory is contiguous, allowing the CPU to easily detect access patterns and prefetch subsequent data into the L1 Cache. `std::list` node memory locations are random (like a \"treasure hunt\"), destroying Spatial Locality and rendering the prefetching mechanism ineffective.",
+      "wg": [
+        {
+          "t": "空間局部性",
+          "en": "Spatial Locality",
+          "ps": "N"
+        },
+        {
+          "t": "預取",
+          "en": "prefetch",
+          "ps": "V"
+        }
+      ]
+    },
+    "verified": "2026-03-18T18:33:13"
   }
 ]

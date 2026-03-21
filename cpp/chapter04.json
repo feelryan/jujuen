@@ -80,7 +80,7 @@
         "wg": []
       }
     ],
-    "answer": "(C)",
+    "answer": "C",
     "why": {
       "t": "`memory_order_relaxed` 僅保證該原子操作本身的原子性與修改順序，但不提供跨執行緒的記憶體同步（Synchronization）。編譯器或 CPU 可能將 `data = 42` 重排到 `ready.store` 之後（對消費者視角而言），導致消費者看到 flag 變了但資料還是舊的。必須使用 `release` (producer) 與 `acquire` (consumer) 來建立同步關係。",
       "en": "`memory_order_relaxed` only guarantees atomicity and modification order of the operation itself, but does not provide cross-thread memory synchronization. The compiler or CPU may reorder `data = 42` after `ready.store` (from the consumer's perspective), causing the consumer to see the flag change but still see old data. You must use `release` (producer) and `acquire` (consumer) to establish a synchronization relationship.",
@@ -96,7 +96,8 @@
           "ps": "V"
         }
       ]
-    }
+    },
+    "verified": "2026-03-17T14:15:14"
   },
   {
     "no": "2",
@@ -178,7 +179,7 @@
         "wg": []
       }
     ],
-    "answer": "(B)",
+    "answer": "B",
     "why": {
       "t": "`WorkerStats` 的大小（16 bytes）遠小於常見的 Cache Line（64 bytes）。當多個執行緒修改相鄰的 `WorkerStats` 時，它們實際上是在爭奪同一個 Cache Line 的所有權，導致核心間不斷使對方的 Cache 失效（Ping-pong 效應）。解決方案是透過 `alignas` 確保每個物件獨佔 Cache Line。",
       "en": "The size of `WorkerStats` (16 bytes) is much smaller than a common Cache Line (64 bytes). When multiple threads modify adjacent `WorkerStats`, they are effectively competing for ownership of the same Cache Line, causing cores to constantly invalidate each other's cache (Ping-pong effect). The solution is to use `alignas` to ensure each object occupies its own Cache Line.",
@@ -194,7 +195,8 @@
           "ps": "V"
         }
       ]
-    }
+    },
+    "verified": "2026-03-17T14:15:14"
   },
   {
     "no": "3",
@@ -261,7 +263,7 @@
         "wg": []
       }
     ],
-    "answer": "(A)",
+    "answer": "A",
     "why": {
       "t": "這是 Lock-free 程式設計中最關鍵的同步模式。`store(release)` 保證了在此操作「之前」的所有記憶體寫入（即 `buffer[current_tail] = item`）對執行對應 `load(acquire)` 的執行緒可見。若使用 `relaxed`，消費者可能先看到 `tail` 更新，去讀取 buffer 時卻讀到尚未寫入的垃圾資料。",
       "en": "This is the most critical synchronization pattern in Lock-free programming. `store(release)` guarantees that all memory writes *before* this operation (i.e., `buffer[current_tail] = item`) are visible to the thread performing the corresponding `load(acquire)`. If `relaxed` were used, the consumer might see the `tail` update first and read garbage data from the buffer that hasn't been written yet.",
@@ -277,7 +279,8 @@
           "ps": "N"
         }
       ]
-    }
+    },
+    "verified": "2026-03-17T14:15:14"
   },
   {
     "no": "4",
@@ -343,7 +346,7 @@
         "wg": []
       }
     ],
-    "answer": "(A)",
+    "answer": "A",
     "why": {
       "t": "在 C++ 標準中，`volatile` 的用途是與特殊硬體（如 MMIO）溝通，而非用於執行緒間同步。它無法阻止 CPU 的亂序執行（Out-of-order execution）或確保多核心快取的可見性。正確做法是使用 `std::atomic<bool>`。",
       "en": "In the C++ standard, `volatile` is intended for communicating with special hardware (like MMIO), not for inter-thread synchronization. It cannot prevent CPU out-of-order execution or ensure visibility across multi-core caches. The correct approach is to use `std::atomic<bool>`.",
@@ -359,7 +362,8 @@
           "ps": "V"
         }
       ]
-    }
+    },
+    "verified": "2026-03-17T14:15:14"
   },
   {
     "no": "5",
@@ -421,7 +425,7 @@
         "wg": []
       }
     ],
-    "answer": "(B)",
+    "answer": "B",
     "why": {
       "t": "`instance = new Singleton();` 包含三個步驟：1.分配記憶體 2.呼叫建構子 3.將位址賦值給 `instance`。編譯器或 CPU 可能將步驟 3 重排到步驟 2 之前。若此時另一執行緒呼叫 `getInstance`，會發現 `instance` 不為空並直接返回使用，導致存取到未初始化的記憶體而崩潰。需使用 `std::atomic` 配合 acquire/release。",
       "en": "`instance = new Singleton();` involves three steps: 1. Allocate memory, 2. Call constructor, 3. Assign address to `instance`. The compiler or CPU may reorder step 3 before step 2. If another thread calls `getInstance` at this moment, it sees `instance` is not null and returns it immediately, leading to a crash by accessing uninitialized memory. `std::atomic` with acquire/release is required.",
@@ -437,7 +441,8 @@
           "ps": "V"
         }
       ]
-    }
+    },
+    "verified": "2026-03-17T14:15:14"
   },
   {
     "no": "6",
@@ -478,13 +483,13 @@
     "type": "單選題",
     "options": [
       {
-        "t": "CAS 操作會失敗並陷入無窮迴圈 (Livelock)。",
-        "en": "The CAS operation will fail and enter an infinite loop (Livelock).",
+        "t": "(A) CAS 操作會失敗並陷入無窮迴圈 (Livelock)。",
+        "en": "(A) The CAS operation will fail and enter an infinite loop (Livelock).",
         "wg": []
       },
       {
-        "t": "CAS 檢查成功，但 `head` 可能被指向錯誤的記憶體位址（如已釋放的節點或錯誤的鏈結），破壞資料結構。",
-        "en": "The CAS check succeeds, but `head` might point to an incorrect memory address (e.g., a freed node or wrong link), corrupting the data structure.",
+        "t": "(B) CAS 檢查成功，但 `head` 可能被指向錯誤的記憶體位址（如已釋放的節點或錯誤的鏈結），破壞資料結構。",
+        "en": "(B) The CAS check succeeds, but `head` might point to an incorrect memory address (e.g., a freed node or wrong link), corrupting the data structure.",
         "wg": [
           {
             "t": "破壞",
@@ -494,13 +499,13 @@
         ]
       },
       {
-        "t": "會導致死結 (Deadlock)，因為 `old_head` 被重複刪除。",
-        "en": "It will cause a Deadlock because `old_head` is deleted repeatedly.",
+        "t": "(C) 會導致死結 (Deadlock)，因為 `old_head` 被重複刪除。",
+        "en": "(C) It will cause a Deadlock because `old_head` is deleted repeatedly.",
         "wg": []
       },
       {
-        "t": "編譯器會優化掉 `compare_exchange_strong` 導致邏輯錯誤。",
-        "en": "The compiler will optimize away `compare_exchange_strong`, causing logic errors.",
+        "t": "(D) 編譯器會優化掉 `compare_exchange_strong` 導致邏輯錯誤。",
+        "en": "(D) The compiler will optimize away `compare_exchange_strong`, causing logic errors.",
         "wg": []
       }
     ],
@@ -520,7 +525,8 @@
           "ps": "V"
         }
       ]
-    }
+    },
+    "verified": "2026-03-17T14:15:14"
   },
   {
     "no": "7",
@@ -545,13 +551,13 @@
     "type": "單選題",
     "options": [
       {
-        "t": "安全。`std::shared_ptr` 的引用計數是原子的，因此賦值與讀取也是執行緒安全的。",
-        "en": "Safe. The reference count of `std::shared_ptr` is atomic, so assignment and reading are also thread-safe.",
+        "t": "(A) 安全。`std::shared_ptr` 的引用計數是原子的，因此賦值與讀取也是執行緒安全的。",
+        "en": "(A) Safe. The reference count of `std::shared_ptr` is atomic, so assignment and reading are also thread-safe.",
         "wg": []
       },
       {
-        "t": "不安全。雖然引用計數是原子的，但 `shared_ptr` 物件本身的讀寫（包含指標與控制區塊指標）並非原子操作，會導致 Data Race。",
-        "en": "Unsafe. Although the reference count is atomic, reading/writing the `shared_ptr` object itself (including the pointer and control block pointer) is not atomic, leading to a Data Race.",
+        "t": "(B) 不安全。雖然引用計數是原子的，但 `shared_ptr` 物件本身的讀寫（包含指標與控制區塊指標）並非原子操作，會導致 Data Race。",
+        "en": "(B) Unsafe. Although the reference count is atomic, reading/writing the `shared_ptr` object itself (including the pointer and control block pointer) is not atomic, leading to a Data Race.",
         "wg": [
           {
             "t": "控制區塊",
@@ -561,13 +567,13 @@
         ]
       },
       {
-        "t": "安全。只要 `Config` 物件內部的方法是執行緒安全的即可。",
-        "en": "Safe. As long as the methods inside the `Config` object are thread-safe.",
+        "t": "(C) 安全。只要 `Config` 物件內部的方法是執行緒安全的即可。",
+        "en": "(C) Safe. As long as the methods inside the `Config` object are thread-safe.",
         "wg": []
       },
       {
-        "t": "不安全。必須將 `global_config` 宣告為 `volatile` 才能解決。",
-        "en": "Unsafe. `global_config` must be declared as `volatile` to fix it.",
+        "t": "(D) 不安全。必須將 `global_config` 宣告為 `volatile` 才能解決。",
+        "en": "(D) Unsafe. `global_config` must be declared as `volatile` to fix it.",
         "wg": []
       }
     ],
@@ -587,7 +593,8 @@
           "ps": "N"
         }
       ]
-    }
+    },
+    "verified": "2026-03-17T14:15:14"
   },
   {
     "no": "8",
@@ -633,18 +640,18 @@
     "type": "單選題",
     "options": [
       {
-        "t": "選項 B 不保證原子性，計數可能會遺失。",
-        "en": "Option B does not guarantee atomicity, and counts might be lost.",
+        "t": "(A) 選項 B 不保證原子性，計數可能會遺失。",
+        "en": "(A) Option B does not guarantee atomicity, and counts might be lost.",
         "wg": []
       },
       {
-        "t": "選項 B 雖然保證原子性，但效能較差，因為編譯器無法優化。",
-        "en": "Option B guarantees atomicity but has worse performance because the compiler cannot optimize it.",
+        "t": "(B) 選項 B 雖然保證原子性，但效能較差，因為編譯器無法優化。",
+        "en": "(B) Option B guarantees atomicity but has worse performance because the compiler cannot optimize it.",
         "wg": []
       },
       {
-        "t": "選項 B 保證原子性且效能較佳，因為它不強制 CPU 核心間的記憶體同步順序，適合單純計數。",
-        "en": "Option B guarantees atomicity and has better performance because it enforces no memory synchronization order between CPU cores, making it suitable for simple counting.",
+        "t": "(C) 選項 B 保證原子性且效能較佳，因為它不強制 CPU 核心間的記憶體同步順序，適合單純計數。",
+        "en": "(C) Option B guarantees atomicity and has better performance because it enforces no memory synchronization order between CPU cores, making it suitable for simple counting.",
         "wg": [
           {
             "t": "強制",
@@ -659,8 +666,8 @@
         ]
       },
       {
-        "t": "選項 B 會導致其他執行緒永遠讀不到更新後的值。",
-        "en": "Option B will cause other threads to never read the updated value.",
+        "t": "(D) 選項 B 會導致其他執行緒永遠讀不到更新後的值。",
+        "en": "(D) Option B will cause other threads to never read the updated value.",
         "wg": []
       }
     ],
@@ -680,7 +687,8 @@
           "ps": "N"
         }
       ]
-    }
+    },
+    "verified": "2026-03-17T14:15:14"
   },
   {
     "no": "9",
@@ -710,13 +718,13 @@
     "type": "單選題",
     "options": [
       {
-        "t": "`weak` 版本在 x86 架構上總是比 `strong` 快。",
-        "en": "The `weak` version is always faster than `strong` on x86 architecture.",
+        "t": "(A) `weak` 版本在 x86 架構上總是比 `strong` 快。",
+        "en": "(A) The `weak` version is always faster than `strong` on x86 architecture.",
         "wg": []
       },
       {
-        "t": "`weak` 版本允許「假性失敗」(Spurious Failure)，在某些架構（如 ARM/PowerPC）上能產生更高效的機器碼，避免雙重迴圈。",
-        "en": "The `weak` version allows \"Spurious Failures\", which can generate more efficient machine code on certain architectures (like ARM/PowerPC) by avoiding double loops.",
+        "t": "(B) `weak` 版本允許「假性失敗」(Spurious Failure)，在某些架構（如 ARM/PowerPC）上能產生更高效的機器碼，避免雙重迴圈。",
+        "en": "(B) The `weak` version allows \"Spurious Failures\", which can generate more efficient machine code on certain architectures (like ARM/PowerPC) by avoiding double loops.",
         "wg": [
           {
             "t": "假性失敗",
@@ -731,13 +739,13 @@
         ]
       },
       {
-        "t": "`strong` 版本可能會導致死結，而 `weak` 不會。",
-        "en": "The `strong` version may cause deadlocks, while `weak` does not.",
+        "t": "(C) `strong` 版本可能會導致死結，而 `weak` 不會。",
+        "en": "(C) The `strong` version may cause deadlocks, while `weak` does not.",
         "wg": []
       },
       {
-        "t": "`weak` 版本保證記憶體順序為 `relaxed`，而 `strong` 強制 `seq_cst`。",
-        "en": "The `weak` version guarantees `relaxed` memory order, while `strong` enforces `seq_cst`.",
+        "t": "(D) `weak` 版本保證記憶體順序為 `relaxed`，而 `strong` 強制 `seq_cst`。",
+        "en": "(D) The `weak` version guarantees `relaxed` memory order, while `strong` enforces `seq_cst`.",
         "wg": []
       }
     ],
@@ -757,7 +765,8 @@
           "ps": "Adj"
         }
       ]
-    }
+    },
+    "verified": "2026-03-17T14:16:43"
   },
   {
     "no": "10",
@@ -798,8 +807,8 @@
     "type": "單選題",
     "options": [
       {
-        "t": "x86 擁有較強的記憶體模型 (TSO)，通常不重排「寫入-寫入」順序；而 ARM 是弱記憶體模型，允許更積極的指令重排。",
-        "en": "x86 has a stronger memory model (TSO) which typically doesn't reorder \"Store-Store\" operations; ARM has a weak memory model allowing more aggressive instruction reordering.",
+        "t": "(A) x86 擁有較強的記憶體模型 (TSO)，通常不重排「寫入-寫入」順序；而 ARM 是弱記憶體模型，允許更積極的指令重排。",
+        "en": "(A) x86 has a stronger memory model (TSO) which typically doesn't reorder \"Store-Store\" operations; ARM has a weak memory model allowing more aggressive instruction reordering.",
         "wg": [
           {
             "t": "積極",
@@ -809,18 +818,18 @@
         ]
       },
       {
-        "t": "ARM 的 CPU 快取比 x86 小，導致資料更常被驅逐 (Evicted)。",
-        "en": "ARM's CPU cache is smaller than x86, causing data to be evicted more frequently.",
+        "t": "(B) ARM 的 CPU 快取比 x86 小，導致資料更常被驅逐 (Evicted)。",
+        "en": "(B) ARM's CPU cache is smaller than x86, causing data to be evicted more frequently.",
         "wg": []
       },
       {
-        "t": "x86 編譯器預設會自動加入 Memory Barrier，而 ARM 編譯器不會。",
-        "en": "x86 compilers add Memory Barriers by default, while ARM compilers do not.",
+        "t": "(C) x86 編譯器預設會自動加入 Memory Barrier，而 ARM 編譯器不會。",
+        "en": "(C) x86 compilers add Memory Barriers by default, while ARM compilers do not.",
         "wg": []
       },
       {
-        "t": "這是作業系統排程器的差異，與 CPU 架構無關。",
-        "en": "This is a difference in the OS scheduler and is unrelated to CPU architecture.",
+        "t": "(D) 這是作業系統排程器的差異，與 CPU 架構無關。",
+        "en": "(D) This is a difference in the OS scheduler and is unrelated to CPU architecture.",
         "wg": []
       }
     ],
@@ -840,7 +849,8 @@
           "ps": "Adj"
         }
       ]
-    }
+    },
+    "verified": "2026-03-17T14:16:43"
   },
   {
     "no": "11",
@@ -901,7 +911,7 @@
         "wg": []
       }
     ],
-    "answer": "(B)",
+    "answer": "B",
     "why": {
       "t": "在 SPSC 模型中，`pop` 端的 `tail.load(acquire)` 必須與 `push` 端的 `tail.store(release)` 配對，形成 Synchronizes-with 關係。這確保了消費者在看到新的 `tail` 值時，也能看到生產者在 `tail` 更新前寫入 `buffer` 的資料。若改用 `relaxed`，CPU 可能會預測執行或重排指令，導致在確認 `tail` 更新前就先讀取了 `buffer` 中的舊值。",
       "en": "In the SPSC model, `tail.load(acquire)` in `pop` must pair with `tail.store(release)` in `push` to form a Synchronizes-with relationship. This ensures that when the consumer sees the new `tail` value, it also sees the data written to `buffer` by the producer before the `tail` update. Using `relaxed` allows the CPU to speculatively execute or reorder instructions, potentially reading stale values from `buffer` before confirming the `tail` update.",
@@ -917,7 +927,8 @@
           "ps": "V"
         }
       ]
-    }
+    },
+    "verified": "2026-03-17T14:16:43"
   },
   {
     "no": "12",
@@ -973,7 +984,7 @@
         "wg": []
       }
     ],
-    "answer": "(A)",
+    "answer": "A",
     "why": {
       "t": "C++11 標準規定，區塊範圍（Block Scope）內的靜態變數初始化是執行緒安全的（常被稱為 Magic Statics）。如果控制流同時進入宣告處，編譯器必須保證初始化僅發生一次，且其他執行緒會等待直到初始化完成。這消除了手動實作 Double-Checked Locking 的需求。",
       "en": "The C++11 standard mandates that the initialization of static variables within block scope is thread-safe (often called Magic Statics). If control flow enters the declaration concurrently, the compiler must ensure initialization happens exactly once, and other threads wait until it completes. This eliminates the need for manual Double-Checked Locking.",
@@ -989,7 +1000,8 @@
           "ps": "V"
         }
       ]
-    }
+    },
+    "verified": "2026-03-17T14:16:43"
   },
   {
     "no": "13",
@@ -1050,7 +1062,7 @@
         "wg": []
       }
     ],
-    "answer": "(B)",
+    "answer": "B",
     "why": {
       "t": "`unlock` 操作必須使用 `std::memory_order_release`。這能確保「臨界區段內的所有操作」都在「釋放鎖」之前完成（Happens-before）。若使用 `relaxed`，編譯器或 CPU 可能將臨界區段內的寫入操作移到 `flag.clear()` 之後執行，導致下一個獲得鎖的執行緒看到不一致的資料。",
       "en": "The `unlock` operation must use `std::memory_order_release`. This ensures that \"all operations within the critical section\" are completed *before* \"releasing the lock\" (Happens-before). If `relaxed` is used, the compiler or CPU might move write operations from the critical section to execute *after* `flag.clear()`, causing the next thread that acquires the lock to see inconsistent data.",
@@ -1061,7 +1073,8 @@
           "ps": "Adj"
         }
       ]
-    }
+    },
+    "verified": "2026-03-17T14:16:43"
   },
   {
     "no": "14",
@@ -1122,7 +1135,7 @@
         "wg": []
       }
     ],
-    "answer": "(A)",
+    "answer": "A",
     "why": {
       "t": "C++ 標準明確定義：當多個執行緒同時存取同一記憶體位置，且至少有一個操作是寫入（Write），並且這些存取不是原子的（Non-atomic）也未受同步機制保護時，即構成資料競爭（Data Race）。資料競爭會導致未定義行為（Undefined Behavior），無論實際執行結果看起來是否「正常」。",
       "en": "The C++ standard explicitly defines a Data Race as occurring when multiple threads access the same memory location concurrently, at least one operation is a write, and these accesses are non-atomic and unprotected by synchronization mechanisms. A Data Race results in Undefined Behavior, regardless of whether the actual execution result appears \"normal\".",
@@ -1138,7 +1151,8 @@
           "ps": "V"
         }
       ]
-    }
+    },
+    "verified": "2026-03-17T14:16:43"
   },
   {
     "no": "15",
@@ -1199,7 +1213,7 @@
         "wg": []
       }
     ],
-    "answer": "(B)",
+    "answer": "B",
     "why": {
       "t": "`std::atomic<T>` 並不保證對所有 `T` 都是無鎖（Lock-free）的。可以透過 `is_lock_free()` 檢查。當 `T` 的大小超過 CPU 支援的最大原子指令（通常是 8 或 16 bytes）時，編譯器會退化為使用內部的鎖（通常是全域 Hash Table 鎖），這可能比使用者自己管理的 `std::mutex` 更慢且不具備 Signal Safety。",
       "en": "`std::atomic<T>` does not guarantee to be lock-free for all `T`. This can be checked via `is_lock_free()`. When the size of `T` exceeds the CPU's maximum supported atomic instruction (typically 8 or 16 bytes), the compiler falls back to using internal locks (often a global Hash Table lock), which can be slower than a user-managed `std::mutex` and lacks Signal Safety.",
@@ -1215,6 +1229,7 @@
           "ps": "N"
         }
       ]
-    }
+    },
+    "verified": "2026-03-17T14:16:43"
   }
 ]

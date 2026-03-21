@@ -80,7 +80,7 @@
         "wg": []
       }
     ],
-    "answer": "(B)",
+    "answer": "B",
     "why": {
       "t": "ElasticSearch 的 `refresh` 操作（預設每秒一次）會將資料從 Buffer 移至 Filesystem Cache，使其「可被搜尋」，但此時資料尚未寫入實體磁碟。若 Translog 設定為 `async`，則不會在每次請求時強制 `fsync`。因此，在 Flush 或 Translog Sync 發生前斷電，Cache 中的資料會遺失，即使它之前是可以被搜尋到的。",
       "en": "ElasticSearch's `refresh` operation (default every 1s) moves data from the Buffer to the Filesystem Cache, making it 'searchable', but the data is not yet written to the physical disk. If Translog is set to `async`, `fsync` is not forced on every request. Therefore, if a power failure occurs before a Flush or Translog Sync, data in the Cache is lost, even if it was searchable beforehand.",
@@ -96,7 +96,8 @@
           "ps": "V"
         }
       ]
-    }
+    },
+    "verified": "2026-03-17T14:59:46"
   },
   {
     "no": "2",
@@ -168,7 +169,7 @@
         "wg": []
       }
     ],
-    "answer": "(A)",
+    "answer": "A",
     "why": {
       "t": "這是大量寫入的標準優化策略：(1) `refresh_interval: -1` 禁止頻繁產生小 Segment，減少 Merge 壓力；(2) `replicas: 0` 避免寫入時同時複製資料，待寫入完成後再開啟 Replica 讓 ES 透過檔案傳輸進行複製，效率更高。",
       "en": "This is the standard optimization strategy for mass indexing: (1) `refresh_interval: -1` prevents frequent creation of small Segments, reducing Merge pressure; (2) `replicas: 0` avoids replicating data during the write process. Enabling replicas after writing allows ES to replicate via file transfer, which is much more efficient.",
@@ -184,7 +185,8 @@
           "ps": "N"
         }
       ]
-    }
+    },
+    "verified": "2026-03-17T14:59:46"
   },
   {
     "no": "3",
@@ -261,7 +263,7 @@
         "wg": []
       }
     ],
-    "answer": "(B)",
+    "answer": "B",
     "why": {
       "t": "這是 Lucene 層面的優化。當指定 ID 時，ES 必須假設這可能是一個 Update 操作，因此需要花費資源去確認 ID 是否存在。對於自動生成 ID，ES 知道這是全新的文件，因此可以直接寫入，節省了檢查的開銷（可提升約 20% 效能）。",
       "en": "This is a Lucene-level optimization. When an ID is specified, ES must assume it could be an Update operation, so it spends resources checking if the ID exists. For auto-generated IDs, ES knows it is a brand new document and can write it directly, saving the overhead of the check (potentially boosting performance by ~20%).",
@@ -277,7 +279,8 @@
           "ps": "V"
         }
       ]
-    }
+    },
+    "verified": "2026-03-17T14:59:46"
   },
   {
     "no": "4",
@@ -354,7 +357,7 @@
         "wg": []
       }
     ],
-    "answer": "(B)",
+    "answer": "B",
     "why": {
       "t": "ES 的寫入能力受限於硬體資源，無法無限擴展。面對突發流量，最佳解法是引入 Queue（如 Kafka）暫存數據，再由 Consumer 以 ES 能夠負荷的速率（Bulk）穩定寫入。這能保護 ES 不被瞬間流量壓垮。",
       "en": "ES write capacity is limited by hardware resources and cannot scale infinitely. Facing burst traffic, the best solution is to introduce a Queue (like Kafka) to buffer data, and then have Consumers write to ES steadily at a rate it can handle (Bulk). This protects ES from being overwhelmed by instantaneous traffic.",
@@ -370,7 +373,8 @@
           "ps": "V"
         }
       ]
-    }
+    },
+    "verified": "2026-03-17T14:59:46"
   },
   {
     "no": "5",
@@ -437,7 +441,7 @@
         "wg": []
       }
     ],
-    "answer": "(B)",
+    "answer": "B",
     "why": {
       "t": "Bulk Request 的資料需要被載入到記憶體中進行解析與處理。過大的 Payload 會對 Java Heap 造成巨大壓力，觸發頻繁的 Garbage Collection (GC)，甚至導致 Stop-the-world，嚴重影響效能。建議值通常在 5MB-15MB 之間。",
       "en": "Data from Bulk Requests needs to be loaded into memory for parsing and processing. Excessively large payloads put huge pressure on the Java Heap, triggering frequent Garbage Collection (GC) and even Stop-the-world events, severely impacting performance. The recommended value is usually between 5MB and 15MB.",
@@ -453,7 +457,8 @@
           "ps": "N"
         }
       ]
-    }
+    },
+    "verified": "2026-03-17T14:59:46"
   },
   {
     "no": "6",
@@ -520,7 +525,7 @@
         "wg": []
       }
     ],
-    "answer": "(B)",
+    "answer": "B",
     "why": {
       "t": "當寫入大量動態欄位（Dynamic Mapping）時，每個新欄位都會更新 Mapping。Mapping 儲存在 Cluster State 中，且必須由 Master Node 同步給所有節點。過多的欄位會導致 Cluster State 過大及頻繁更新，造成 Master Node 瓶頸，稱為 Mapping Explosion。",
       "en": "When writing many dynamic fields (Dynamic Mapping), every new field updates the Mapping. Mapping is stored in the Cluster State and must be synchronized by the Master Node to all nodes. Excessive fields cause the Cluster State to become too large and update frequently, creating a bottleneck on the Master Node, known as Mapping Explosion.",
@@ -536,7 +541,8 @@
           "ps": "N"
         }
       ]
-    }
+    },
+    "verified": "2026-03-17T14:59:46"
   },
   {
     "no": "7",
@@ -613,7 +619,7 @@
         "wg": []
       }
     ],
-    "answer": "(B)",
+    "answer": "B",
     "why": {
       "t": "Refresh 操作會將 In-memory buffer 的資料寫入 Filesystem Cache 並形成一個新的 Segment。若頻率過高（如 50ms），會瞬間產生大量小檔案，迫使 Lucene 不斷進行 Segment Merge（合併），這是一個極消耗 CPU 與 Disk I/O 的過程，進而拖慢寫入速度。",
       "en": "The Refresh operation writes data from the In-memory buffer to the Filesystem Cache, creating a new Segment. If the frequency is too high (e.g., 50ms), it generates massive amounts of small files, forcing Lucene to constantly perform Segment Merges. This process consumes significant CPU and Disk I/O, thereby slowing down write performance.",
@@ -629,7 +635,8 @@
           "ps": "V"
         }
       ]
-    }
+    },
+    "verified": "2026-03-17T14:59:46"
   },
   {
     "no": "8",
@@ -706,7 +713,7 @@
         "wg": []
       }
     ],
-    "answer": "(A)",
+    "answer": "A",
     "why": {
       "t": "在寫入期間將 Replicas 設為 0 可以省去將資料轉發到副本節點並重複執行索引邏輯（Analysis, Indexing）的開銷。寫入完成後再開啟副本，ES 只需透過網路傳輸已生成的 Segment 檔案，這比重複索引快得多。",
       "en": "Setting Replicas to 0 during writes saves the overhead of forwarding data to replica nodes and re-executing indexing logic (Analysis, Indexing). Enabling replicas after completion allows ES to simply transfer the generated Segment files over the network, which is much faster than re-indexing.",
@@ -722,7 +729,8 @@
           "ps": "N"
         }
       ]
-    }
+    },
+    "verified": "2026-03-17T14:59:46"
   },
   {
     "no": "9",
@@ -783,7 +791,7 @@
         "wg": []
       }
     ],
-    "answer": "(A)",
+    "answer": "A",
     "why": {
       "t": "CPU 瓶頸通常來自於文字分析（Analysis/Tokenization）。將不需要全文檢索的欄位（如 ID、Token）設為 `text` 會導致 ES 使用標準分詞器進行處理，浪費大量 CPU。改為 `keyword` 可跳過分詞步驟，直接將原始字串存入倒排索引，顯著降低 CPU 開銷。",
       "en": "CPU bottlenecks often stem from text analysis (Analysis/Tokenization). Setting fields that don't need full-text search (like IDs, Tokens) to `text` causes ES to use the standard tokenizer, wasting significant CPU. Changing them to `keyword` skips the tokenization step and stores the raw string directly in the inverted index, significantly reducing CPU overhead.",
@@ -804,7 +812,8 @@
           "ps": "N"
         }
       ]
-    }
+    },
+    "verified": "2026-03-17T15:01:14"
   },
   {
     "no": "10",
@@ -860,7 +869,7 @@
         "wg": []
       }
     ],
-    "answer": "(B)",
+    "answer": "B",
     "why": {
       "t": "`Refresh` 僅將資料從 Memory Buffer 移至 Filesystem Cache（新書展示架），此時資料可被搜尋但尚未物理落地。`Flush` 才是真正執行 `fsync` 將資料寫入磁碟（永久書架）並截斷 Translog 的操作。Translog 的存在是為了保護兩次 Flush 之間尚未落地的資料。",
       "en": "`Refresh` only moves data from the Memory Buffer to the Filesystem Cache (New Arrivals Shelf), making it searchable but not yet physically persisted. `Flush` is the operation that actually performs an `fsync` to write data to disk (Permanent Shelves) and truncates the Translog. The Translog exists to protect data that has not yet been persisted between two Flushes.",
@@ -876,7 +885,8 @@
           "ps": "V"
         }
       ]
-    }
+    },
+    "verified": "2026-03-17T15:01:14"
   },
   {
     "no": "11",
@@ -948,7 +958,7 @@
         "wg": []
       }
     ],
-    "answer": "(A)",
+    "answer": "A",
     "why": {
       "t": "當客戶端數量過多（500+）時，每個客戶端很難湊齊最佳的 Bulk Size（5-15MB），導致發送大量小封包。此外，過多的並發 HTTP 連線會佔用 ES 的 Thread Pool 與記憶體資源。最佳實務是透過 Aggregator（如 Logstash 或 Kafka consumer）將資料匯聚成大批次後再寫入。",
       "en": "When there are too many clients (500+), it is difficult for each client to accumulate an optimal Bulk Size (5-15MB), leading to many small packets. Additionally, excessive concurrent HTTP connections consume ES Thread Pool and memory resources. The best practice is to use an Aggregator (like Logstash or Kafka consumer) to aggregate data into large batches before writing.",
@@ -964,7 +974,8 @@
           "ps": "V"
         }
       ]
-    }
+    },
+    "verified": "2026-03-17T15:01:14"
   },
   {
     "no": "12",
@@ -1041,7 +1052,7 @@
         "wg": []
       }
     ],
-    "answer": "(B)",
+    "answer": "B",
     "why": {
       "t": "即使 `refresh_interval` 設得很長，當 Heap 中的 Indexing Buffer（預設為 Heap 的 10%）被寫滿時，ElasticSearch 會強制將 Buffer 內容寫入 Filesystem Cache（即觸發 Refresh）以釋放記憶體空間。",
       "en": "Even with a long `refresh_interval`, when the Indexing Buffer in Heap (defaulting to 10% of Heap) fills up, ElasticSearch forces the Buffer content to be written to the Filesystem Cache (triggering a Refresh) to free up memory.",
@@ -1052,7 +1063,8 @@
           "ps": "V"
         }
       ]
-    }
+    },
+    "verified": "2026-03-17T15:01:14"
   },
   {
     "no": "13",
@@ -1130,7 +1142,7 @@
         "wg": []
       }
     ],
-    "answer": "(B)",
+    "answer": "B",
     "why": {
       "t": "ElasticSearch 是「近即時」（Near Real-Time）的搜尋引擎。資料寫入後首先進入 Memory Buffer，此時不可被搜尋；直到 `refresh`（預設 1 秒）發生後，資料進入 Filesystem Cache 才可見。這導致了「寫入後立即讀取」可能讀到舊資料。",
       "en": "ElasticSearch is a 'Near Real-Time' search engine. After data is written, it first enters the Memory Buffer where it is not searchable; it becomes visible only after a `refresh` (default 1s) moves it to the Filesystem Cache. This leads to the possibility of reading old data immediately after a write.",
@@ -1146,7 +1158,8 @@
           "ps": "Adj"
         }
       ]
-    }
+    },
+    "verified": "2026-03-17T15:01:14"
   },
   {
     "no": "14",
@@ -1223,7 +1236,7 @@
         "wg": []
       }
     ],
-    "answer": "(B)",
+    "answer": "B",
     "why": {
       "t": "Segment Merging 是極度消耗磁碟 I/O 的操作。當 Lucene 在背景合併大量 Segment 時，若磁碟 I/O 無法負荷，ES 會限制（Throttle）寫入請求的處理速度，導致吞吐量驟降與 I/O Wait 飆高。",
       "en": "Segment Merging is an extremely Disk I/O intensive operation. When Lucene merges many Segments in the background, if the Disk I/O cannot keep up, ES throttles the processing of write requests, causing a sharp drop in throughput and a spike in I/O Wait.",
@@ -1244,7 +1257,8 @@
           "ps": "V"
         }
       ]
-    }
+    },
+    "verified": "2026-03-17T15:01:14"
   },
   {
     "no": "15",
@@ -1311,7 +1325,7 @@
         "wg": []
       }
     ],
-    "answer": "(B)",
+    "answer": "B",
     "why": {
       "t": "當 ES 回傳 429 時，表示節點已無法處理更多請求。立即重試只會加重負載。正確做法是使用指數退避（Exponential Backoff），讓叢集有時間消化積壓的佇列。增加 Batch Size 可能會導致記憶體壓力更大，而 Client 端無法直接控制 Server 端的 Translog 設定。",
       "en": "When ES returns 429, it means the node cannot handle more requests. Immediate retries only add to the load. The correct approach is to use Exponential Backoff, allowing the cluster time to digest the backlog. Increasing Batch Size might increase memory pressure, and the Client cannot directly control Server-side Translog settings.",
@@ -1327,6 +1341,7 @@
           "ps": "N"
         }
       ]
-    }
+    },
+    "verified": "2026-03-17T15:01:14"
   }
 ]
