@@ -1,0 +1,1265 @@
+[
+  {
+    "no": "1",
+    "level": "advanced",
+    "keywords": "Deadlock, Conversion Deadlock, UPDLOCK, Locking Hints",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "BEGIN TRAN\n  -- Transaction A & B both execute this logic concurrently\n  DECLARE @val INT;\n  SELECT @val = Balance FROM Accounts WHERE Id = 1;\n  \n  -- Simulate some processing\n  WAITFOR DELAY '00:00:01';\n  \n  UPDATE Accounts SET Balance = @val - 100 WHERE Id = 1;\nCOMMIT",
+    "question": [
+      {
+        "t": "兩個並發的交易同時執行上述程式碼片段，卻頻繁遭遇 Deadlock（錯誤代碼 1205）。",
+        "en": "Two concurrent transactions execute the above code snippet simultaneously but frequently encounter a Deadlock (Error 1205).",
+        "wg": [
+          {
+            "t": "並發",
+            "en": "concurrent",
+            "ps": "Adj"
+          },
+          {
+            "t": "遭遇",
+            "en": "encounter",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "經分析，這是由於兩個交易都先取得了 Shared Lock (S)，隨後試圖升級為 Exclusive Lock (X) 造成的。",
+        "en": "Analysis shows this is caused by both transactions acquiring a Shared Lock (S) first, and then attempting to upgrade to an Exclusive Lock (X).",
+        "wg": [
+          {
+            "t": "升級",
+            "en": "upgrade",
+            "ps": "V"
+          },
+          {
+            "t": "排他鎖",
+            "en": "Exclusive Lock",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "請問下列哪種修改方式是解決此類「轉換死鎖」的最佳實務？",
+        "en": "Which of the following modifications is the best practice to resolve this type of 'Conversion Deadlock'?",
+        "wg": [
+          {
+            "t": "轉換死鎖",
+            "en": "Conversion Deadlock",
+            "ps": "N"
+          },
+          {
+            "t": "最佳實務",
+            "en": "best practice",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 在 SELECT 語句中加入 WITH (NOLOCK) 提示。",
+        "en": "(A) Add the WITH (NOLOCK) hint to the SELECT statement.",
+        "wg": []
+      },
+      {
+        "t": "(B) 將隔離層級提升至 SERIALIZABLE。",
+        "en": "(B) Elevate the isolation level to SERIALIZABLE.",
+        "wg": []
+      },
+      {
+        "t": "(C) 在 SELECT 語句中加入 WITH (UPDLOCK) 提示。",
+        "en": "(C) Add the WITH (UPDLOCK) hint to the SELECT statement.",
+        "wg": []
+      },
+      {
+        "t": "(D) 在 UPDATE 語句前加入 WAITFOR DELAY 以錯開執行時間。",
+        "en": "(D) Add a WAITFOR DELAY before the UPDATE statement to stagger execution times.",
+        "wg": [
+          {
+            "t": "錯開",
+            "en": "stagger",
+            "ps": "V"
+          }
+        ]
+      }
+    ],
+    "answer": "C",
+    "why": {
+      "t": "此為典型的轉換死鎖 (Conversion Deadlock)。使用 `UPDLOCK` 可以讓交易在讀取時就宣告「更新意圖」，同一時間只有一個交易能持有 UPDLOCK，從而序列化寫入意圖，避免雙方都持有 S 鎖卻互等對方釋放以升級為 X 鎖的情況。",
+      "en": "This is a typical Conversion Deadlock. Using `UPDLOCK` allows the transaction to declare an 'update intent' during the read. Only one transaction can hold a UPDLOCK at a time, serializing the write intent and preventing the scenario where both hold S locks and wait for the other to release them to upgrade to X locks.",
+      "wg": [
+        {
+          "t": "序列化",
+          "en": "serialize",
+          "ps": "V"
+        },
+        {
+          "t": "意圖",
+          "en": "intent",
+          "ps": "N"
+        }
+      ]
+    },
+    "verified": "2026-03-19T09:35:14"
+  },
+  {
+    "no": "2",
+    "level": "intermediate",
+    "keywords": "RCSI, MVCC, Blocking, High Concurrency",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您正在設計一個高並發的搶票系統，資料庫使用 MS-SQL。",
+        "en": "You are designing a high-concurrency ticketing system using MS-SQL.",
+        "wg": [
+          {
+            "t": "搶票系統",
+            "en": "ticketing system",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "在壓力測試中，您發現大量的查詢 (SELECT) 被庫存扣減 (UPDATE) 操作阻塞，導致連線池耗盡。",
+        "en": "During stress testing, you notice that massive queries (SELECT) are blocked by inventory deductions (UPDATE), causing connection pool exhaustion.",
+        "wg": [
+          {
+            "t": "阻塞",
+            "en": "block",
+            "ps": "V"
+          },
+          {
+            "t": "耗盡",
+            "en": "exhaustion",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "為了在不犧牲資料正確性的前提下最大化吞吐量，您應該優先考慮哪項架構調整？",
+        "en": "To maximize throughput without sacrificing data integrity, which architectural adjustment should you prioritize?",
+        "wg": [
+          {
+            "t": "吞吐量",
+            "en": "throughput",
+            "ps": "N"
+          },
+          {
+            "t": "犧牲",
+            "en": "sacrifice",
+            "ps": "V"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 在所有 SELECT 查詢後加上 WITH (NOLOCK)。",
+        "en": "(A) Append WITH (NOLOCK) to all SELECT queries.",
+        "wg": []
+      },
+      {
+        "t": "(B) 啟用 Read Committed Snapshot Isolation (RCSI)。",
+        "en": "(B) Enable Read Committed Snapshot Isolation (RCSI).",
+        "wg": []
+      },
+      {
+        "t": "(C) 將隔離層級設定為 REPEATABLE READ。",
+        "en": "(C) Set the isolation level to REPEATABLE READ.",
+        "wg": []
+      },
+      {
+        "t": "(D) 使用 Table Lock 取代 Row Lock 以減少鎖的數量。",
+        "en": "(D) Use Table Locks instead of Row Locks to reduce the number of locks.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "預設的 `READ COMMITTED` 會導致讀寫互斥。啟用 RCSI (MVCC) 可以讓讀取操作讀取舊版本的快照，不再被寫入鎖阻塞，同時避免了 `NOLOCK` 帶來的 Dirty Read 風險，是解決此類阻塞的最佳方案。",
+      "en": "The default `READ COMMITTED` causes read/write mutual exclusion. Enabling RCSI (MVCC) allows read operations to access a snapshot of the old version, eliminating blocking by write locks while avoiding the Dirty Read risks associated with `NOLOCK`. It is the best solution for this blocking issue.",
+      "wg": [
+        {
+          "t": "互斥",
+          "en": "mutual exclusion",
+          "ps": "N"
+        },
+        {
+          "t": "快照",
+          "en": "snapshot",
+          "ps": "N"
+        }
+      ]
+    },
+    "verified": "2026-03-19T09:35:14"
+  },
+  {
+    "no": "3",
+    "level": "advanced",
+    "keywords": "Lock Escalation, Performance, Batch Processing",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "某個批次作業負責刪除歷史資料，當刪除筆數較少時系統運作正常，但當單次交易刪除超過 5,000 筆資料時，其他使用者突然無法存取整張資料表。",
+        "en": "A batch job is responsible for deleting historical data. The system works fine when deleting a few rows, but when a single transaction deletes more than 5,000 rows, other users suddenly cannot access the entire table.",
+        "wg": [
+          {
+            "t": "批次作業",
+            "en": "batch job",
+            "ps": "N"
+          },
+          {
+            "t": "存取",
+            "en": "access",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "這種現象最可能的原因是什麼？",
+        "en": "What is the most likely cause of this phenomenon?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 發生了 Latch Contention，導致記憶體頁面無法存取。",
+        "en": "(A) Latch Contention occurred, making memory pages inaccessible.",
+        "wg": []
+      },
+      {
+        "t": "(B) 觸發了 Lock Escalation，系統將大量的 Row Locks 升級為 Table Lock。",
+        "en": "(B) Lock Escalation was triggered, and the system upgraded massive Row Locks to a Table Lock.",
+        "wg": [
+          {
+            "t": "鎖升級",
+            "en": "Lock Escalation",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) 交易紀錄檔 (Transaction Log) 已滿，導致資料庫進入唯讀模式。",
+        "en": "(C) The Transaction Log is full, causing the database to enter read-only mode.",
+        "wg": []
+      },
+      {
+        "t": "(D) 發生了 Deadlock，導致系統凍結所有連線。",
+        "en": "(D) A Deadlock occurred, causing the system to freeze all connections.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "MS-SQL 為了節省管理鎖所需的記憶體，當單一交易持有的鎖數量超過閾值（通常為 5,000）時，會觸發鎖升級 (Lock Escalation)，將細粒度的 Row/Page Lock 升級為粗粒度的 Table Lock，導致整張表被鎖定。",
+      "en": "To save memory required for managing locks, MS-SQL triggers Lock Escalation when the number of locks held by a single transaction exceeds a threshold (usually 5,000). This upgrades fine-grained Row/Page Locks to a coarse-grained Table Lock, causing the entire table to be locked.",
+      "wg": [
+        {
+          "t": "閾值",
+          "en": "threshold",
+          "ps": "N"
+        },
+        {
+          "t": "細粒度",
+          "en": "fine-grained",
+          "ps": "Adj"
+        },
+        {
+          "t": "粗粒度",
+          "en": "coarse-grained",
+          "ps": "Adj"
+        }
+      ]
+    },
+    "verified": "2026-03-19T09:35:14"
+  },
+  {
+    "no": "4",
+    "level": "advanced",
+    "keywords": "Latch Contention, CPU, Insert Hotspot, Performance Tuning",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您的系統遭遇效能瓶頸：CPU 使用率極高，但 Disk I/O 很低，且沒有明顯的 Blocking 鏈。",
+        "en": "Your system is facing a performance bottleneck: CPU usage is extremely high, but Disk I/O is low, and there are no obvious Blocking chains.",
+        "wg": [
+          {
+            "t": "瓶頸",
+            "en": "bottleneck",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "該系統是一個高頻交易平台，主要負載來自多個執行緒同時對一張擁有 `IDENTITY` 主鍵的表進行 `INSERT`。",
+        "en": "The system is a high-frequency trading platform where the main workload comes from multiple threads simultaneously performing `INSERT` on a table with an `IDENTITY` primary key.",
+        "wg": [
+          {
+            "t": "高頻",
+            "en": "high-frequency",
+            "ps": "Adj"
+          },
+          {
+            "t": "負載",
+            "en": "workload",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "請問這是什麼問題？",
+        "en": "What is the problem?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) Deadlock (死鎖)。",
+        "en": "(A) Deadlock.",
+        "wg": []
+      },
+      {
+        "t": "(B) Last Page Insert Latch Contention (最後一頁插入閂鎖競爭)。",
+        "en": "(B) Last Page Insert Latch Contention.",
+        "wg": [
+          {
+            "t": "閂鎖競爭",
+            "en": "Latch Contention",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) Parameter Sniffing (參數嗅探)。",
+        "en": "(C) Parameter Sniffing.",
+        "wg": []
+      },
+      {
+        "t": "(D) Index Fragmentation (索引破碎)。",
+        "en": "(D) Index Fragmentation.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "當多個執行緒同時寫入具有順序性 Key (如 Identity) 的表時，所有寫入都會集中在最後一個 Data Page，導致執行緒必須爭搶該記憶體頁面的 Latch (PAGELATCH_EX)。這類競爭會消耗大量 CPU 進行 Spinlock 等待，但因為操作都在記憶體中，所以 I/O 很低。",
+      "en": "When multiple threads simultaneously write to a table with sequential keys (like Identity), all writes concentrate on the last Data Page, causing threads to contend for the Latch (PAGELATCH_EX) of that memory page. This contention consumes high CPU due to Spinlock waiting, but since operations are in-memory, I/O remains low.",
+      "wg": [
+        {
+          "t": "順序性",
+          "en": "sequential",
+          "ps": "Adj"
+        },
+        {
+          "t": "集中",
+          "en": "concentrate",
+          "ps": "V"
+        }
+      ]
+    },
+    "verified": "2026-03-19T09:35:14"
+  },
+  {
+    "no": "5",
+    "level": "intermediate",
+    "keywords": "Isolation Levels, Phantom Read, Serializable",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在同一個交易內，您執行了兩次相同的範圍查詢 (Range Query)，例如 `SELECT * FROM Orders WHERE Date = 'Today'`。",
+        "en": "Within the same transaction, you execute the same Range Query twice, e.g., `SELECT * FROM Orders WHERE Date = 'Today'`.",
+        "wg": [
+          {
+            "t": "範圍查詢",
+            "en": "Range Query",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "第二次查詢時，您發現結果集中多出了一筆第一次查詢沒看到的資料（由其他交易新插入的）。",
+        "en": "On the second query, you find an extra row in the result set that wasn't there the first time (inserted by another transaction).",
+        "wg": []
+      },
+      {
+        "t": "這種現象稱為什麼？哪種隔離層級可以防止它？",
+        "en": "What is this phenomenon called, and which isolation level prevents it?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) Dirty Read; Read Committed",
+        "en": "(A) Dirty Read; Read Committed",
+        "wg": []
+      },
+      {
+        "t": "(B) Non-repeatable Read; Repeatable Read",
+        "en": "(B) Non-repeatable Read; Repeatable Read",
+        "wg": []
+      },
+      {
+        "t": "(C) Phantom Read; Serializable",
+        "en": "(C) Phantom Read; Serializable",
+        "wg": [
+          {
+            "t": "幻讀",
+            "en": "Phantom Read",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(D) Lost Update; Snapshot",
+        "en": "(D) Lost Update; Snapshot",
+        "wg": []
+      }
+    ],
+    "answer": "C",
+    "why": {
+      "t": "這就是「幻讀 (Phantom Read)」。`REPEATABLE READ` 只能保證已存在的資料不被修改，但無法阻止新資料插入。只有 `SERIALIZABLE` 透過 Key-Range Locks 鎖住索引間隙，才能防止其他交易插入新資料。",
+      "en": "This is a 'Phantom Read'. `REPEATABLE READ` only guarantees that existing data isn't modified but cannot prevent new data insertion. Only `SERIALIZABLE`, using Key-Range Locks to lock index gaps, can prevent other transactions from inserting new data.",
+      "wg": [
+        {
+          "t": "間隙",
+          "en": "gap",
+          "ps": "N"
+        },
+        {
+          "t": "保證",
+          "en": "guarantee",
+          "ps": "V"
+        }
+      ]
+    },
+    "verified": "2026-03-19T09:35:14"
+  },
+  {
+    "no": "6",
+    "level": "intermediate",
+    "keywords": "NOLOCK, Anti-pattern, Data Integrity",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "許多開發者習慣使用 `WITH (NOLOCK)` 來解決阻塞問題。",
+        "en": "Many developers are accustomed to using `WITH (NOLOCK)` to resolve blocking issues.",
+        "wg": [
+          {
+            "t": "習慣",
+            "en": "accustomed",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "除了可能讀到未提交的髒資料 (Dirty Read) 之外，`NOLOCK` 在資料庫發生 Page Split 時還可能導致什麼嚴重後果？",
+        "en": "Besides potentially reading uncommitted dirty data, what severe consequence can `NOLOCK` cause when a Page Split occurs in the database?",
+        "wg": [
+          {
+            "t": "髒資料",
+            "en": "dirty data",
+            "ps": "N"
+          },
+          {
+            "t": "頁面分裂",
+            "en": "Page Split",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 導致交易日誌 (Transaction Log) 損壞。",
+        "en": "(A) Cause Transaction Log corruption.",
+        "wg": []
+      },
+      {
+        "t": "(B) 掃描過程遺漏資料或重複讀取同一筆資料 (Index Corruption Scans)。",
+        "en": "(B) Miss rows or read the same row twice during the scan (Index Corruption Scans).",
+        "wg": [
+          {
+            "t": "遺漏",
+            "en": "miss",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(C) 立即觸發 Deadlock。",
+        "en": "(C) Immediately trigger a Deadlock.",
+        "wg": []
+      },
+      {
+        "t": "(D) 強制將鎖升級為 Schema Lock。",
+        "en": "(D) Force lock escalation to a Schema Lock.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "當使用 `NOLOCK` 進行掃描時，若同時發生 Page Split（資料頁分裂移動），掃描指標可能會跳過正在移動的資料，或者重複掃描到已移動的資料，導致查詢結果不正確甚至報錯。這是比 Dirty Read 更隱蔽且危險的副作用。",
+      "en": "When scanning with `NOLOCK`, if a Page Split occurs simultaneously (data pages splitting and moving), the scan pointer might skip moving data or rescan moved data, leading to incorrect query results or errors. This is a more subtle and dangerous side effect than Dirty Reads.",
+      "wg": [
+        {
+          "t": "指標",
+          "en": "pointer",
+          "ps": "N"
+        },
+        {
+          "t": "隱蔽",
+          "en": "subtle",
+          "ps": "Adj"
+        }
+      ]
+    },
+    "verified": "2026-03-19T09:35:14"
+  },
+  {
+    "no": "chapter04-q07",
+    "level": "advanced",
+    "keywords": "Snapshot Isolation, RCSI, Consistency, Transaction Level",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "SET TRANSACTION ISOLATION LEVEL READ COMMITTED;\nALTER DATABASE MyDb SET READ_COMMITTED_SNAPSHOT ON;\n\n-- Transaction A\nBEGIN TRAN\n  SELECT SUM(Amount) FROM Sales; -- Query 1\n  -- (Time passes, Transaction B inserts new sales and commits)\n  SELECT COUNT(*) FROM Sales;    -- Query 2\nCOMMIT",
+    "question": [
+      {
+        "t": "您的資料庫已啟用 RCSI (Read Committed Snapshot Isolation)。",
+        "en": "Your database has RCSI (Read Committed Snapshot Isolation) enabled.",
+        "wg": []
+      },
+      {
+        "t": "在 Transaction A 中，您發現 Query 1 與 Query 2 的結果反映了不同的資料狀態（Query 2 包含了 Transaction B 新提交的資料）。",
+        "en": "In Transaction A, you notice that the results of Query 1 and Query 2 reflect different data states (Query 2 includes data newly committed by Transaction B).",
+        "wg": [
+          {
+            "t": "資料狀態",
+            "en": "data states",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "若您希望在同一個交易內的多次查詢都能讀取到「交易開始當下」的一致快照，該如何調整？",
+        "en": "If you want multiple queries within the same transaction to read a consistent snapshot from the \"start of the transaction\", how should you adjust?",
+        "wg": [
+          {
+            "t": "一致快照",
+            "en": "consistent snapshot",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 將隔離層級改為 REPEATABLE READ。",
+        "en": "(A) Change the isolation level to REPEATABLE READ.",
+        "wg": []
+      },
+      {
+        "t": "(B) 在查詢中使用 WITH (NOLOCK) 提示。",
+        "en": "(B) Use the WITH (NOLOCK) hint in the queries.",
+        "wg": []
+      },
+      {
+        "t": "(C) 明確設定 SET TRANSACTION ISOLATION LEVEL SNAPSHOT。",
+        "en": "(C) Explicitly set SET TRANSACTION ISOLATION LEVEL SNAPSHOT.",
+        "wg": []
+      },
+      {
+        "t": "(D) 這是 RCSI 的正常行為，無法更改。",
+        "en": "(D) This is the normal behavior of RCSI and cannot be changed.",
+        "wg": []
+      }
+    ],
+    "answer": "C",
+    "why": {
+      "t": "RCSI 提供的是「語句級 (Statement Level)」的一致性，每個 SELECT 都會讀取該語句執行當下的最新版本。若需要「交易級 (Transaction Level)」的一致性（即整個交易期間看到相同的資料快照），必須使用 SNAPSHOT Isolation Level。",
+      "en": "RCSI provides \"Statement Level\" consistency, where each SELECT reads the latest version available at the time of execution. If \"Transaction Level\" consistency is required (seeing the same data snapshot throughout the transaction), you must use the SNAPSHOT Isolation Level.",
+      "wg": [
+        {
+          "t": "語句級",
+          "en": "Statement Level",
+          "ps": "Adj"
+        },
+        {
+          "t": "交易級",
+          "en": "Transaction Level",
+          "ps": "Adj"
+        }
+      ]
+    },
+    "verified": "2026-03-19T09:35:14"
+  },
+  {
+    "no": "chapter04-q08",
+    "level": "intermediate",
+    "keywords": "Transaction Scope, Anti-pattern, Blocking, Performance",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "BEGIN TRAN\n    UPDATE Inventory SET Qty = Qty - 1 WHERE ItemID = 101;\n    -- Call external Payment Gateway API (takes 2-5 seconds)\n    EXEC sp_CallPaymentAPI @CardInfo, @Amount;\n    INSERT INTO Orders (...) VALUES (...);\nCOMMIT",
+    "question": [
+      {
+        "t": "在進行程式碼審查 (Code Review) 時，您發現了上述的 Stored Procedure 邏輯。",
+        "en": "During a Code Review, you identified the Stored Procedure logic shown above.",
+        "wg": [
+          {
+            "t": "程式碼審查",
+            "en": "Code Review",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "這段程式碼最可能導致以下哪種嚴重的效能問題？",
+        "en": "Which of the following severe performance issues is this code most likely to cause?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) Dirty Reads，因為 API 呼叫期間資料處於未提交狀態。",
+        "en": "(A) Dirty Reads, because data is uncommitted during the API call.",
+        "wg": []
+      },
+      {
+        "t": "(B) 嚴重的阻塞 (Blocking)，因為資料庫鎖定會持續持有直到 API 回應並 Commit 為止。",
+        "en": "(B) Severe Blocking, because database locks are held until the API responds and the transaction commits.",
+        "wg": [
+          {
+            "t": "阻塞",
+            "en": "Blocking",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) Latch Contention，因為 API 呼叫會消耗大量的 CPU。",
+        "en": "(C) Latch Contention, because the API call consumes significant CPU.",
+        "wg": []
+      },
+      {
+        "t": "(D) Lock Escalation，因為 API 呼叫會導致鎖定範圍自動擴大。",
+        "en": "(D) Lock Escalation, because the API call causes the lock scope to automatically expand.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "在交易範圍內包含非資料庫操作（如外部 API 呼叫）是常見的反模式。這會導致資料庫鎖定（Locks）被持有的時間包含了網路延遲時間，進而長時間阻塞其他需要存取 `Inventory` 表的交易。",
+      "en": "Including non-database operations (like external API calls) within a transaction scope is a common anti-pattern. This causes database locks to be held for the duration of the network latency, blocking other transactions attempting to access the `Inventory` table for an extended period.",
+      "wg": [
+        {
+          "t": "反模式",
+          "en": "anti-pattern",
+          "ps": "N"
+        },
+        {
+          "t": "網路延遲",
+          "en": "network latency",
+          "ps": "N"
+        }
+      ]
+    },
+    "verified": "2026-03-19T09:35:14"
+  },
+  {
+    "no": "chapter04-q09",
+    "level": "intermediate",
+    "keywords": "Deadlock, Troubleshooting, Extended Events, Monitoring",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您的生產環境 (Production) 偶爾會發生 Deadlock，您希望捕捉詳細的 Deadlock Graph 以分析是哪兩個查詢造成衝突。",
+        "en": "Your Production environment occasionally experiences Deadlocks, and you want to capture detailed Deadlock Graphs to analyze which two queries are conflicting.",
+        "wg": [
+          {
+            "t": "生產環境",
+            "en": "Production",
+            "ps": "N"
+          },
+          {
+            "t": "衝突",
+            "en": "conflicting",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "下列哪項工具是微軟建議最輕量且資訊最完整的監控方式？",
+        "en": "Which of the following tools is recommended by Microsoft as the most lightweight and comprehensive monitoring method?",
+        "wg": [
+          {
+            "t": "輕量",
+            "en": "lightweight",
+            "ps": "Adj"
+          },
+          {
+            "t": "最完整",
+            "en": "comprehensive",
+            "ps": "Adj"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) SQL Server Profiler。",
+        "en": "(A) SQL Server Profiler.",
+        "wg": []
+      },
+      {
+        "t": "(B) SQL Server Error Log。",
+        "en": "(B) SQL Server Error Log.",
+        "wg": []
+      },
+      {
+        "t": "(C) Extended Events (XEvents) 中的 xml_deadlock_report。",
+        "en": "(C) xml_deadlock_report in Extended Events (XEvents).",
+        "wg": []
+      },
+      {
+        "t": "(D) Performance Monitor (PerfMon)。",
+        "en": "(D) Performance Monitor (PerfMon).",
+        "wg": []
+      }
+    ],
+    "answer": "C",
+    "why": {
+      "t": "Extended Events 是現代 SQL Server 建議的監控工具，效能開銷極低且能提供完整的 XML Deadlock Graph。Profiler 已被標記為 Deprecated（不建議使用）且開銷較大；Error Log 預設不包含詳細 Graph；PerfMon 只能看到計數器數值。",
+      "en": "Extended Events is the modern monitoring tool recommended for SQL Server, with minimal performance overhead and full XML Deadlock Graphs. Profiler is deprecated and has higher overhead; Error Logs do not include detailed graphs by default; PerfMon only shows counter values.",
+      "wg": [
+        {
+          "t": "不建議使用",
+          "en": "Deprecated",
+          "ps": "Adj"
+        },
+        {
+          "t": "開銷",
+          "en": "overhead",
+          "ps": "N"
+        }
+      ]
+    },
+    "verified": "2026-03-19T09:36:44"
+  },
+  {
+    "no": "chapter04-q10",
+    "level": "intermediate",
+    "keywords": "Deadlock Prevention, Canonical Ordering, Best Practices",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "Transaction 1: UPDATE Accounts SET Bal = ... WHERE ID = 10; THEN WHERE ID = 20;\nTransaction 2: UPDATE Accounts SET Bal = ... WHERE ID = 20; THEN WHERE ID = 10;",
+    "question": [
+      {
+        "t": "上述兩個交易因為存取資源的順序相反，極易導致循環死鎖 (Circular Deadlock)。",
+        "en": "The two transactions above are highly prone to Circular Deadlocks because they access resources in opposite orders.",
+        "wg": [
+          {
+            "t": "循環死鎖",
+            "en": "Circular Deadlock",
+            "ps": "N"
+          },
+          {
+            "t": "相反",
+            "en": "opposite",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "在不更改隔離層級的情況下，下列哪種程式碼層面的修正最能根治此問題？",
+        "en": "Without changing the isolation level, which of the following code-level fixes best eradicates this issue?",
+        "wg": [
+          {
+            "t": "根治",
+            "en": "eradicate",
+            "ps": "V"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 在所有 UPDATE 語句後加上 WITH (NOLOCK)。",
+        "en": "(A) Add WITH (NOLOCK) after all UPDATE statements.",
+        "wg": []
+      },
+      {
+        "t": "(B) 實作「標準化順序 (Canonical Ordering)」，例如總是依照 ID 由小到大進行鎖定。",
+        "en": "(B) Implement \"Canonical Ordering\", such as always locking by ID in ascending order.",
+        "wg": [
+          {
+            "t": "標準化順序",
+            "en": "Canonical Ordering",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) 將交易切分為兩個獨立的交易，分別更新 ID 10 與 ID 20。",
+        "en": "(C) Split the transaction into two independent transactions, updating ID 10 and ID 20 separately.",
+        "wg": []
+      },
+      {
+        "t": "(D) 使用 ROWLOCK 提示強制使用資料列鎖定。",
+        "en": "(D) Use the ROWLOCK hint to force row-level locking.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "死鎖通常源自於鎖定順序不一致。透過強制所有交易依照相同的順序（例如 ID 升序）存取資源，可以破壞循環等待的條件，從邏輯上消除死鎖。",
+      "en": "Deadlocks usually stem from inconsistent locking orders. By enforcing that all transactions access resources in the same order (e.g., ID ascending), you break the circular wait condition and logically eliminate the deadlock.",
+      "wg": [
+        {
+          "t": "循環等待",
+          "en": "circular wait",
+          "ps": "N"
+        }
+      ]
+    },
+    "verified": "2026-03-19T09:36:44"
+  },
+  {
+    "no": "chapter04-q11",
+    "level": "intermediate",
+    "keywords": "Repeatable Read, Phantom Read, Isolation Levels",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "SET TRANSACTION ISOLATION LEVEL REPEATABLE READ;\nBEGIN TRAN\n  SELECT * FROM Orders WHERE Amount > 1000;\n  -- (Holds Shared Locks on existing rows)\n  -- ... Wait ...\n  SELECT * FROM Orders WHERE Amount > 1000;\nCOMMIT",
+    "question": [
+      {
+        "t": "在 `REPEATABLE READ` 隔離層級下，Transaction A 執行了兩次相同的範圍查詢。",
+        "en": "Under the `REPEATABLE READ` isolation level, Transaction A executes the same range query twice.",
+        "wg": []
+      },
+      {
+        "t": "在此期間，另一個 Transaction B 試圖執行以下操作。請問哪一個操作**可以成功執行**（不會被阻塞），但會導致 Transaction A 第二次查詢出現「幻讀 (Phantom Read)」？",
+        "en": "During this time, another Transaction B attempts the following operations. Which operation **can successfully execute** (will not be blocked) but will cause a \"Phantom Read\" in Transaction A's second query?",
+        "wg": [
+          {
+            "t": "幻讀",
+            "en": "Phantom Read",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) UPDATE Orders SET Amount = 500 WHERE ID = <Existing_Row_ID>",
+        "en": "(A) UPDATE Orders SET Amount = 500 WHERE ID = <Existing_Row_ID>",
+        "wg": []
+      },
+      {
+        "t": "(B) DELETE FROM Orders WHERE ID = <Existing_Row_ID>",
+        "en": "(B) DELETE FROM Orders WHERE ID = <Existing_Row_ID>",
+        "wg": []
+      },
+      {
+        "t": "(C) INSERT INTO Orders (Amount, ...) VALUES (2000, ...)",
+        "en": "(C) INSERT INTO Orders (Amount, ...) VALUES (2000, ...)",
+        "wg": []
+      },
+      {
+        "t": "(D) SELECT * FROM Orders WITH (XLOCK)",
+        "en": "(D) SELECT * FROM Orders WITH (XLOCK)",
+        "wg": []
+      }
+    ],
+    "answer": "C",
+    "why": {
+      "t": "`REPEATABLE READ` 會鎖定所有「已讀取」的現有資料列，防止被修改或刪除（所以 Update/Delete 會被阻塞）。但它不會鎖定「範圍間隙」，因此其他交易仍可 INSERT 符合條件的新資料（Amount > 1000），這就是幻讀的成因。",
+      "en": "`REPEATABLE READ` locks all \"read\" existing rows, preventing them from being modified or deleted (so Update/Delete will be blocked). However, it does not lock the \"range gaps,\" so other transactions can still INSERT new data meeting the criteria (Amount > 1000), which is the cause of Phantom Reads.",
+      "wg": [
+        {
+          "t": "範圍間隙",
+          "en": "range gaps",
+          "ps": "N"
+        }
+      ]
+    },
+    "verified": "2026-03-19T09:36:44"
+  },
+  {
+    "no": "chapter04-q12",
+    "level": "advanced",
+    "keywords": "Latch Contention, TempDB, Performance Tuning, PAGELATCH",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您的系統大量使用暫存表 (Temporary Tables)，監控顯示 CPU 使用率極高，且等待事件 (Wait Statistics) 中出現大量的 `PAGELATCH_UP` 或 `PAGELATCH_EX`，資源指向 TempDB 的系統頁面（如 PFS, GAM）。",
+        "en": "Your system makes heavy use of Temporary Tables. Monitoring shows very high CPU usage, and Wait Statistics show massive `PAGELATCH_UP` or `PAGELATCH_EX` events pointing to TempDB system pages (like PFS, GAM).",
+        "wg": [
+          {
+            "t": "暫存表",
+            "en": "Temporary Tables",
+            "ps": "N"
+          },
+          {
+            "t": "等待事件",
+            "en": "Wait Statistics",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "這是典型的 TempDB Latch Contention。最有效的基礎架構解法是什麼？",
+        "en": "This is typical TempDB Latch Contention. What is the most effective infrastructure solution?",
+        "wg": [
+          {
+            "t": "基礎架構",
+            "en": "infrastructure",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 為 TempDB 增加更多的資料檔案 (Data Files)，數量通常建議與 CPU 核心數相關。",
+        "en": "(A) Add more Data Files to TempDB, typically recommended to match the number of CPU cores.",
+        "wg": [
+          {
+            "t": "資料檔案",
+            "en": "Data Files",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(B) 將 TempDB 的復原模式 (Recovery Model) 改為 Simple。",
+        "en": "(B) Change the Recovery Model of TempDB to Simple.",
+        "wg": [
+          {
+            "t": "復原模式",
+            "en": "Recovery Model",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) 在建立暫存表時使用 Table Variable 來取代。",
+        "en": "(C) Use Table Variables instead when creating temporary tables.",
+        "wg": []
+      },
+      {
+        "t": "(D) 經常縮減 (Shrink) TempDB 以釋放空間。",
+        "en": "(D) Frequently Shrink TempDB to free up space.",
+        "wg": []
+      }
+    ],
+    "answer": "A",
+    "why": {
+      "t": "TempDB 的 Latch 競爭通常發生在分配頁面 (Allocation Pages) 上。增加資料檔案的數量可以讓系統以 Round-robin 方式分配頁面，分散 Latch 的熱點，從而大幅降低競爭。",
+      "en": "TempDB Latch contention usually occurs on Allocation Pages. Increasing the number of data files allows the system to allocate pages in a Round-robin fashion, distributing the Latch hotspots and significantly reducing contention.",
+      "wg": [
+        {
+          "t": "分配頁面",
+          "en": "Allocation Pages",
+          "ps": "N"
+        },
+        {
+          "t": "熱點",
+          "en": "hotspots",
+          "ps": "N"
+        }
+      ]
+    },
+    "verified": "2026-03-19T09:36:44"
+  },
+  {
+    "no": "chapter04-q13",
+    "level": "advanced",
+    "keywords": "Lock Hierarchy, Intent Locks, Locking Mechanism",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "當一個交易試圖對某個資料列 (Row) 加上 Exclusive Lock (X) 時，SQL Server 會先自動對該資料表 (Table) 加上 Intent Exclusive Lock (IX)。",
+        "en": "When a transaction attempts to place an Exclusive Lock (X) on a Row, SQL Server automatically first places an Intent Exclusive Lock (IX) on the Table.",
+        "wg": [
+          {
+            "t": "意圖排他鎖",
+            "en": "Intent Exclusive Lock",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "這個「意圖鎖 (Intent Lock)」的主要設計目的是什麼？",
+        "en": "What is the primary design purpose of this \"Intent Lock\"?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 為了防止死鎖 (Deadlock)。",
+        "en": "(A) To prevent Deadlocks.",
+        "wg": []
+      },
+      {
+        "t": "(B) 為了提高鎖定升級 (Lock Escalation) 的速度。",
+        "en": "(B) To speed up Lock Escalation.",
+        "wg": []
+      },
+      {
+        "t": "(C) 為了讓其他交易能快速判斷是否可以對整張表加鎖，而無需掃描每一行。",
+        "en": "(C) To allow other transactions to quickly determine if they can lock the entire table without scanning every row.",
+        "wg": [
+          {
+            "t": "掃描",
+            "en": "scanning",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(D) 為了確保資料寫入硬碟的順序。",
+        "en": "(D) To ensure the order of data writing to the disk.",
+        "wg": []
+      }
+    ],
+    "answer": "C",
+    "why": {
+      "t": "Intent Lock 是一種階層標記。當有人想鎖定整張表（例如修改 Schema 或 Table Lock）時，只需檢查表級是否有 Intent Lock，就能知道底下是否有 Row 被鎖住，而不需要遍歷檢查數百萬行的鎖定狀態，極大提升了效率。",
+      "en": "Intent Lock is a hierarchical marker. When someone wants to lock the entire table (e.g., for Schema modification or Table Lock), they only need to check for Intent Locks at the table level to know if any rows underneath are locked, avoiding the need to traverse and check the lock status of millions of rows, thus greatly improving efficiency.",
+      "wg": [
+        {
+          "t": "階層標記",
+          "en": "hierarchical marker",
+          "ps": "N"
+        },
+        {
+          "t": "遍歷",
+          "en": "traverse",
+          "ps": "V"
+        }
+      ]
+    },
+    "verified": "2026-03-19T09:36:44"
+  },
+  {
+    "id": "chapter04-q14",
+    "level": "advanced",
+    "keywords": "Snapshot Isolation, Update Conflict, Optimistic Concurrency, Error 3960",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "-- Setup: ALTER DATABASE MyDB SET ALLOW_SNAPSHOT_ISOLATION ON;\n\n-- Transaction A (Session 1)\nSET TRANSACTION ISOLATION LEVEL SNAPSHOT;\nBEGIN TRAN;\n    DECLARE @Qty INT;\n    SELECT @Qty = Quantity FROM Products WHERE ProductID = 101; -- Reads 10\n    -- (Pauses here for a few seconds)\n\n-- Transaction B (Session 2)\nBEGIN TRAN;\n    UPDATE Products SET Quantity = 5 WHERE ProductID = 101;\nCOMMIT;\n\n-- Transaction A (Session 1 resumes)\n    UPDATE Products SET Quantity = @Qty - 1 WHERE ProductID = 101;\nCOMMIT;",
+    "question": [
+      {
+        "t": "假設資料庫已啟用 `ALLOW_SNAPSHOT_ISOLATION`，且兩個交易依照上述時序執行。",
+        "en": "Assume the database has `ALLOW_SNAPSHOT_ISOLATION` enabled, and two transactions execute according to the sequence above.",
+        "wg": [
+          {
+            "t": "時序",
+            "en": "sequence/timing",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "當 Transaction A 嘗試執行最後的 `UPDATE` 語句時，會發生什麼結果？",
+        "en": "What will happen when Transaction A attempts to execute the final `UPDATE` statement?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) Transaction A 會被阻塞，直到 Transaction B 釋放鎖定後，將值更新為 9。",
+        "en": "(A) Transaction A will be blocked until Transaction B releases the lock, then updates the value to 9.",
+        "wg": [
+          {
+            "t": "阻塞",
+            "en": "blocked",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(B) Transaction A 會立即成功，將值更新為 9，覆蓋 Transaction B 的修改。",
+        "en": "(B) Transaction A will succeed immediately, updating the value to 9 and overwriting Transaction B's modification.",
+        "wg": [
+          {
+            "t": "覆蓋",
+            "en": "overwriting",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(C) Transaction A 會終止並拋出更新衝突 (Update Conflict) 錯誤。",
+        "en": "(C) Transaction A will terminate and throw an Update Conflict error.",
+        "wg": [
+          {
+            "t": "更新衝突",
+            "en": "Update Conflict",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(D) Transaction A 會自動重新讀取最新值 (5)，並將結果更新為 4。",
+        "en": "(D) Transaction A will automatically re-read the latest value (5) and update the result to 4.",
+        "wg": []
+      }
+    ],
+    "answer": "C",
+    "why": {
+      "t": "在 `SNAPSHOT` 隔離層級下，交易承諾基於「交易開始時」的資料版本進行操作。若在交易期間該資料已被其他交易修改並提交，SQL Server 會偵測到版本衝突並拋出錯誤 (Error 3960)，以防止遺失更新。",
+      "en": "Under `SNAPSHOT` isolation level, the transaction promises to operate based on the data version at the 'start of the transaction'. If that data has been modified and committed by another transaction during this period, SQL Server detects a version conflict and throws an error (Error 3960) to prevent lost updates.",
+      "wg": [
+        {
+          "t": "遺失更新",
+          "en": "lost updates",
+          "ps": "N"
+        },
+        {
+          "t": "版本衝突",
+          "en": "version conflict",
+          "ps": "N"
+        }
+      ]
+    },
+    "verified": "2026-03-19T09:36:44"
+  },
+  {
+    "id": "chapter04-q15",
+    "level": "intermediate",
+    "keywords": "Connection Pool, Blocking, Troubleshooting, Performance",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您的應用程式在尖峰時段頻繁拋出「連線池逾時 (Connection Pool Timeout)」錯誤，導致使用者無法登入或結帳。",
+        "en": "Your application frequently throws 'Connection Pool Timeout' errors during peak hours, preventing users from logging in or checking out.",
+        "wg": [
+          {
+            "t": "連線池逾時",
+            "en": "Connection Pool Timeout",
+            "ps": "N"
+          },
+          {
+            "t": "尖峰時段",
+            "en": "peak hours",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "檢查資料庫伺服器後發現：CPU 使用率很低 (約 10-15%)，Disk I/O 正常，但 `Concurrent Connections` 數量達到上限。",
+        "en": "Upon checking the database server, you find: CPU usage is low (around 10-15%), Disk I/O is normal, but the number of `Concurrent Connections` has reached the limit.",
+        "wg": [
+          {
+            "t": "上限",
+            "en": "limit/cap",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "若系統目前使用預設的隔離層級，最可能的根本原因是什麼？",
+        "en": "If the system is currently using the default isolation level, what is the most likely root cause?",
+        "wg": [
+          {
+            "t": "根本原因",
+            "en": "root cause",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 嚴重的 Latch Contention 導致執行緒在記憶體中爭搶資源。",
+        "en": "(A) Severe Latch Contention causing threads to compete for resources in memory.",
+        "wg": [
+          {
+            "t": "爭搶",
+            "en": "compete",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(B) 應用程式遭遇大量的 Deadlock，導致連線被強制中斷。",
+        "en": "(B) The application is encountering massive Deadlocks, causing connections to be forcibly terminated.",
+        "wg": []
+      },
+      {
+        "t": "(C) 嚴重的阻塞 (Blocking) 導致大量查詢在等待鎖定，佔用了連線卻無法完成工作。",
+        "en": "(C) Severe Blocking causing massive queries to wait for locks, holding connections without completing work.",
+        "wg": [
+          {
+            "t": "佔用",
+            "en": "holding/occupying",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(D) 索引碎片化 (Index Fragmentation) 過高，導致查詢需要消耗大量 CPU。",
+        "en": "(D) Excessive Index Fragmentation causing queries to consume high CPU.",
+        "wg": [
+          {
+            "t": "碎片化",
+            "en": "fragmentation",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "answer": "C",
+    "why": {
+      "t": "CPU 使用率低但連線數爆滿是典型的「阻塞 (Blocking)」特徵。在預設的 `READ COMMITTED` 下，讀取會被寫入阻塞，導致大量執行緒進入等待狀態 (Wait State)，無法釋放連線回池中。Latch Contention (A) 與索引問題 (D) 通常會伴隨高 CPU；Deadlock (B) 會快速殺死連線而非長時間佔用。",
+      "en": "Low CPU usage with maxed-out connections is a classic symptom of 'Blocking'. Under the default `READ COMMITTED`, reads are blocked by writes, causing many threads to enter a Wait State and failing to release connections back to the pool. Latch Contention (A) and index issues (D) usually accompany high CPU; Deadlocks (B) kill connections quickly rather than holding them for long periods.",
+      "wg": [
+        {
+          "t": "特徵",
+          "en": "symptom/characteristic",
+          "ps": "N"
+        },
+        {
+          "t": "伴隨",
+          "en": "accompany",
+          "ps": "V"
+        }
+      ]
+    },
+    "verified": "2026-03-19T09:36:44"
+  }
+]

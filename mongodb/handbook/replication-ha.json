@@ -32,8 +32,8 @@
     "type": "Single Choice",
     "options": [
       {
-        "t": "應用程式使用了 `w: 1`（預設值），導致資料僅寫入 Primary 記憶體或日誌後即回傳成功，尚未複製到 Secondary 就發生故障。",
-        "en": "The application used `w: 1` (default), causing the data to be acknowledged after writing only to the Primary's memory/journal, crashing before replication to a Secondary.",
+        "t": "(A) 應用程式使用了 `w: 1`（預設值），導致資料僅寫入 Primary 記憶體或日誌後即回傳成功，尚未複製到 Secondary 就發生故障。",
+        "en": "(A) The application used `w: 1` (default), causing the data to be acknowledged after writing only to the Primary's memory/journal, crashing before replication to a Secondary.",
         "wg": [
           {
             "t": "複製",
@@ -43,22 +43,22 @@
         ]
       },
       {
-        "t": "Oplog 大小設定過小，導致 Secondary 無法及時同步資料。",
-        "en": "The Oplog size was set too small, preventing the Secondary from syncing data in time.",
+        "t": "(B) Oplog 大小設定過小，導致 Secondary 無法及時同步資料。",
+        "en": "(B) The Oplog size was set too small, preventing the Secondary from syncing data in time.",
         "wg": []
       },
       {
-        "t": "沒有設定 `readPreference: primary`，導致應用程式讀取到了舊的 Secondary 資料。",
-        "en": "The `readPreference` was not set to `primary`, causing the application to read stale data from a Secondary.",
+        "t": "(C) 沒有設定 `readPreference: primary`，導致應用程式讀取到了舊的 Secondary 資料。",
+        "en": "(C) The `readPreference` was not set to `primary`, causing the application to read stale data from a Secondary.",
         "wg": []
       },
       {
-        "t": "使用了 PSA 架構，Arbiter 節點導致了資料寫入的不一致。",
-        "en": "A PSA architecture was used, and the Arbiter node caused data write inconsistency.",
+        "t": "(D) 使用了 PSA 架構，Arbiter 節點導致了資料寫入的不一致。",
+        "en": "(D) A PSA architecture was used, and the Arbiter node caused data write inconsistency.",
         "wg": []
       }
     ],
-    "answer": "0",
+    "answer": "A",
     "why": {
       "t": "當 Write Concern 設為 `w: 1` 時，Primary 只要寫入本地 Journal 就會回傳成功。若此時 Primary 在將 Oplog 傳送給 Secondary 之前崩潰，該筆資料就不存在於其他節點。當舊 Primary 恢復後，會發現自己的 Oplog 與新選出的 Primary 衝突，因此觸發 Rollback 機制刪除該筆資料。解決方案是使用 `w: 'majority'`。",
       "en": "When Write Concern is set to `w: 1`, the Primary acknowledges success as soon as the write hits its local journal. If the Primary crashes before shipping the Oplog to a Secondary, that data exists nowhere else. Upon recovery, the old Primary detects a conflict with the new Primary's Oplog and triggers a Rollback, deleting the conflicting data. The solution is to use `w: 'majority'`.",
@@ -74,7 +74,8 @@
           "ps": "noun"
         }
       ]
-    }
+    },
+    "verified": "2026-03-20T10:35:58"
   },
   {
     "no": "2",
@@ -104,8 +105,8 @@
     "type": "Single Choice",
     "options": [
       {
-        "t": "寫入操作會被阻塞（Block），導致服務不可用。",
-        "en": "Write operations will be blocked, causing service unavailability.",
+        "t": "(A) 寫入操作會被阻塞（Block），導致服務不可用。",
+        "en": "(A) Write operations will be blocked, causing service unavailability.",
         "wg": [
           {
             "t": "阻塞",
@@ -115,22 +116,22 @@
         ]
       },
       {
-        "t": "Arbiter 會自動轉變為資料節點來接收寫入，導致資料損壞。",
-        "en": "The Arbiter will automatically transform into a data node to accept writes, causing data corruption.",
+        "t": "(B) Arbiter 會自動轉變為資料節點來接收寫入，導致資料損壞。",
+        "en": "(B) The Arbiter will automatically transform into a data node to accept writes, causing data corruption.",
         "wg": []
       },
       {
-        "t": "系統會自動降級為 `w: 1` 模式繼續運作，犧牲一致性。",
-        "en": "The system will automatically degrade to `w: 1` mode to continue operation, sacrificing consistency.",
+        "t": "(C) 系統會自動降級為 `w: 1` 模式繼續運作，犧牲一致性。",
+        "en": "(C) The system will automatically degrade to `w: 1` mode to continue operation, sacrificing consistency.",
         "wg": []
       },
       {
-        "t": "讀取操作會因為無法達成 Read Concern Majority 而全部失敗。",
-        "en": "Read operations will all fail because Read Concern Majority cannot be satisfied.",
+        "t": "(D) 讀取操作會因為無法達成 Read Concern Majority 而全部失敗。",
+        "en": "(D) Read operations will all fail because Read Concern Majority cannot be satisfied.",
         "wg": []
       }
     ],
-    "answer": "0",
+    "answer": "A",
     "why": {
       "t": "在 PSA 架構（3 個投票節點）中，Majority 需要 2 票。Arbiter 雖然有投票權但「不存儲資料」。若其中一個資料節點故障，僅剩 Primary 一個資料節點存活。雖然 Primary + Arbiter 滿足選舉多數（可維持 Primary 身份），但 `w: 'majority'` 要求資料必須寫入「大多數資料節點」（在此例中需 2 個資料節點確認，或視版本實作需投票節點確認但 Arbiter 無法寫入）。因此無法滿足寫入確認條件，導致寫入阻塞。這是 PSA 架構搭配 `w: 'majority'` 的主要陷阱。",
       "en": "In a PSA architecture (3 voting nodes), a Majority requires 2 votes. While the Arbiter votes, it does 'not store data'. If one data node fails, only the Primary remains as a data node. Although Primary + Arbiter satisfy the election quorum (keeping the Primary up), `w: 'majority'` requires data to be written to a 'majority of nodes'. Since the Arbiter cannot acknowledge a data write, the condition cannot be met (1 data node < 2 required). This causes writes to block, which is a major pitfall of using `w: 'majority'` with PSA.",
@@ -146,7 +147,8 @@
           "ps": "verb"
         }
       ]
-    }
+    },
+    "verified": "2026-03-20T10:35:58"
   },
   {
     "no": "3",
@@ -176,8 +178,8 @@
     "type": "Single Choice",
     "options": [
       {
-        "t": "節點狀態變為 `RECOVERING`，且無法自動恢復，必須進行 Initial Sync。",
-        "en": "The node state becomes `RECOVERING` and cannot recover automatically; an Initial Sync is required.",
+        "t": "(A) 節點狀態變為 `RECOVERING`，且無法自動恢復，必須進行 Initial Sync。",
+        "en": "(A) The node state becomes `RECOVERING` and cannot recover automatically; an Initial Sync is required.",
         "wg": [
           {
             "t": "全量同步",
@@ -187,22 +189,22 @@
         ]
       },
       {
-        "t": "節點會自動從 Primary 下載遺失的 3 小時資料，並在幾分鐘內追上。",
-        "en": "The node will automatically download the missing 3 hours of data from the Primary and catch up within minutes.",
+        "t": "(B) 節點會自動從 Primary 下載遺失的 3 小時資料，並在幾分鐘內追上。",
+        "en": "(B) The node will automatically download the missing 3 hours of data from the Primary and catch up within minutes.",
         "wg": []
       },
       {
-        "t": "節點會觸發 Rollback 機制，刪除本地所有資料後重新同步。",
-        "en": "The node will trigger the Rollback mechanism, deleting all local data and re-syncing.",
+        "t": "(C) 節點會觸發 Rollback 機制，刪除本地所有資料後重新同步。",
+        "en": "(C) The node will trigger the Rollback mechanism, deleting all local data and re-syncing.",
         "wg": []
       },
       {
-        "t": "Primary 會自動暫停寫入，等待該 Secondary 追上進度。",
-        "en": "The Primary will automatically pause writes to wait for the Secondary to catch up.",
+        "t": "(D) Primary 會自動暫停寫入，等待該 Secondary 追上進度。",
+        "en": "(D) The Primary will automatically pause writes to wait for the Secondary to catch up.",
         "wg": []
       }
     ],
-    "answer": "0",
+    "answer": "A",
     "why": {
       "t": "Oplog 是一個固定大小的 Ring Buffer。若節點離線時間（3小時）超過了 Oplog 的保留視窗（1小時），Primary 上該節點所需的舊 Oplog 紀錄已被新紀錄覆蓋。Secondary 找不到同步點（Sync Source），會陷入 `RECOVERING` 狀態並報錯，此時唯一的解法是刪除資料進行耗時的 Initial Sync。",
       "en": "The Oplog is a fixed-size Ring Buffer. If the node's downtime (3 hours) exceeds the Oplog retention window (1 hour), the old Oplog records required by the Secondary have been overwritten on the Primary. The Secondary cannot find its sync point, will enter `RECOVERING` state and error out. The only solution is to delete the data and perform a time-consuming Initial Sync.",
@@ -218,7 +220,8 @@
           "ps": "noun"
         }
       ]
-    }
+    },
+    "verified": "2026-03-20T10:35:58"
   },
   {
     "no": "4",
@@ -253,8 +256,8 @@
     "type": "Single Choice",
     "options": [
       {
-        "t": "被查詢的 Secondary 因負載過重停止拉取 Oplog，導致 Primary 必須在記憶體中保留舊資料以供複製，無法釋放 Cache。",
-        "en": "The queried Secondary stopped pulling Oplog due to high load, forcing the Primary to hold old data in memory for replication, preventing Cache eviction.",
+        "t": "(A) 被查詢的 Secondary 因負載過重停止拉取 Oplog，導致 Primary 必須在記憶體中保留舊資料以供複製，無法釋放 Cache。",
+        "en": "(A) The queried Secondary stopped pulling Oplog due to high load, forcing the Primary to hold old data in memory for replication, preventing Cache eviction.",
         "wg": [
           {
             "t": "釋放",
@@ -264,22 +267,22 @@
         ]
       },
       {
-        "t": "Secondary 的讀取請求會自動轉發回 Primary 進行驗證。",
-        "en": "Read requests on the Secondary are automatically forwarded back to the Primary for validation.",
+        "t": "(B) Secondary 的讀取請求會自動轉發回 Primary 進行驗證。",
+        "en": "(B) Read requests on the Secondary are automatically forwarded back to the Primary for validation.",
         "wg": []
       },
       {
-        "t": "MongoDB 的 `readPreference=secondary` 實際上仍然會消耗 Primary 的 CPU 來進行路由。",
-        "en": "MongoDB's `readPreference=secondary` actually still consumes Primary CPU for routing.",
+        "t": "(C) MongoDB 的 `readPreference=secondary` 實際上仍然會消耗 Primary 的 CPU 來進行路由。",
+        "en": "(C) MongoDB's `readPreference=secondary` actually still consumes Primary CPU for routing.",
         "wg": []
       },
       {
-        "t": "全表掃描觸發了全域鎖（Global Lock），鎖住了整個 Replica Set。",
-        "en": "The full collection scan triggered a Global Lock, locking the entire Replica Set.",
+        "t": "(D) 全表掃描觸發了全域鎖（Global Lock），鎖住了整個 Replica Set。",
+        "en": "(D) The full collection scan triggered a Global Lock, locking the entire Replica Set.",
         "wg": []
       }
     ],
-    "answer": "0",
+    "answer": "A",
     "why": {
       "t": "這是一個進階的效能陷阱。當 Secondary 因為執行繁重查詢而資源耗盡（IO/CPU 滿載），它會變慢甚至停止從 Primary 拉取 Oplog。MongoDB 的 WiredTiger 引擎為了確保資料能成功複製給落後的節點，會將這些「尚未被所有節點複製」的髒資料（Dirty Data）或歷史版本保留在 Primary 的 Cache 中，導致 Primary 可用的 Cache 空間變少，進而引發 Cache Pressure 並影響寫入效能。",
       "en": "This is an advanced performance pitfall. When a Secondary is exhausted by heavy queries (IO/CPU saturation), it slows down or stops pulling Oplog from the Primary. To ensure data can be replicated to lagging nodes, MongoDB's WiredTiger engine pins 'dirty data' or history versions that haven't been replicated yet in the Primary's Cache. This reduces available Cache space on the Primary, causing Cache Pressure and degrading write performance.",
@@ -295,7 +298,8 @@
           "ps": "noun"
         }
       ]
-    }
+    },
+    "verified": "2026-03-20T10:35:58"
   },
   {
     "no": "5",
@@ -325,8 +329,8 @@
     "type": "Single Choice",
     "options": [
       {
-        "t": "DC-A 可以選出或維持 Primary，DC-B 的節點會變成唯讀（Secondary）。",
-        "en": "DC-A can elect or maintain a Primary, while nodes in DC-B become read-only (Secondary).",
+        "t": "(A) DC-A 可以選出或維持 Primary，DC-B 的節點會變成唯讀（Secondary）。",
+        "en": "(A) DC-A can elect or maintain a Primary, while nodes in DC-B become read-only (Secondary).",
         "wg": [
           {
             "t": "唯讀",
@@ -336,8 +340,8 @@
         ]
       },
       {
-        "t": "DC-A 和 DC-B 都會選出各自的 Primary，造成腦裂（Split-brain）。",
-        "en": "Both DC-A and DC-B will elect their own Primary, causing Split-brain.",
+        "t": "(B) DC-A 和 DC-B 都會選出各自的 Primary，造成腦裂（Split-brain）。",
+        "en": "(B) Both DC-A and DC-B will elect their own Primary, causing Split-brain.",
         "wg": [
           {
             "t": "腦裂",
@@ -347,17 +351,17 @@
         ]
       },
       {
-        "t": "整個叢集都會變成唯讀，因為沒有一邊擁有超過 3 個節點。",
-        "en": "The entire cluster becomes read-only because neither side has more than 3 nodes.",
+        "t": "(C) 整個叢集都會變成唯讀，因為沒有一邊擁有超過 3 個節點。",
+        "en": "(C) The entire cluster becomes read-only because neither side has more than 3 nodes.",
         "wg": []
       },
       {
-        "t": "DC-B 會選出 Primary，因為它的節點負載較低。",
-        "en": "DC-B will elect a Primary because its nodes have lower load.",
+        "t": "(D) DC-B 會選出 Primary，因為它的節點負載較低。",
+        "en": "(D) DC-B will elect a Primary because its nodes have lower load.",
         "wg": []
       }
     ],
-    "answer": "0",
+    "answer": "A",
     "why": {
       "t": "選舉成功的關鍵是獲得「大多數（Majority）」票數。5 個節點的 Majority 是 `5/2 + 1 = 3` 票。DC-A 擁有 3 個節點，滿足 Majority 條件，因此可以選出或維持 Primary。DC-B 只有 2 個節點，無法湊齊 3 票，因此無法選出 Primary，所有節點將降級或維持為 Secondary（唯讀）。",
       "en": "The key to a successful election is obtaining a 'Majority' of votes. For 5 nodes, the Majority is `5/2 + 1 = 3` votes. DC-A has 3 nodes, meeting the Majority requirement, so it can elect or maintain a Primary. DC-B has only 2 nodes, which is insufficient to reach 3 votes, so it cannot elect a Primary, and all its nodes will step down or remain as Secondaries (read-only).",
@@ -373,7 +377,8 @@
           "ps": "verb"
         }
       ]
-    }
+    },
+    "verified": "2026-03-20T10:35:58"
   },
   {
     "no": "6",
@@ -403,8 +408,8 @@
     "type": "Single Choice",
     "options": [
       {
-        "t": "先逐一升級所有 Secondary -> 強制 Primary 降級（StepDown） -> 升級原 Primary（現為 Secondary）。",
-        "en": "Upgrade all Secondaries one by one -> Force Primary StepDown -> Upgrade the original Primary (now a Secondary).",
+        "t": "(A) 先逐一升級所有 Secondary -> 強制 Primary 降級（StepDown） -> 升級原 Primary（現為 Secondary）。",
+        "en": "(A) Upgrade all Secondaries one by one -> Force Primary StepDown -> Upgrade the original Primary (now a Secondary).",
         "wg": [
           {
             "t": "降級",
@@ -414,22 +419,22 @@
         ]
       },
       {
-        "t": "先升級 Primary -> 確認 Primary 重啟成功 -> 再逐一升級 Secondary。",
-        "en": "Upgrade the Primary first -> Confirm Primary restart success -> Then upgrade Secondaries one by one.",
+        "t": "(B) 先升級 Primary -> 確認 Primary 重啟成功 -> 再逐一升級 Secondary。",
+        "en": "(B) Upgrade the Primary first -> Confirm Primary restart success -> Then upgrade Secondaries one by one.",
         "wg": []
       },
       {
-        "t": "同時關閉所有節點 -> 進行升級 -> 同時啟動所有節點。",
-        "en": "Shutdown all nodes simultaneously -> Perform upgrade -> Start all nodes simultaneously.",
+        "t": "(C) 同時關閉所有節點 -> 進行升級 -> 同時啟動所有節點。",
+        "en": "(C) Shutdown all nodes simultaneously -> Perform upgrade -> Start all nodes simultaneously.",
         "wg": []
       },
       {
-        "t": "先升級 Arbiter -> 升級 Primary -> 最後升級 Secondary。",
-        "en": "Upgrade Arbiter first -> Upgrade Primary -> Finally upgrade Secondary.",
+        "t": "(D) 先升級 Arbiter -> 升級 Primary -> 最後升級 Secondary。",
+        "en": "(D) Upgrade Arbiter first -> Upgrade Primary -> Finally upgrade Secondary.",
         "wg": []
       }
     ],
-    "answer": "0",
+    "answer": "A",
     "why": {
       "t": "標準的 Rolling Upgrade 流程是：先確保備份 -> 逐一維護 Secondary（確保維護期間叢集仍有足夠票數且服務不中斷）-> 最後處理 Primary。處理 Primary 時，應先使用 `rs.stepDown()` 讓它優雅地交棒給已升級完成的 Secondary，待其變為 Secondary 後再進行維護。若先升級 Primary，會導致強制斷線與非預期選舉，增加風險。",
       "en": "The standard Rolling Upgrade workflow is: Ensure backups -> Maintain Secondaries one by one (ensuring the cluster retains quorum and service continuity) -> Handle the Primary last. When handling the Primary, use `rs.stepDown()` to gracefully hand over leadership to an upgraded Secondary. Once it becomes a Secondary, proceed with maintenance. Upgrading the Primary first causes forced disconnects and unexpected elections, increasing risk.",
@@ -445,7 +450,8 @@
           "ps": "verb"
         }
       ]
-    }
+    },
+    "verified": "2026-03-20T10:35:58"
   },
   {
     "no": "7",
@@ -480,8 +486,8 @@
     "type": "Single Choice",
     "options": [
       {
-        "t": "這是因為 `Replication Lag` 導致的資料不一致。對於這種「寫後即讀（Read-your-writes）」的場景，應改回讀取 Primary。",
-        "en": "This is data inconsistency caused by `Replication Lag`. For this 'Read-your-writes' scenario, you should revert to reading from the Primary.",
+        "t": "(A) 這是因為 `Replication Lag` 導致的資料不一致。對於這種「寫後即讀（Read-your-writes）」的場景，應改回讀取 Primary。",
+        "en": "(A) This is data inconsistency caused by `Replication Lag`. For this 'Read-your-writes' scenario, you should revert to reading from the Primary.",
         "wg": [
           {
             "t": "寫後即讀",
@@ -491,22 +497,22 @@
         ]
       },
       {
-        "t": "這是因為 Oplog 容量不足。應增加 Oplog Size 以加快複製速度。",
-        "en": "This is due to insufficient Oplog capacity. You should increase the Oplog Size to speed up replication.",
+        "t": "(B) 這是因為 Oplog 容量不足。應增加 Oplog Size 以加快複製速度。",
+        "en": "(B) This is due to insufficient Oplog capacity. You should increase the Oplog Size to speed up replication.",
         "wg": []
       },
       {
-        "t": "這是因為沒有設定 `w: 'majority'`。只要寫入時設定 `w: 'majority'`，Secondary 讀取就保證是最新的。",
-        "en": "This is because `w: 'majority'` was not set. As long as `w: 'majority'` is used for writes, reads from Secondaries are guaranteed to be up-to-date.",
+        "t": "(C) 這是因為沒有設定 `w: 'majority'`。只要寫入時設定 `w: 'majority'`，Secondary 讀取就保證是最新的。",
+        "en": "(C) This is because `w: 'majority'` was not set. As long as `w: 'majority'` is used for writes, reads from Secondaries are guaranteed to be up-to-date.",
         "wg": []
       },
       {
-        "t": "這是因為網路頻寬不足。應升級網路設備以消除複製延遲。",
-        "en": "This is due to insufficient network bandwidth. You should upgrade network equipment to eliminate replication lag.",
+        "t": "(D) 這是因為網路頻寬不足。應升級網路設備以消除複製延遲。",
+        "en": "(D) This is due to insufficient network bandwidth. You should upgrade network equipment to eliminate replication lag.",
         "wg": []
       }
     ],
-    "answer": "0",
+    "answer": "A",
     "why": {
       "t": "MongoDB 的複製是非同步的（Asynchronous）。當資料寫入 Primary 後，需要一小段時間才會複製到 Secondary。若應用程式在寫入後立刻從 Secondary 讀取，極可能讀到舊資料。對於使用者修改自己資料這類需要即時一致性的場景，必須讀取 Primary。",
       "en": "MongoDB replication is asynchronous. After data is written to the Primary, it takes a small amount of time to replicate to Secondaries. If the application reads from a Secondary immediately after writing, it is very likely to read stale data. For scenarios requiring immediate consistency, such as users updating their own data, you must read from the Primary.",
@@ -522,7 +528,8 @@
           "ps": "noun phrase"
         }
       ]
-    }
+    },
+    "verified": "2026-03-20T10:35:58"
   },
   {
     "no": "8",
@@ -557,27 +564,27 @@
     "type": "Single Choice",
     "options": [
       {
-        "t": "設定 `priority: 0`",
-        "en": "Set `priority: 0`",
+        "t": "(A) 設定 `priority: 0`",
+        "en": "(A) Set `priority: 0`",
         "wg": []
       },
       {
-        "t": "設定 `priority: 1`",
-        "en": "Set `priority: 1`",
+        "t": "(B) 設定 `priority: 1`",
+        "en": "(B) Set `priority: 1`",
         "wg": []
       },
       {
-        "t": "設定 `hidden: true`",
-        "en": "Set `hidden: true`",
+        "t": "(C) 設定 `hidden: true`",
+        "en": "(C) Set `hidden: true`",
         "wg": []
       },
       {
-        "t": "設定 `votes: 0`",
-        "en": "Set `votes: 0`",
+        "t": "(D) 設定 `votes: 0`",
+        "en": "(D) Set `votes: 0`",
         "wg": []
       }
     ],
-    "answer": "0",
+    "answer": "A",
     "why": {
       "t": "將節點的 `priority` 設為 0，表示該節點「永遠不會主動尋求成為 Primary」（除非手動重新設定）。這適用於異地備援節點，確保只有在主機房完全失效且人工介入時，它才接手服務，避免因短暫網路波動導致跨機房的高延遲寫入。",
       "en": "Setting a node's `priority` to 0 means it will 'never actively seek to become Primary' (unless manually reconfigured). This is suitable for DR nodes, ensuring they only take over when the main DC completely fails and manual intervention occurs, avoiding high-latency writes across data centers due to brief network fluctuations.",
@@ -588,7 +595,8 @@
           "ps": "verb phrase"
         }
       ]
-    }
+    },
+    "verified": "2026-03-20T10:35:58"
   },
   {
     "no": "9",
@@ -618,8 +626,8 @@
     "type": "Single Choice",
     "options": [
       {
-        "t": "Secondary 節點無法獲得「大多數（Majority）」票數，因此無法成為 Primary，整個叢集將無法進行寫入（服務中斷）。",
-        "en": "The Secondary node cannot obtain a 'Majority' of votes, so it cannot become Primary. The entire cluster will be unable to accept writes (service interruption).",
+        "t": "(A) Secondary 節點無法獲得「大多數（Majority）」票數，因此無法成為 Primary，整個叢集將無法進行寫入（服務中斷）。",
+        "en": "(A) The Secondary node cannot obtain a 'Majority' of votes, so it cannot become Primary. The entire cluster will be unable to accept writes (service interruption).",
         "wg": [
           {
             "t": "服務中斷",
@@ -629,22 +637,22 @@
         ]
       },
       {
-        "t": "Secondary 節點會自動偵測到 Primary 失聯，並順利升級為新的 Primary。",
-        "en": "The Secondary node will automatically detect the Primary is lost and successfully promote itself to the new Primary.",
+        "t": "(B) Secondary 節點會自動偵測到 Primary 失聯，並順利升級為新的 Primary。",
+        "en": "(B) The Secondary node will automatically detect the Primary is lost and successfully promote itself to the new Primary.",
         "wg": []
       },
       {
-        "t": "Secondary 節點會暫時進入唯讀模式，直到 Primary 恢復後自動同步資料。",
-        "en": "The Secondary node will temporarily enter read-only mode until the Primary recovers and automatically syncs data.",
+        "t": "(C) Secondary 節點會暫時進入唯讀模式，直到 Primary 恢復後自動同步資料。",
+        "en": "(C) The Secondary node will temporarily enter read-only mode until the Primary recovers and automatically syncs data.",
         "wg": []
       },
       {
-        "t": "MongoDB 會自動啟動一個虛擬 Arbiter 來協助投票，完成 Failover。",
-        "en": "MongoDB will automatically start a virtual Arbiter to assist in voting and complete the Failover.",
+        "t": "(D) MongoDB 會自動啟動一個虛擬 Arbiter 來協助投票，完成 Failover。",
+        "en": "(D) MongoDB will automatically start a virtual Arbiter to assist in voting and complete the Failover.",
         "wg": []
       }
     ],
-    "answer": "0",
+    "answer": "A",
     "why": {
       "t": "這是典型的「偶數節點陷阱」。在 2 個節點的叢集中，大多數（Majority）需要 `2/2 + 1 = 2` 票。當 Primary 當機，剩下的 Secondary 只有 1 票，無法滿足 Majority 條件，因此無法完成選舉，導致叢集失去寫入能力。",
       "en": "This is the classic 'Even Number Trap'. In a 2-node cluster, a Majority requires `2/2 + 1 = 2` votes. When the Primary crashes, the remaining Secondary has only 1 vote, which does not meet the Majority condition. Therefore, an election cannot be completed, and the cluster loses write capability.",
@@ -655,7 +663,8 @@
           "ps": "noun phrase"
         }
       ]
-    }
+    },
+    "verified": "2026-03-20T10:36:48"
   },
   {
     "no": "10",
@@ -690,8 +699,8 @@
     "type": "Single Choice",
     "options": [
       {
-        "t": "未設定 `keyFile` 或 x.509 憑證以啟用節點間的內部認證。",
-        "en": "Did not configure `keyFile` or x.509 certificates to enable internal authentication between nodes.",
+        "t": "(A) 未設定 `keyFile` 或 x.509 憑證以啟用節點間的內部認證。",
+        "en": "(A) Did not configure `keyFile` or x.509 certificates to enable internal authentication between nodes.",
         "wg": [
           {
             "t": "內部認證",
@@ -701,22 +710,22 @@
         ]
       },
       {
-        "t": "未設定 `bindIp` 為 `0.0.0.0`。",
-        "en": "Did not set `bindIp` to `0.0.0.0`.",
+        "t": "(B) 未設定 `bindIp` 為 `0.0.0.0`。",
+        "en": "(B) Did not set `bindIp` to `0.0.0.0`.",
         "wg": []
       },
       {
-        "t": "未設定 Oplog Size。",
-        "en": "Did not set Oplog Size.",
+        "t": "(C) 未設定 Oplog Size。",
+        "en": "(C) Did not set Oplog Size.",
         "wg": []
       },
       {
-        "t": "未設定 `priority` 參數。",
-        "en": "Did not set the `priority` parameter.",
+        "t": "(D) 未設定 `priority` 參數。",
+        "en": "(D) Did not set the `priority` parameter.",
         "wg": []
       }
     ],
-    "answer": "0",
+    "answer": "A",
     "why": {
       "t": "MongoDB Replica Set 的成員之間必須透過安全的方式進行通訊。在啟用存取控制（Access Control）的環境下，必須配置 `keyFile`（共用金鑰）或 x.509 憑證，節點才能互相認證並加入叢集。這是部署檢查清單中的關鍵安全性項目。",
       "en": "Members of a MongoDB Replica Set must communicate securely. In an environment with Access Control enabled, you must configure a `keyFile` (shared key) or x.509 certificates so that nodes can authenticate each other and join the cluster. This is a critical security item in the deployment checklist.",
@@ -727,7 +736,8 @@
           "ps": "noun phrase"
         }
       ]
-    }
+    },
+    "verified": "2026-03-20T10:36:48"
   },
   {
     "no": "11",
@@ -762,27 +772,27 @@
     "type": "Single Choice",
     "options": [
       {
-        "t": "`{ w: 'majority', j: true }`",
-        "en": "`{ w: 'majority', j: true }`",
+        "t": "(A) `{ w: 'majority', j: true }`",
+        "en": "(A) `{ w: 'majority', j: true }`",
         "wg": []
       },
       {
-        "t": "`{ w: 'majority' }`",
-        "en": "`{ w: 'majority' }`",
+        "t": "(B) `{ w: 'majority' }`",
+        "en": "(B) `{ w: 'majority' }`",
         "wg": []
       },
       {
-        "t": "`{ w: 3 }`",
-        "en": "`{ w: 3 }`",
+        "t": "(C) `{ w: 3 }`",
+        "en": "(C) `{ w: 3 }`",
         "wg": []
       },
       {
-        "t": "`{ w: 1, j: true }`",
-        "en": "`{ w: 1, j: true }`",
+        "t": "(D) `{ w: 1, j: true }`",
+        "en": "(D) `{ w: 1, j: true }`",
         "wg": []
       }
     ],
-    "answer": "0",
+    "answer": "A",
     "why": {
       "t": "`w: 'majority'` 確保資料複製到大多數節點，防止 Failover 回滾；而 `j: true` 則強制要求資料必須寫入磁碟的 Journal 日誌後才回傳成功。若不開啟 `j: true`，資料可能僅存在於記憶體中，一旦斷電就會遺失。兩者結合才能提供針對斷電與節點故障的雙重保護。",
       "en": "`w: 'majority'` ensures data is replicated to a majority of nodes, preventing rollback during failover; `j: true` mandates that data must be written to the disk Journal before acknowledging success. Without `j: true`, data might only exist in memory and would be lost upon power failure. Combining both provides dual protection against power loss and node failure.",
@@ -793,7 +803,8 @@
           "ps": "verb"
         }
       ]
-    }
+    },
+    "verified": "2026-03-20T10:36:48"
   },
   {
     "no": "12",
@@ -823,27 +834,27 @@
     "type": "Single Choice",
     "options": [
       {
-        "t": "至少 48GB 以上",
-        "en": "At least 48GB",
+        "t": "(A) 至少 48GB 以上",
+        "en": "(A) At least 48GB",
         "wg": []
       },
       {
-        "t": "設定為磁碟空間的 5%（預設值）即可",
-        "en": "Set to 5% of disk space (default) is sufficient",
+        "t": "(B) 設定為磁碟空間的 5%（預設值）即可",
+        "en": "(B) Set to 5% of disk space (default) is sufficient",
         "wg": []
       },
       {
-        "t": "約 24GB",
-        "en": "About 24GB",
+        "t": "(C) 約 24GB",
+        "en": "(C) About 24GB",
         "wg": []
       },
       {
-        "t": "Oplog 會自動擴展，不需要手動設定",
-        "en": "Oplog expands automatically, no manual setting needed",
+        "t": "(D) Oplog 會自動擴展，不需要手動設定",
+        "en": "(D) Oplog expands automatically, no manual setting needed",
         "wg": []
       }
     ],
-    "answer": "0",
+    "answer": "A",
     "why": {
       "t": "Oplog 是一個固定大小的集合（Capped Collection）。若每小時寫入 2GB，24 小時就需要 `2GB * 24 = 48GB` 的空間。若設定過小，舊的 Oplog 紀錄會被覆蓋，導致停機超過視窗時間的節點無法同步，必須進行耗時的 Initial Sync。",
       "en": "The Oplog is a fixed-size collection (Capped Collection). If the write rate is 2GB per hour, 24 hours requires `2GB * 24 = 48GB` of space. If set too small, old Oplog records will be overwritten, causing nodes that are down longer than the window to fail synchronization, necessitating a time-consuming Initial Sync.",
@@ -854,6 +865,7 @@
           "ps": "adjective"
         }
       ]
-    }
+    },
+    "verified": "2026-03-20T10:36:48"
   }
 ]

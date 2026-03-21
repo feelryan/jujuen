@@ -1,0 +1,1152 @@
+[
+  {
+    "no": "1",
+    "level": "advanced",
+    "keywords": "Wait Stats, CPU Pressure, Signal Wait, SQLOS",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "SELECT wait_type, wait_time_ms, signal_wait_time_ms \nFROM sys.dm_os_wait_stats \nORDER BY wait_time_ms DESC;",
+    "question": [
+      {
+        "t": "您正在分析 SQL Server 的 `sys.dm_os_wait_stats` 以診斷效能變慢的問題。",
+        "en": "You are analyzing `sys.dm_os_wait_stats` in SQL Server to diagnose a performance slowdown.",
+        "wg": [
+          {
+            "t": "診斷",
+            "en": "diagnose",
+            "ps": "V"
+          },
+          {
+            "t": "效能變慢",
+            "en": "performance slowdown",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "您發現某個 Wait Type 的 `signal_wait_time_ms` 佔了總 `wait_time_ms` 的 40% 以上。",
+        "en": "You notice that for a specific Wait Type, `signal_wait_time_ms` accounts for more than 40% of the total `wait_time_ms`.",
+        "wg": [
+          {
+            "t": "佔了",
+            "en": "accounts for",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "這項數據最可能暗示系統正面臨哪種瓶頸？",
+        "en": "What bottleneck does this data most likely suggest the system is facing?",
+        "wg": [
+          {
+            "t": "暗示",
+            "en": "suggest",
+            "ps": "V"
+          },
+          {
+            "t": "瓶頸",
+            "en": "bottleneck",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 磁碟 I/O 頻寬不足 (Disk I/O Bandwidth)",
+        "en": "(A) Insufficient Disk I/O Bandwidth",
+        "wg": []
+      },
+      {
+        "t": "(B) 記憶體不足導致 Buffer Pool 抖動 (Memory Pressure)",
+        "en": "(B) Memory Pressure causing Buffer Pool thrashing",
+        "wg": [
+          {
+            "t": "抖動",
+            "en": "thrashing",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) CPU 運算資源不足 (CPU Pressure)",
+        "en": "(C) Insufficient CPU computing resources (CPU Pressure)",
+        "wg": []
+      },
+      {
+        "t": "(D) 網路延遲過高 (Network Latency)",
+        "en": "(D) Excessive Network Latency",
+        "wg": []
+      }
+    ],
+    "answer": "C",
+    "why": {
+      "t": "`Signal Wait` 代表執行緒已取得所需資源（如 I/O 完成），但在 `Runnable Queue` 中等待 CPU 排程的時間。若此比例過高，代表 CPU 忙不過來，無法及時處理已準備好的執行緒。",
+      "en": "`Signal Wait` represents the time a thread spends in the `Runnable Queue` waiting for CPU scheduling after acquiring the necessary resources (e.g., I/O complete). If this ratio is too high, it indicates that the CPU is overwhelmed and cannot process ready threads in time.",
+      "wg": [
+        {
+          "t": "排程",
+          "en": "scheduling",
+          "ps": "N"
+        },
+        {
+          "t": "忙不過來",
+          "en": "overwhelmed",
+          "ps": "Adj"
+        }
+      ]
+    },
+    "verified": "2026-03-19T09:45:22"
+  },
+  {
+    "no": "2",
+    "level": "intermediate",
+    "keywords": "Troubleshooting, Blocking, DMVs, sys.dm_exec_requests",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "SELECT session_id, blocking_session_id, wait_type \nFROM sys.dm_exec_requests \nWHERE session_id > 50;",
+    "question": [
+      {
+        "t": "生產環境發生應用程式 Timeout，您查詢 `sys.dm_exec_requests` 後得到以下結果：",
+        "en": "Application timeouts are occurring in production. You query `sys.dm_exec_requests` and get the following results:",
+        "wg": []
+      },
+      {
+        "t": "- Session 60: `blocking_session_id` = 65, `wait_type` = `LCK_M_IX`",
+        "en": "- Session 60: `blocking_session_id` = 65, `wait_type` = `LCK_M_IX`",
+        "wg": []
+      },
+      {
+        "t": "- Session 65: `blocking_session_id` = 70, `wait_type` = `LCK_M_X`",
+        "en": "- Session 65: `blocking_session_id` = 70, `wait_type` = `LCK_M_X`",
+        "wg": []
+      },
+      {
+        "t": "- Session 70: `blocking_session_id` = 0, `status` = `sleeping` (但在 `sys.dm_tran_locks` 中持有鎖)",
+        "en": "- Session 70: `blocking_session_id` = 0, `status` = `sleeping` (but holds locks in `sys.dm_tran_locks`)",
+        "wg": [
+          {
+            "t": "持有鎖",
+            "en": "holds locks",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "根據上述資訊，哪一個 Session 是導致連鎖阻塞的源頭 (Head Blocker)？",
+        "en": "Based on the information above, which session is the Head Blocker causing the blocking chain?",
+        "wg": [
+          {
+            "t": "源頭",
+            "en": "root cause / head",
+            "ps": "N"
+          },
+          {
+            "t": "連鎖阻塞",
+            "en": "blocking chain",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) Session 60",
+        "en": "(A) Session 60",
+        "wg": []
+      },
+      {
+        "t": "(B) Session 65",
+        "en": "(B) Session 65",
+        "wg": []
+      },
+      {
+        "t": "(C) Session 70",
+        "en": "(C) Session 70",
+        "wg": []
+      },
+      {
+        "t": "(D) 無法判斷，需要更多資訊",
+        "en": "(D) Cannot be determined, more information is needed",
+        "wg": []
+      }
+    ],
+    "answer": "C",
+    "why": {
+      "t": "Session 70 的 `blocking_session_id` 為 0，代表它沒有被任何人阻擋，但它卻阻擋了 Session 65（進而阻擋 60）。即使狀態是 `sleeping`，它可能是一個未提交交易 (Uncommitted Transaction) 的應用程式連線，是真正的 Head Blocker。",
+      "en": "Session 70 has a `blocking_session_id` of 0, meaning it is not blocked by anyone, yet it is blocking Session 65 (which in turn blocks 60). Even if its status is `sleeping`, it could be an application connection with an Uncommitted Transaction, making it the true Head Blocker.",
+      "wg": [
+        {
+          "t": "未提交交易",
+          "en": "Uncommitted Transaction",
+          "ps": "N"
+        }
+      ]
+    },
+    "verified": "2026-03-19T09:45:22"
+  },
+  {
+    "no": "3",
+    "level": "intermediate",
+    "keywords": "Monitoring Tools, SQL Profiler, Extended Events, Performance Overhead",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您的團隊正在處理一個高負載的生產環境資料庫效能問題。",
+        "en": "Your team is dealing with a performance issue on a high-load production database.",
+        "wg": [
+          {
+            "t": "高負載",
+            "en": "high-load",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "一位資淺工程師建議開啟 SQL Profiler GUI 來側錄所有執行時間超過 1 秒的查詢。",
+        "en": "A junior engineer suggests opening the SQL Profiler GUI to trace all queries running longer than 1 second.",
+        "wg": [
+          {
+            "t": "側錄",
+            "en": "trace",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "身為資深工程師，您應該如何回應這個建議？",
+        "en": "As a Senior Engineer, how should you respond to this suggestion?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 同意，Profiler 是微軟官方推薦的即時監控工具，不會有太大影響。",
+        "en": "(A) Agree, Profiler is the official real-time monitoring tool recommended by Microsoft and won't have much impact.",
+        "wg": []
+      },
+      {
+        "t": "(B) 反對，應該使用 `sys.dm_exec_query_stats`，因為 Profiler 無法捕捉預存程序內部的語句。",
+        "en": "(B) Disagree, should use `sys.dm_exec_query_stats` because Profiler cannot capture statements inside stored procedures.",
+        "wg": []
+      },
+      {
+        "t": "(C) 反對，Profiler 的 GUI 會造成顯著的伺服器效能負擔，應改用 Extended Events (XEvents)。",
+        "en": "(C) Disagree, the Profiler GUI causes significant server performance overhead; Extended Events (XEvents) should be used instead.",
+        "wg": [
+          {
+            "t": "顯著的",
+            "en": "significant",
+            "ps": "Adj"
+          },
+          {
+            "t": "效能負擔",
+            "en": "performance overhead",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(D) 同意，但必須在伺服器本機端執行 Profiler 以減少網路延遲。",
+        "en": "(D) Agree, but Profiler must be run locally on the server to reduce network latency.",
+        "wg": []
+      }
+    ],
+    "answer": "C",
+    "why": {
+      "t": "SQL Profiler 使用舊式的 SQL Trace 技術且涉及大量的 Client-side rendering，在高負載系統上極易導致效能惡化甚至當機。Extended Events 是整合在 SQLOS 內的輕量級替代方案。",
+      "en": "SQL Profiler uses legacy SQL Trace technology and involves significant Client-side rendering, which can easily degrade performance or crash high-load systems. Extended Events is a lightweight alternative integrated within SQLOS.",
+      "wg": [
+        {
+          "t": "惡化",
+          "en": "degrade",
+          "ps": "V"
+        },
+        {
+          "t": "替代方案",
+          "en": "alternative",
+          "ps": "N"
+        }
+      ]
+    },
+    "verified": "2026-03-19T09:45:22"
+  },
+  {
+    "no": "4",
+    "level": "advanced",
+    "keywords": "Wait Stats, CXPACKET, MAXDOP, Parallelism",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在檢視 Wait Statistics 時，您發現 `CXPACKET` 是系統中最高的等待類型。",
+        "en": "While reviewing Wait Statistics, you find that `CXPACKET` is the top wait type in the system.",
+        "wg": []
+      },
+      {
+        "t": "為了消除這個等待，有人提議將伺服器層級的 `MAXDOP` (Max Degree of Parallelism) 設定為 1。",
+        "en": "To eliminate this wait, someone proposes setting the server-level `MAXDOP` (Max Degree of Parallelism) to 1.",
+        "wg": [
+          {
+            "t": "消除",
+            "en": "eliminate",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "這個操作最主要的潛在負面影響是什麼？",
+        "en": "What is the primary potential negative impact of this action?",
+        "wg": [
+          {
+            "t": "潛在負面影響",
+            "en": "potential negative impact",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 會導致大量的 Deadlock，因為單執行緒更容易發生鎖定衝突。",
+        "en": "(A) It will cause massive Deadlocks because single threads are more prone to lock conflicts.",
+        "wg": []
+      },
+      {
+        "t": "(B) 會導致大型報表或分析型查詢的執行時間顯著增加。",
+        "en": "(B) It will significantly increase the execution time for large reports or analytical queries.",
+        "wg": [
+          {
+            "t": "分析型查詢",
+            "en": "analytical queries",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) 會增加 `PAGEIOLATCH_SH` 等待，因為無法平行讀取磁碟。",
+        "en": "(C) It will increase `PAGEIOLATCH_SH` waits because disk cannot be read in parallel.",
+        "wg": []
+      },
+      {
+        "t": "(D) 會導致 Transaction Log 寫入變慢。",
+        "en": "(D) It will cause Transaction Log writes to slow down.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "`CXPACKET` 僅代表查詢正在使用平行處理。將 `MAXDOP` 設為 1 雖然消除了該等待，但也強迫所有查詢（包含需要掃描大量資料的報表）只能使用單核執行，通常會導致整體回應時間變慢。",
+      "en": "`CXPACKET` simply indicates that queries are using parallelism. Setting `MAXDOP` to 1 eliminates this wait but forces all queries (including reports scanning large data) to run on a single core, usually resulting in slower overall response times.",
+      "wg": [
+        {
+          "t": "強迫",
+          "en": "force",
+          "ps": "V"
+        },
+        {
+          "t": "回應時間",
+          "en": "response time",
+          "ps": "N"
+        }
+      ]
+    },
+    "verified": "2026-03-19T09:45:22"
+  },
+  {
+    "no": "5",
+    "level": "intermediate",
+    "keywords": "Wait Stats, PAGEIOLATCH_SH, Memory Pressure, Indexing",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您的監控儀表板顯示 `PAGEIOLATCH_SH` 等待時間突然飆高。",
+        "en": "Your monitoring dashboard shows a sudden spike in `PAGEIOLATCH_SH` wait time.",
+        "wg": [
+          {
+            "t": "飆高",
+            "en": "spike",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "這通常代表什麼意義，以及您應該優先檢查什麼？",
+        "en": "What does this typically indicate, and what should you check first?",
+        "wg": [
+          {
+            "t": "優先檢查",
+            "en": "check first / prioritize checking",
+            "ps": "V"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 這是寫入瓶頸，應檢查 Transaction Log 所在的磁碟效能。",
+        "en": "(A) This is a write bottleneck; check the disk performance where the Transaction Log resides.",
+        "wg": []
+      },
+      {
+        "t": "(B) 這是 CPU 瓶頸，應檢查是否有過多的平行運算查詢。",
+        "en": "(B) This is a CPU bottleneck; check for excessive parallel queries.",
+        "wg": []
+      },
+      {
+        "t": "(C) 這是鎖定瓶頸，應檢查是否有 Table Lock 導致讀取被阻塞。",
+        "en": "(C) This is a locking bottleneck; check if Table Locks are blocking reads.",
+        "wg": []
+      },
+      {
+        "t": "(D) 這是從磁碟讀取資料頁的等待，應檢查記憶體壓力或是否有查詢進行全表掃描 (Table Scan)。",
+        "en": "(D) This is a wait for reading data pages from disk; check for memory pressure or queries performing Table Scans.",
+        "wg": [
+          {
+            "t": "全表掃描",
+            "en": "Table Scan",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "answer": "D",
+    "why": {
+      "t": "`PAGEIOLATCH_SH` 發生在執行緒試圖讀取不在記憶體 (Buffer Pool) 中的資料頁時。常見原因包括記憶體不足導致頻繁的 Page-out，或是缺乏索引導致查詢必須掃描大量資料頁。",
+      "en": "`PAGEIOLATCH_SH` occurs when a thread tries to read a data page that is not in memory (Buffer Pool). Common causes include insufficient memory causing frequent page-outs, or a lack of indexes forcing queries to scan large numbers of data pages.",
+      "wg": [
+        {
+          "t": "缺乏索引",
+          "en": "lack of indexes",
+          "ps": "Phrase"
+        }
+      ]
+    },
+    "verified": "2026-03-19T09:45:22"
+  },
+  {
+    "no": "chapter08-q06",
+    "level": "advanced",
+    "keywords": "Parameter Sniffing, Query Plan, DBCC FREEPROCCACHE, Performance Tuning",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "生產環境中某個預存程序 (Stored Procedure) 平時執行只需 100ms，但今天突然變慢至 10 秒，且 CPU 使用率並未顯著飆升。",
+        "en": "A Stored Procedure in the production environment usually executes in 100ms, but today it suddenly slowed down to 10 seconds, and CPU usage did not spike significantly.",
+        "wg": [
+          {
+            "t": "預存程序",
+            "en": "Stored Procedure",
+            "ps": "N"
+          },
+          {
+            "t": "飆升",
+            "en": "spike",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "您懷疑這是「參數嗅探」(Parameter Sniffing) 導致使用了不適合當前參數的執行計畫。",
+        "en": "You suspect this is due to 'Parameter Sniffing', causing the use of an execution plan unsuitable for the current parameters.",
+        "wg": [
+          {
+            "t": "參數嗅探",
+            "en": "Parameter Sniffing",
+            "ps": "N"
+          },
+          {
+            "t": "執行計畫",
+            "en": "execution plan",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "為了在不影響其他查詢的情況下快速緩解此問題，下列哪項操作最為精準且適當？",
+        "en": "To quickly mitigate this issue without affecting other queries, which of the following actions is the most precise and appropriate?",
+        "wg": [
+          {
+            "t": "緩解",
+            "en": "mitigate",
+            "ps": "V"
+          },
+          {
+            "t": "精準",
+            "en": "precise",
+            "ps": "Adj"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 重新啟動 SQL Server 服務以清除所有快取。",
+        "en": "(A) Restart the SQL Server service to clear all caches.",
+        "wg": []
+      },
+      {
+        "t": "(B) 執行 `DBCC FREEPROCCACHE` 清除整個計畫快取。",
+        "en": "(B) Execute `DBCC FREEPROCCACHE` to clear the entire plan cache.",
+        "wg": []
+      },
+      {
+        "t": "(C) 找出該查詢的 `plan_handle`，並執行 `DBCC FREEPROCCACHE (<plan_handle>)`。",
+        "en": "(C) Identify the `plan_handle` of the query and execute `DBCC FREEPROCCACHE (<plan_handle>)`.",
+        "wg": []
+      },
+      {
+        "t": "(D) 立即重建該資料表的所有索引 (Rebuild All Indexes)。",
+        "en": "(D) Immediately rebuild all indexes on the table.",
+        "wg": []
+      }
+    ],
+    "answer": "C",
+    "why": {
+      "t": "針對特定查詢清除執行計畫 (Plan) 是解決參數嗅探最精準的短期止血方式，它會強迫 SQL Server 為該查詢重新編譯一個新的計畫，而不影響系統中其他正常的查詢。(A) 和 (B) 影響範圍太大，會導致所有查詢重新編譯，引發 CPU 震盪；(D) 耗時且資源消耗過大，不適合在發生故障當下執行。",
+      "en": "Clearing the execution plan for a specific query is the most precise short-term fix for parameter sniffing. It forces SQL Server to recompile a new plan for that query without affecting other normal queries in the system. (A) and (B) have too broad an impact, causing all queries to recompile and triggering CPU thrashing; (D) is time-consuming and resource-intensive, making it unsuitable during an incident.",
+      "wg": [
+        {
+          "t": "重新編譯",
+          "en": "recompile",
+          "ps": "V"
+        },
+        {
+          "t": "震盪",
+          "en": "thrashing",
+          "ps": "N"
+        }
+      ]
+    },
+    "verified": "2026-03-19T09:45:22"
+  },
+  {
+    "no": "chapter08-q07",
+    "level": "intermediate",
+    "keywords": "Wait Stats, WRITELOG, Disk I/O, Transaction Log",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您在檢查 `sys.dm_os_wait_stats` 時，發現 `WRITELOG` 是累積等待時間最高的類型。",
+        "en": "While checking `sys.dm_os_wait_stats`, you notice that `WRITELOG` is the wait type with the highest accumulated wait time.",
+        "wg": [
+          {
+            "t": "累積等待時間",
+            "en": "accumulated wait time",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "這最可能代表系統正面臨哪方面的瓶頸？",
+        "en": "What bottleneck does this most likely indicate the system is facing?",
+        "wg": [
+          {
+            "t": "瓶頸",
+            "en": "bottleneck",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) CPU 運算能力不足，導致日誌緩衝區處理過慢。",
+        "en": "(A) Insufficient CPU power causing slow log buffer processing.",
+        "wg": []
+      },
+      {
+        "t": "(B) 存放 Transaction Log (.ldf) 的磁碟寫入效能不佳。",
+        "en": "(B) Poor write performance on the disk hosting the Transaction Log (.ldf).",
+        "wg": [
+          {
+            "t": "磁碟寫入效能",
+            "en": "disk write performance",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) 網路頻寬不足，導致客戶端接收數據延遲。",
+        "en": "(C) Insufficient network bandwidth causing delays in client data reception.",
+        "wg": []
+      },
+      {
+        "t": "(D) 記憶體不足，導致 Buffer Pool 頻繁置換頁面。",
+        "en": "(D) Insufficient memory causing frequent page swapping in the Buffer Pool.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "`WRITELOG` 等待發生在 SQL Server 等待 Transaction Log 緩衝區被實體寫入磁碟的時候。這通常直接指向存放 Log 檔案的磁碟子系統寫入速度過慢或負載過重。(D) 通常對應 `PAGEIOLATCH`。",
+      "en": "`WRITELOG` wait occurs when SQL Server is waiting for the Transaction Log buffer to be physically written to disk. This usually points directly to slow write speeds or high load on the disk subsystem hosting the Log file. (D) typically corresponds to `PAGEIOLATCH`.",
+      "wg": [
+        {
+          "t": "實體寫入",
+          "en": "physically written",
+          "ps": "V"
+        }
+      ]
+    },
+    "verified": "2026-03-19T09:45:22"
+  },
+  {
+    "no": "chapter08-q08",
+    "level": "advanced",
+    "keywords": "Wait Stats, Signal Wait, CPU Pressure, Performance Tuning",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您查詢 Wait Stats 並計算出某個等待類型的 `Signal Wait Time` 佔其 `Total Wait Time` 的 30%。",
+        "en": "You query Wait Stats and calculate that the `Signal Wait Time` for a specific wait type accounts for 30% of its `Total Wait Time`.",
+        "wg": [
+          {
+            "t": "佔",
+            "en": "accounts for",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "根據執行緒生命週期模型，這個高比例的 Signal Wait 暗示了什麼問題？",
+        "en": "According to the thread life cycle model, what problem does this high percentage of Signal Wait imply?",
+        "wg": [
+          {
+            "t": "暗示",
+            "en": "imply",
+            "ps": "V"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 磁碟 I/O 嚴重瓶頸，執行緒在等待讀取數據。",
+        "en": "(A) Severe disk I/O bottleneck; threads are waiting to read data.",
+        "wg": []
+      },
+      {
+        "t": "(B) 嚴重的鎖定 (Blocking) 問題，執行緒在等待資源釋放。",
+        "en": "(B) Severe blocking issues; threads are waiting for resources to be released.",
+        "wg": []
+      },
+      {
+        "t": "(C) CPU 壓力 (CPU Pressure)，執行緒已準備好執行但在佇列中排隊過久。",
+        "en": "(C) CPU Pressure; threads are ready to execute but are queuing for too long.",
+        "wg": [
+          {
+            "t": "佇列",
+            "en": "queue",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(D) 網路延遲，導致執行緒無法將結果傳回給客戶端。",
+        "en": "(D) Network latency causing threads to be unable to return results to the client.",
+        "wg": []
+      }
+    ],
+    "answer": "C",
+    "why": {
+      "t": "`Signal Wait Time` 是執行緒從「資源已取得」(Runnable) 到「真正獲得 CPU」(Running) 之間的等待時間。如果此比例過高（例如 > 20%），代表 CPU 資源不足，執行緒花費大量時間在 CPU 排程器的佇列中等待，即 CPU Pressure。",
+      "en": "`Signal Wait Time` is the time a thread waits from 'resource acquired' (Runnable) to 'actually getting the CPU' (Running). If this ratio is too high (e.g., > 20%), it indicates insufficient CPU resources, meaning threads are spending a lot of time waiting in the CPU scheduler queue, which is CPU Pressure.",
+      "wg": [
+        {
+          "t": "排程器",
+          "en": "scheduler",
+          "ps": "N"
+        }
+      ]
+    },
+    "verified": "2026-03-19T09:45:22"
+  },
+  {
+    "no": "chapter08-q09",
+    "level": "intermediate",
+    "keywords": "Extended Events, XEvents, Troubleshooting, Code Reading",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "ADD EVENT sqlserver.sql_batch_completed(\n    WHERE (duration > 5000000)\n)",
+    "question": [
+      {
+        "t": "您正在檢視一段 Extended Events (XEvents) 的設定腳本（如上圖）。",
+        "en": "You are reviewing an Extended Events (XEvents) configuration script (as shown above).",
+        "wg": []
+      },
+      {
+        "t": "請問這個過濾條件 `duration > 5000000` 的時間單位與意義為何？",
+        "en": "What are the time unit and meaning of the filter condition `duration > 5000000`?",
+        "wg": [
+          {
+            "t": "過濾條件",
+            "en": "filter condition",
+            "ps": "N"
+          },
+          {
+            "t": "時間單位",
+            "en": "time unit",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 單位是毫秒 (milliseconds)，捕捉執行超過 5,000 秒的查詢。",
+        "en": "(A) Unit is milliseconds; captures queries running longer than 5,000 seconds.",
+        "wg": []
+      },
+      {
+        "t": "(B) 單位是微秒 (microseconds)，捕捉執行超過 5 秒的查詢。",
+        "en": "(B) Unit is microseconds; captures queries running longer than 5 seconds.",
+        "wg": [
+          {
+            "t": "微秒",
+            "en": "microseconds",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) 單位是 CPU Tick，捕捉消耗超過 500 萬個 CPU 週期指令的查詢。",
+        "en": "(C) Unit is CPU Ticks; captures queries consuming more than 5 million CPU cycles.",
+        "wg": []
+      },
+      {
+        "t": "(D) 單位是奈秒 (nanoseconds)，捕捉執行超過 0.005 秒的查詢。",
+        "en": "(D) Unit is nanoseconds; captures queries running longer than 0.005 seconds.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "在 Extended Events 中，`duration` 欄位的預設單位通常是微秒 (microseconds)。因此 5,000,000 微秒等於 5 秒。",
+      "en": "In Extended Events, the default unit for the `duration` field is typically microseconds. Therefore, 5,000,000 microseconds equals 5 seconds.",
+      "wg": []
+    },
+    "verified": "2026-03-19T09:46:40"
+  },
+  {
+    "no": "chapter08-q10",
+    "level": "intermediate",
+    "keywords": "Blocking, Troubleshooting, Head Blocker, System Diagnosis",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "Session_ID | Status    | Blocking_Session_ID\n------------------------------------------\n55         | Suspended | 62\n62         | Suspended | 78\n78         | Running   | NULL\n81         | Suspended | 62",
+    "question": [
+      {
+        "t": "您查詢 `sys.dm_exec_requests` 後得到上述的阻塞鏈 (Blocking Chain) 資訊。",
+        "en": "You query `sys.dm_exec_requests` and obtain the Blocking Chain information shown above.",
+        "wg": [
+          {
+            "t": "阻塞鏈",
+            "en": "Blocking Chain",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "若要解決此阻塞問題，您應該優先調查哪一個 Session？（即誰是 Head Blocker？）",
+        "en": "To resolve this blocking issue, which Session should you investigate first? (i.e., who is the Head Blocker?)",
+        "wg": [
+          {
+            "t": "優先調查",
+            "en": "investigate first",
+            "ps": "V"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) Session 55",
+        "en": "(A) Session 55",
+        "wg": []
+      },
+      {
+        "t": "(B) Session 62",
+        "en": "(B) Session 62",
+        "wg": []
+      },
+      {
+        "t": "(C) Session 78",
+        "en": "(C) Session 78",
+        "wg": []
+      },
+      {
+        "t": "(D) Session 81",
+        "en": "(D) Session 81",
+        "wg": []
+      }
+    ],
+    "answer": "C",
+    "why": {
+      "t": "Session 78 阻擋了 Session 62，而 Session 62 又阻擋了 55 和 81。Session 78 本身沒有被阻擋 (`Blocking_Session_ID` 為 NULL) 且狀態為 `Running`，因此它是源頭 (Head Blocker)。解決它通常能解開整個鏈條。",
+      "en": "Session 78 is blocking Session 62, and Session 62 is blocking 55 and 81. Session 78 itself is not blocked (`Blocking_Session_ID` is NULL) and is `Running`, making it the Head Blocker. Resolving it typically unblocks the entire chain.",
+      "wg": [
+        {
+          "t": "源頭",
+          "en": "Head Blocker / Root Cause",
+          "ps": "N"
+        }
+      ]
+    },
+    "verified": "2026-03-19T09:46:40"
+  },
+  {
+    "no": "chapter08-q11",
+    "level": "advanced",
+    "keywords": "Wait Stats, SOS_SCHEDULER_YIELD, CPU Bound, Spinlock",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在效能診斷中，若發現 `SOS_SCHEDULER_YIELD` 是最主要的等待類型，這通常代表什麼意義？",
+        "en": "In performance diagnosis, if you find that `SOS_SCHEDULER_YIELD` is the dominant wait type, what does this usually imply?",
+        "wg": [
+          {
+            "t": "最主要",
+            "en": "dominant",
+            "ps": "Adj"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 系統正面臨記憶體不足，正在等待頁面寫入磁碟。",
+        "en": "(A) The system is facing memory pressure and waiting for pages to be written to disk.",
+        "wg": []
+      },
+      {
+        "t": "(B) 查詢正在等待外部網路資源的回應。",
+        "en": "(B) Queries are waiting for responses from external network resources.",
+        "wg": []
+      },
+      {
+        "t": "(C) 這是 CPU Bound 的特徵，執行緒用完了 CPU 時間片 (Quantum) 自願讓出資源。",
+        "en": "(C) This is a characteristic of being CPU Bound; threads exhausted their CPU Quantum and voluntarily yielded resources.",
+        "wg": [
+          {
+            "t": "時間片",
+            "en": "Quantum",
+            "ps": "N"
+          },
+          {
+            "t": "自願讓出",
+            "en": "voluntarily yielded",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(D) 系統發生死鎖 (Deadlock)，正在等待鎖定監視器介入。",
+        "en": "(D) A deadlock has occurred in the system, waiting for the lock monitor to intervene.",
+        "wg": []
+      }
+    ],
+    "answer": "C",
+    "why": {
+      "t": "`SOS_SCHEDULER_YIELD` 表示執行緒在 CPU 上執行時，用完了分配給它的時間片 (Quantum, 通常為 4ms)，因此自願讓出 CPU 並回到 Runnable Queue 排隊。這通常發生在需要大量 CPU 運算（如掃描記憶體中的大表）的場景，是 CPU 繁忙的指標。",
+      "en": "`SOS_SCHEDULER_YIELD` indicates that a thread executing on the CPU exhausted its allocated time slice (Quantum, usually 4ms) and voluntarily yielded the CPU to return to the Runnable Queue. This typically happens in scenarios requiring heavy CPU computation (like scanning large tables in memory) and is an indicator of CPU busyness.",
+      "wg": [
+        {
+          "t": "指標",
+          "en": "indicator",
+          "ps": "N"
+        }
+      ]
+    },
+    "verified": "2026-03-19T09:46:40"
+  },
+  {
+    "no": "chapter08-q12",
+    "level": "advanced",
+    "keywords": "Thread Lifecycle, SQLOS, Runnable, CPU Pressure",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在 SQL Server 的執行緒生命週期 (Life of a Thread) 中，當一個執行緒處於 `Runnable` 狀態時，代表什麼意思？",
+        "en": "In the SQL Server 'Life of a Thread' model, what does it mean when a thread is in the `Runnable` state?",
+        "wg": [
+          {
+            "t": "執行緒生命週期",
+            "en": "Life of a Thread",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 執行緒正在 CPU 上進行運算。",
+        "en": "(A) The thread is actively computing on the CPU.",
+        "wg": []
+      },
+      {
+        "t": "(B) 執行緒正在等待外部資源（如 I/O 或 Lock）完成。",
+        "en": "(B) The thread is waiting for external resources (like I/O or Lock) to complete.",
+        "wg": []
+      },
+      {
+        "t": "(C) 執行緒所需的資源已準備就緒，正在佇列中等待 CPU 排程。",
+        "en": "(C) The resources required by the thread are ready, and it is waiting in the queue for CPU scheduling.",
+        "wg": [
+          {
+            "t": "就緒",
+            "en": "ready",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "(D) 執行緒已經完成工作，正在等待 Session 關閉。",
+        "en": "(D) The thread has finished its work and is waiting for the Session to close.",
+        "wg": []
+      }
+    ],
+    "answer": "C",
+    "why": {
+      "t": "`Runnable` 狀態意味著執行緒不缺任何資源（I/O 已完成或鎖已取得），唯一缺的是 CPU 時間。它正在 Runnable Queue 中排隊。若此狀態的執行緒很多，即代表 CPU Pressure。(A) 是 `Running`，(B) 是 `Suspended`。",
+      "en": "The `Runnable` state means the thread lacks no resources (I/O is done or lock is acquired); the only thing it lacks is CPU time. It is queuing in the Runnable Queue. If many threads are in this state, it indicates CPU Pressure. (A) is `Running`, (B) is `Suspended`.",
+      "wg": []
+    },
+    "verified": "2026-03-19T09:46:40"
+  },
+  {
+    "no": "chapter08-q13",
+    "level": "intermediate",
+    "keywords": "CXPACKET, MAXDOP, Cost Threshold for Parallelism, Best Practices",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您發現系統中有大量的 `CXPACKET` 等待，且目前的 `MAXDOP` 設定為預設值 (0)。",
+        "en": "You notice a large amount of `CXPACKET` waits in the system, and the current `MAXDOP` is set to the default value (0).",
+        "wg": [
+          {
+            "t": "預設值",
+            "en": "default value",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "在決定是否將 `MAXDOP` 限制為 1 或 8 之前，您應該先檢查並調整哪一個設定，以避免小型查詢也觸發平行處理？",
+        "en": "Before deciding whether to limit `MAXDOP` to 1 or 8, which setting should you check and adjust first to prevent small queries from triggering parallelism?",
+        "wg": [
+          {
+            "t": "觸發",
+            "en": "trigger",
+            "ps": "V"
+          },
+          {
+            "t": "平行處理",
+            "en": "parallelism",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) Cost Threshold for Parallelism",
+        "en": "(A) Cost Threshold for Parallelism",
+        "wg": []
+      },
+      {
+        "t": "(B) Optimize for Ad hoc Workloads",
+        "en": "(B) Optimize for Ad hoc Workloads",
+        "wg": []
+      },
+      {
+        "t": "(C) Priority Boost",
+        "en": "(C) Priority Boost",
+        "wg": []
+      },
+      {
+        "t": "(D) Buffer Pool Extension",
+        "en": "(D) Buffer Pool Extension",
+        "wg": []
+      }
+    ],
+    "answer": "A",
+    "why": {
+      "t": "`Cost Threshold for Parallelism` 的預設值通常為 5，這在現代硬體上太低，會導致許多輕量查詢也嘗試平行化，產生不必要的 `CXPACKET` 開銷。建議先將其調高（如 50），再考慮調整 `MAXDOP`。",
+      "en": "The default value for `Cost Threshold for Parallelism` is usually 5, which is too low for modern hardware, causing many lightweight queries to attempt parallelism and generating unnecessary `CXPACKET` overhead. It is recommended to increase this value (e.g., to 50) before considering adjusting `MAXDOP`.",
+      "wg": [
+        {
+          "t": "開銷",
+          "en": "overhead",
+          "ps": "N"
+        }
+      ]
+    },
+    "verified": "2026-03-19T09:46:40"
+  },
+  {
+    "no": "chapter08-q14",
+    "level": "beginner",
+    "keywords": "DMVs, sys.dm_exec_sql_text, sys.dm_exec_requests, SQL Handle",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您已經從 `sys.dm_exec_requests` 取得了一個正在執行中的請求資訊，包含 `sql_handle`。",
+        "en": "You have obtained information about a currently executing request from `sys.dm_exec_requests`, including the `sql_handle`.",
+        "wg": []
+      },
+      {
+        "t": "若想查看該請求具體的 SQL 語法內容，您應該將 `sql_handle` 傳入下列哪一個函數？",
+        "en": "If you want to view the specific SQL syntax content of that request, into which function should you pass the `sql_handle`?",
+        "wg": [
+          {
+            "t": "傳入",
+            "en": "pass into",
+            "ps": "V"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) sys.dm_exec_query_plan",
+        "en": "(A) sys.dm_exec_query_plan",
+        "wg": []
+      },
+      {
+        "t": "(B) sys.dm_exec_sql_text",
+        "en": "(B) sys.dm_exec_sql_text",
+        "wg": []
+      },
+      {
+        "t": "(C) sys.dm_os_wait_stats",
+        "en": "(C) sys.dm_os_wait_stats",
+        "wg": []
+      },
+      {
+        "t": "(D) sys.dm_exec_sessions",
+        "en": "(D) sys.dm_exec_sessions",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "`sys.dm_exec_sql_text` 是一個 Table-valued Function，接受 `sql_handle` 並回傳 SQL 文字內容。(A) 是用來取得執行計畫 (XML)。",
+      "en": "`sys.dm_exec_sql_text` is a Table-valued Function that accepts a `sql_handle` and returns the SQL text content. (A) is used to retrieve the Execution Plan (XML).",
+      "wg": []
+    },
+    "verified": "2026-03-19T09:46:40"
+  },
+  {
+    "no": "chapter08-q15",
+    "level": "intermediate",
+    "keywords": "Troubleshooting, CPU Idle, Blocking, Performance Diagnosis",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "應用程式團隊回報資料庫回應極慢，甚至發生 Timeout。但您登入伺服器檢查後發現 CPU 使用率非常低（< 5%）。",
+        "en": "The application team reports that the database response is extremely slow, even timing out. However, after logging into the server, you find that the CPU usage is very low (< 5%).",
+        "wg": [
+          {
+            "t": "極慢",
+            "en": "extremely slow",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "這種「系統閒置但回應慢」的現象，最不可能由下列哪項原因造成？",
+        "en": "Which of the following is the LEAST likely cause of this 'system idle but slow response' phenomenon?",
+        "wg": [
+          {
+            "t": "閒置",
+            "en": "idle",
+            "ps": "Adj"
+          },
+          {
+            "t": "最不可能",
+            "en": "LEAST likely",
+            "ps": "Adj"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 嚴重的阻塞 (Blocking) 鏈。",
+        "en": "(A) Severe Blocking chain.",
+        "wg": []
+      },
+      {
+        "t": "(B) 等待外部資源（如 Linked Server 或網路 I/O）。",
+        "en": "(B) Waiting for external resources (like Linked Server or Network I/O).",
+        "wg": []
+      },
+      {
+        "t": "(C) 複雜的計算導致 CPU 飽和。",
+        "en": "(C) Complex calculations causing CPU saturation.",
+        "wg": [
+          {
+            "t": "飽和",
+            "en": "saturation",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(D) 用戶端應用程式處理數據過慢，導致 SQL Server 等待 `ASYNC_NETWORK_IO`。",
+        "en": "(D) Client application processing data too slowly, causing SQL Server to wait on `ASYNC_NETWORK_IO`.",
+        "wg": []
+      }
+    ],
+    "answer": "C",
+    "why": {
+      "t": "題目已說明 CPU 使用率極低 (< 5%)，因此原因不可能是 (C) CPU 飽和。CPU 飽和通常伴隨高 CPU 使用率。其他選項 (A)、(B)、(D) 都會導致執行緒處於 `Suspended` 狀態（等待中），此時 CPU 是閒置的。",
+      "en": "The question states that CPU usage is very low (< 5%), so the cause cannot be (C) CPU saturation. CPU saturation is typically accompanied by high CPU usage. The other options (A), (B), and (D) all cause threads to be in a `Suspended` state (waiting), during which the CPU remains idle.",
+      "wg": [
+        {
+          "t": "伴隨",
+          "en": "accompanied by",
+          "ps": "V"
+        }
+      ]
+    },
+    "verified": "2026-03-19T09:46:40"
+  }
+]

@@ -1,0 +1,1252 @@
+[
+  {
+    "no": "1",
+    "level": "intermediate",
+    "keywords": "ACID, Undo Log, Redo Log, Atomicity, Durability",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在 InnoDB 儲存引擎中，ACID 特性並非僅是抽象概念，而是由具體的物理組件來保證。",
+        "en": "In the InnoDB storage engine, ACID properties are not just abstract concepts but are guaranteed by specific physical components.",
+        "wg": [
+          {
+            "t": "儲存引擎",
+            "en": "storage engine",
+            "ps": "N"
+          },
+          {
+            "t": "物理組件",
+            "en": "physical components",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "請問下列哪一項正確描述了「原子性 (Atomicity)」與「持久性 (Durability)」的主要實作機制？",
+        "en": "Which of the following correctly describes the primary implementation mechanisms for 'Atomicity' and 'Durability'?",
+        "wg": [
+          {
+            "t": "原子性",
+            "en": "Atomicity",
+            "ps": "N"
+          },
+          {
+            "t": "持久性",
+            "en": "Durability",
+            "ps": "N"
+          },
+          {
+            "t": "實作機制",
+            "en": "implementation mechanisms",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 原子性由 Redo Log 保證；持久性由 Undo Log 保證。",
+        "en": "(A) Atomicity is guaranteed by Redo Log; Durability is guaranteed by Undo Log.",
+        "wg": []
+      },
+      {
+        "t": "(B) 原子性由 Undo Log 保證；持久性由 Redo Log (WAL) 保證。",
+        "en": "(B) Atomicity is guaranteed by Undo Log; Durability is guaranteed by Redo Log (WAL).",
+        "wg": [
+          {
+            "t": "預寫式日誌",
+            "en": "WAL (Write-Ahead Logging)",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) 兩者皆由 MVCC 機制保證。",
+        "en": "(C) Both are guaranteed by the MVCC mechanism.",
+        "wg": []
+      },
+      {
+        "t": "(D) 原子性由 Gap Lock 保證；持久性由 Double Write Buffer 保證。",
+        "en": "(D) Atomicity is guaranteed by Gap Lock; Durability is guaranteed by Double Write Buffer.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "原子性 (Atomicity) 依賴 Undo Log 來記錄交易前的狀態，以便在交易失敗時進行回滾 (Rollback)；持久性 (Durability) 則依賴 Redo Log (Write Ahead Log) 確保即使系統崩潰，已提交的資料也能被重放恢復。",
+      "en": "Atomicity relies on the Undo Log to record the pre-transaction state for rollback in case of failure; Durability relies on the Redo Log (Write Ahead Log) to ensure that committed data can be replayed and recovered even after a system crash.",
+      "wg": [
+        {
+          "t": "回滾",
+          "en": "rollback",
+          "ps": "V"
+        },
+        {
+          "t": "重放",
+          "en": "replay",
+          "ps": "V"
+        },
+        {
+          "t": "崩潰",
+          "en": "crash",
+          "ps": "N"
+        }
+      ]
+    },
+    "verified": "2026-03-19T09:53:16"
+  },
+  {
+    "no": "2",
+    "level": "advanced",
+    "keywords": "MVCC, Read View, Isolation Levels, Repeatable Read",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "/* Initial Data: id=1, val=100 */\n\n-- Transaction A (Tx A)\nSTART TRANSACTION;\nSELECT val FROM t WHERE id=1; -- (1) First Read\n\n    -- Transaction B (Tx B)\n    START TRANSACTION;\n    UPDATE t SET val=200 WHERE id=1;\n    COMMIT;\n\n-- Transaction A (Tx A)\nSELECT val FROM t WHERE id=1; -- (2) Second Read\nCOMMIT;",
+    "question": [
+      {
+        "t": "請參考上方的 SQL 執行序列。",
+        "en": "Please refer to the SQL execution sequence above.",
+        "wg": []
+      },
+      {
+        "t": "若資料庫的隔離層級設定為 **Repeatable Read (RR)**，請問在 (2) 處的讀取結果為何？以及為什麼？",
+        "en": "If the database isolation level is set to **Repeatable Read (RR)**, what is the result of the read at (2), and why?",
+        "wg": [
+          {
+            "t": "隔離層級",
+            "en": "isolation level",
+            "ps": "N"
+          },
+          {
+            "t": "執行序列",
+            "en": "execution sequence",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 200，因為 Tx B 已經 Commit，且 RR 保證能讀到已提交的變更。",
+        "en": "(A) 200, because Tx B has committed, and RR guarantees reading committed changes.",
+        "wg": []
+      },
+      {
+        "t": "(B) 100，因為在 RR 層級下，Read View 是在第一次 SELECT 時建立的，後續讀取會沿用該視圖。",
+        "en": "(B) 100, because under RR level, the Read View is created at the first SELECT, and subsequent reads reuse that view.",
+        "wg": [
+          {
+            "t": "沿用",
+            "en": "reuse",
+            "ps": "V"
+          },
+          {
+            "t": "視圖",
+            "en": "view",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) 100，因為 Tx A 持有了該行的 Shared Lock，導致 Tx B 的 UPDATE 實際上被阻塞直到 Tx A 結束。",
+        "en": "(C) 100, because Tx A holds a Shared Lock on the row, causing Tx B's UPDATE to be blocked until Tx A finishes.",
+        "wg": [
+          {
+            "t": "阻塞",
+            "en": "blocked",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(D) 200，因為 MVCC 僅在 Read Committed 層級下生效，RR 總是讀取最新數據。",
+        "en": "(D) 200, because MVCC only works under Read Committed level, and RR always reads the latest data.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "在 Repeatable Read (RR) 層級下，交易內的 Read View 是在「第一次」執行快照讀 (Snapshot Read) 時建立的，並在整個交易期間保持不變。",
+      "en": "Under Repeatable Read (RR) level, the Read View within a transaction is created at the 'first' Snapshot Read and remains unchanged throughout the transaction.",
+      "wg": [
+        {
+          "t": "快照讀",
+          "en": "Snapshot Read",
+          "ps": "N"
+        },
+        {
+          "t": "保持不變",
+          "en": "remains unchanged",
+          "ps": "Phrase"
+        }
+      ]
+    },
+    "verified": "2026-03-19T09:53:16"
+  },
+  {
+    "no": "3",
+    "level": "advanced",
+    "keywords": "Gap Lock, Deadlock, Insert Intention Lock, Locking",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "Table: users (id PK, age INT with Index)\nData: (id=1, age=10), (id=3, age=20)\n\n-- Tx A\nSELECT * FROM users WHERE age = 15 FOR UPDATE;\n\n-- Tx B\nINSERT INTO users (id, age) VALUES (2, 15);",
+    "question": [
+      {
+        "t": "在 Repeatable Read (RR) 隔離層級下，執行上述操作時，Tx B 的 `INSERT` 語句會被阻塞 (Blocked)。",
+        "en": "Under Repeatable Read (RR) isolation level, when executing the operations above, Tx B's `INSERT` statement will be blocked.",
+        "wg": [
+          {
+            "t": "阻塞",
+            "en": "blocked",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "請問導致阻塞的鎖衝突主要是發生在哪兩種類型的鎖之間？",
+        "en": "Which two types of locks are primarily involved in the conflict that causes this blocking?",
+        "wg": [
+          {
+            "t": "鎖衝突",
+            "en": "lock conflict",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) Tx A 的 Record Lock 與 Tx B 的 Record Lock。",
+        "en": "(A) Tx A's Record Lock and Tx B's Record Lock.",
+        "wg": []
+      },
+      {
+        "t": "(B) Tx A 的 Gap Lock 與 Tx B 的 Gap Lock。",
+        "en": "(B) Tx A's Gap Lock and Tx B's Gap Lock.",
+        "wg": []
+      },
+      {
+        "t": "(C) Tx A 的 Gap Lock 與 Tx B 的 Insert Intention Lock。",
+        "en": "(C) Tx A's Gap Lock and Tx B's Insert Intention Lock.",
+        "wg": [
+          {
+            "t": "插入意向鎖",
+            "en": "Insert Intention Lock",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(D) Tx A 的 Next-Key Lock 與 Tx B 的 Auto-Inc Lock。",
+        "en": "(D) Tx A's Next-Key Lock and Tx B's Auto-Inc Lock.",
+        "wg": []
+      }
+    ],
+    "answer": "C",
+    "why": {
+      "t": "Tx A 的 `SELECT ... FOR UPDATE` 因為找不到 `age=15` 的紀錄，會對 (10, 20) 區間加 Gap Lock。Tx B 嘗試插入時需要獲取 Insert Intention Lock，但該鎖與 Gap Lock 不相容，因此被阻塞。",
+      "en": "Tx A's `SELECT ... FOR UPDATE` cannot find a record with `age=15`, so it places a Gap Lock on the (10, 20) interval. When Tx B tries to insert, it needs to acquire an Insert Intention Lock, which is incompatible with the Gap Lock, causing it to be blocked.",
+      "wg": [
+        {
+          "t": "不相容",
+          "en": "incompatible",
+          "ps": "Adj"
+        },
+        {
+          "t": "區間",
+          "en": "interval",
+          "ps": "N"
+        }
+      ]
+    },
+    "verified": "2026-03-19T09:53:16"
+  },
+  {
+    "no": "4",
+    "level": "senior",
+    "keywords": "System Design, RC vs RR, Lock Contention, Best Practices",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "許多大型網路公司（如 Meta, Alibaba）在生產環境中將 MySQL 的隔離層級從預設的 Repeatable Read (RR) 調整為 Read Committed (RC)。",
+        "en": "Many large tech companies (e.g., Meta, Alibaba) change the MySQL isolation level in production from the default Repeatable Read (RR) to Read Committed (RC).",
+        "wg": [
+          {
+            "t": "生產環境",
+            "en": "production environment",
+            "ps": "N"
+          },
+          {
+            "t": "預設",
+            "en": "default",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "從系統設計與效能的角度來看，這樣做的**主要原因**是什麼？",
+        "en": "From a system design and performance perspective, what is the **primary reason** for doing this?",
+        "wg": [
+          {
+            "t": "主要原因",
+            "en": "primary reason",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 為了完全避免 Non-Repeatable Read 問題，確保資料絕對一致。",
+        "en": "(A) To completely avoid Non-Repeatable Read issues and ensure absolute data consistency.",
+        "wg": []
+      },
+      {
+        "t": "(B) 為了減少鎖競爭 (Lock Contention)，因為 RC 層級下幾乎不會產生 Gap Lock 與 Next-Key Lock。",
+        "en": "(B) To reduce Lock Contention, as Gap Locks and Next-Key Locks are rarely generated under RC level.",
+        "wg": [
+          {
+            "t": "鎖競爭",
+            "en": "lock contention",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) 為了支援更長的交易時間，避免 Undo Log 膨脹。",
+        "en": "(C) To support longer transaction durations and avoid Undo Log bloat.",
+        "wg": []
+      },
+      {
+        "t": "(D) 因為 RC 層級不使用 Undo Log，可以節省大量的磁碟 I/O。",
+        "en": "(D) Because RC level does not use Undo Logs, saving a significant amount of disk I/O.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "RC 層級最大的優勢是減少了 Gap Lock 和 Next-Key Lock 的使用（僅在少數情況如外鍵檢查時出現），這大幅降低了死鎖 (Deadlock) 的機率並提升併發寫入能力。",
+      "en": "The biggest advantage of the RC level is the reduced use of Gap Locks and Next-Key Locks (appearing only in rare cases like foreign key checks), which significantly lowers the probability of deadlocks and improves concurrent write capabilities.",
+      "wg": [
+        {
+          "t": "併發寫入",
+          "en": "concurrent write",
+          "ps": "N"
+        },
+        {
+          "t": "死鎖",
+          "en": "deadlock",
+          "ps": "N"
+        }
+      ]
+    },
+    "verified": "2026-03-19T09:53:16"
+  },
+  {
+    "no": "5",
+    "level": "intermediate",
+    "keywords": "Indexing, Table Lock, Performance Pitfall, Locking Scope",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "UPDATE users SET active = 0 WHERE nickname = 'Alice';",
+    "question": [
+      {
+        "t": "假設 `users` 表中有 100 萬筆資料，且 `nickname` 欄位**沒有建立任何索引**。",
+        "en": "Assume the `users` table has 1 million records, and the `nickname` column **does not have any index**.",
+        "wg": [
+          {
+            "t": "欄位",
+            "en": "column",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "當執行上述 SQL 語句時，InnoDB 的鎖定行為會造成什麼嚴重的後果？",
+        "en": "When executing the SQL statement above, what severe consequence will InnoDB's locking behavior cause?",
+        "wg": [
+          {
+            "t": "鎖定行為",
+            "en": "locking behavior",
+            "ps": "N"
+          },
+          {
+            "t": "後果",
+            "en": "consequence",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 僅鎖定 `nickname = 'Alice'` 的那一行，因為 InnoDB 支援行級鎖 (Row Lock)。",
+        "en": "(A) Only locks the row where `nickname = 'Alice'`, because InnoDB supports Row Locks.",
+        "wg": []
+      },
+      {
+        "t": "(B) 會進行全表掃描，並鎖定掃描到的所有行（甚至所有間隙），效果等同於鎖表。",
+        "en": "(B) It will perform a full table scan and lock all scanned rows (and even all gaps), effectively acting like a table lock.",
+        "wg": [
+          {
+            "t": "全表掃描",
+            "en": "full table scan",
+            "ps": "N"
+          },
+          {
+            "t": "鎖表",
+            "en": "table lock",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) 語句會直接報錯，因為 InnoDB 不允許在無索引欄位上執行 UPDATE。",
+        "en": "(C) The statement will throw an error immediately because InnoDB does not allow UPDATE on non-indexed columns.",
+        "wg": []
+      },
+      {
+        "t": "(D) 會自動升級為樂觀鎖 (Optimistic Lock)，不阻塞其他交易。",
+        "en": "(D) It will automatically upgrade to an Optimistic Lock and will not block other transactions.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "InnoDB 的行鎖是建立在索引之上的。如果查詢條件沒有擊中索引，資料庫必須掃描整張表來尋找目標行，過程中會對所有掃描到的行加鎖，導致系統併發能力急劇下降。",
+      "en": "InnoDB's row locks are based on indexes. If the query condition misses the index, the database must scan the entire table to find the target rows, locking all scanned rows in the process, which drastically reduces system concurrency.",
+      "wg": [
+        {
+          "t": "擊中",
+          "en": "hit/match",
+          "ps": "V"
+        },
+        {
+          "t": "急劇下降",
+          "en": "drastically reduce",
+          "ps": "V"
+        }
+      ]
+    },
+    "verified": "2026-03-19T09:53:16"
+  },
+  {
+    "no": "chapter03-q06",
+    "level": "intermediate",
+    "keywords": "Performance, Undo Log, Long Transaction, MVCC",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在監控儀表板上，您發現資料庫磁碟空間使用率異常飆升，且許多簡單的查詢（Query）回應時間變慢。",
+        "en": "On the monitoring dashboard, you notice an abnormal spike in database disk usage, and the response time for many simple queries has slowed down.",
+        "wg": [
+          {
+            "t": "監控儀表板",
+            "en": "monitoring dashboard",
+            "ps": "N"
+          },
+          {
+            "t": "飆升",
+            "en": "spike",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "經排查，發現有一個連線開啟了交易（Transaction）但已經閒置了 6 小時未提交。",
+        "en": "Upon investigation, you find a connection that opened a transaction but has remained idle for 6 hours without committing.",
+        "wg": [
+          {
+            "t": "閒置",
+            "en": "idle",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "請問這個長交易（Long Transaction）最直接導致上述效能問題的根本原因是什麼？",
+        "en": "What is the root cause directly linking this long transaction to the aforementioned performance issues?",
+        "wg": [
+          {
+            "t": "根本原因",
+            "en": "root cause",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 長交易佔用了過多的記憶體 Buffer Pool，導致其他查詢必須頻繁讀取磁碟。",
+        "en": "(A) The long transaction occupied too much memory in the Buffer Pool, causing other queries to frequently read from disk.",
+        "wg": []
+      },
+      {
+        "t": "(B) 長交易導致 Undo Log 無法被清理（Purge），使得 Undo Log 歷史鏈過長，查詢需遍歷大量舊版本。",
+        "en": "(B) The long transaction prevented the Undo Log from being purged, resulting in an excessively long Undo Log history chain, forcing queries to traverse many old versions.",
+        "wg": [
+          {
+            "t": "清理",
+            "en": "purge",
+            "ps": "V"
+          },
+          {
+            "t": "遍歷",
+            "en": "traverse",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(C) 長交易持有了全域的 Table Lock，阻止了其他所有讀寫操作。",
+        "en": "(C) The long transaction held a global Table Lock, blocking all other read and write operations.",
+        "wg": []
+      },
+      {
+        "t": "(D) 長交易導致 Redo Log 寫滿，觸發了頻繁的 Checkpoint 刷盤操作。",
+        "en": "(D) The long transaction caused the Redo Log to fill up, triggering frequent Checkpoint flushing operations.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "InnoDB 的 MVCC 機制依賴 Undo Log 來重建舊版本資料。若有一個極老的交易未提交，系統必須保留從該交易開始以來的所有 Undo Log 版本（因為該交易可能需要讀取這些版本），導致 Undo Log 空間膨脹（磁碟飆升）且查詢時需遍歷很長的鏈結（查詢變慢）。",
+      "en": "InnoDB's MVCC mechanism relies on Undo Logs to reconstruct old data versions. If a very old transaction remains uncommitted, the system must retain all Undo Log versions since that transaction started (as it might need to read them), leading to Undo Log bloat (disk spike) and slower queries due to traversing long chains.",
+      "wg": [
+        {
+          "t": "膨脹",
+          "en": "bloat",
+          "ps": "V"
+        },
+        {
+          "t": "重建",
+          "en": "reconstruct",
+          "ps": "V"
+        }
+      ]
+    },
+    "verified": "2026-03-19T09:53:16"
+  },
+  {
+    "no": "chapter03-q07",
+    "level": "advanced",
+    "keywords": "MVCC, Current Read, Snapshot Read, Consistency",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "Initial Data: table `products`, id=1, stock=10\nIsolation Level: Repeatable Read (RR)\n\n-- Time 1 (Tx A)\nSTART TRANSACTION;\nSELECT stock FROM products WHERE id=1; -- Returns 10\n\n-- Time 2 (Tx B)\nSTART TRANSACTION;\nUPDATE products SET stock = 20 WHERE id=1;\nCOMMIT;\n\n-- Time 3 (Tx A)\nUPDATE products SET stock = stock - 1 WHERE id=1;\nSELECT stock FROM products WHERE id=1;",
+    "question": [
+      {
+        "t": "請分析上述 SQL 執行序列。",
+        "en": "Please analyze the SQL execution sequence above.",
+        "wg": []
+      },
+      {
+        "t": "在 Time 3 執行完畢後，Tx A 最後一次 `SELECT` 查詢到的 `stock` 值會是多少？",
+        "en": "After Time 3 execution is complete, what will be the `stock` value returned by the last `SELECT` in Tx A?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 9 (基於 Time 1 的快照 10 減 1)",
+        "en": "(A) 9 (Based on the snapshot of 10 from Time 1 minus 1)",
+        "wg": []
+      },
+      {
+        "t": "(B) 19 (基於 Tx B 提交的最新值 20 減 1)",
+        "en": "(B) 19 (Based on the latest committed value 20 from Tx B minus 1)",
+        "wg": []
+      },
+      {
+        "t": "(C) 交易會因偵測到衝突而回滾 (Rollback)",
+        "en": "(C) The transaction will rollback due to conflict detection",
+        "wg": []
+      },
+      {
+        "t": "(D) 查詢會被阻塞 (Blocked) 直到 Tx A 提交",
+        "en": "(D) The query will be blocked until Tx A commits",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "雖然 Tx A 的第一次 SELECT 是「快照讀」，但 `UPDATE` 語句在 InnoDB 中屬於「當前讀 (Current Read)」。它會強制讀取最新的已提交版本（即 Tx B 的 20）來進行修改，因此結果為 20 - 1 = 19。修改後，Tx A 的後續 SELECT 會看到自己剛修改的最新值。",
+      "en": "Although Tx A's first SELECT is a 'Snapshot Read', the `UPDATE` statement is a 'Current Read' in InnoDB. It forces reading the latest committed version (which is 20 from Tx B) to perform the modification, resulting in 20 - 1 = 19. After modification, subsequent SELECTs in Tx A will see the latest value it just modified.",
+      "wg": [
+        {
+          "t": "強制",
+          "en": "force",
+          "ps": "V"
+        },
+        {
+          "t": "當前讀",
+          "en": "Current Read",
+          "ps": "N"
+        }
+      ]
+    },
+    "verified": "2026-03-19T09:53:16"
+  },
+  {
+    "no": "chapter03-q08",
+    "level": "senior",
+    "keywords": "Metadata Lock, DDL, Production Outage, Troubleshooting",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您的團隊正在排查一起生產環境事故：資料庫突然拒絕所有對 `orders` 表的寫入操作，導致應用程式逾時。",
+        "en": "Your team is investigating a production incident: the database suddenly refused all write operations to the `orders` table, causing application timeouts.",
+        "wg": [
+          {
+            "t": "排查",
+            "en": "investigate",
+            "ps": "V"
+          },
+          {
+            "t": "逾時",
+            "en": "timeout",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "檢查 Process List 發現：有一個執行了 30 分鐘的報表查詢（SELECT），隨後有一個被阻塞的 `ALTER TABLE orders ADD COLUMN ...` 操作，而後方排滿了大量 `INSERT` 請求。",
+        "en": "Checking the Process List reveals: a reporting query (SELECT) running for 30 minutes, followed by a blocked `ALTER TABLE orders ADD COLUMN ...` operation, followed by a large queue of `INSERT` requests.",
+        "wg": [
+          {
+            "t": "阻塞",
+            "en": "blocked",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "請問造成此連鎖阻塞的機制是什麼？",
+        "en": "What is the mechanism causing this chain reaction of blocking?",
+        "wg": [
+          {
+            "t": "連鎖阻塞",
+            "en": "chain reaction of blocking",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) Row Lock (行鎖) 升級為 Table Lock (表鎖)",
+        "en": "(A) Row Lock escalating to Table Lock",
+        "wg": []
+      },
+      {
+        "t": "(B) Metadata Lock (MDL)",
+        "en": "(B) Metadata Lock (MDL)",
+        "wg": []
+      },
+      {
+        "t": "(C) Deadlock Detection (死鎖偵測)",
+        "en": "(C) Deadlock Detection",
+        "wg": []
+      },
+      {
+        "t": "(D) Buffer Pool 記憶體耗盡",
+        "en": "(D) Buffer Pool memory exhaustion",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "長執行的 SELECT 會持有 Shared MDL。`ALTER TABLE` 需要 Exclusive MDL，因此被阻塞。MySQL 的 MDL 機制中，寫鎖請求（如 ALTER）優先級高於後續的讀寫請求，導致 ALTER 之後的所有 DML 操作（如 INSERT）全部被阻塞在隊列中，造成系統停擺。",
+      "en": "The long-running SELECT holds a Shared MDL. `ALTER TABLE` requires an Exclusive MDL and is therefore blocked. In MySQL's MDL mechanism, write lock requests (like ALTER) have higher priority than subsequent read/write requests, causing all DML operations (like INSERT) arriving after the ALTER to be blocked in the queue, halting the system.",
+      "wg": [
+        {
+          "t": "優先級",
+          "en": "priority",
+          "ps": "N"
+        },
+        {
+          "t": "停擺",
+          "en": "halt",
+          "ps": "V"
+        }
+      ]
+    },
+    "verified": "2026-03-19T09:53:16"
+  },
+  {
+    "no": "chapter03-q09",
+    "level": "senior",
+    "keywords": "Lost Update, Concurrency, Anti-pattern, Locking",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "// Pseudo-code in Application Layer\n\nfunction withdraw(userId, amount) {\n  // 1. Check balance\n  currentBalance = db.query(\"SELECT balance FROM accounts WHERE id = ?\", userId);\n  \n  if (currentBalance >= amount) {\n    newBalance = currentBalance - amount;\n    // 2. Update balance\n    db.execute(\"UPDATE accounts SET balance = ? WHERE id = ?\", newBalance, userId);\n    return true;\n  }\n  return false;\n}",
+    "question": [
+      {
+        "t": "上述程式碼在高併發環境下存在嚴重的邏輯缺陷，即使資料庫隔離層級設為 Repeatable Read (RR)。",
+        "en": "The pseudo-code above has a serious logic flaw in a high-concurrency environment, even if the database isolation level is set to Repeatable Read (RR).",
+        "wg": [
+          {
+            "t": "缺陷",
+            "en": "flaw",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "請問這個缺陷的名稱是什麼，以及最佳的修正方式為何？",
+        "en": "What is the name of this flaw, and what is the best way to fix it?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 髒讀 (Dirty Read)；修正方式是將隔離層級提升為 Serializable。",
+        "en": "(A) Dirty Read; fix by raising isolation level to Serializable.",
+        "wg": []
+      },
+      {
+        "t": "(B) 幻讀 (Phantom Read)；修正方式是為 id 欄位建立 Unique Index。",
+        "en": "(B) Phantom Read; fix by creating a Unique Index on the id column.",
+        "wg": []
+      },
+      {
+        "t": "(C) 更新遺失 (Lost Update)；修正方式是使用 `SELECT ... FOR UPDATE` 或單條原子化 UPDATE 語句。",
+        "en": "(C) Lost Update; fix by using `SELECT ... FOR UPDATE` or a single atomic UPDATE statement.",
+        "wg": [
+          {
+            "t": "更新遺失",
+            "en": "Lost Update",
+            "ps": "N"
+          },
+          {
+            "t": "原子化",
+            "en": "atomic",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "(D) 死鎖 (Deadlock)；修正方式是加入重試機制 (Retry Logic)。",
+        "en": "(D) Deadlock; fix by adding retry logic.",
+        "wg": []
+      }
+    ],
+    "answer": "C",
+    "why": {
+      "t": "這是典型的「讀取-修改-寫入」模式。兩個併發交易可能同時讀到相同的 `currentBalance`，然後分別寫入，導致其中一筆扣款被覆蓋（遺失）。普通的 `SELECT` 在 RR 下是快照讀，不加鎖。應使用鎖定讀 (`FOR UPDATE`) 或將邏輯改為 `UPDATE accounts SET balance = balance - ?` 利用資料庫的原子性。",
+      "en": "This is a classic 'Read-Modify-Write' pattern. Two concurrent transactions might read the same `currentBalance` and then write separately, causing one withdrawal to be overwritten (lost). A standard `SELECT` under RR is a Snapshot Read and does not lock. You should use a locking read (`FOR UPDATE`) or change the logic to `UPDATE accounts SET balance = balance - ?` to leverage database atomicity.",
+      "wg": [
+        {
+          "t": "覆蓋",
+          "en": "overwrite",
+          "ps": "V"
+        },
+        {
+          "t": "併發",
+          "en": "concurrent",
+          "ps": "Adj"
+        }
+      ]
+    },
+    "verified": "2026-03-19T09:55:30"
+  },
+  {
+    "no": "chapter03-q10",
+    "level": "advanced",
+    "keywords": "Next-Key Lock, Gap Lock, Locking Scope",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "Table `t` (id INT PRIMARY KEY)\nExisting records: 10, 20, 30\n\nTransaction A:\nSELECT * FROM t WHERE id > 20 FOR UPDATE;",
+    "question": [
+      {
+        "t": "在 Repeatable Read (RR) 隔離層級下，Transaction A 執行上述語句後，InnoDB 會鎖定哪些範圍？",
+        "en": "Under Repeatable Read (RR) isolation level, what ranges will InnoDB lock after Transaction A executes the above statement?",
+        "wg": [
+          {
+            "t": "範圍",
+            "en": "range",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "請選擇最精確的鎖定區間描述（包含 Record Lock 與 Gap Lock）。",
+        "en": "Please select the most accurate description of the locking intervals (including Record Lock and Gap Lock).",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 僅鎖定 Record 30。",
+        "en": "(A) Locks Record 30 only.",
+        "wg": []
+      },
+      {
+        "t": "(B) 鎖定 (20, 30] 以及 (30, +∞)。",
+        "en": "(B) Locks (20, 30] and (30, +∞).",
+        "wg": []
+      },
+      {
+        "t": "(C) 鎖定 (20, +∞)。",
+        "en": "(C) Locks (20, +∞).",
+        "wg": []
+      },
+      {
+        "t": "(D) 鎖定全表 (Table Lock)。",
+        "en": "(D) Locks the entire table (Table Lock).",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "Next-Key Lock 是左開右閉區間。查詢條件是 `id > 20`，因此會命中第一個記錄 30。InnoDB 會加上 `(20, 30]` 的 Next-Key Lock。同時，為了防止在 30 之後插入新資料（幻讀），也會加上 `(30, +∞)` 的 Gap Lock（或視為最後一個 Next-Key Lock 的延伸）。",
+      "en": "Next-Key Lock is a left-open, right-closed interval. The query condition is `id > 20`, so it hits the first record 30. InnoDB applies a Next-Key Lock on `(20, 30]`. Additionally, to prevent inserting new data after 30 (Phantom Read), it also applies a Gap Lock on `(30, +∞)` (or viewed as an extension of the last Next-Key Lock).",
+      "wg": [
+        {
+          "t": "區間",
+          "en": "interval",
+          "ps": "N"
+        },
+        {
+          "t": "命中",
+          "en": "hit/match",
+          "ps": "V"
+        }
+      ]
+    },
+    "verified": "2026-03-19T09:55:30"
+  },
+  {
+    "no": "11",
+    "level": "senior",
+    "keywords": "Double Write Buffer, Durability, Partial Page Write, Redo Log",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在 InnoDB 的 ACID 實作中，Redo Log 負責保證持久性（Durability），確保崩潰後能恢復已提交的資料。",
+        "en": "In InnoDB's ACID implementation, the Redo Log is responsible for guaranteeing Durability, ensuring that committed data can be recovered after a crash.",
+        "wg": [
+          {
+            "t": "持久性",
+            "en": "Durability",
+            "ps": "N"
+          },
+          {
+            "t": "崩潰",
+            "en": "crash",
+            "ps": "V/N"
+          }
+        ]
+      },
+      {
+        "t": "然而，InnoDB 還引入了 Double Write Buffer 機制。",
+        "en": "However, InnoDB also introduces the Double Write Buffer mechanism.",
+        "wg": []
+      },
+      {
+        "t": "請問 Double Write Buffer 主要解決了 Redo Log 無法單獨處理的哪一類特定硬體層級問題？",
+        "en": "What specific hardware-level problem does the Double Write Buffer solve that the Redo Log alone cannot handle?",
+        "wg": [
+          {
+            "t": "硬體層級",
+            "en": "hardware-level",
+            "ps": "Adj"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 解決磁碟 I/O 吞吐量不足的問題，透過緩衝區合併寫入。",
+        "en": "(A) Solves insufficient disk I/O throughput by merging writes via a buffer.",
+        "wg": []
+      },
+      {
+        "t": "(B) 解決「部分頁寫入（Partial Page Write）」導致的資料頁損壞問題。",
+        "en": "(B) Solves the issue of data page corruption caused by 'Partial Page Writes'.",
+        "wg": [
+          {
+            "t": "部分頁寫入",
+            "en": "Partial Page Write",
+            "ps": "N"
+          },
+          {
+            "t": "資料頁損壞",
+            "en": "data page corruption",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) 解決 Redo Log 空間不足時的循環覆蓋問題。",
+        "en": "(C) Solves the circular overwrite issue when Redo Log space is insufficient.",
+        "wg": []
+      },
+      {
+        "t": "(D) 解決 Undo Log 在長交易下過度膨脹的問題。",
+        "en": "(D) Solves the issue of Undo Log bloating under long transactions.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "Redo Log 記錄的是物理邏輯修改（例如「在某頁某偏移量寫入某值」），它依賴於一個結構完整的 Page 才能進行重放（Replay）。如果作業系統或硬體在寫入 Page 到磁碟的過程中崩潰，導致該 Page 只有一半被寫入（Partial Page Write），則該頁面物理結構損壞。此時 Redo Log 無法應用於損壞的頁面。Double Write Buffer 確保在寫入主資料檔前先有一份完整的備份，若發生部分寫入，可先從 Double Write Buffer 還原完整的舊 Page，再應用 Redo Log。",
+      "en": "The Redo Log records physio-logical changes (e.g., 'write value X at offset Y of page Z') and relies on a structurally intact Page to replay changes. If the OS or hardware crashes while writing a Page to disk, resulting in only half the page being written (Partial Page Write), the page's physical structure becomes corrupted. The Redo Log cannot be applied to a corrupted page. The Double Write Buffer ensures a complete backup exists before writing to the main data file. If a partial write occurs, InnoDB can restore the valid old Page from the Double Write Buffer and then apply the Redo Log.",
+      "wg": [
+        {
+          "t": "物理邏輯修改",
+          "en": "physio-logical changes",
+          "ps": "N"
+        },
+        {
+          "t": "重放",
+          "en": "replay",
+          "ps": "V"
+        }
+      ]
+    },
+    "verified": "2026-03-19T09:55:30"
+  },
+  {
+    "no": "12",
+    "level": "advanced",
+    "keywords": "Semi-Consistent Read, Read Committed, Locking, Performance",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "UPDATE users SET last_login = NOW() WHERE age > 30 AND status = 'active';",
+    "question": [
+      {
+        "t": "假設 `users` 表非常巨大，且 `age` 欄位有索引，但 `status` 欄位無索引。",
+        "en": "Assume the `users` table is very large, the `age` column is indexed, but the `status` column is not.",
+        "wg": []
+      },
+      {
+        "t": "當您將隔離層級從 Repeatable Read (RR) 調整為 Read Committed (RC) 後，執行上述 SQL。",
+        "en": "When you change the isolation level from Repeatable Read (RR) to Read Committed (RC) and execute the SQL above.",
+        "wg": [
+          {
+            "t": "隔離層級",
+            "en": "isolation level",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "InnoDB 在處理鎖定時會出現什麼顯著的行為差異（稱為 Semi-Consistent Read）？",
+        "en": "What significant difference in locking behavior (known as Semi-Consistent Read) does InnoDB exhibit?",
+        "wg": [
+          {
+            "t": "顯著的",
+            "en": "significant",
+            "ps": "Adj"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) RC 模式下，InnoDB 會完全不加鎖，直接進行快照讀。",
+        "en": "(A) In RC mode, InnoDB applies no locks at all and performs a snapshot read directly.",
+        "wg": []
+      },
+      {
+        "t": "(B) RC 模式下，InnoDB 會鎖定所有 `age > 30` 的記錄，即使 `status` 不符合也不會釋放鎖，直到交易結束。",
+        "en": "(B) In RC mode, InnoDB locks all records where `age > 30`, and even if `status` does not match, it holds the locks until the transaction ends.",
+        "wg": []
+      },
+      {
+        "t": "(C) RC 模式下，InnoDB 會先鎖定索引掃描到的記錄，讀取並判斷 `status` 條件；若不符合條件，會立即釋放該記錄的鎖。",
+        "en": "(C) In RC mode, InnoDB locks records scanned by the index, reads and evaluates the `status` condition; if the condition is not met, it immediately releases the lock on that record.",
+        "wg": [
+          {
+            "t": "釋放",
+            "en": "release",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(D) RC 模式下，InnoDB 會自動將鎖升級為 Table Lock 以避免死鎖。",
+        "en": "(D) In RC mode, InnoDB automatically upgrades locks to Table Locks to avoid deadlocks.",
+        "wg": []
+      }
+    ],
+    "answer": "C",
+    "why": {
+      "t": "這是 Read Committed (RC) 的一個重要特性，稱為「半一致性讀（Semi-Consistent Read）」。在 RR 層級下，所有掃描到的行（即使不符合 WHERE 的非索引過濾條件）都會被鎖定直到交易結束。而在 RC 下，InnoDB 允許在判斷不符合 `WHERE` 條件後，提前釋放不匹配行的鎖，這大幅減少了鎖競爭。",
+      "en": "This is a key feature of Read Committed (RC) called 'Semi-Consistent Read'. Under RR, all scanned rows (even those failing the non-indexed WHERE filter) remain locked until the transaction ends. In RC, InnoDB allows locks on non-matching rows to be released early after evaluating the `WHERE` condition, significantly reducing lock contention.",
+      "wg": [
+        {
+          "t": "半一致性讀",
+          "en": "Semi-Consistent Read",
+          "ps": "N"
+        },
+        {
+          "t": "鎖競爭",
+          "en": "lock contention",
+          "ps": "N"
+        }
+      ]
+    },
+    "verified": "2026-03-19T09:55:30"
+  },
+  {
+    "no": "13",
+    "level": "intermediate",
+    "keywords": "MVCC, Read View, Transaction, Consistency",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在 Repeatable Read (RR) 隔離層級下，關於 Read View（讀取視圖）生成的確切時機，以下描述何者正確？",
+        "en": "Under the Repeatable Read (RR) isolation level, which of the following descriptions regarding the exact timing of Read View generation is correct?",
+        "wg": [
+          {
+            "t": "確切時機",
+            "en": "exact timing",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 執行 `BEGIN` 或 `START TRANSACTION` 指令的當下，Read View 就會立即建立。",
+        "en": "(A) The Read View is created immediately when the `BEGIN` or `START TRANSACTION` command is executed.",
+        "wg": []
+      },
+      {
+        "t": "(B) Read View 是在交易內執行第一條快照讀（Snapshot Read，如普通 SELECT）語句時才建立。",
+        "en": "(B) The Read View is created only when the first Snapshot Read (e.g., standard SELECT) statement is executed within the transaction.",
+        "wg": [
+          {
+            "t": "快照讀",
+            "en": "Snapshot Read",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) 每一次執行 `SELECT` 語句時，都會重新建立一個新的 Read View。",
+        "en": "(C) A new Read View is recreated every time a `SELECT` statement is executed.",
+        "wg": []
+      },
+      {
+        "t": "(D) Read View 是在交易執行第一條寫入語句（如 UPDATE/INSERT）時建立。",
+        "en": "(D) The Read View is created when the first write statement (e.g., UPDATE/INSERT) is executed within the transaction.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "在標準的 RR 隔離層級中，單純執行 `BEGIN` 並不會建立 Read View。Read View 是在交易內「第一次」執行快照讀（普通 SELECT）時建立的，並在整個交易期間復用這個視圖。欵要強制在交易開始時立即建立視圖（例如為了邏輯備份的一致性），需使用 `START TRANSACTION WITH CONSISTENT SNAPSHOT`。",
+      "en": "In standard RR isolation, executing `BEGIN` alone does not create a Read View. The Read View is created when the 'first' Snapshot Read (standard SELECT) is executed within the transaction and is reused throughout the transaction. To force immediate view creation at the start (e.g., for consistent logical backups), one must use `START TRANSACTION WITH CONSISTENT SNAPSHOT`.",
+      "wg": [
+        {
+          "t": "復用",
+          "en": "reuse",
+          "ps": "V"
+        },
+        {
+          "t": "邏輯備份",
+          "en": "logical backup",
+          "ps": "N"
+        }
+      ]
+    },
+    "verified": "2026-03-19T09:55:30"
+  },
+  {
+    "no": "14",
+    "level": "advanced",
+    "keywords": "Phantom Read, MVCC, Current Read, Repeatable Read",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "/* Isolation Level: Repeatable Read (RR) */\n\n-- Transaction A (Tx A)\nBEGIN;\nSELECT * FROM users WHERE id > 10; \n-- Result: Empty set (假設目前沒有 id > 10 的資料)\n\n    -- Transaction B (Tx B)\n    INSERT INTO users (id, name) VALUES (15, 'Bob');\n    COMMIT;\n\n-- Transaction A (Tx A) continues...\nUPDATE users SET name = 'Bob_Updated' WHERE id = 15;\n-- Result: Query OK, 1 row affected\n\nSELECT * FROM users WHERE id > 10;\n-- Result: Returns 1 row (id=15, name='Bob_Updated')",
+    "question": [
+      {
+        "t": "許多工程師認為 Repeatable Read (RR) 可以完全避免幻讀（Phantom Read）。",
+        "en": "Many engineers believe that Repeatable Read (RR) completely prevents Phantom Reads.",
+        "wg": [
+          {
+            "t": "幻讀",
+            "en": "Phantom Read",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "但在上述場景中，Tx A 第一次 SELECT 沒看到資料，卻能成功 UPDATE 該筆資料，且第二次 SELECT 看到了該行（幻影行）。",
+        "en": "However, in the scenario above, Tx A sees no data in the first SELECT, yet successfully UPDATEs the record, and subsequently sees the row (phantom row) in the second SELECT.",
+        "wg": [
+          {
+            "t": "幻影行",
+            "en": "phantom row",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "請問造成此現象的根本原因為何？",
+        "en": "What is the root cause of this phenomenon?",
+        "wg": [
+          {
+            "t": "根本原因",
+            "en": "root cause",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 因為 Tx B 的 INSERT 操作觸發了 Gap Lock 的失效。",
+        "en": "(A) Because Tx B's INSERT operation triggered a failure of the Gap Lock.",
+        "wg": []
+      },
+      {
+        "t": "(B) 因為 Tx A 的第一次 SELECT 是快照讀，但 UPDATE 是當前讀（Current Read）。UPDATE 讀取最新提交並修改後，該行變成了 Tx A 自己的歷史版本。",
+        "en": "(B) Because Tx A's first SELECT is a Snapshot Read, but the UPDATE is a Current Read. After the UPDATE reads the latest commit and modifies it, the row becomes part of Tx A's own history version.",
+        "wg": [
+          {
+            "t": "當前讀",
+            "en": "Current Read",
+            "ps": "N"
+          },
+          {
+            "t": "歷史版本",
+            "en": "history version",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) 這是 MySQL 的 Bug，RR 層級理論上不應該允許這種情況發生。",
+        "en": "(C) This is a MySQL bug; RR level theoretically should not allow this to happen.",
+        "wg": []
+      },
+      {
+        "t": "(D) 因為 Tx A 沒有使用 `SELECT ... FOR UPDATE`，導致 MVCC 機制失效。",
+        "en": "(D) Because Tx A did not use `SELECT ... FOR UPDATE`, causing the MVCC mechanism to fail.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "這是一個經典的邊界案例。普通的 `SELECT` 是快照讀，看到的是交易開始時的舊版本（空）。但 `UPDATE` 語句必須執行「當前讀（Current Read）」以獲取最新已提交的資料（由 Tx B 插入的 id=15）來進行鎖定與修改。一旦 Tx A 修改了這行資料，這行資料的最新版本就屬於 Tx A 的交易（Trx_ID 變為 Tx A），因此後續的 `SELECT`（快照讀）就能看到這行資料了。",
+      "en": "This is a classic edge case. A standard `SELECT` is a Snapshot Read, seeing the old version (empty) from the start of the transaction. However, the `UPDATE` statement must perform a 'Current Read' to fetch the latest committed data (id=15 inserted by Tx B) for locking and modification. Once Tx A modifies this row, the latest version of the row belongs to Tx A's transaction (Trx_ID becomes Tx A), so subsequent `SELECTs` (Snapshot Reads) can see this row.",
+      "wg": [
+        {
+          "t": "邊界案例",
+          "en": "edge case",
+          "ps": "N"
+        }
+      ]
+    },
+    "verified": "2026-03-19T09:55:30"
+  },
+  {
+    "no": "15",
+    "level": "advanced",
+    "keywords": "Deadlock, Troubleshooting, Insert Intention Lock, Gap Lock",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "------------------------\nLATEST DETECTED DEADLOCK\n------------------------\n... (Transaction 1 info) ...\nWAITING FOR THIS LOCK TO BE GRANTED:\nRECORD LOCKS space id 54 page no 4 n bits 72 index PRIMARY ...\nlock_mode X locks gap before rec insert intention waiting\n...",
+    "question": [
+      {
+        "t": "當您在分析 `SHOW ENGINE INNODB STATUS` 的死鎖日誌時，看到上述關鍵字 `lock_mode X locks gap before rec insert intention waiting`。",
+        "en": "When analyzing the deadlock log from `SHOW ENGINE INNODB STATUS`, you see the keyword `lock_mode X locks gap before rec insert intention waiting` shown above.",
+        "wg": [
+          {
+            "t": "死鎖日誌",
+            "en": "deadlock log",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "這代表該交易正在嘗試執行什麼操作，並且被什麼類型的鎖阻塞了？",
+        "en": "What operation is the transaction trying to perform, and what type of lock is blocking it?",
+        "wg": [
+          {
+            "t": "阻塞",
+            "en": "block",
+            "ps": "V"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 正在執行 `INSERT`，被其他交易持有的 `Gap Lock` 阻塞。",
+        "en": "(A) It is performing an `INSERT` and is blocked by a `Gap Lock` held by another transaction.",
+        "wg": [
+          {
+            "t": "持有",
+            "en": "hold",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(B) 正在執行 `SELECT ... FOR UPDATE`，被其他交易的 `Record Lock` 阻塞。",
+        "en": "(B) It is performing a `SELECT ... FOR UPDATE` and is blocked by a `Record Lock` held by another transaction.",
+        "wg": []
+      },
+      {
+        "t": "(C) 正在執行 `UPDATE`，被其他交易持有的 `Next-Key Lock` 阻塞。",
+        "en": "(C) It is performing an `UPDATE` and is blocked by a `Next-Key Lock` held by another transaction.",
+        "wg": []
+      },
+      {
+        "t": "(D) 正在執行 `DELETE`，被其他交易持有的 `Table Lock` 阻塞。",
+        "en": "(D) It is performing a `DELETE` and is blocked by a `Table Lock` held by another transaction.",
+        "wg": []
+      }
+    ],
+    "answer": "A",
+    "why": {
+      "t": "日誌中的 `insert intention waiting` 明確指出了該交易試圖獲取「插入意向鎖（Insert Intention Lock）」，這是在執行 `INSERT` 操作前需要的鎖。而它正在等待（Waiting），通常是因為目標間隙已經被其他交易用 `Gap Lock` 或 `Next-Key Lock` 鎖住了。Gap Lock 與 Insert Intention Lock 是互斥的，這是導致死鎖最常見的原因之一。",
+      "en": "The `insert intention waiting` in the log clearly indicates the transaction is trying to acquire an 'Insert Intention Lock', which is required before performing an `INSERT`. It is waiting usually because the target gap is already locked by another transaction using a `Gap Lock` or `Next-Key Lock`. Gap Locks and Insert Intention Locks are mutually exclusive, which is one of the most common causes of deadlocks.",
+      "wg": [
+        {
+          "t": "插入意向鎖",
+          "en": "Insert Intention Lock",
+          "ps": "N"
+        },
+        {
+          "t": "互斥",
+          "en": "mutually exclusive",
+          "ps": "Adj"
+        }
+      ]
+    },
+    "verified": "2026-03-19T09:55:30"
+  }
+]

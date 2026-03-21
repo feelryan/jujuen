@@ -1,0 +1,1346 @@
+[
+  {
+    "no": "1",
+    "level": "intermediate",
+    "keywords": "WiredTiger, Memory Management, Kubernetes, OOM",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您的團隊正在 Kubernetes 叢集中部署 MongoDB，節點 (Node) 配備 64GB RAM，而您為 MongoDB Pod 設定了 4GB 的記憶體限制 (Memory Limit)。",
+        "en": "Your team is deploying MongoDB in a Kubernetes cluster where the Node has 64GB of RAM, and you have set a Memory Limit of 4GB for the MongoDB Pod.",
+        "wg": [
+          {
+            "t": "叢集",
+            "en": "cluster",
+            "ps": "N"
+          },
+          {
+            "t": "記憶體限制",
+            "en": "Memory Limit",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "部署後發現 Pod 頻繁因為 OOM Killed (Out of Memory) 而重啟，且應用程式日誌中沒有明顯的記憶體洩漏。",
+        "en": "After deployment, the Pod frequently restarts due to OOM Killed (Out of Memory), and there are no obvious memory leaks in the application logs.",
+        "wg": [
+          {
+            "t": "頻繁",
+            "en": "frequently",
+            "ps": "Adv"
+          },
+          {
+            "t": "記憶體洩漏",
+            "en": "memory leaks",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "根據 WiredTiger 的預設行為，最可能的原因是什麼？",
+        "en": "Based on WiredTiger's default behavior, what is the most likely cause?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) MongoDB 預設會佔用主機 (Host) 實體記憶體的 50% 左右，忽略了容器的限制，導致嘗試使用約 31.5GB 記憶體。",
+        "en": "(A) MongoDB defaults to occupying about 50% of the Host's physical RAM, ignoring container limits, causing it to attempt to use approximately 31.5GB of memory.",
+        "wg": [
+          {
+            "t": "實體記憶體",
+            "en": "physical RAM",
+            "ps": "N"
+          },
+          {
+            "t": "忽略",
+            "en": "ignoring",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(B) Kubernetes 的記憶體限制設定錯誤，導致 MongoDB 無法存取任何 Filesystem Cache。",
+        "en": "(B) The Kubernetes memory limit is misconfigured, preventing MongoDB from accessing any Filesystem Cache.",
+        "wg": []
+      },
+      {
+        "t": "(C) WiredTiger 預設會將 Journal 檔案載入記憶體，導致 4GB 空間不足。",
+        "en": "(C) WiredTiger defaults to loading Journal files into memory, causing the 4GB space to be insufficient.",
+        "wg": []
+      },
+      {
+        "t": "(D) MongoDB 在容器環境中無法使用 Swap，導致些微的記憶體溢出就會觸發 OOM。",
+        "en": "(D) MongoDB cannot use Swap in a container environment, so even a slight memory overflow triggers an OOM.",
+        "wg": []
+      }
+    ],
+    "answer": "A",
+    "why": {
+      "t": "WiredTiger 預設快取大小計算公式為 `(RAM - 1GB) * 50%`。在容器化環境中，若未明確設定 `storage.wiredTiger.engineConfig.cacheSizeGB`，MongoDB 會讀取 Host 的總記憶體 (64GB) 而非 Pod 的限制 (4GB)，導致嘗試分配過多記憶體而被 OOM Killer 終止。",
+      "en": "The default WiredTiger cache size formula is `(RAM - 1GB) * 50%`. In a containerized environment, if `storage.wiredTiger.engineConfig.cacheSizeGB` is not explicitly set, MongoDB reads the Host's total RAM (64GB) instead of the Pod's limit (4GB), causing it to attempt to allocate too much memory and be terminated by the OOM Killer.",
+      "wg": [
+        {
+          "t": "容器化環境",
+          "en": "containerized environment",
+          "ps": "N"
+        },
+        {
+          "t": "終止",
+          "en": "terminated",
+          "ps": "V"
+        }
+      ]
+    },
+    "verified": "2026-03-19T08:15:01"
+  },
+  {
+    "no": "2",
+    "level": "advanced",
+    "keywords": "Durability, Write Concern, Journaling, Trade-off",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您正在設計一個金融交易系統，業務需求規定「在任何伺服器崩潰的情況下，已確認的交易資料絕對不能遺失」。",
+        "en": "You are designing a financial transaction system where the business requirement states 'confirmed transaction data must absolutely not be lost in the event of any server crash'.",
+        "wg": [
+          {
+            "t": "金融交易",
+            "en": "financial transaction",
+            "ps": "N"
+          },
+          {
+            "t": "崩潰",
+            "en": "crash",
+            "ps": "N"
+          },
+          {
+            "t": "絕對",
+            "en": "absolutely",
+            "ps": "Adv"
+          }
+        ]
+      },
+      {
+        "t": "同時，您希望盡可能減少對寫入效能的衝擊。",
+        "en": "At the same time, you want to minimize the impact on write performance as much as possible.",
+        "wg": [
+          {
+            "t": "衝擊",
+            "en": "impact",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "下列哪一種 Write Concern 設定最符合此需求？",
+        "en": "Which of the following Write Concern settings best meets this requirement?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) `{ w: \"majority\" }`，依賴預設的 Journaling 機制 (100ms)。",
+        "en": "(A) `{ w: \"majority\" }`, relying on the default Journaling mechanism (100ms).",
+        "wg": []
+      },
+      {
+        "t": "(B) `{ w: 1, j: true }`，強制每次寫入都刷入 Journal。",
+        "en": "(B) `{ w: 1, j: true }`, forcing a flush to the Journal on every write.",
+        "wg": [
+          {
+            "t": "強制",
+            "en": "forcing",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(C) `{ w: \"majority\", j: true }`，確保多數節點都已將資料寫入磁碟 Journal。",
+        "en": "(C) `{ w: \"majority\", j: true }`, ensuring that a majority of nodes have written the data to the disk Journal.",
+        "wg": []
+      },
+      {
+        "t": "(D) `{ w: 0 }`，並在應用層實作重試邏輯。",
+        "en": "(D) `{ w: 0 }`, and implement retry logic at the application layer.",
+        "wg": []
+      }
+    ],
+    "answer": "C",
+    "why": {
+      "t": "為了達成「絕對不遺失」，必須設定 `j: true` 以確保資料在回傳成功前已寫入磁碟 (Journal)。同時，為了防止單點故障導致資料遺失，需搭配 `w: \"majority\"` 確保資料已複製到多數節點。選項 (A) 會有 100ms 的資料遺失風險窗口。",
+      "en": "To achieve 'zero data loss', `j: true` must be set to ensure data is written to disk (Journal) before success is returned. Additionally, to prevent data loss from a single point of failure, `w: \"majority\"` is needed to ensure data is replicated to a majority of nodes. Option (A) leaves a 100ms risk window for data loss.",
+      "wg": [
+        {
+          "t": "單點故障",
+          "en": "single point of failure",
+          "ps": "N"
+        },
+        {
+          "t": "複製",
+          "en": "replicated",
+          "ps": "V"
+        }
+      ]
+    },
+    "verified": "2026-03-19T08:15:01"
+  },
+  {
+    "no": "3",
+    "level": "intermediate",
+    "keywords": "Architecture, Checkpoint, Journaling, Recovery",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "關於 MongoDB 的 Checkpoint (檢查點) 與 Journaling (日誌) 的互動機制，假設伺服器在上次 Checkpoint 後 45 秒發生斷電崩潰。",
+        "en": "Regarding the interaction between MongoDB's Checkpoint and Journaling, assume the server crashes due to power failure 45 seconds after the last Checkpoint.",
+        "wg": [
+          {
+            "t": "互動機制",
+            "en": "interaction mechanism",
+            "ps": "N"
+          },
+          {
+            "t": "斷電",
+            "en": "power failure",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "當伺服器重啟並進行復原時，下列描述何者正確？",
+        "en": "When the server restarts and performs recovery, which of the following descriptions is correct?",
+        "wg": [
+          {
+            "t": "復原",
+            "en": "recovery",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) MongoDB 會遺失這 45 秒內的所有資料，因為 Checkpoint 尚未執行。",
+        "en": "(A) MongoDB will lose all data from these 45 seconds because the Checkpoint had not yet run.",
+        "wg": []
+      },
+      {
+        "t": "(B) MongoDB 會讀取上次的 Checkpoint 資料檔，並重放 (Replay) Journal 中隨後的寫入操作來恢復資料。",
+        "en": "(B) MongoDB will read the last Checkpoint data files and replay the subsequent write operations from the Journal to recover the data.",
+        "wg": [
+          {
+            "t": "重放",
+            "en": "replay",
+            "ps": "V"
+          },
+          {
+            "t": "隨後的",
+            "en": "subsequent",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "(C) MongoDB 必須執行全資料庫掃描 (Full Repair) 來修復損壞的 B-Tree 結構。",
+        "en": "(C) MongoDB must perform a full database scan (Full Repair) to fix corrupted B-Tree structures.",
+        "wg": []
+      },
+      {
+        "t": "(D) 只有設定了 `j: true` 的寫入操作才能被恢復，其餘皆會遺失。",
+        "en": "(D) Only write operations with `j: true` can be recovered; the rest will be lost.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "Checkpoint (每 60 秒) 負責將資料同步到資料檔 (`.wt`)，而 Journal (每 100ms) 負責記錄 Checkpoint 之間的變更。復原時，系統會從最後一個有效的 Checkpoint 開始，依序重放 Journal 中的紀錄，將資料恢復到崩潰前的狀態（最多遺失最後 100ms）。",
+      "en": "Checkpoints (every 60s) sync data to data files (`.wt`), while the Journal (every 100ms) records changes between Checkpoints. During recovery, the system starts from the last valid Checkpoint and sequentially replays records from the Journal to restore data to the state before the crash (losing at most the last 100ms).",
+      "wg": [
+        {
+          "t": "變更",
+          "en": "changes",
+          "ps": "N"
+        },
+        {
+          "t": "依序",
+          "en": "sequentially",
+          "ps": "Adv"
+        }
+      ]
+    },
+    "verified": "2026-03-19T08:15:01"
+  },
+  {
+    "no": "4",
+    "level": "intermediate",
+    "keywords": "BSON, Performance, Internals, Scanning",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "MongoDB 選擇使用 BSON (Binary JSON) 而非純文字 JSON 作為儲存格式。",
+        "en": "MongoDB chose BSON (Binary JSON) over plain text JSON as its storage format.",
+        "wg": [
+          {
+            "t": "純文字",
+            "en": "plain text",
+            "ps": "N"
+          },
+          {
+            "t": "儲存格式",
+            "en": "storage format",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "除了支援更多資料型別外，BSON 在「資料庫掃描效能」上的主要架構優勢是什麼？",
+        "en": "Besides supporting more data types, what is the main architectural advantage of BSON regarding 'database scanning performance'?",
+        "wg": [
+          {
+            "t": "掃描效能",
+            "en": "scanning performance",
+            "ps": "N"
+          },
+          {
+            "t": "架構優勢",
+            "en": "architectural advantage",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) BSON 的壓縮率比 JSON 高，因此減少了磁碟 I/O。",
+        "en": "(A) BSON has a higher compression ratio than JSON, thus reducing disk I/O.",
+        "wg": [
+          {
+            "t": "壓縮率",
+            "en": "compression ratio",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(B) BSON 包含長度前綴 (Length Prefix)，允許 MongoDB 在掃描時直接跳過不需要讀取的子文件或欄位。",
+        "en": "(B) BSON contains a Length Prefix, allowing MongoDB to skip over sub-documents or fields that do not need to be read during a scan.",
+        "wg": [
+          {
+            "t": "長度前綴",
+            "en": "Length Prefix",
+            "ps": "N"
+          },
+          {
+            "t": "跳過",
+            "en": "skip",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(C) BSON 將所有字串轉換為 Hash 儲存，加快了字串比對速度。",
+        "en": "(C) BSON converts all strings to Hash for storage, speeding up string comparison.",
+        "wg": []
+      },
+      {
+        "t": "(D) BSON 強制要求所有欄位按字母順序排列，優化了二元搜尋。",
+        "en": "(D) BSON enforces alphabetical ordering of all fields, optimizing binary search.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "BSON 在物件與陣列的頭部記錄了總長度 (Length Prefix)。這使得 MongoDB 在遍歷 (Traverse) 資料時，如果不需要存取某個巢狀物件，可以直接根據長度指標跳過該記憶體區塊，而不需要像 JSON Parser 那樣逐字元掃描尋找結尾括號，這對全表掃描或大型文件處理極具效率。",
+      "en": "BSON records the total length (Length Prefix) at the header of objects and arrays. This allows MongoDB, when traversing data, to skip memory blocks based on the length indicator if a nested object is not needed, rather than scanning character-by-character for a closing brace like a JSON parser. This is highly efficient for full table scans or processing large documents.",
+      "wg": [
+        {
+          "t": "遍歷",
+          "en": "traverse",
+          "ps": "V"
+        },
+        {
+          "t": "巢狀物件",
+          "en": "nested object",
+          "ps": "N"
+        }
+      ]
+    },
+    "verified": "2026-03-19T08:15:01"
+  },
+  {
+    "no": "5",
+    "level": "advanced",
+    "keywords": "Concurrency, MVCC, Locking, Isolation",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在 WiredTiger 儲存引擎中，當一個長時間執行的讀取操作 (例如產生報表) 正在掃描 `orders` 集合時，同時有另一個執行緒對該集合進行大量的寫入更新。",
+        "en": "In the WiredTiger storage engine, when a long-running read operation (e.g., generating a report) is scanning the `orders` collection, another thread is simultaneously performing massive write updates on that collection.",
+        "wg": [
+          {
+            "t": "長時間執行",
+            "en": "long-running",
+            "ps": "Adj"
+          },
+          {
+            "t": "執行緒",
+            "en": "thread",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "下列關於併發行為的敘述，何者最準確？",
+        "en": "Which of the following descriptions regarding concurrency behavior is most accurate?",
+        "wg": [
+          {
+            "t": "併發行為",
+            "en": "concurrency behavior",
+            "ps": "N"
+          },
+          {
+            "t": "準確",
+            "en": "accurate",
+            "ps": "Adj"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 讀取操作會被寫入鎖 (Write Lock) 阻塞，直到寫入完成。",
+        "en": "(A) The read operation will be blocked by the Write Lock until the write completes.",
+        "wg": [
+          {
+            "t": "阻塞",
+            "en": "blocked",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(B) 讀取操作可能會讀到「髒讀 (Dirty Read)」，即讀到寫入一半的資料。",
+        "en": "(B) The read operation might encounter a 'Dirty Read', seeing partially written data.",
+        "wg": []
+      },
+      {
+        "t": "(C) 透過 MVCC 機制，讀取操作會看到操作開始時間點的資料快照 (Snapshot)，不受後續寫入影響。",
+        "en": "(C) Through the MVCC mechanism, the read operation will see a data snapshot from the start time of the operation, unaffected by subsequent writes.",
+        "wg": [
+          {
+            "t": "快照",
+            "en": "snapshot",
+            "ps": "N"
+          },
+          {
+            "t": "不受...影響",
+            "en": "unaffected by",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "(D) 寫入操作會失敗並拋出 `WriteConflict` 錯誤，因為集合正在被讀取。",
+        "en": "(D) The write operation will fail and throw a `WriteConflict` error because the collection is being read.",
+        "wg": []
+      }
+    ],
+    "answer": "C",
+    "why": {
+      "t": "WiredTiger 使用 MVCC (Multi-Version Concurrency Control) 來管理併發。讀取操作開始時會建立一個 Snapshot，確保讀取的一致性，即使其他執行緒正在修改資料，讀取者看到的仍是舊版本的資料，不會被阻塞也不會讀到髒資料。",
+      "en": "WiredTiger uses MVCC (Multi-Version Concurrency Control) to manage concurrency. When a read operation starts, it establishes a Snapshot to ensure read consistency. Even if other threads are modifying data, the reader sees the old version of the data, is not blocked, and does not read dirty data.",
+      "wg": [
+        {
+          "t": "一致性",
+          "en": "consistency",
+          "ps": "N"
+        },
+        {
+          "t": "髒資料",
+          "en": "dirty data",
+          "ps": "N"
+        }
+      ]
+    },
+    "verified": "2026-03-19T08:15:01"
+  },
+  {
+    "no": "6",
+    "level": "intermediate",
+    "keywords": "Memory Model, Filesystem Cache, WiredTiger Cache",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您在監控 MongoDB 伺服器時，發現 `free -m` 顯示可用記憶體極低，但 MongoDB 的 `serverStatus` 顯示 WiredTiger Cache 使用量僅佔總記憶體的 50%。",
+        "en": "While monitoring a MongoDB server, you notice `free -m` shows very low available memory, but MongoDB's `serverStatus` shows WiredTiger Cache usage is only 50% of total RAM.",
+        "wg": [
+          {
+            "t": "監控",
+            "en": "monitoring",
+            "ps": "V"
+          },
+          {
+            "t": "極低",
+            "en": "very low",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "這通常代表什麼狀況，以及是否需要介入處理？",
+        "en": "What does this usually indicate, and does it require intervention?",
+        "wg": [
+          {
+            "t": "介入處理",
+            "en": "intervention",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 這是正常現象。剩餘記憶體被 OS 用作 Filesystem Cache 來快取壓縮的資料檔，有助於效能，無需處理。",
+        "en": "(A) This is normal. The remaining memory is used by the OS as Filesystem Cache to cache compressed data files, which aids performance and requires no action.",
+        "wg": [
+          {
+            "t": "正常現象",
+            "en": "normal phenomenon",
+            "ps": "N"
+          },
+          {
+            "t": "無需處理",
+            "en": "requires no action",
+            "ps": "Phrase"
+          }
+        ]
+      },
+      {
+        "t": "(B) 這是記憶體洩漏 (Memory Leak)。WiredTiger 以外的程序正在消耗記憶體，應立即重啟服務。",
+        "en": "(B) This is a Memory Leak. Processes other than WiredTiger are consuming memory, and the service should be restarted immediately.",
+        "wg": []
+      },
+      {
+        "t": "(C) 這是設定錯誤。應該將 `cacheSizeGB` 調大，讓 WiredTiger 接管所有可用記憶體。",
+        "en": "(C) This is a misconfiguration. `cacheSizeGB` should be increased to let WiredTiger take over all available memory.",
+        "wg": [
+          {
+            "t": "接管",
+            "en": "take over",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(D) 這是 NUMA 架構導致的記憶體碎片化，需要執行 `numactl`。",
+        "en": "(D) This is memory fragmentation caused by NUMA architecture, requiring `numactl` execution.",
+        "wg": []
+      }
+    ],
+    "answer": "A",
+    "why": {
+      "t": "MongoDB 的雙層快取模型依賴 OS 的 Filesystem Cache (Page Cache) 來存放壓縮後的磁碟資料。Linux 會自動將未使用的 RAM 分配給 Page Cache 以加速 I/O。當應用程式需要記憶體時，OS 會自動釋放 Page Cache，因此這是健康且預期的行為。",
+      "en": "MongoDB's two-layer caching model relies on the OS Filesystem Cache (Page Cache) to store compressed disk data. Linux automatically allocates unused RAM to the Page Cache to accelerate I/O. When applications need memory, the OS automatically releases the Page Cache, so this is healthy and expected behavior.",
+      "wg": [
+        {
+          "t": "雙層快取",
+          "en": "two-layer caching",
+          "ps": "N"
+        },
+        {
+          "t": "釋放",
+          "en": "release",
+          "ps": "V"
+        }
+      ]
+    },
+    "verified": "2026-03-19T08:15:01"
+  },
+  {
+    "no": "chapter01-q07",
+    "level": "advanced",
+    "keywords": "NUMA, Hardware, Performance, Deployment",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您正在一台配備雙 CPU 插槽 (Dual Socket) 與大容量記憶體的實體伺服器上部署 MongoDB。",
+        "en": "You are deploying MongoDB on a physical server equipped with dual CPU sockets and large memory capacity.",
+        "wg": [
+          {
+            "t": "雙 CPU 插槽",
+            "en": "Dual Socket",
+            "ps": "N"
+          },
+          {
+            "t": "實體伺服器",
+            "en": "physical server",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "為了避免因非統一記憶體存取 (NUMA) 架構導致的效能不均或單一節點記憶體耗盡問題，您應該採取什麼措施？",
+        "en": "To avoid uneven performance or single-node memory exhaustion caused by Non-Uniform Memory Access (NUMA) architecture, what action should you take?",
+        "wg": [
+          {
+            "t": "非統一記憶體存取",
+            "en": "Non-Uniform Memory Access",
+            "ps": "N"
+          },
+          {
+            "t": "耗盡",
+            "en": "exhaustion",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 在 BIOS 中完全停用 CPU 的超執行緒 (Hyper-threading) 功能。",
+        "en": "(A) Completely disable CPU Hyper-threading in the BIOS.",
+        "wg": []
+      },
+      {
+        "t": "(B) 使用 `numactl --interleave=all` 指令來啟動 `mongod` 程序。",
+        "en": "(B) Start the `mongod` process using the `numactl --interleave=all` command.",
+        "wg": [
+          {
+            "t": "啟動",
+            "en": "start",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(C) 將 MongoDB 的 WiredTiger Cache 大小設定為實體記憶體的 90%。",
+        "en": "(C) Set the MongoDB WiredTiger Cache size to 90% of physical memory.",
+        "wg": []
+      },
+      {
+        "t": "(D) 僅使用單一 CPU 插槽的記憶體，並透過 `taskset` 綁定核心。",
+        "en": "(D) Use memory from only a single CPU socket and bind cores using `taskset`.",
+        "wg": [
+          {
+            "t": "綁定",
+            "en": "bind",
+            "ps": "V"
+          }
+        ]
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "在 NUMA 架構下，若未正確設定，MongoDB 可能會耗盡某個 CPU 節點的記憶體而變慢，即使其他節點仍有空閒。使用 `numactl --interleave=all` 可以讓記憶體分配在所有節點間交錯，確保均衡使用。",
+      "en": "Under NUMA architecture, if not configured correctly, MongoDB may exhaust memory on a specific CPU node and slow down, even if other nodes have free memory. Using `numactl --interleave=all` interleaves memory allocation across all nodes, ensuring balanced usage.",
+      "wg": [
+        {
+          "t": "交錯",
+          "en": "interleave",
+          "ps": "V"
+        },
+        {
+          "t": "均衡",
+          "en": "balanced",
+          "ps": "Adj"
+        }
+      ]
+    },
+    "verified": "2026-03-19T08:15:01"
+  },
+  {
+    "no": "chapter01-q08",
+    "level": "intermediate",
+    "keywords": "Schema Design, UUID, Performance, Working Set",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您的應用程式使用 UUID 作為 MongoDB 文件的 `_id`，且寫入量極大。",
+        "en": "Your application uses UUIDs as the `_id` for MongoDB documents and has a very high write volume.",
+        "wg": [
+          {
+            "t": "寫入量",
+            "en": "write volume",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "隨著集合 (Collection) 的資料量成長並超過可用 RAM 的大小，您觀察到寫入效能顯著下降且磁碟 I/O 急劇上升。",
+        "en": "As the collection size grows and exceeds the available RAM, you observe a significant drop in write performance and a sharp increase in disk I/O.",
+        "wg": [
+          {
+            "t": "急劇",
+            "en": "sharp",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "造成此現象最主要的原因是什麼？",
+        "en": "What is the primary reason for this phenomenon?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) UUID 的長度過長，導致網路傳輸頻寬不足。",
+        "en": "(A) The length of UUIDs is too long, causing insufficient network bandwidth.",
+        "wg": []
+      },
+      {
+        "t": "(B) UUID 的隨機性導致寫入時索引無法維持順序，引發頻繁的索引頁面驅逐 (Eviction) 與 Page Faults。",
+        "en": "(B) The randomness of UUIDs prevents indexes from maintaining order during writes, triggering frequent index page evictions and Page Faults.",
+        "wg": [
+          {
+            "t": "隨機性",
+            "en": "randomness",
+            "ps": "N"
+          },
+          {
+            "t": "驅逐",
+            "en": "eviction",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) MongoDB 不支援 UUID 格式，必須在寫入前進行轉換。",
+        "en": "(C) MongoDB does not support the UUID format and requires conversion before writing.",
+        "wg": []
+      },
+      {
+        "t": "(D) WiredTiger 儲存引擎無法壓縮 UUID 資料，導致磁碟空間耗盡。",
+        "en": "(D) The WiredTiger storage engine cannot compress UUID data, leading to disk space exhaustion.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "這是常見的反模式。由於 UUID 是隨機的，新的寫入可能需要更新索引的任何部分。當索引大到無法完全放入記憶體 (Working Set) 時，隨機寫入會導致頻繁地從磁碟讀取索引頁面 (Page Faults)，嚴重拖慢效能。",
+      "en": "This is a common anti-pattern. Since UUIDs are random, new writes may require updating any part of the index. When the index becomes too large to fit entirely in memory (Working Set), random writes cause frequent index page reads from disk (Page Faults), severely degrading performance.",
+      "wg": [
+        {
+          "t": "反模式",
+          "en": "anti-pattern",
+          "ps": "N"
+        },
+        {
+          "t": "拖慢",
+          "en": "degrade",
+          "ps": "V"
+        }
+      ]
+    },
+    "verified": "2026-03-19T08:15:01"
+  },
+  {
+    "no": "chapter01-q09",
+    "level": "intermediate",
+    "keywords": "Compression, WiredTiger Cache, Filesystem Cache, Memory",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "MongoDB 的記憶體模型包含 WiredTiger Internal Cache 與作業系統的 Filesystem Cache。",
+        "en": "MongoDB's memory model consists of the WiredTiger Internal Cache and the operating system's Filesystem Cache.",
+        "wg": []
+      },
+      {
+        "t": "關於這兩層快取中資料的「壓縮狀態」，下列敘述何者正確？",
+        "en": "Regarding the \"compression state\" of data in these two cache layers, which of the following statements is correct?",
+        "wg": [
+          {
+            "t": "壓縮狀態",
+            "en": "compression state",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 兩者皆儲存壓縮後的資料以節省記憶體。",
+        "en": "(A) Both store compressed data to save memory.",
+        "wg": []
+      },
+      {
+        "t": "(B) WiredTiger Cache 儲存未壓縮的原始資料，而 Filesystem Cache 儲存壓縮後的資料。",
+        "en": "(B) WiredTiger Cache stores uncompressed raw data, while Filesystem Cache stores compressed data.",
+        "wg": [
+          {
+            "t": "未壓縮的",
+            "en": "uncompressed",
+            "ps": "Adj"
+          },
+          {
+            "t": "原始資料",
+            "en": "raw data",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) WiredTiger Cache 儲存壓縮資料，Filesystem Cache 儲存解壓縮後的資料。",
+        "en": "(C) WiredTiger Cache stores compressed data, while Filesystem Cache stores decompressed data.",
+        "wg": []
+      },
+      {
+        "t": "(D) 只有在開啟 Journaling 時，WiredTiger Cache 才會儲存壓縮資料。",
+        "en": "(D) WiredTiger Cache stores compressed data only when Journaling is enabled.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "WiredTiger Cache 存放未壓縮資料以便 CPU 快速運算與查詢；而 MongoDB 利用 OS 的 Filesystem Cache 來快取磁碟上的資料檔，這些檔案通常是壓縮的 (Block Compression)，從而有效利用記憶體。",
+      "en": "The WiredTiger Cache holds uncompressed data for fast CPU processing and querying; MongoDB leverages the OS Filesystem Cache to cache on-disk data files, which are typically compressed (Block Compression), thereby utilizing memory effectively.",
+      "wg": [
+        {
+          "t": "運算",
+          "en": "processing",
+          "ps": "N"
+        },
+        {
+          "t": "利用",
+          "en": "leverage",
+          "ps": "V"
+        }
+      ]
+    },
+    "verified": "2026-03-19T08:16:20"
+  },
+  {
+    "no": "chapter01-q10",
+    "level": "advanced",
+    "keywords": "Journaling, Corruption, Production, Safety",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "為了加快大量歷史資料的匯入速度，某工程師建議在生產環境 (Production) 暫時將 `storage.journal.enabled` 設定為 `false`。",
+        "en": "To speed up the import of large historical data, an engineer suggests temporarily setting `storage.journal.enabled` to `false` in the Production environment.",
+        "wg": [
+          {
+            "t": "匯入",
+            "en": "import",
+            "ps": "V"
+          },
+          {
+            "t": "暫時",
+            "en": "temporarily",
+            "ps": "Adv"
+          }
+        ]
+      },
+      {
+        "t": "除了在伺服器崩潰時會遺失最近的寫入資料外，這樣做還隱藏了什麼嚴重的風險？",
+        "en": "Besides losing recent writes in the event of a server crash, what other serious risk does this hide?",
+        "wg": [
+          {
+            "t": "隱藏",
+            "en": "hide",
+            "ps": "V"
+          },
+          {
+            "t": "嚴重的",
+            "en": "serious",
+            "ps": "Adj"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 索引將無法被建立。",
+        "en": "(A) Indexes will not be built.",
+        "wg": []
+      },
+      {
+        "t": "(B) 資料庫檔案可能發生損壞且無法修復 (Corruption)。",
+        "en": "(B) Database files may become corrupted and unrecoverable.",
+        "wg": [
+          {
+            "t": "損壞",
+            "en": "corrupted",
+            "ps": "Adj"
+          },
+          {
+            "t": "無法修復",
+            "en": "unrecoverable",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "(C) 記憶體使用量會暴增導致 OOM。",
+        "en": "(C) Memory usage will spike, causing OOM.",
+        "wg": []
+      },
+      {
+        "t": "(D) 複本集 (Replica Set) 的同步會完全停止。",
+        "en": "(D) Replica Set synchronization will stop completely.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "Journaling 不僅是為了恢復資料，更是為了確保資料庫結構的一致性。若關閉 Journaling 且發生非正常關機 (Unclean Shutdown)，WiredTiger 的資料檔可能會處於不一致狀態，導致資料庫損壞且無法啟動。",
+      "en": "Journaling is not just for data recovery; it ensures the structural consistency of the database. If Journaling is disabled and an unclean shutdown occurs, WiredTiger data files may be left in an inconsistent state, causing database corruption and failure to start.",
+      "wg": [
+        {
+          "t": "一致性",
+          "en": "consistency",
+          "ps": "N"
+        },
+        {
+          "t": "非正常關機",
+          "en": "unclean shutdown",
+          "ps": "N"
+        }
+      ]
+    },
+    "verified": "2026-03-19T08:16:20"
+  },
+  {
+    "no": "chapter01-q11",
+    "level": "advanced",
+    "keywords": "Architecture, B-Tree, LSM Tree, System Design",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在系統設計面試中，面試官詢問：為何 MongoDB 的 WiredTiger 引擎預設選擇 B-Tree 結構，而非像 Cassandra 或 RocksDB 使用 LSM Tree？",
+        "en": "In a system design interview, the interviewer asks: Why does MongoDB's WiredTiger engine default to a B-Tree structure instead of using an LSM Tree like Cassandra or RocksDB?",
+        "wg": [
+          {
+            "t": "預設",
+            "en": "default",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "下列哪項解釋最符合 MongoDB 的設計定位？",
+        "en": "Which of the following explanations best fits MongoDB's design philosophy?",
+        "wg": [
+          {
+            "t": "定位",
+            "en": "philosophy/positioning",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) B-Tree 的寫入吞吐量遠高於 LSM Tree。",
+        "en": "(A) B-Tree has significantly higher write throughput than LSM Tree.",
+        "wg": []
+      },
+      {
+        "t": "(B) B-Tree 在處理範圍查詢 (Range Query) 與豐富的二級索引 (Secondary Indexes) 上表現較佳，符合 MongoDB 通用資料庫的需求。",
+        "en": "(B) B-Tree performs better on Range Queries and rich Secondary Indexes, aligning with MongoDB's role as a general-purpose database.",
+        "wg": [
+          {
+            "t": "範圍查詢",
+            "en": "Range Query",
+            "ps": "N"
+          },
+          {
+            "t": "通用資料庫",
+            "en": "general-purpose database",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) LSM Tree 不支援交易 (Transactions)，因此無法被 MongoDB 採用。",
+        "en": "(C) LSM Tree does not support transactions, so it cannot be used by MongoDB.",
+        "wg": []
+      },
+      {
+        "t": "(D) B-Tree 使用較少的記憶體，適合容器化部署。",
+        "en": "(D) B-Tree uses less memory, making it suitable for containerized deployments.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "LSM Tree 通常優化了寫入效能 (Append-only)，但在讀取時需合併多層資料 (Read Amplification)。B-Tree 則在讀取、範圍查詢與複雜索引支援上更為平衡，這對於 MongoDB 作為支援豐富查詢語言的文件資料庫至關重要。",
+      "en": "LSM Trees typically optimize for write performance (Append-only) but require merging multiple data layers during reads (Read Amplification). B-Trees offer a better balance for reads, range queries, and complex index support, which is crucial for MongoDB as a document database supporting a rich query language.",
+      "wg": [
+        {
+          "t": "優化",
+          "en": "optimize",
+          "ps": "V"
+        },
+        {
+          "t": "平衡",
+          "en": "balance",
+          "ps": "N"
+        }
+      ]
+    },
+    "verified": "2026-03-19T08:16:20"
+  },
+  {
+    "no": "chapter01-q12",
+    "level": "intermediate",
+    "keywords": "Checkpoint, Journaling, Trigger, Configuration",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "WiredTiger 儲存引擎會定期執行 Checkpoint 以將記憶體中的資料同步到磁碟。",
+        "en": "The WiredTiger storage engine periodically performs Checkpoints to sync data from memory to disk.",
+        "wg": [
+          {
+            "t": "定期",
+            "en": "periodically",
+            "ps": "Adv"
+          }
+        ]
+      },
+      {
+        "t": "預設情況下，除了每 60 秒的時間間隔外，還有什麼條件會觸發 Checkpoint？",
+        "en": "By default, besides the 60-second time interval, what other condition triggers a Checkpoint?",
+        "wg": [
+          {
+            "t": "觸發",
+            "en": "trigger",
+            "ps": "V"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 當 Journal 檔案大小達到 2GB 時。",
+        "en": "(A) When the Journal file size reaches 2GB.",
+        "wg": []
+      },
+      {
+        "t": "(B) 當記憶體使用率超過 80% 時。",
+        "en": "(B) When memory usage exceeds 80%.",
+        "wg": []
+      },
+      {
+        "t": "(C) 當累積寫入操作次數達到 10,000 次時。",
+        "en": "(C) When the accumulated write operations reach 10,000.",
+        "wg": []
+      },
+      {
+        "t": "(D) 當客戶端發送 `fsync` 指令時。",
+        "en": "(D) When a client sends an `fsync` command.",
+        "wg": []
+      }
+    ],
+    "answer": "A",
+    "why": {
+      "t": "WiredTiger 的 Checkpoint 觸發條件預設為：每 60 秒，或者當 Journal 日誌量達到 2GB。這是為了防止 Journal 檔案無限增長並控制復原時間。",
+      "en": "The default trigger conditions for WiredTiger Checkpoints are: every 60 seconds, or when the Journal log size reaches 2GB. This prevents the Journal file from growing indefinitely and controls recovery time.",
+      "wg": [
+        {
+          "t": "無限增長",
+          "en": "growing indefinitely",
+          "ps": "V"
+        }
+      ]
+    },
+    "verified": "2026-03-19T08:16:20"
+  },
+  {
+    "no": "chapter01-q13",
+    "level": "intermediate",
+    "keywords": "Dirty Page, WiredTiger, Internals, Persistence",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在 WiredTiger 儲存引擎的術語中，一個記憶體頁面 (Page) 被標記為「髒 (Dirty)」代表什麼意思？",
+        "en": "In WiredTiger storage engine terminology, what does it mean when a memory page is marked as \"Dirty\"?",
+        "wg": [
+          {
+            "t": "術語",
+            "en": "terminology",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 該頁面包含已刪除的資料，等待被 Garbage Collection 回收。",
+        "en": "(A) The page contains deleted data waiting to be reclaimed by Garbage Collection.",
+        "wg": [
+          {
+            "t": "回收",
+            "en": "reclaim",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(B) 該頁面在記憶體中已被修改，但尚未透過 Checkpoint 寫入到資料檔 (.wt) 中。",
+        "en": "(B) The page has been modified in memory but has not yet been written to the data files (.wt) via a Checkpoint.",
+        "wg": [
+          {
+            "t": "修改",
+            "en": "modify",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(C) 該頁面的資料已損壞，無法讀取。",
+        "en": "(C) The data in the page is corrupted and unreadable.",
+        "wg": []
+      },
+      {
+        "t": "(D) 該頁面是從 Journal 還原而來的，尚未被應用程式讀取過。",
+        "en": "(D) The page was restored from the Journal and has not yet been read by the application.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "「髒頁 (Dirty Page)」是指在 Cache 中已被修改，但尚未 Flush 到磁碟上永久資料檔的頁面。Checkpoint 的主要工作就是將這些髒頁寫入磁碟並標記為乾淨 (Clean)。",
+      "en": "\"Dirty Page\" refers to a page that has been modified in the Cache but has not yet been flushed to the permanent data files on disk. The main job of a Checkpoint is to write these dirty pages to disk and mark them as clean.",
+      "wg": [
+        {
+          "t": "永久",
+          "en": "permanent",
+          "ps": "Adj"
+        }
+      ]
+    },
+    "verified": "2026-03-19T08:16:20"
+  },
+  {
+    "no": "chapter01-q14",
+    "level": "advanced",
+    "keywords": "BSON, Performance, Scanning, Internals",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "MongoDB 使用 BSON 格式儲存資料。除了支援更多資料型別外，BSON 的「長度前綴 (Length Prefix)」特性對資料庫掃描效能有何關鍵影響？",
+        "en": "MongoDB uses the BSON format to store data. Besides supporting more data types, what is the key impact of BSON's \"Length Prefix\" feature on database scanning performance?",
+        "wg": [
+          {
+            "t": "長度前綴",
+            "en": "Length Prefix",
+            "ps": "N"
+          },
+          {
+            "t": "掃描效能",
+            "en": "scanning performance",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 它允許資料庫在掃描時，若不需要讀取某個子文件，可以直接根據長度跳過該區塊，無需逐字元解析。",
+        "en": "(A) It allows the database to skip a sub-document block based on its length during scanning if it doesn't need to be read, without parsing character-by-character.",
+        "wg": [
+          {
+            "t": "跳過",
+            "en": "skip",
+            "ps": "V"
+          },
+          {
+            "t": "逐字元解析",
+            "en": "parsing character-by-character",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(B) 它大幅減少了資料儲存所需的磁碟空間。",
+        "en": "(B) It significantly reduces the disk space required for data storage.",
+        "wg": []
+      },
+      {
+        "t": "(C) 它使得 BSON 資料可以被直接載入 CPU L1 Cache 中執行。",
+        "en": "(C) It allows BSON data to be loaded directly into the CPU L1 Cache for execution.",
+        "wg": []
+      },
+      {
+        "t": "(D) 它確保了欄位名稱 (Field Names) 不會重複。",
+        "en": "(D) It ensures that Field Names are not duplicated.",
+        "wg": []
+      }
+    ],
+    "answer": "A",
+    "why": {
+      "t": "BSON 在物件或陣列的頭部記錄了總長度。這使得 MongoDB 在遍歷 (Traverse) 資料時，可以輕易地「跳過 (Skip)」不需要的欄位或巢狀物件，而 JSON Parser 必須掃描每個字元以尋找結尾括號，這對全表掃描效能有巨大影響。",
+      "en": "BSON records the total length at the header of objects or arrays. This allows MongoDB to easily \"skip\" unwanted fields or nested objects during traversal, whereas a JSON parser must scan every character to find the closing brace, which has a huge impact on full table scan performance.",
+      "wg": [
+        {
+          "t": "遍歷",
+          "en": "traverse",
+          "ps": "V"
+        },
+        {
+          "t": "結尾括號",
+          "en": "closing brace",
+          "ps": "N"
+        }
+      ]
+    },
+    "verified": "2026-03-19T08:16:20"
+  },
+  {
+    "no": "15",
+    "level": "intermediate",
+    "keywords": "Concurrency, Locking, WiredTiger, Performance",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在設計高併發寫入的應用程式時，了解資料庫的鎖定粒度 (Locking Granularity) 至關重要。",
+        "en": "When designing high-concurrency write applications, understanding the database's Locking Granularity is crucial.",
+        "wg": [
+          {
+            "t": "鎖定粒度",
+            "en": "Locking Granularity",
+            "ps": "N"
+          },
+          {
+            "t": "高併發",
+            "en": "high-concurrency",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "假設有兩個獨立的寫入請求同時抵達 MongoDB (使用 WiredTiger 引擎)：請求 A 更新 `users` 集合中 User X 的資料，請求 B 更新同一個集合中 User Y 的資料。",
+        "en": "Suppose two independent write requests arrive at MongoDB (using the WiredTiger engine) simultaneously: Request A updates User X's data in the `users` collection, and Request B updates User Y's data in the same collection.",
+        "wg": [
+          {
+            "t": "集合",
+            "en": "collection",
+            "ps": "N"
+          },
+          {
+            "t": "同時",
+            "en": "simultaneously",
+            "ps": "Adv"
+          }
+        ]
+      },
+      {
+        "t": "請問這兩個操作在鎖定機制上的互動為何？",
+        "en": "How do these two operations interact regarding the locking mechanism?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 請求 B 必須等待請求 A 完成，因為 WiredTiger 使用集合級鎖定 (Collection-level Locking)。",
+        "en": "(A) Request B must wait for Request A to complete because WiredTiger uses Collection-level Locking.",
+        "wg": [
+          {
+            "t": "集合級鎖定",
+            "en": "Collection-level Locking",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(B) 兩者可以同時執行且互不阻塞，因為 WiredTiger 支援文件級鎖定 (Document-level Locking)。",
+        "en": "(B) Both can execute concurrently without blocking each other because WiredTiger supports Document-level Locking.",
+        "wg": [
+          {
+            "t": "文件級鎖定",
+            "en": "Document-level Locking",
+            "ps": "N"
+          },
+          {
+            "t": "阻塞",
+            "en": "blocking",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(C) 只有當 User X 與 User Y 的資料位於同一個記憶體分頁 (Page) 時，它們才會互相阻塞。",
+        "en": "(C) They will block each other only if the data for User X and User Y resides on the same memory Page.",
+        "wg": [
+          {
+            "t": "記憶體分頁",
+            "en": "memory Page",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(D) 請求 B 必須等待，因為 MongoDB 在寫入時會獲取全域寫入鎖 (Global Write Lock)。",
+        "en": "(D) Request B must wait because MongoDB acquires a Global Write Lock during writes.",
+        "wg": [
+          {
+            "t": "全域寫入鎖",
+            "en": "Global Write Lock",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "WiredTiger 儲存引擎的一個關鍵特性是支援文件級鎖定 (Document-level Locking)。這意味著只要多個寫入操作修改的是不同的文件 (Document)，即使它們屬於同一個集合，也可以併發執行而不會互相阻塞。選項 (A) 描述的是舊版 MMAPv1 引擎的行為。",
+      "en": "A key feature of the WiredTiger storage engine is its support for Document-level Locking. This means that as long as multiple write operations modify different documents, they can execute concurrently without blocking each other, even if they belong to the same collection. Option (A) describes the behavior of the legacy MMAPv1 engine.",
+      "wg": [
+        {
+          "t": "併發執行",
+          "en": "execute concurrently",
+          "ps": "V"
+        }
+      ]
+    },
+    "verified": "2026-03-19T08:16:20"
+  }
+]

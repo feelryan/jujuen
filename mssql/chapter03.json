@@ -1,0 +1,1323 @@
+[
+  {
+    "no": "1",
+    "level": "intermediate",
+    "keywords": "SARGable, Index Scan, Performance Tuning, Predicate",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "SELECT OrderID, CustomerID, OrderDate\nFROM Sales.Orders\nWHERE YEAR(OrderDate) = 2023;",
+    "question": [
+      {
+        "t": "請檢視上方的 SQL 查詢語句，假設 `OrderDate` 欄位已經建立了適當的索引。",
+        "en": "Please review the SQL query above, assuming an appropriate index exists on the `OrderDate` column.",
+        "wg": []
+      },
+      {
+        "t": "從執行計畫與效能的角度來看，這個查詢存在什麼主要問題？",
+        "en": "From the perspective of execution plans and performance, what is the main issue with this query?",
+        "wg": [
+          {
+            "t": "執行計畫",
+            "en": "execution plan",
+            "ps": "N"
+          },
+          {
+            "t": "效能",
+            "en": "performance",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 該查詢會導致語法錯誤，因為 `YEAR()` 函數不能在 WHERE 子句中使用。",
+        "en": "(A) The query will cause a syntax error because the `YEAR()` function cannot be used in the WHERE clause.",
+        "wg": []
+      },
+      {
+        "t": "(B) 該查詢是 SARGable 的，資料庫會使用 Index Seek 高效地檢索資料。",
+        "en": "(B) The query is SARGable, and the database will use an Index Seek to retrieve data efficiently.",
+        "wg": [
+          {
+            "t": "檢索",
+            "en": "retrieve",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(C) 該查詢是非 SARGable 的，因為對欄位使用了函數，導致優化器必須進行 Index Scan 或 Table Scan。",
+        "en": "(C) The query is non-SARGable because a function is applied to the column, forcing the optimizer to perform an Index Scan or Table Scan.",
+        "wg": [
+          {
+            "t": "優化器",
+            "en": "optimizer",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(D) 該查詢會導致參數嗅探問題，造成 CPU 飆升。",
+        "en": "(D) The query will cause parameter sniffing issues, leading to CPU spikes.",
+        "wg": [
+          {
+            "t": "參數嗅探",
+            "en": "parameter sniffing",
+            "ps": "N"
+          },
+          {
+            "t": "飆升",
+            "en": "spike",
+            "ps": "V"
+          }
+        ]
+      }
+    ],
+    "answer": "C",
+    "why": {
+      "t": "當我們對欄位進行運算（如 `YEAR(OrderDate)`）時，SQL Server 無法利用 B-Tree 索引的排序特性來直接定位資料（Seek），必須掃描每一列來計算結果，這被稱為非 SARGable。",
+      "en": "When an operation is performed on a column (like `YEAR(OrderDate)`), SQL Server cannot utilize the B-Tree index's sorting property to directly locate data (Seek) and must scan every row to compute the result, which is known as non-SARGable.",
+      "wg": [
+        {
+          "t": "定位",
+          "en": "locate",
+          "ps": "V"
+        },
+        {
+          "t": "掃描",
+          "en": "scan",
+          "ps": "V"
+        }
+      ]
+    },
+    "verified": "2026-03-19T09:31:49"
+  },
+  {
+    "no": "2",
+    "level": "advanced",
+    "keywords": "Parameter Sniffing, Stored Procedure, Plan Cache, CPU Spike",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "CREATE PROCEDURE GetOrdersByStatus (@StatusID INT)\nAS\nBEGIN\n    SELECT * FROM Orders WHERE StatusID = @StatusID;\nEND",
+    "question": [
+      {
+        "t": "您負責維護上述的預存程序。`Orders` 資料表中，99% 的訂單狀態為 'Complete'，僅 1% 為 'Pending'。",
+        "en": "You are maintaining the stored procedure above. In the `Orders` table, 99% of orders are 'Complete', and only 1% are 'Pending'.",
+        "wg": [
+          {
+            "t": "預存程序",
+            "en": "stored procedure",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "某次系統重啟後，第一個執行的查詢是搜尋 'Pending' 狀態。隨後，當大量使用者查詢 'Complete' 狀態時，伺服器 CPU 飆升至 100% 且回應極慢。",
+        "en": "After a system restart, the first query executed searches for 'Pending' status. Subsequently, when many users query for 'Complete' status, the server CPU spikes to 100% and response becomes extremely slow.",
+        "wg": [
+          {
+            "t": "隨後",
+            "en": "subsequently",
+            "ps": "Adv"
+          }
+        ]
+      },
+      {
+        "t": "請問造成此現象的最根本原因為何？",
+        "en": "What is the root cause of this phenomenon?",
+        "wg": [
+          {
+            "t": "根本原因",
+            "en": "root cause",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 發生了死鎖 (Deadlock)，導致資源互斥。",
+        "en": "(A) A deadlock occurred, causing resource mutual exclusion.",
+        "wg": [
+          {
+            "t": "死鎖",
+            "en": "deadlock",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(B) 參數嗅探 (Parameter Sniffing) 導致優化器快取了適合 'Pending' (Index Seek) 的計畫，但該計畫對 'Complete' (大量資料) 來說效率極差。",
+        "en": "(B) Parameter Sniffing caused the optimizer to cache a plan suitable for 'Pending' (Index Seek), but that plan is extremely inefficient for 'Complete' (large volume of data).",
+        "wg": [
+          {
+            "t": "快取",
+            "en": "cache",
+            "ps": "V"
+          },
+          {
+            "t": "效率極差",
+            "en": "extremely inefficient",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "(C) 統計資訊過期，導致 SQL Server 誤判了資料列數。",
+        "en": "(C) Statistics are outdated, causing SQL Server to misjudge the row count.",
+        "wg": [
+          {
+            "t": "誤判",
+            "en": "misjudge",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(D) 隱式轉換 (Implicit Conversion) 導致索引無法被使用。",
+        "en": "(D) Implicit Conversion prevented the index from being used.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "這是典型的參數嗅探問題。第一次執行 'Pending' 時產生了 Index Seek + Key Lookup 的計畫（對少量資料很快）。當此計畫被快取並套用到 'Complete'（99% 資料）時，大量的 Key Lookup 導致隨機 I/O 激增，效能遠不如直接 Table Scan。",
+      "en": "This is a classic parameter sniffing issue. The first execution for 'Pending' generated an Index Seek + Key Lookup plan (fast for small data). When this plan is cached and applied to 'Complete' (99% of data), the massive number of Key Lookups causes random I/O to skyrocket, performing far worse than a direct Table Scan.",
+      "wg": [
+        {
+          "t": "激增",
+          "en": "skyrocket",
+          "ps": "V"
+        }
+      ]
+    },
+    "verified": "2026-03-19T09:31:49"
+  },
+  {
+    "no": "3",
+    "level": "intermediate",
+    "keywords": "Implicit Conversion, Data Types, Performance, Scan",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "-- Table Schema: PhoneNumber is VARCHAR(20)\n-- Application Code (e.g., C# .NET)\nSqlCommand cmd = new SqlCommand(\"SELECT * FROM Customers WHERE PhoneNumber = @Phone\", conn);\ncmd.Parameters.AddWithValue(\"@Phone\", \"0912345678\"); // Defaults to NVARCHAR in .NET",
+    "question": [
+      {
+        "t": "您的應用程式使用上述程式碼查詢客戶資料。儘管 `PhoneNumber` 欄位上有索引，執行計畫卻顯示全表掃描 (Table Scan/Index Scan)。",
+        "en": "Your application uses the code above to query customer data. Although there is an index on the `PhoneNumber` column, the execution plan shows a full table scan (Table Scan/Index Scan).",
+        "wg": []
+      },
+      {
+        "t": "請問最可能的原因是什麼？",
+        "en": "What is the most likely reason?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 參數嗅探導致選擇了錯誤的計畫。",
+        "en": "(A) Parameter sniffing caused the wrong plan to be selected.",
+        "wg": []
+      },
+      {
+        "t": "(B) 發生了隱式轉換 (Implicit Conversion)，因為 `NVARCHAR` 的優先權高於 `VARCHAR`。",
+        "en": "(B) Implicit Conversion occurred because `NVARCHAR` has higher precedence than `VARCHAR`.",
+        "wg": [
+          {
+            "t": "優先權",
+            "en": "precedence",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) `SELECT *` 強制資料庫必須讀取所有欄位，因此無法使用索引。",
+        "en": "(C) `SELECT *` forces the database to read all columns, so the index cannot be used.",
+        "wg": []
+      },
+      {
+        "t": "(D) 統計資訊尚未更新。",
+        "en": "(D) Statistics have not been updated.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "當 `VARCHAR` 欄位與 `NVARCHAR` 參數比較時，SQL Server 必須將每一列的欄位內容轉換為 `NVARCHAR`（高優先權）才能進行比較。這種轉換發生在欄位端，破壞了 SARGability，導致無法使用索引搜尋。",
+      "en": "When a `VARCHAR` column is compared with an `NVARCHAR` parameter, SQL Server must convert the column content of every row to `NVARCHAR` (higher precedence) for comparison. This conversion happens on the column side, breaking SARGability and preventing index seek usage.",
+      "wg": [
+        {
+          "t": "破壞",
+          "en": "break",
+          "ps": "V"
+        }
+      ]
+    },
+    "verified": "2026-03-19T09:31:49"
+  },
+  {
+    "no": "4",
+    "level": "advanced",
+    "keywords": "Key Lookup, Covering Index, Tipping Point, Cost-Based Optimization",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "SELECT * FROM Orders WHERE OrderDate BETWEEN '2023-01-01' AND '2023-06-30';",
+    "question": [
+      {
+        "t": "假設 `Orders` 資料表有 1000 萬筆資料，且 `OrderDate` 上有一個非叢集索引 (Non-Clustered Index)。上述查詢範圍涵蓋了約 40% 的資料。",
+        "en": "Assume the `Orders` table has 10 million rows, and there is a Non-Clustered Index on `OrderDate`. The query range above covers about 40% of the data.",
+        "wg": [
+          {
+            "t": "涵蓋",
+            "en": "cover",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "優化器選擇了 Clustered Index Scan 而非 Non-Clustered Index Seek。為什麼優化器會做出這個決定？",
+        "en": "The optimizer chose a Clustered Index Scan instead of a Non-Clustered Index Seek. Why did the optimizer make this decision?",
+        "wg": [
+          {
+            "t": "決定",
+            "en": "decision",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 優化器發生故障，應該強制使用索引提示 (Index Hint)。",
+        "en": "(A) The optimizer malfunctioned; an Index Hint should be forced.",
+        "wg": [
+          {
+            "t": "故障",
+            "en": "malfunction",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(B) 因為 `SELECT *` 需要回表 (Key Lookup) 抓取其他欄位，對於 40% 的資料量，隨機 I/O 的成本遠高於循序掃描全表的成本。",
+        "en": "(B) Because `SELECT *` requires Key Lookups to fetch other columns, for 40% of the data, the cost of random I/O is much higher than the cost of sequentially scanning the entire table.",
+        "wg": [
+          {
+            "t": "回表",
+            "en": "Key Lookup",
+            "ps": "N"
+          },
+          {
+            "t": "循序",
+            "en": "sequential",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "(C) 非叢集索引損壞，導致無法使用。",
+        "en": "(C) The Non-Clustered Index is corrupted, making it unusable.",
+        "wg": [
+          {
+            "t": "損壞",
+            "en": "corrupted",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "(D) `BETWEEN` 語法是非 SARGable 的。",
+        "en": "(D) The `BETWEEN` syntax is non-SARGable.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "這涉及了「臨界點 (Tipping Point)」的概念。當查詢回傳的資料量超過一定比例（通常約 30%），透過非叢集索引進行 Seek 再加上大量的 Key Lookup（隨機 I/O），其成本會超過直接對叢集索引進行 Scan（循序 I/O）。",
+      "en": "This involves the concept of the 'Tipping Point'. When a query returns a percentage of data exceeding a certain threshold (usually around 30%), the cost of Seeking via a non-clustered index plus massive Key Lookups (random I/O) exceeds the cost of directly Scanning the clustered index (sequential I/O).",
+      "wg": [
+        {
+          "t": "臨界點",
+          "en": "tipping point",
+          "ps": "N"
+        },
+        {
+          "t": "門檻",
+          "en": "threshold",
+          "ps": "N"
+        }
+      ]
+    },
+    "verified": "2026-03-19T09:31:49"
+  },
+  {
+    "no": "5",
+    "level": "intermediate",
+    "keywords": "Wildcard, LIKE Operator, Index Usage, Anti-pattern",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "SELECT * FROM Customers WHERE LastName LIKE '%son';",
+    "question": [
+      {
+        "t": "您正在審查同事的 SQL 程式碼，發現了上述查詢。`LastName` 欄位上有索引。",
+        "en": "You are reviewing a colleague's SQL code and find the query above. There is an index on the `LastName` column.",
+        "wg": [
+          {
+            "t": "審查",
+            "en": "review",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "關於此查詢的效能，下列敘述何者正確？",
+        "en": "Regarding the performance of this query, which of the following statements is correct?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 由於使用了前導萬用字元 (Leading Wildcard)，SQL Server 無法利用索引排序進行 Seek，必須進行 Scan。",
+        "en": "(A) Due to the use of a leading wildcard, SQL Server cannot utilize index sorting for a Seek and must perform a Scan.",
+        "wg": [
+          {
+            "t": "前導萬用字元",
+            "en": "leading wildcard",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(B) 只要有索引，`LIKE` 運算子總是能執行 Index Seek。",
+        "en": "(B) As long as there is an index, the `LIKE` operator can always perform an Index Seek.",
+        "wg": []
+      },
+      {
+        "t": "(C) 只有當資料表資料量超過 100 萬筆時，這個查詢才會變慢。",
+        "en": "(C) This query will only become slow when the table data exceeds 1 million rows.",
+        "wg": []
+      },
+      {
+        "t": "(D) 應該將 `%` 移到字串末尾（如 `'son%'`）才能搜尋到以 'son' 結尾的名字。",
+        "en": "(D) The `%` should be moved to the end of the string (e.g., `'son%'`) to find names ending with 'son'.",
+        "wg": []
+      }
+    ],
+    "answer": "A",
+    "why": {
+      "t": "B-Tree 索引是按照字元順序由左至右排序的。如果查詢條件以萬用字元 `%` 開頭（例如找結尾是 'son' 的字），就像在字典裡找所有以 'son' 結尾的字一樣，無法利用排序快速定位，必須從頭檢查到尾（Scan）。",
+      "en": "B-Tree indexes are sorted from left to right by character. If a query condition starts with a wildcard `%` (e.g., finding words ending in 'son'), it's like trying to find all words ending in 'son' in a dictionary; you cannot use the sorting to locate them quickly and must check from beginning to end (Scan).",
+      "wg": [
+        {
+          "t": "定位",
+          "en": "locate",
+          "ps": "V"
+        }
+      ]
+    },
+    "verified": "2026-03-19T09:31:49"
+  },
+  {
+    "no": "6",
+    "level": "advanced",
+    "keywords": "ORM, N+1 Problem, Performance, System Design",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "// Pseudo-code using an ORM\nvar users = db.Users.Where(u => u.IsActive).ToList();\nforeach (var user in users) {\n    var orders = db.Orders.Where(o => o.UserId == user.Id).ToList();\n    // Process orders...\n}",
+    "question": [
+      {
+        "t": "這段虛擬程式碼展示了使用 ORM 時常見的「N+1 問題」。",
+        "en": "This pseudo-code demonstrates the common 'N+1 problem' when using an ORM.",
+        "wg": []
+      },
+      {
+        "t": "從資料庫負載與執行計畫的角度來看，這種寫法的主要缺點是什麼？",
+        "en": "From the perspective of database load and execution plans, what is the main drawback of this approach?",
+        "wg": [
+          {
+            "t": "負載",
+            "en": "load",
+            "ps": "N"
+          },
+          {
+            "t": "缺點",
+            "en": "drawback",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 它會產生一個極其複雜的 JOIN 查詢，導致編譯時間過長。",
+        "en": "(A) It generates an extremely complex JOIN query, leading to excessive compilation time.",
+        "wg": [
+          {
+            "t": "過長",
+            "en": "excessive",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "(B) 它會對資料庫發送 1 次查詢來取得使用者，再發送 N 次查詢來取得訂單，導致大量的網路往返與查詢開銷。",
+        "en": "(B) It sends 1 query to the database to get users, and then N queries to get orders, causing massive network round-trips and query overhead.",
+        "wg": [
+          {
+            "t": "往返",
+            "en": "round-trip",
+            "ps": "N"
+          },
+          {
+            "t": "開銷",
+            "en": "overhead",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) 它會導致資料庫鎖定整個 Users 資料表，直到迴圈結束。",
+        "en": "(C) It causes the database to lock the entire Users table until the loop finishes.",
+        "wg": []
+      },
+      {
+        "t": "(D) 它會強制資料庫使用 Table Scan 而非 Index Seek。",
+        "en": "(D) It forces the database to use a Table Scan instead of an Index Seek.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "N+1 問題是指應用程式發送了過多的小型查詢。雖然每個單獨查詢可能很快（Index Seek），但大量的網路延遲與資料庫連線開銷會嚴重拖累整體效能。最佳實務是使用 JOIN 或 Eager Loading 一次性取回所需資料。",
+      "en": "The N+1 problem refers to the application sending too many small queries. While each individual query might be fast (Index Seek), the massive network latency and database connection overhead will severely drag down overall performance. The best practice is to use JOINs or Eager Loading to fetch required data in one go.",
+      "wg": [
+        {
+          "t": "拖累",
+          "en": "drag down",
+          "ps": "V"
+        },
+        {
+          "t": "一次性",
+          "en": "in one go",
+          "ps": "Adv"
+        }
+      ]
+    },
+    "verified": "2026-03-19T09:31:49"
+  },
+  {
+    "no": "chapter03-q07",
+    "level": "advanced",
+    "keywords": "Statistics, Cardinality Estimation, Performance Tuning, Histograms",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "SELECT * FROM Sales.Orders WHERE OrderDate >= '2024-01-01';",
+    "question": [
+      {
+        "t": "您正在排查一個執行緩慢的查詢，並觀察其實際執行計畫（Actual Execution Plan）。",
+        "en": "You are troubleshooting a slow-running query and observing its Actual Execution Plan.",
+        "wg": [
+          {
+            "t": "排查",
+            "en": "troubleshooting",
+            "ps": "V"
+          },
+          {
+            "t": "實際執行計畫",
+            "en": "Actual Execution Plan",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "您注意到某個運算子的「預估資料列數」為 1，但「實際資料列數」卻高達 500,000。",
+        "en": "You notice that for a specific operator, the 'Estimated Number of Rows' is 1, but the 'Actual Number of Rows' is 500,000.",
+        "wg": [
+          {
+            "t": "預估資料列數",
+            "en": "Estimated Number of Rows",
+            "ps": "N"
+          },
+          {
+            "t": "實際資料列數",
+            "en": "Actual Number of Rows",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "已知該資料表最近剛完成了大量資料匯入作業。造成此差異最可能的原因是什麼？",
+        "en": "It is known that a large bulk data import was recently completed on this table. What is the most likely cause of this discrepancy?",
+        "wg": [
+          {
+            "t": "大量資料匯入",
+            "en": "large bulk data import",
+            "ps": "N"
+          },
+          {
+            "t": "差異",
+            "en": "discrepancy",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 索引碎片過多 (Index Fragmentation)。",
+        "en": "(A) Excessive Index Fragmentation.",
+        "wg": [
+          {
+            "t": "索引碎片",
+            "en": "Index Fragmentation",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(B) 統計資訊過期 (Stale Statistics)。",
+        "en": "(B) Stale Statistics.",
+        "wg": [
+          {
+            "t": "統計資訊",
+            "en": "Statistics",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) 參數嗅探 (Parameter Sniffing)。",
+        "en": "(C) Parameter Sniffing.",
+        "wg": []
+      },
+      {
+        "t": "(D) 發生了死結 (Deadlock)。",
+        "en": "(D) A Deadlock occurred.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "當大量資料寫入後，若統計資訊未更新，優化器會依據舊的直方圖（Histogram）進行估算，誤以為符合條件的資料很少（預估為 1），導致選擇了不適合大資料量的執行計畫（如 Nested Loop Join）。雖然參數嗅探也可能導致類似症狀，但題目特別提到「最近剛完成大量資料匯入」，這直接指向統計資訊未反映最新資料分佈的問題。",
+      "en": "When a large amount of data is inserted without updating statistics, the optimizer uses the old histogram for estimation, incorrectly assuming few rows match the criteria (Estimated 1), leading to a plan unsuitable for large datasets (e.g., Nested Loop Join). While Parameter Sniffing can cause similar symptoms, the mention of a 'recent large bulk data import' directly points to statistics not reflecting the latest data distribution.",
+      "wg": [
+        {
+          "t": "直方圖",
+          "en": "Histogram",
+          "ps": "N"
+        },
+        {
+          "t": "反映",
+          "en": "reflect",
+          "ps": "V"
+        }
+      ]
+    },
+    "verified": "2026-03-19T09:31:49"
+  },
+  {
+    "no": "chapter03-q08",
+    "level": "advanced",
+    "keywords": "OPTION (RECOMPILE), CPU Overhead, High Throughput, Query Compilation",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "CREATE PROCEDURE GetCustomerOrders (@CustomerID INT)\nAS\nSELECT * FROM Orders WHERE CustomerID = @CustomerID\nOPTION (RECOMPILE);",
+    "question": [
+      {
+        "t": "您正在審查一個高頻率交易系統（OLTP）的程式碼，該系統每秒約有 1,000 次查詢請求。",
+        "en": "You are reviewing code for a high-frequency OLTP system that handles approximately 1,000 query requests per second.",
+        "wg": [
+          {
+            "t": "高頻率",
+            "en": "high-frequency",
+            "ps": "Adj"
+          },
+          {
+            "t": "交易系統",
+            "en": "OLTP system",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "開發者為了徹底解決參數嗅探問題，在預存程序中加入了 `OPTION (RECOMPILE)`。",
+        "en": "To completely solve a parameter sniffing issue, the developer added `OPTION (RECOMPILE)` to the stored procedure.",
+        "wg": [
+          {
+            "t": "徹底解決",
+            "en": "completely solve",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "這種做法在負載極高的情況下，最可能產生什麼負面影響？",
+        "en": "What is the most likely negative impact of this approach under extremely high load?",
+        "wg": [
+          {
+            "t": "負面影響",
+            "en": "negative impact",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 造成嚴重的記憶體洩漏 (Memory Leak)。",
+        "en": "(A) Causes severe Memory Leaks.",
+        "wg": []
+      },
+      {
+        "t": "(B) 導致過高的 CPU 使用率 (High CPU Usage)。",
+        "en": "(B) Leads to excessively High CPU Usage.",
+        "wg": [
+          {
+            "t": "CPU 使用率",
+            "en": "CPU Usage",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) 增加磁碟 I/O 讀取量 (Increased Disk I/O)。",
+        "en": "(C) Increases Disk I/O reads.",
+        "wg": []
+      },
+      {
+        "t": "(D) 導致資料庫死結 (Deadlocks)。",
+        "en": "(D) Causes database Deadlocks.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "`OPTION (RECOMPILE)` 會強制 SQL Server 在「每次」執行時都重新編譯查詢計畫。編譯過程需要消耗 CPU 資源。在每秒 1,000 次請求的高頻場景下，這會導致 CPU 資源被編譯作業佔滿，而非用於執行查詢，從而嚴重影響系統吞吐量。",
+      "en": "`OPTION (RECOMPILE)` forces SQL Server to recompile the query plan on *every* execution. The compilation process consumes CPU resources. In a high-frequency scenario with 1,000 requests per second, this causes CPU resources to be saturated by compilation tasks rather than query execution, severely impacting system throughput.",
+      "wg": [
+        {
+          "t": "重新編譯",
+          "en": "recompile",
+          "ps": "V"
+        },
+        {
+          "t": "吞吐量",
+          "en": "throughput",
+          "ps": "N"
+        }
+      ]
+    },
+    "verified": "2026-03-19T09:31:49"
+  },
+  {
+    "no": "chapter03-q09",
+    "level": "intermediate",
+    "keywords": "Covering Index, INCLUDE, Key Lookup, Optimization",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "SELECT FirstName, LastName, Email\nFROM Users\nWHERE Status = 'Active';",
+    "question": [
+      {
+        "t": "假設 `Users` 資料表在 `Status` 欄位上有一個非叢集索引 (Non-Clustered Index)。",
+        "en": "Assume the `Users` table has a Non-Clustered Index on the `Status` column.",
+        "wg": [
+          {
+            "t": "非叢集索引",
+            "en": "Non-Clustered Index",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "執行上述查詢時，執行計畫顯示了 `Index Seek` 加上大量的 `Key Lookup` (RID Lookup) 操作。",
+        "en": "When executing the query above, the execution plan shows an `Index Seek` followed by extensive `Key Lookup` (RID Lookup) operations.",
+        "wg": [
+          {
+            "t": "鍵值查找",
+            "en": "Key Lookup",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "若要消除 `Key Lookup` 以提升效能，最佳的索引調整策略是什麼？",
+        "en": "To eliminate the `Key Lookup` and improve performance, what is the best index adjustment strategy?",
+        "wg": [
+          {
+            "t": "消除",
+            "en": "eliminate",
+            "ps": "V"
+          },
+          {
+            "t": "調整策略",
+            "en": "adjustment strategy",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 將 `Status` 索引刪除，改用全表掃描。",
+        "en": "(A) Drop the `Status` index and use a full table scan instead.",
+        "wg": []
+      },
+      {
+        "t": "(B) 建立一個包含 `FirstName`, `LastName`, `Email` 的新索引，但不包含 `Status`。",
+        "en": "(B) Create a new index on `FirstName`, `LastName`, and `Email`, excluding `Status`.",
+        "wg": []
+      },
+      {
+        "t": "(C) 修改現有索引，將 `FirstName`, `LastName`, `Email` 加入到 INCLUDE 子句中。",
+        "en": "(C) Modify the existing index to add `FirstName`, `LastName`, and `Email` to the INCLUDE clause.",
+        "wg": [
+          {
+            "t": "INCLUDE 子句",
+            "en": "INCLUDE clause",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(D) 將查詢改為 `SELECT *` 以強制使用叢集索引。",
+        "en": "(D) Change the query to `SELECT *` to force the use of the Clustered Index.",
+        "wg": []
+      }
+    ],
+    "answer": "C",
+    "why": {
+      "t": "Key Lookup 發生是因為索引只包含 `Status`，但查詢還需要 `FirstName` 等其他欄位，導致引擎必須回查主表。使用 `INCLUDE` 子句建立「覆蓋索引 (Covering Index)」可以讓索引葉節點直接包含所需資料，使查詢僅需讀取索引即可完成，消除額外的 I/O 開銷。",
+      "en": "Key Lookups occur because the index only contains `Status`, but the query requires other columns like `FirstName`, forcing the engine to look up the main table. Using the `INCLUDE` clause to create a 'Covering Index' allows the index leaf nodes to contain the required data directly, enabling the query to be satisfied by reading the index alone, eliminating extra I/O overhead.",
+      "wg": [
+        {
+          "t": "覆蓋索引",
+          "en": "Covering Index",
+          "ps": "N"
+        },
+        {
+          "t": "開銷",
+          "en": "overhead",
+          "ps": "N"
+        }
+      ]
+    },
+    "verified": "2026-03-19T13:37:24"
+  },
+  {
+    "no": "chapter03-q10",
+    "level": "advanced",
+    "keywords": "Tipping Point, Random I/O, Sequential I/O, Index Scan",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "SELECT * FROM Orders WHERE OrderDate > '2023-01-01';",
+    "question": [
+      {
+        "t": "上述查詢回傳了資料表中約 40% 的資料列。儘管 `OrderDate` 上有建立索引，SQL Server 卻選擇了 `Clustered Index Scan` 而非 `Index Seek`。",
+        "en": "The query above returns about 40% of the rows in the table. Even though there is an index on `OrderDate`, SQL Server chose a `Clustered Index Scan` instead of an `Index Seek`.",
+        "wg": [
+          {
+            "t": "回傳",
+            "en": "returns",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "為什麼優化器在這種情況下會認為「掃描 (Scan)」比「搜尋 (Seek)」更有效率？",
+        "en": "Why does the optimizer consider a 'Scan' to be more efficient than a 'Seek' in this scenario?",
+        "wg": [
+          {
+            "t": "有效率",
+            "en": "efficient",
+            "ps": "Adj"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 因為掃描使用的是循序 I/O (Sequential I/O)，而大量的 Key Lookup 會產生昂貴的隨機 I/O (Random I/O)。",
+        "en": "(A) Because a Scan uses Sequential I/O, whereas extensive Key Lookups generate expensive Random I/O.",
+        "wg": [
+          {
+            "t": "循序 I/O",
+            "en": "Sequential I/O",
+            "ps": "N"
+          },
+          {
+            "t": "隨機 I/O",
+            "en": "Random I/O",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(B) 因為索引搜尋 (Index Seek) 無法處理日期型別的資料。",
+        "en": "(B) Because Index Seek cannot handle date data types.",
+        "wg": []
+      },
+      {
+        "t": "(C) 因為優化器發生了錯誤，這是一個 Bug。",
+        "en": "(C) Because the optimizer made a mistake; this is a bug.",
+        "wg": []
+      },
+      {
+        "t": "(D) 因為掃描可以避免鎖定資料表，提高並發性。",
+        "en": "(D) Because a Scan avoids locking the table, improving concurrency.",
+        "wg": []
+      }
+    ],
+    "answer": "A",
+    "why": {
+      "t": "這涉及了「臨界點 (Tipping Point)」的概念。當查詢回傳的資料量超過一定比例（通常約 30% 或更高），透過非叢集索引進行 Seek 再加上回表（Key Lookup）所產生的隨機 I/O 成本，會遠高於直接對整張表進行循序掃描 (Scan) 的成本。因此優化器會選擇 Scan。",
+      "en": "This involves the concept of the 'Tipping Point'. When a query returns a percentage of data exceeding a certain threshold (often around 30% or higher), the cost of Random I/O generated by seeking a non-clustered index plus lookups (Key Lookup) far exceeds the cost of sequentially scanning the entire table (Scan). Therefore, the optimizer chooses the Scan.",
+      "wg": [
+        {
+          "t": "臨界點",
+          "en": "Tipping Point",
+          "ps": "N"
+        },
+        {
+          "t": "閾值",
+          "en": "threshold",
+          "ps": "N"
+        }
+      ]
+    },
+    "verified": "2026-03-19T13:37:24"
+  },
+  {
+    "no": "chapter03-q11",
+    "level": "intermediate",
+    "keywords": "Environment Parity, Data Volume, Memory, Performance Testing",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "某個查詢在開發環境（1 萬筆資料）執行僅需 10 毫秒，但在正式環境（1 億筆資料）卻需要 30 秒。",
+        "en": "A query takes only 10ms to execute in the development environment (10k rows) but takes 30 seconds in the production environment (100M rows).",
+        "wg": [
+          {
+            "t": "開發環境",
+            "en": "development environment",
+            "ps": "N"
+          },
+          {
+            "t": "正式環境",
+            "en": "production environment",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "除了資料量差異外，導致開發環境無法重現此效能問題的最常見原因是什麼？",
+        "en": "Besides the difference in data volume, what is the most common reason why the development environment fails to reproduce this performance issue?",
+        "wg": [
+          {
+            "t": "重現",
+            "en": "reproduce",
+            "ps": "V"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 開發環境通常使用較慢的硬體，掩蓋了問題。",
+        "en": "(A) The development environment usually uses slower hardware, masking the problem.",
+        "wg": []
+      },
+      {
+        "t": "(B) 開發環境的小型資料集能完全放入記憶體，掩蓋了非 SARGable 查詢或全表掃描的 I/O 成本。",
+        "en": "(B) The small dataset in development fits entirely in memory, masking the I/O costs of non-SARGable queries or full table scans.",
+        "wg": [
+          {
+            "t": "放入記憶體",
+            "en": "fits in memory",
+            "ps": "V"
+          },
+          {
+            "t": "掩蓋",
+            "en": "masking",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(C) 正式環境的網路延遲通常比開發環境高出許多。",
+        "en": "(C) Network latency in production is usually much higher than in development.",
+        "wg": []
+      },
+      {
+        "t": "(D) 開發環境的 SQL Server 版本通常比正式環境新。",
+        "en": "(D) The SQL Server version in development is usually newer than in production.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "在小資料量環境中，即使是效率低下的全表掃描 (Table Scan) 或非 SARGable 查詢，因為資料頁面可以全部快取在記憶體中，執行速度依然很快。這會產生「假象」，讓開發者誤以為查詢已優化。到了正式環境，海量資料無法全入記憶體，實體磁碟 I/O 的延遲就會暴露出來。",
+      "en": "In a small dataset environment, even inefficient operations like Table Scans or non-SARGable queries run fast because all data pages can be cached in memory. This creates an 'illusion' that the query is optimized. In production, where massive data cannot fit entirely in memory, the latency of physical disk I/O becomes exposed.",
+      "wg": [
+        {
+          "t": "假象",
+          "en": "illusion",
+          "ps": "N"
+        },
+        {
+          "t": "暴露",
+          "en": "exposed",
+          "ps": "V"
+        }
+      ]
+    },
+    "verified": "2026-03-19T13:37:24"
+  },
+  {
+    "no": "12",
+    "level": "intermediate",
+    "keywords": "Composite Index, Leftmost Prefix, Index Scan, B-Tree",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "CREATE INDEX IX_Sales_Region_Date \nON Sales.Orders (RegionID, OrderDate);\n\n-- Query\nSELECT OrderID, CustomerID \nFROM Sales.Orders \nWHERE OrderDate >= '2023-01-01';",
+    "question": [
+      {
+        "t": "您在 `Sales.Orders` 資料表上建立了一個複合索引 (Composite Index) `(RegionID, OrderDate)`。",
+        "en": "You have created a composite index `(RegionID, OrderDate)` on the `Sales.Orders` table.",
+        "wg": [
+          {
+            "t": "複合索引",
+            "en": "composite index",
+            "ps": "N"
+          },
+          {
+            "t": "資料表",
+            "en": "table",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "當執行上述查詢時，您預期 SQL Server 會採取哪種存取模式？",
+        "en": "When executing the query above, what access pattern do you expect SQL Server to take?",
+        "wg": [
+          {
+            "t": "存取模式",
+            "en": "access pattern",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) Index Seek，因為 `OrderDate` 包含在索引中。",
+        "en": "(A) Index Seek, because `OrderDate` is included in the index.",
+        "wg": []
+      },
+      {
+        "t": "(B) Index Scan，因為查詢條件未包含索引的第一個欄位 `RegionID`。",
+        "en": "(B) Index Scan, because the query predicate does not include the first column of the index, `RegionID`.",
+        "wg": [
+          {
+            "t": "查詢條件",
+            "en": "query predicate",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) Key Lookup，因為索引不包含 `OrderID` 與 `CustomerID`。",
+        "en": "(C) Key Lookup, because the index does not contain `OrderID` and `CustomerID`.",
+        "wg": []
+      },
+      {
+        "t": "(D) Seek Predicate，因為 B-Tree 可以從任意欄位開始搜尋。",
+        "en": "(D) Seek Predicate, because a B-Tree can start searching from any column.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "複合索引遵循「最左前綴 (Leftmost Prefix)」規則。B-Tree 是先依照 `RegionID` 排序，再依照 `OrderDate` 排序。若未指定 `RegionID`，引擎無法直接跳轉到特定的 `OrderDate`，必須掃描整個索引 (Index Scan)。",
+      "en": "Composite indexes follow the 'Leftmost Prefix' rule. The B-Tree is sorted first by `RegionID`, then by `OrderDate`. Without specifying `RegionID`, the engine cannot jump directly to a specific `OrderDate` and must scan the entire index (Index Scan).",
+      "wg": [
+        {
+          "t": "最左前綴",
+          "en": "Leftmost Prefix",
+          "ps": "N"
+        },
+        {
+          "t": "排序",
+          "en": "sorted",
+          "ps": "V"
+        }
+      ]
+    },
+    "verified": "2026-03-19T13:37:24"
+  },
+  {
+    "no": "13",
+    "level": "advanced",
+    "keywords": "OPTION (OPTIMIZE FOR UNKNOWN), Parameter Sniffing, CPU Load, Plan Stability",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "CREATE PROCEDURE GetCustomerOrders (@StatusID INT)\nAS\n    SELECT * FROM Orders WHERE StatusID = @StatusID;\n-- Current issue: Parameter Sniffing causing timeouts.\n-- Constraint: High frequency execution (1000+ TPS).",
+    "question": [
+      {
+        "t": "您遇到嚴重的參數嗅探 (Parameter Sniffing) 問題，導致執行計畫不穩定。",
+        "en": "You are encountering severe Parameter Sniffing issues leading to unstable execution plans.",
+        "wg": [
+          {
+            "t": "不穩定",
+            "en": "unstable",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "您嘗試使用 `OPTION (RECOMPILE)`，但發現伺服器 CPU 使用率飆升至無法接受的程度。",
+        "en": "You tried using `OPTION (RECOMPILE)`, but found that the server CPU usage spiked to unacceptable levels.",
+        "wg": [
+          {
+            "t": "飆升",
+            "en": "spiked",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "在不修改應用程式呼叫方式的前提下，哪一個選項最能平衡「計畫穩定性」與「CPU 成本」？",
+        "en": "Without changing how the application calls the procedure, which option best balances 'plan stability' and 'CPU cost'?",
+        "wg": [
+          {
+            "t": "平衡",
+            "en": "balance",
+            "ps": "V"
+          },
+          {
+            "t": "穩定性",
+            "en": "stability",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 使用 `OPTION (OPTIMIZE FOR UNKNOWN)`。",
+        "en": "(A) Use `OPTION (OPTIMIZE FOR UNKNOWN)`.",
+        "wg": []
+      },
+      {
+        "t": "(B) 強制使用 `INDEX HINT` 固定特定索引。",
+        "en": "(B) Force a specific index using an `INDEX HINT`.",
+        "wg": []
+      },
+      {
+        "t": "(C) 將預存程序改寫為動態 SQL (Dynamic SQL)。",
+        "en": "(C) Rewrite the stored procedure as Dynamic SQL.",
+        "wg": []
+      },
+      {
+        "t": "(D) 停用該資料表的統計資訊自動更新 (Auto Update Statistics)。",
+        "en": "(D) Disable Auto Update Statistics for the table.",
+        "wg": []
+      }
+    ],
+    "answer": "A",
+    "why": {
+      "t": "`OPTION (OPTIMIZE FOR UNKNOWN)` 會指示優化器忽略執行時的具體參數值，改用統計資訊中的平均密度 (Density Vector) 來產生一個「中庸」的計畫。這避免了每次執行的重新編譯成本 (RECOMPILE)，同時防止極端參數值造成的計畫偏差。",
+      "en": "`OPTION (OPTIMIZE FOR UNKNOWN)` instructs the optimizer to ignore the specific parameter value at runtime and instead use the average density (Density Vector) from statistics to generate a 'mediocre' but safe plan. This avoids the recompilation cost of `RECOMPILE` while preventing plan skew from extreme parameter values.",
+      "wg": [
+        {
+          "t": "平均密度",
+          "en": "average density",
+          "ps": "N"
+        },
+        {
+          "t": "中庸",
+          "en": "mediocre/moderate",
+          "ps": "Adj"
+        }
+      ]
+    },
+    "verified": "2026-03-19T13:37:24"
+  },
+  {
+    "no": "14",
+    "level": "advanced",
+    "keywords": "Statistics, ETL, Cardinality Estimation, Performance Degradation",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "-- Scenario: \n-- 1. Nightly ETL loads 2 million rows into 'Sales' table.\n-- 2. Morning reports run extremely slow.\n-- 3. Execution Plan shows 'Estimated Rows: 1', 'Actual Rows: 2,000,000'.",
+    "question": [
+      {
+        "t": "某個夜間 ETL 作業將大量資料寫入 `Sales` 資料表後，隔天的報表查詢效能急劇下降。",
+        "en": "After a nightly ETL job loads a large amount of data into the `Sales` table, the next day's report query performance drops drastically.",
+        "wg": [
+          {
+            "t": "急劇下降",
+            "en": "drops drastically",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "觀察執行計畫發現，優化器選擇了 Nested Loops Join，因為它預估只會回傳 1 筆資料，但實際上回傳了 200 萬筆。",
+        "en": "Observing the execution plan, the optimizer chose a Nested Loops Join because it estimated only 1 row would be returned, but actually 2 million rows were returned.",
+        "wg": [
+          {
+            "t": "預估",
+            "en": "estimated",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "最根本的解決方案是什麼？",
+        "en": "What is the root solution?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 在 ETL 流程結束後，執行 `UPDATE STATISTICS`。",
+        "en": "(A) Execute `UPDATE STATISTICS` after the ETL process finishes.",
+        "wg": []
+      },
+      {
+        "t": "(B) 使用 `OPTION (MAXDOP 1)` 強制單執行緒執行。",
+        "en": "(B) Use `OPTION (MAXDOP 1)` to force single-threaded execution.",
+        "wg": []
+      },
+      {
+        "t": "(C) 建立更多的非叢集索引 (Non-Clustered Indexes)。",
+        "en": "(C) Create more Non-Clustered Indexes.",
+        "wg": []
+      },
+      {
+        "t": "(D) 將資料表改為記憶體最佳化資料表 (Memory-Optimized Table)。",
+        "en": "(D) Convert the table to a Memory-Optimized Table.",
+        "wg": []
+      }
+    ],
+    "answer": "A",
+    "why": {
+      "t": "大量資料寫入後，統計資訊 (Statistics) 可能尚未觸發自動更新，導致優化器使用過期的直方圖 (Histogram) 進行估算。手動更新統計資訊可確保優化器掌握正確的資料分佈，進而選擇正確的 Join 演算法 (如 Hash Match)。",
+      "en": "After a large data load, statistics might not have triggered an auto-update yet, causing the optimizer to use outdated histograms for estimation. Manually updating statistics ensures the optimizer has the correct data distribution, leading to the choice of the correct Join algorithm (e.g., Hash Match).",
+      "wg": [
+        {
+          "t": "直方圖",
+          "en": "histogram",
+          "ps": "N"
+        },
+        {
+          "t": "資料分佈",
+          "en": "data distribution",
+          "ps": "N"
+        }
+      ]
+    },
+    "verified": "2026-03-19T13:37:24"
+  },
+  {
+    "no": "15",
+    "level": "intermediate",
+    "keywords": "Sort Operator, Index Order, Performance Tuning, Execution Plan",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "SELECT TOP 50 * \nFROM AuditLogs \nORDER BY LogDate DESC;",
+    "question": [
+      {
+        "t": "您正在優化上述查詢，該查詢用於顯示最新的 50 筆稽核日誌。",
+        "en": "You are optimizing the query above, which is used to display the latest 50 audit logs.",
+        "wg": [
+          {
+            "t": "稽核日誌",
+            "en": "audit logs",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "目前的執行計畫顯示一個高成本的 `Sort` 運算子，導致記憶體使用量高且回應緩慢。",
+        "en": "The current execution plan shows a high-cost `Sort` operator, causing high memory usage and slow response.",
+        "wg": [
+          {
+            "t": "運算子",
+            "en": "operator",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "為了消除這個 `Sort` 運算子，您應該採取什麼行動？",
+        "en": "To eliminate this `Sort` operator, what action should you take?",
+        "wg": [
+          {
+            "t": "消除",
+            "en": "eliminate",
+            "ps": "V"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 在 `LogDate` 上建立索引。",
+        "en": "(A) Create an index on `LogDate`.",
+        "wg": []
+      },
+      {
+        "t": "(B) 將查詢改為 `SELECT DISTINCT`。",
+        "en": "(B) Change the query to `SELECT DISTINCT`.",
+        "wg": []
+      },
+      {
+        "t": "(C) 增加伺服器的 RAM。",
+        "en": "(C) Increase the server's RAM.",
+        "wg": []
+      },
+      {
+        "t": "(D) 使用 `OPTION (FAST 50)` 提示。",
+        "en": "(D) Use the `OPTION (FAST 50)` hint.",
+        "wg": []
+      }
+    ],
+    "answer": "A",
+    "why": {
+      "t": "B-Tree 索引本質上是已排序的。若在 `LogDate` 上建立索引，SQL Server 可以直接從索引尾端反向掃描 (Backward Scan) 50 筆資料，完全不需要執行昂貴的排序 (Sort) 操作。",
+      "en": "B-Tree indexes are inherently sorted. If you create an index on `LogDate`, SQL Server can simply scan backward 50 rows from the end of the index, completely avoiding the expensive Sort operation.",
+      "wg": [
+        {
+          "t": "本質上",
+          "en": "inherently",
+          "ps": "Adv"
+        },
+        {
+          "t": "反向掃描",
+          "en": "Backward Scan",
+          "ps": "N"
+        }
+      ]
+    },
+    "verified": "2026-03-19T13:37:24"
+  }
+]

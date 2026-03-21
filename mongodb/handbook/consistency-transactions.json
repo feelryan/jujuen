@@ -32,13 +32,13 @@
     "type": "Single Choice",
     "options": [
       {
-        "t": "這是 MongoDB 的 Bug，因為 `w:1` 應該保證資料已寫入硬碟。",
-        "en": "This is a MongoDB bug, as `w:1` should guarantee data is written to disk.",
+        "t": "(A) 這是 MongoDB 的 Bug，因為 `w:1` 應該保證資料已寫入硬碟。",
+        "en": "(A) This is a MongoDB bug, as `w:1` should guarantee data is written to disk.",
         "wg": []
       },
       {
-        "t": "資料發生了回滾（Rollback）。`w:1` 僅保證 Primary 收到資料，若在同步到 Secondary 之前 Primary 當機，該筆資料會在舊 Primary 重新加入叢集時被回滾。",
-        "en": "Data rollback occurred. `w:1` only guarantees the Primary received the data. If the Primary crashes before replicating to a Secondary, the data will be rolled back when the old Primary rejoins.",
+        "t": "(B) 資料發生了回滾（Rollback）。`w:1` 僅保證 Primary 收到資料，若在同步到 Secondary 之前 Primary 當機，該筆資料會在舊 Primary 重新加入叢集時被回滾。",
+        "en": "(B) Data rollback occurred. `w:1` only guarantees the Primary received the data. If the Primary crashes before replicating to a Secondary, the data will be rolled back when the old Primary rejoins.",
         "wg": [
           {
             "t": "回滾",
@@ -48,17 +48,17 @@
         ]
       },
       {
-        "t": "這是因為沒有開啟交易（Transaction）。只有多文件交易才能保證資料持久性。",
-        "en": "This is because no transaction was used. Only multi-document transactions guarantee durability.",
+        "t": "(C) 這是因為沒有開啟交易（Transaction）。只有多文件交易才能保證資料持久性。",
+        "en": "(C) This is because no transaction was used. Only multi-document transactions guarantee durability.",
         "wg": []
       },
       {
-        "t": "這是因為 `Read Concern` 設定錯誤，導致應用程式讀不到剛寫入的資料。",
-        "en": "This is due to an incorrect `Read Concern` setting, causing the application to miss the newly written data.",
+        "t": "(D) 這是因為 `Read Concern` 設定錯誤，導致應用程式讀不到剛寫入的資料。",
+        "en": "(D) This is due to an incorrect `Read Concern` setting, causing the application to miss the newly written data.",
         "wg": []
       }
     ],
-    "answer": "1",
+    "answer": "B",
     "why": {
       "t": "在 MongoDB 中，`w:1` 僅代表 Primary 已在記憶體中確認寫入（是否落盤取決於 `j` 參數，但通常不等待）。若資料尚未複製到大多數節點（Majority），一旦 Primary 崩潰且新選出的 Primary 沒有這筆資料，舊 Primary 恢復後會將該筆未同步的寫入視為「分歧」並執行回滾。要避免此情況，關鍵寫入必須使用 `w: majority`。",
       "en": "In MongoDB, `w:1` only confirms the write on the Primary's memory (disk persistence depends on `j`, but usually isn't waited for). If the data hasn't replicated to a majority of nodes, and the Primary crashes, the new Primary might not have this data. When the old Primary recovers, it rolls back the divergent write. To prevent this, critical writes must use `w: majority`.",
@@ -69,7 +69,8 @@
           "ps": "adjective"
         }
       ]
-    }
+    },
+    "verified": "2026-03-20T09:31:17"
   },
   {
     "no": "2",
@@ -99,13 +100,13 @@
     "type": "Single Choice",
     "options": [
       {
-        "t": "必須使用多文件交易（Multi-document Transaction），在一個交易中同時寫入 `comments` 並更新 `posts`。",
-        "en": "Must use a Multi-document Transaction to write to `comments` and update `posts` within a single transaction.",
+        "t": "(A) 必須使用多文件交易（Multi-document Transaction），在一個交易中同時寫入 `comments` 並更新 `posts`。",
+        "en": "(A) Must use a Multi-document Transaction to write to `comments` and update `posts` within a single transaction.",
         "wg": []
       },
       {
-        "t": "應優先考慮將評論嵌入（Embed）在 `posts` 文件中（如果評論數量有限），利用單一文件原子性來完成操作，避免使用交易。",
-        "en": "Should prioritize embedding comments within the `posts` document (if comment count is bounded) to leverage single-document atomicity and avoid transactions.",
+        "t": "(B) 應優先考慮將評論嵌入（Embed）在 `posts` 文件中（如果評論數量有限），利用單一文件原子性來完成操作，避免使用交易。",
+        "en": "(B) Should prioritize embedding comments within the `posts` document (if comment count is bounded) to leverage single-document atomicity and avoid transactions.",
         "wg": [
           {
             "t": "嵌入",
@@ -120,22 +121,23 @@
         ]
       },
       {
-        "t": "先寫入 `comments`，再更新 `posts`。如果第二步失敗，讓前端顯示錯誤即可，不需要保證一致性。",
-        "en": "Write to `comments` first, then update `posts`. If the second step fails, just show an error on the frontend; consistency is not required.",
+        "t": "(C) 先寫入 `comments`，再更新 `posts`。如果第二步失敗，讓前端顯示錯誤即可，不需要保證一致性。",
+        "en": "(C) Write to `comments` first, then update `posts`. If the second step fails, just show an error on the frontend; consistency is not required.",
         "wg": []
       },
       {
-        "t": "使用 `GridFS` 來儲存評論，這樣可以自動保證計數一致性。",
-        "en": "Use `GridFS` to store comments, which automatically guarantees count consistency.",
+        "t": "(D) 使用 `GridFS` 來儲存評論，這樣可以自動保證計數一致性。",
+        "en": "(D) Use `GridFS` to store comments, which automatically guarantees count consistency.",
         "wg": []
       }
     ],
-    "answer": "1",
+    "answer": "B",
     "why": {
       "t": "MongoDB 的核心原則是「能用單一文件解決的，就不要用多文件交易」。若評論數量在合理範圍內（例如數百則），將評論嵌入文章文件中是最高效且天然具備原子性的做法。只有當無法透過 Schema 優化（例如評論無限增長）時，才考慮使用多文件交易。",
       "en": "A core MongoDB principle is 'if it can be solved with a single document, do not use multi-document transactions'. If the number of comments is reasonable, embedding them in the post document is the most efficient and naturally atomic approach. Multi-document transactions should only be considered when schema optimization (like embedding) is not feasible.",
       "wg": []
-    }
+    },
+    "verified": "2026-03-20T09:31:17"
   },
   {
     "no": "3",
@@ -160,13 +162,13 @@
     "type": "Single Choice",
     "options": [
       {
-        "t": "缺少了 `Write Concern: majority` 的設定，這在交易中是強制的。",
-        "en": "It lacks the `Write Concern: majority` setting, which is mandatory in transactions.",
+        "t": "(A) 缺少了 `Write Concern: majority` 的設定，這在交易中是強制的。",
+        "en": "(A) It lacks the `Write Concern: majority` setting, which is mandatory in transactions.",
         "wg": []
       },
       {
-        "t": "缺少了針對 `TransientTransactionError` 與 `UnknownTransactionCommitResult` 的重試邏輯（Retry Logic）。",
-        "en": "It lacks retry logic for `TransientTransactionError` and `UnknownTransactionCommitResult`.",
+        "t": "(B) 缺少了針對 `TransientTransactionError` 與 `UnknownTransactionCommitResult` 的重試邏輯（Retry Logic）。",
+        "en": "(B) It lacks retry logic for `TransientTransactionError` and `UnknownTransactionCommitResult`.",
         "wg": [
           {
             "t": "重試邏輯",
@@ -176,17 +178,17 @@
         ]
       },
       {
-        "t": "`abortTransaction` 不應該在 `catch` 區塊中呼叫，MongoDB 會自動處理。",
-        "en": "`abortTransaction` should not be called in the `catch` block; MongoDB handles it automatically.",
+        "t": "(C) `abortTransaction` 不應該在 `catch` 區塊中呼叫，MongoDB 會自動處理。",
+        "en": "(C) `abortTransaction` should not be called in the `catch` block; MongoDB handles it automatically.",
         "wg": []
       },
       {
-        "t": "交易只能用於更新（Update），不能用於插入（Insert）。",
-        "en": "Transactions can only be used for updates, not inserts.",
+        "t": "(D) 交易只能用於更新（Update），不能用於插入（Insert）。",
+        "en": "(D) Transactions can only be used for updates, not inserts.",
         "wg": []
       }
     ],
-    "answer": "1",
+    "answer": "B",
     "why": {
       "t": "MongoDB 的交易可能會遇到暫時性的錯誤（如標籤為 `TransientTransactionError` 的錯誤），此時應該重試整個交易。手寫 `try-catch` 往往會遺漏這種標準的重試模式。最佳實務是使用 Driver 提供的 `session.withTransaction(callback)` 輔助函式，它內建了完整的重試機制。",
       "en": "MongoDB transactions can encounter transient errors (labeled `TransientTransactionError`), requiring the entire transaction to be retried. Manual `try-catch` blocks often miss this standard retry pattern. The best practice is to use the driver's `session.withTransaction(callback)` helper, which has built-in retry mechanisms.",
@@ -202,7 +204,8 @@
           "ps": "noun"
         }
       ]
-    }
+    },
+    "verified": "2026-03-20T09:31:17"
   },
   {
     "no": "4",
@@ -232,13 +235,13 @@
     "type": "Single Choice",
     "options": [
       {
-        "t": "因為 HTTP 請求不是原子性的，無法回滾。",
-        "en": "Because HTTP requests are not atomic and cannot be rolled back.",
+        "t": "(A) 因為 HTTP 請求不是原子性的，無法回滾。",
+        "en": "(A) Because HTTP requests are not atomic and cannot be rolled back.",
         "wg": []
       },
       {
-        "t": "這會導致交易執行時間過長，佔用鎖定資源，增加 WiredTiger Cache 壓力，並可能觸發 60 秒的交易超時。",
-        "en": "It causes the transaction to run too long, holding locks, increasing WiredTiger Cache pressure, and potentially triggering the 60-second transaction timeout.",
+        "t": "(B) 這會導致交易執行時間過長，佔用鎖定資源，增加 WiredTiger Cache 壓力，並可能觸發 60 秒的交易超時。",
+        "en": "(B) It causes the transaction to run too long, holding locks, increasing WiredTiger Cache pressure, and potentially triggering the 60-second transaction timeout.",
         "wg": [
           {
             "t": "鎖定資源",
@@ -253,17 +256,17 @@
         ]
       },
       {
-        "t": "因為 MongoDB 的 Driver 不支援在交易 callback 中使用 `await`。",
-        "en": "Because MongoDB drivers do not support using `await` inside transaction callbacks.",
+        "t": "(C) 因為 MongoDB 的 Driver 不支援在交易 callback 中使用 `await`。",
+        "en": "(C) Because MongoDB drivers do not support using `await` inside transaction callbacks.",
         "wg": []
       },
       {
-        "t": "這會導致外部 API 重複扣款。",
-        "en": "This will cause the external API to double-charge.",
+        "t": "(D) 這會導致外部 API 重複扣款。",
+        "en": "(D) This will cause the external API to double-charge.",
         "wg": []
       }
     ],
-    "answer": "1",
+    "answer": "B",
     "why": {
       "t": "長時間運行的交易（Long-running transactions）是效能殺手。在交易中等待網路 I/O 會長時間持有資料庫鎖，阻塞其他操作，並且未提交的資料會累積在儲存引擎的 Cache 中。此外，MongoDB 預設交易超時僅 60 秒，外部呼叫很容易導致交易失敗。正確做法是先完成外部操作，再進行快速的資料庫交易寫入。",
       "en": "Long-running transactions are performance killers. Waiting for network I/O inside a transaction holds database locks for a long time, blocking other operations, and uncommitted data accumulates in the storage engine cache. Also, the default transaction timeout is only 60 seconds. The correct approach is to complete external operations first, then perform a quick database transaction.",
@@ -279,7 +282,8 @@
           "ps": "verb"
         }
       ]
-    }
+    },
+    "verified": "2026-03-20T09:31:17"
   },
   {
     "no": "5",
@@ -309,13 +313,13 @@
     "type": "Single Choice",
     "options": [
       {
-        "t": "使用 `Write Concern: w:0` 來加速寫入。",
-        "en": "Use `Write Concern: w:0` to speed up writes.",
+        "t": "(A) 使用 `Write Concern: w:0` 來加速寫入。",
+        "en": "(A) Use `Write Concern: w:0` to speed up writes.",
         "wg": []
       },
       {
-        "t": "使用 Causal Consistency（因果一致性），在同一個 Session 中執行寫入與隨後的讀取。",
-        "en": "Use Causal Consistency, executing the write and the subsequent read within the same Session.",
+        "t": "(B) 使用 Causal Consistency（因果一致性），在同一個 Session 中執行寫入與隨後的讀取。",
+        "en": "(B) Use Causal Consistency, executing the write and the subsequent read within the same Session.",
         "wg": [
           {
             "t": "因果一致性",
@@ -325,22 +329,23 @@
         ]
       },
       {
-        "t": "強制將該讀取操作的 `Read Concern` 設為 `linearizable`。",
-        "en": "Force the `Read Concern` of that read operation to `linearizable`.",
+        "t": "(C) 強制將該讀取操作的 `Read Concern` 設為 `linearizable`。",
+        "en": "(C) Force the `Read Concern` of that read operation to `linearizable`.",
         "wg": []
       },
       {
-        "t": "在讀取前加入 1 秒鐘的 `sleep`。",
-        "en": "Add a 1-second `sleep` before reading.",
+        "t": "(D) 在讀取前加入 1 秒鐘的 `sleep`。",
+        "en": "(D) Add a 1-second `sleep` before reading.",
         "wg": []
       }
     ],
-    "answer": "1",
+    "answer": "B",
     "why": {
       "t": "這是典型的「讀取自己的寫入（Read-your-own-writes）」場景。透過使用 MongoDB 的 Causal Consistency Session，驅動程式會追蹤操作時間（Cluster Time），確保在 Session 內的讀取操作只會發生在寫入操作之後，即使讀取請求被路由到了 Secondary 節點。",
       "en": "This is a typical 'Read-your-own-writes' scenario. By using MongoDB's Causal Consistency Session, the driver tracks operation time (Cluster Time) to ensure that reads within the session happen logically after the writes, even if the read request is routed to a Secondary node.",
       "wg": []
-    }
+    },
+    "verified": "2026-03-20T09:31:17"
   },
   {
     "no": "6",
@@ -365,13 +370,13 @@
     "type": "Single Choice",
     "options": [
       {
-        "t": "你可以在交易內自由建立 Collection 或 Index，就像在 RDBMS 中一樣。",
-        "en": "You can freely create Collections or Indexes within a transaction, just like in an RDBMS.",
+        "t": "(A) 你可以在交易內自由建立 Collection 或 Index，就像在 RDBMS 中一樣。",
+        "en": "(A) You can freely create Collections or Indexes within a transaction, just like in an RDBMS.",
         "wg": []
       },
       {
-        "t": "交易內禁止大多數的 DDL 操作（如 `createIndex`），應在應用程式啟動時預先建立好 Schema 結構。",
-        "en": "Most DDL operations (like `createIndex`) are prohibited within transactions; schema structures should be pre-created at application startup.",
+        "t": "(B) 交易內禁止大多數的 DDL 操作（如 `createIndex`），應在應用程式啟動時預先建立好 Schema 結構。",
+        "en": "(B) Most DDL operations (like `createIndex`) are prohibited within transactions; schema structures should be pre-created at application startup.",
         "wg": [
           {
             "t": "資料定義語言",
@@ -381,22 +386,23 @@
         ]
       },
       {
-        "t": "交易的大小沒有任何限制，可以一次更新數百萬個文件。",
-        "en": "There is no limit on transaction size; you can update millions of documents at once.",
+        "t": "(C) 交易的大小沒有任何限制，可以一次更新數百萬個文件。",
+        "en": "(C) There is no limit on transaction size; you can update millions of documents at once.",
         "wg": []
       },
       {
-        "t": "交易不支援 `readConcern: snapshot`。",
-        "en": "Transactions do not support `readConcern: snapshot`.",
+        "t": "(D) 交易不支援 `readConcern: snapshot`。",
+        "en": "(D) Transactions do not support `readConcern: snapshot`.",
         "wg": []
       }
     ],
-    "answer": "1",
+    "answer": "B",
     "why": {
       "t": "MongoDB 的交易主要針對 CRUD 操作。在交易中執行 DDL（如建立索引、建立集合）通常是被禁止的，或者會導致嚴重的鎖定問題。此外，交易有 16MB 的 oplog 限制（在舊版）或執行時間限制，不適合超大批量的操作。",
       "en": "MongoDB transactions are primarily for CRUD operations. Executing DDL (like creating indexes or collections) inside a transaction is generally prohibited or causes severe locking issues. Additionally, transactions have constraints like oplog size limits (in older versions) or execution time limits, making them unsuitable for massive batch operations.",
       "wg": []
-    }
+    },
+    "verified": "2026-03-20T09:31:17"
   },
   {
     "no": "7",
@@ -426,13 +432,13 @@
     "type": "Single Choice",
     "options": [
       {
-        "t": "這是一個良好的實踐，所有的寫入操作都應該被包裝在交易中以確保 ACID。",
-        "en": "This is a good practice; all write operations should be wrapped in a transaction to ensure ACID.",
+        "t": "(A) 這是一個良好的實踐，所有的寫入操作都應該被包裝在交易中以確保 ACID。",
+        "en": "(A) This is a good practice; all write operations should be wrapped in a transaction to ensure ACID.",
         "wg": []
       },
       {
-        "t": "這是多餘的。MongoDB 的單一文件操作（包含多個欄位的更新）本質上已經是原子的，使用交易只會增加不必要的延遲。",
-        "en": "This is redundant. MongoDB single-document operations (including updates to multiple fields) are inherently atomic; using a transaction only adds unnecessary latency.",
+        "t": "(B) 這是多餘的。MongoDB 的單一文件操作（包含多個欄位的更新）本質上已經是原子的，使用交易只會增加不必要的延遲。",
+        "en": "(B) This is redundant. MongoDB single-document operations (including updates to multiple fields) are inherently atomic; using a transaction only adds unnecessary latency.",
         "wg": [
           {
             "t": "多餘的",
@@ -447,17 +453,17 @@
         ]
       },
       {
-        "t": "這段程式碼有誤，`updateOne` 不支援在 Session 中執行。",
-        "en": "The code is incorrect; `updateOne` does not support execution within a Session.",
+        "t": "(C) 這段程式碼有誤，`updateOne` 不支援在 Session 中執行。",
+        "en": "(C) The code is incorrect; `updateOne` does not support execution within a Session.",
         "wg": []
       },
       {
-        "t": "應該將 `Write Concern` 設定為 `w:0` 以提升交易內的效能。",
-        "en": "The `Write Concern` should be set to `w:0` to improve performance within the transaction.",
+        "t": "(D) 應該將 `Write Concern` 設定為 `w:0` 以提升交易內的效能。",
+        "en": "(D) The `Write Concern` should be set to `w:0` to improve performance within the transaction.",
         "wg": []
       }
     ],
-    "answer": "1",
+    "answer": "B",
     "why": {
       "t": "MongoDB 在單一文件（Single Document）層級的操作預設就是原子的（Atomic）。即使 `updateOne` 同時修改多個欄位（如 `$set` 和 `$inc`），這些修改要麼全部成功，要麼全部失敗，不會出現部分更新的情況。因此，針對單一文件的操作開啟多文件交易（Multi-document Transaction）是反模式（Anti-pattern），只會增加全域邏輯時鐘的開銷與延遲，而無額外效益。",
       "en": "MongoDB operations are atomic by default at the Single Document level. Even if `updateOne` modifies multiple fields (like `$set` and `$inc`), these modifications either all succeed or all fail; partial updates do not occur. Therefore, opening a Multi-document Transaction for a single-document operation is an anti-pattern that only adds Global Logical Clock overhead and latency without additional benefit.",
@@ -473,7 +479,8 @@
           "ps": "noun"
         }
       ]
-    }
+    },
+    "verified": "2026-03-20T09:31:17"
   },
   {
     "no": "8",
@@ -508,27 +515,27 @@
     "type": "Single Choice",
     "options": [
       {
-        "t": "設定 `Read Concern: local`",
-        "en": "Set `Read Concern: local`",
+        "t": "(A) 設定 `Read Concern: local`",
+        "en": "(A) Set `Read Concern: local`",
         "wg": []
       },
       {
-        "t": "設定 `Read Concern: majority`",
-        "en": "Set `Read Concern: majority`",
+        "t": "(B) 設定 `Read Concern: majority`",
+        "en": "(B) Set `Read Concern: majority`",
         "wg": []
       },
       {
-        "t": "設定 `Write Concern: w:1`",
-        "en": "Set `Write Concern: w:1`",
+        "t": "(C) 設定 `Write Concern: w:1`",
+        "en": "(C) Set `Write Concern: w:1`",
         "wg": []
       },
       {
-        "t": "開啟 `Causal Consistency` Session",
-        "en": "Enable `Causal Consistency` Session",
+        "t": "(D) 開啟 `Causal Consistency` Session",
+        "en": "(D) Enable `Causal Consistency` Session",
         "wg": []
       }
     ],
-    "answer": "1",
+    "answer": "B",
     "why": {
       "t": "當讀取 Secondary 時，預設的 `Read Concern: local` 可能會讀到尚未複製到多數節點的資料。如果此時 Primary 當機且該資料未被同步，新選出的 Primary 會導致該資料回滾（Rollback）。設定 `Read Concern: majority` 可以保證應用程式只讀取到「已被多數節點確認」的資料，從而避免讀到可能回滾的髒資料（Dirty Reads）。",
       "en": "When reading from a Secondary, the default `Read Concern: local` may return data that hasn't been replicated to a majority of nodes. If the Primary crashes and this data isn't synced, the new Primary will cause a rollback. Setting `Read Concern: majority` ensures the application only reads data confirmed by a majority of nodes, preventing the reading of dirty data that might be rolled back.",
@@ -544,7 +551,8 @@
           "ps": "noun"
         }
       ]
-    }
+    },
+    "verified": "2026-03-20T09:31:17"
   },
   {
     "no": "9",
@@ -574,13 +582,13 @@
     "type": "Single Choice",
     "options": [
       {
-        "t": "會導致資料庫無法進行自動故障轉移（Failover）。",
-        "en": "It will prevent the database from performing automatic failover.",
+        "t": "(A) 会導致資料庫無法進行自動故障轉移（Failover）。",
+        "en": "(A) It will prevent the database from performing automatic failover.",
         "wg": []
       },
       {
-        "t": "會因為全域邏輯時鐘（Global Logical Clock）的維護開銷與 WiredTiger 引擎壓力，導致整體吞吐量顯著下降。",
-        "en": "It will cause a significant drop in throughput due to the overhead of maintaining the Global Logical Clock and pressure on the WiredTiger engine.",
+        "t": "(B) 会因為全域邏輯時鐘（Global Logical Clock）的維護開銷與 WiredTiger 引擎壓力，導致整體吞吐量顯著下降。",
+        "en": "(B) It will cause a significant drop in throughput due to the overhead of maintaining the Global Logical Clock and pressure on the WiredTiger engine.",
         "wg": [
           {
             "t": "全域邏輯時鐘",
@@ -595,17 +603,17 @@
         ]
       },
       {
-        "t": "MongoDB 的交易不支援更新（Update）操作，只能執行插入（Insert）。",
-        "en": "MongoDB transactions do not support Update operations; they can only perform Inserts.",
+        "t": "(C) MongoDB 的交易不支援更新（Update）操作，只能執行插入（Insert）。",
+        "en": "(C) MongoDB transactions do not support Update operations; they can only perform Inserts.",
         "wg": []
       },
       {
-        "t": "會導致所有的讀取操作都被強制路由到 Primary 節點。",
-        "en": "It will cause all read operations to be forcibly routed to the Primary node.",
+        "t": "(D) 会導致所有的讀取操作都被強制路由到 Primary 節點。",
+        "en": "(D) It will cause all read operations to be forcibly routed to the Primary node.",
         "wg": []
       }
     ],
-    "answer": "1",
+    "answer": "B",
     "why": {
       "t": "MongoDB 的多文件交易並非像 RDBMS 那樣是「預設且無感」的。它依賴全域邏輯時鐘（Global Logical Clock）來協調快照隔離，這會帶來額外的效能開銷。此外，過度使用交易會增加 WiredTiger 儲存引擎的 Cache 壓力（因為需維護未提交的版本）。因此，除非業務邏輯真的需要跨文件原子性，否則不應濫用交易。",
       "en": "Multi-document transactions in MongoDB are not 'default and free' like in RDBMS. They rely on a Global Logical Clock to coordinate snapshot isolation, which incurs performance overhead. Additionally, excessive use of transactions increases pressure on the WiredTiger storage engine's cache (as it must maintain uncommitted versions). Therefore, transactions should not be abused unless cross-document atomicity is strictly required.",
@@ -621,7 +629,8 @@
           "ps": "verb"
         }
       ]
-    }
+    },
+    "verified": "2026-03-20T09:33:17"
   },
   {
     "no": "10",
@@ -656,8 +665,8 @@
     "type": "Single Choice",
     "options": [
       {
-        "t": "未提交的交易會「釘住（Pin）」Oplog，防止 MongoDB 刪除比該交易快照更舊的 Oplog 條目，並佔用 Cache 儲存未提交的寫入。",
-        "en": "Uncommitted transactions 'pin' the Oplog, preventing MongoDB from deleting Oplog entries older than the transaction's snapshot, and occupy Cache to store uncommitted writes.",
+        "t": "(A) 未提交的交易會「釘住（Pin）」Oplog，防止 MongoDB 刪除比該交易快照更舊的 Oplog 條目，並佔用 Cache 儲存未提交的寫入。",
+        "en": "(A) Uncommitted transactions 'pin' the Oplog, preventing MongoDB from deleting Oplog entries older than the transaction's snapshot, and occupy Cache to store uncommitted writes.",
         "wg": [
           {
             "t": "釘住",
@@ -672,22 +681,22 @@
         ]
       },
       {
-        "t": "這是正常的，因為交易執行期間 MongoDB 會暫停所有背景的 Checkpoint 機制。",
-        "en": "This is normal because MongoDB pauses all background Checkpoint mechanisms during transaction execution.",
+        "t": "(B) 這是正常的，因為交易執行期間 MongoDB 會暫停所有背景的 Checkpoint 機制。",
+        "en": "(B) This is normal because MongoDB pauses all background Checkpoint mechanisms during transaction execution.",
         "wg": []
       },
       {
-        "t": "交易會強制將所有資料寫入磁碟，導致 Cache 被清空而非飆高。",
-        "en": "Transactions force all data to be written to disk, causing the Cache to be flushed rather than spiking.",
+        "t": "(C) 交易會強制將所有資料寫入磁碟，導致 Cache 被清空而非飆高。",
+        "en": "(C) Transactions force all data to be written to disk, causing the Cache to be flushed rather than spiking.",
         "wg": []
       },
       {
-        "t": "長交易觸發了 MongoDB 的自動分片平衡器（Balancer），導致資源消耗。",
-        "en": "The long transaction triggered MongoDB's automatic Shard Balancer, causing resource consumption.",
+        "t": "(D) 長交易觸發了 MongoDB 的自動分片平衡器（Balancer），導致資源消耗。",
+        "en": "(D) The long transaction triggered MongoDB's automatic Shard Balancer, causing resource consumption.",
         "wg": []
       }
     ],
-    "answer": "0",
+    "answer": "A",
     "why": {
       "t": "MongoDB 的儲存引擎必須保留交易開始時的資料快照（Snapshot），以便交易內讀取一致的資料。這意味著在交易提交或中止前，WiredTiger 不能丟棄該時間點之後的舊版本資料，這會佔用 Cache。同時，為了支援複製與回滾，Oplog 也不能刪除該交易開始時間點之後的任何條目（Oplog Pinning），這可能導致磁碟空間不足或 Cache 壓力過大。",
       "en": "MongoDB's storage engine must retain a data snapshot from the start of the transaction to allow consistent reads within it. This means WiredTiger cannot discard old version data from after that point until the transaction commits or aborts, occupying Cache. Simultaneously, to support replication and rollback, the Oplog cannot delete any entries after the transaction's start time (Oplog Pinning), potentially leading to disk space issues or excessive Cache pressure.",
@@ -703,7 +712,8 @@
           "ps": "verb"
         }
       ]
-    }
+    },
+    "verified": "2026-03-20T09:33:17"
   },
   {
     "no": "11",
@@ -733,27 +743,27 @@
     "type": "Single Choice",
     "options": [
       {
-        "t": "分片鍵（Shard Key）",
-        "en": "Shard Key",
+        "t": "(A) 分片鍵（Shard Key）",
+        "en": "(A) Shard Key",
         "wg": []
       },
       {
-        "t": "Primary 節點的 IP 位址",
-        "en": "IP address of the Primary node",
+        "t": "(B) Primary 節點的 IP 位址",
+        "en": "(B) IP address of the Primary node",
         "wg": []
       },
       {
-        "t": "交易 ID (txnNumber)",
-        "en": "Transaction ID (txnNumber)",
+        "t": "(C) 交易 ID (txnNumber)",
+        "en": "(C) Transaction ID (txnNumber)",
         "wg": []
       },
       {
-        "t": "集合的 UUID",
-        "en": "Collection UUID",
+        "t": "(D) 集合的 UUID",
+        "en": "(D) Collection UUID",
         "wg": []
       }
     ],
-    "answer": "0",
+    "answer": "A",
     "why": {
       "t": "在分片交易中，若操作未包含分片鍵，`mongos` 路由器必須將請求廣播（Broadcast）到所有分片，這稱為「Scatter-Gather」查詢，效率極差。若提供了分片鍵，`mongos` 可以直接將請求路由到特定的分片（Targeted Query），顯著減少網路延遲與協調成本。",
       "en": "In sharded transactions, if operations do not include the Shard Key, the `mongos` router must broadcast the request to all shards, known as a 'Scatter-Gather' query, which is very inefficient. If the Shard Key is provided, `mongos` can route the request directly to the specific shard (Targeted Query), significantly reducing network latency and coordination costs.",
@@ -769,7 +779,8 @@
           "ps": "noun"
         }
       ]
-    }
+    },
+    "verified": "2026-03-20T09:33:17"
   },
   {
     "no": "12",
@@ -799,8 +810,8 @@
     "type": "Single Choice",
     "options": [
       {
-        "t": "狀態為「未知（Unknown）」。伺服器可能已提交也可能未提交。應針對該錯誤標籤（UnknownTransactionCommitResult）重試「提交」操作。",
-        "en": "The state is 'Unknown'. The server may or may not have committed. You should retry the 'commit' operation based on the error label (UnknownTransactionCommitResult).",
+        "t": "(A) 狀態為「未知（Unknown）」。伺服器可能已提交也可能未提交。應針對該錯誤標籤（UnknownTransactionCommitResult）重試「提交」操作。",
+        "en": "(A) The state is 'Unknown'. The server may or may not have committed. You should retry the 'commit' operation based on the error label (UnknownTransactionCommitResult).",
         "wg": [
           {
             "t": "未知",
@@ -815,22 +826,22 @@
         ]
       },
       {
-        "t": "狀態為「已失敗（Aborted）」。網路錯誤會自動觸發回滾。應重新執行整個交易邏輯。",
-        "en": "The state is 'Aborted'. Network errors automatically trigger a rollback. You should re-execute the entire transaction logic.",
+        "t": "(B) 狀態為「已失敗（Aborted）」。網路錯誤會自動觸發回滾。應重新執行整個交易邏輯。",
+        "en": "(B) The state is 'Aborted'. Network errors automatically trigger a rollback. You should re-execute the entire transaction logic.",
         "wg": []
       },
       {
-        "t": "狀態為「已提交（Committed）」。MongoDB 保證 commit 指令發出即生效，網路錯誤僅代表回應遺失。",
-        "en": "The state is 'Committed'. MongoDB guarantees that the commit command takes effect once issued; the network error only implies a lost response.",
+        "t": "(C) 狀態為「已提交（Committed）」。MongoDB 保證 commit 指令發出即生效，網路錯誤僅代表回應遺失。",
+        "en": "(C) The state is 'Committed'. MongoDB guarantees that the commit command takes effect once issued; the network error only implies a lost response.",
         "wg": []
       },
       {
-        "t": "狀態為「鎖定（Locked）」。必須手動介入重啟資料庫服務。",
-        "en": "The state is 'Locked'. Manual intervention is required to restart the database service.",
+        "t": "(D) 狀態為「鎖定（Locked）」。必須手動介入重啟資料庫服務。",
+        "en": "(D) The state is 'Locked'. Manual intervention is required to restart the database service.",
         "wg": []
       }
     ],
-    "answer": "0",
+    "answer": "A",
     "why": {
       "t": "當 `commitTransaction` 遇到網路錯誤時，客戶端無法得知伺服器是否成功收到了指令並完成了提交。這被稱為 `UnknownTransactionCommitResult`。正確的處理方式不是立刻重跑整個交易（這可能導致重複寫入），而是應該重複嘗試執行 `commitTransaction`，直到成功或收到明確的失敗回應。現代 MongoDB Driver 的 `withTransaction` API 通常會自動處理此邏輯。",
       "en": "When `commitTransaction` encounters a network error, the client cannot know if the server successfully received the command and completed the commit. This is known as `UnknownTransactionCommitResult`. The correct handling is not to immediately rerun the entire transaction (which could lead to duplicate writes), but to retry the `commitTransaction` operation until success or a definitive failure response is received. Modern MongoDB Driver `withTransaction` APIs usually handle this logic automatically.",
@@ -846,6 +857,7 @@
           "ps": "adjective"
         }
       ]
-    }
+    },
+    "verified": "2026-03-20T09:33:17"
   }
 ]

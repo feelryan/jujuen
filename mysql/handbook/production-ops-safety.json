@@ -32,13 +32,13 @@
     "type": "Single Choice",
     "options": [
       {
-        "t": "修改註解雖然輕量，但仍需重建整張表格（Table Rebuild），導致 IO 資源耗盡。",
-        "en": "Although changing a comment is lightweight, it still requires a full Table Rebuild, exhausting IO resources.",
+        "t": "(A) 修改註解雖然輕量，但仍需重建整張表格（Table Rebuild），導致 IO 資源耗盡。",
+        "en": "(A) Although changing a comment is lightweight, it still requires a full Table Rebuild, exhausting IO resources.",
         "wg": []
       },
       {
-        "t": "有一個長事務（Long Running Transaction）正在存取該表，DDL 為了獲取排他鎖（Exclusive Lock）進入等待，且 MySQL 的鎖機制是「寫鎖優先」，因此阻擋了後續所有讀取請求。",
-        "en": "A Long Running Transaction was accessing the table. The DDL waited to acquire an Exclusive Lock, and since MySQL prioritizes write locks, it blocked all subsequent read requests.",
+        "t": "(B) 有一個長事務（Long Running Transaction）正在存取該表，DDL 為了獲取排他鎖（Exclusive Lock）進入等待，且 MySQL 的鎖機制是「寫鎖優先」，因此阻擋了後續所有讀取請求。",
+        "en": "(B) A Long Running Transaction was accessing the table. The DDL waited to acquire an Exclusive Lock, and since MySQL prioritizes write locks, it blocked all subsequent read requests.",
         "wg": [
           {
             "t": "長事務",
@@ -58,17 +58,17 @@
         ]
       },
       {
-        "t": "該表沒有主鍵（Primary Key），導致 `ALTER` 操作無法使用 Online DDL 演算法。",
-        "en": "The table lacks a Primary Key, causing the `ALTER` operation to fail using the Online DDL algorithm.",
+        "t": "(C) 該表沒有主鍵（Primary Key），導致 `ALTER` 操作無法使用 Online DDL 演算法。",
+        "en": "(C) The table lacks a Primary Key, causing the `ALTER` operation to fail using the Online DDL algorithm.",
         "wg": []
       },
       {
-        "t": "這是 MySQL 的 Bug，修改 Metadata 不應該產生任何鎖。",
-        "en": "This is a MySQL bug; modifying Metadata should not generate any locks.",
+        "t": "(D) 這是 MySQL 的 Bug，修改 Metadata 不應該產生任何鎖。",
+        "en": "(D) This is a MySQL bug; modifying Metadata should not generate any locks.",
         "wg": []
       }
     ],
-    "answer": "1",
+    "answer": "B",
     "why": {
       "t": "這是經典的 Metadata Lock (MDL) Storm。當有一個長事務未結束（持有 Shared MDL），DDL 會等待獲取 Exclusive MDL。由於 MySQL 預設將寫鎖請求排在讀鎖之前（Write Priority），這會導致 DDL 之後進來的所有 `SELECT` 請求都被擋住，瞬間耗盡連線池。修改 Comment 不需要重建表，但仍需要 MDL。",
       "en": "This is a classic Metadata Lock (MDL) Storm. When a long transaction is active (holding a Shared MDL), the DDL waits for an Exclusive MDL. Since MySQL defaults to Write Priority, this blocks all subsequent `SELECT` requests arriving after the DDL, instantly exhausting the connection pool. Changing a comment does not require a table rebuild, but it still requires an MDL.",
@@ -79,7 +79,8 @@
           "ps": "verb"
         }
       ]
-    }
+    },
+    "verified": "2026-03-20T08:36:30"
   },
   {
     "no": "2",
@@ -109,13 +110,13 @@
     "type": "Single Choice",
     "options": [
       {
-        "t": "gh-ost 支援多執行緒複製，因此速度比 pt-osc 快兩倍以上。",
-        "en": "gh-ost supports multi-threaded copying, making it more than twice as fast as pt-osc.",
+        "t": "(A) gh-ost 支援多執行緒複製，因此速度比 pt-osc 快兩倍以上。",
+        "en": "(A) gh-ost supports multi-threaded copying, making it more than twice as fast as pt-osc.",
         "wg": []
       },
       {
-        "t": "gh-ost 是 Triggerless 的，它透過讀取 Binary Log 來同步資料，避免了 Trigger 帶來的寫入 Overhead 與死鎖風險。",
-        "en": "gh-ost is Triggerless; it synchronizes data by reading the Binary Log, avoiding the write Overhead and deadlock risks associated with Triggers.",
+        "t": "(B) gh-ost 是 Triggerless 的，它透過讀取 Binary Log 來同步資料，避免了 Trigger 帶來的寫入 Overhead 與死鎖風險。",
+        "en": "(B) gh-ost is Triggerless; it synchronizes data by reading the Binary Log, avoiding the write Overhead and deadlock risks associated with Triggers.",
         "wg": [
           {
             "t": "死鎖風險",
@@ -130,17 +131,17 @@
         ]
       },
       {
-        "t": "gh-ost 不需要額外的磁碟空間來建立影子表（Shadow Table）。",
-        "en": "gh-ost does not require extra disk space to create a Shadow Table.",
+        "t": "(C) gh-ost 不需要額外的磁碟空間來建立影子表（Shadow Table）。",
+        "en": "(C) gh-ost does not require extra disk space to create a Shadow Table.",
         "wg": []
       },
       {
-        "t": "gh-ost 可以自動修復主從延遲（Replication Lag），而 pt-osc 無法偵測延遲。",
-        "en": "gh-ost can automatically fix Replication Lag, whereas pt-osc cannot detect lag.",
+        "t": "(D) gh-ost 可以自動修復主從延遲（Replication Lag），而 pt-osc 無法偵測延遲。",
+        "en": "(D) gh-ost can automatically fix Replication Lag, whereas pt-osc cannot detect lag.",
         "wg": []
       }
     ],
-    "answer": "1",
+    "answer": "B",
     "why": {
       "t": "`pt-osc` 依賴 Trigger 來同步寫入，這會顯著增加原表的寫入負擔並增加 Deadlock 機率。`gh-ost` 採用解耦設計，透過讀取 Binlog 進行非同步回放，對主庫的影響最小。兩者都需要影子表空間，且都支援延遲偵測（Throttling）。",
       "en": "`pt-osc` relies on Triggers for write synchronization, which significantly increases write overhead on the original table and raises the probability of deadlocks. `gh-ost` uses a decoupled design by reading Binlogs for asynchronous replay, minimizing impact on the primary database. Both require shadow table space, and both support lag detection (Throttling).",
@@ -156,7 +157,8 @@
           "ps": "verb"
         }
       ]
-    }
+    },
+    "verified": "2026-03-20T08:36:30"
   },
   {
     "no": "3",
@@ -186,23 +188,23 @@
     "type": "Single Choice",
     "options": [
       {
-        "t": "新增一個設為 Default NULL 的欄位 (Add Column)。",
-        "en": "Adding a column set to Default NULL.",
+        "t": "(A) 新增一個設為 Default NULL 的欄位 (Add Column)。",
+        "en": "(A) Adding a column set to Default NULL.",
         "wg": []
       },
       {
-        "t": "修改 ENUM 定義，在列表末端追加新值 (Append only)。",
-        "en": "Modifying an ENUM definition to append a new value at the end.",
+        "t": "(B) 修改 ENUM 定義，在列表末端追加新值 (Append only)。",
+        "en": "(B) Modifying an ENUM definition to append a new value at the end.",
         "wg": []
       },
       {
-        "t": "新增一個設為常數預設值的欄位。",
-        "en": "Adding a column with a constant default value.",
+        "t": "(C) 新增一個設為常數預設值的欄位。",
+        "en": "(C) Adding a column with a constant default value.",
         "wg": []
       },
       {
-        "t": "刪除欄位 (Drop Column) 或改變欄位順序。",
-        "en": "Dropping a column or changing the column order.",
+        "t": "(D) 刪除欄位 (Drop Column) 或改變欄位順序。",
+        "en": "(D) Dropping a column or changing the column order.",
         "wg": [
           {
             "t": "改變順序",
@@ -212,7 +214,7 @@
         ]
       }
     ],
-    "answer": "3",
+    "answer": "D",
     "why": {
       "t": "MySQL 8.0 的 Instant DDL 主要適用於「新增欄位（Add Column）」且不涉及資料重排的操作。刪除欄位（Drop Column）、改變欄位順序或修改資料型態通常仍需要重建表格（Copy Table）。",
       "en": "MySQL 8.0's Instant DDL is mainly applicable to 'Add Column' operations that do not involve data rearrangement. Dropping a column, changing column order, or modifying data types usually still requires a table rebuild (Copy Table).",
@@ -223,7 +225,8 @@
           "ps": "noun phrase"
         }
       ]
-    }
+    },
+    "verified": "2026-03-20T08:36:30"
   },
   {
     "no": "4",
@@ -253,13 +256,13 @@
     "type": "Single Choice",
     "options": [
       {
-        "t": "原因：網路頻寬不足。解法：升級網路卡。",
-        "en": "Cause: Insufficient network bandwidth. Solution: Upgrade the network card.",
+        "t": "(A) 原因：網路頻寬不足。解法：升級網路卡。",
+        "en": "(A) Cause: Insufficient network bandwidth. Solution: Upgrade the network card.",
         "wg": []
       },
       {
-        "t": "原因：DDL 工具回填資料產生大量 Binlog，單執行緒的 Replica SQL Thread 來不及消化。解法：設定 `--max-lag` 參數讓工具在延遲過高時暫停寫入。",
-        "en": "Cause: The DDL tool backfills data generating massive Binlogs, which the single-threaded Replica SQL Thread cannot process in time. Solution: Set the `--max-lag` parameter to pause writing when lag is too high.",
+        "t": "(B) 原因：DDL 工具回填資料產生大量 Binlog，單執行緒的 Replica SQL Thread 來不及消化。解法：設定 `--max-lag` 參數讓工具在延遲過高時暫停寫入。",
+        "en": "(B) Cause: The DDL tool backfills data generating massive Binlogs, which the single-threaded Replica SQL Thread cannot process in time. Solution: Set the `--max-lag` parameter to pause writing when lag is too high.",
         "wg": [
           {
             "t": "回填資料",
@@ -274,17 +277,17 @@
         ]
       },
       {
-        "t": "原因：Replica 硬體故障。解法：重啟 Replica。",
-        "en": "Cause: Replica hardware failure. Solution: Restart the Replica.",
+        "t": "(C) 原因：Replica 硬體故障。解法：重啟 Replica。",
+        "en": "(C) Cause: Replica hardware failure. Solution: Restart the Replica.",
         "wg": []
       },
       {
-        "t": "原因：gh-ost 預設鎖住了 Replica 的讀取。解法：使用 `--allow-replica-reads`。",
-        "en": "Cause: gh-ost locks Replica reads by default. Solution: Use `--allow-replica-reads`.",
+        "t": "(D) 原因：gh-ost 預設鎖住了 Replica 的讀取。解法：使用 `--allow-replica-reads`。",
+        "en": "(D) Cause: gh-ost locks Replica reads by default. Solution: Use `--allow-replica-reads`.",
         "wg": []
       }
     ],
-    "answer": "1",
+    "answer": "B",
     "why": {
       "t": "Online DDL 工具本質上是在短時間內產生大量的寫入操作（Row Copy），這會產生大量 Binlog。雖然主庫可以並行寫入，但傳統 MySQL Replica 的 SQL Thread 是單執行緒的（或並行度有限），容易成為瓶頸。透過 `--max-lag` 進行節流（Throttling）是標準解法。",
       "en": "Online DDL tools inherently generate a large number of write operations (Row Copy) in a short time, producing massive Binlogs. While the Master can write in parallel, the traditional MySQL Replica SQL Thread is single-threaded (or has limited parallelism), easily becoming a bottleneck. Throttling via `--max-lag` is the standard solution.",
@@ -295,7 +298,8 @@
           "ps": "noun"
         }
       ]
-    }
+    },
+    "verified": "2026-03-20T08:36:30"
   },
   {
     "no": "5",
@@ -325,27 +329,27 @@
     "type": "Single Choice",
     "options": [
       {
-        "t": "500GB (1倍表大小)",
-        "en": "500GB (1x table size)",
+        "t": "(A) 500GB (1倍表大小)",
+        "en": "(A) 500GB (1x table size)",
         "wg": []
       },
       {
-        "t": "1000GB (2倍表大小)",
-        "en": "1000GB (2x table size)",
+        "t": "(B) 1000GB (2倍表大小)",
+        "en": "(B) 1000GB (2x table size)",
         "wg": []
       },
       {
-        "t": "100GB (僅需 Binlog 空間)",
-        "en": "100GB (Binlog space only)",
+        "t": "(C) 100GB (僅需 Binlog 空間)",
+        "en": "(C) 100GB (Binlog space only)",
         "wg": []
       },
       {
-        "t": "不需要額外空間，因為是 In-place update",
-        "en": "No extra space needed, as it is an In-place update",
+        "t": "(D) 不需要額外空間，因為是 In-place update",
+        "en": "(D) No extra space needed, as it is an In-place update",
         "wg": []
       }
     ],
-    "answer": "1",
+    "answer": "B",
     "why": {
       "t": "Online DDL 的本質是 Copy-on-Write，會建立一個與原表大小相當的影子表（Shadow Table），再加上變更期間產生的 Binlog，安全係數建議至少預留「表大小 * 2」的空間。",
       "en": "The nature of Online DDL is Copy-on-Write, which creates a Shadow Table roughly the same size as the original, plus the Binlogs generated during the change. The recommended safety margin is at least 'Table Size * 2'.",
@@ -356,7 +360,8 @@
           "ps": "noun phrase"
         }
       ]
-    }
+    },
+    "verified": "2026-03-20T08:36:30"
   },
   {
     "no": "6",
@@ -386,13 +391,13 @@
     "type": "Single Choice",
     "options": [
       {
-        "t": "直接在原庫執行 `mysqlbinlog` 反向操作（Undo）刪除指令。",
-        "en": "Directly execute `mysqlbinlog` on the original database to reverse (Undo) the delete command.",
+        "t": "(A) 直接在原庫執行 `mysqlbinlog` 反向操作（Undo）刪除指令。",
+        "en": "(A) Directly execute `mysqlbinlog` on the original database to reverse (Undo) the delete command.",
         "wg": []
       },
       {
-        "t": "在新機器還原 02:00 全備份 -> 重放 Binlog (02:00 至 13:59:59) -> 驗證資料 -> 切換連線。",
-        "en": "Restore 02:00 Full Backup on a new machine -> Replay Binlog (02:00 to 13:59:59) -> Verify data -> Switch traffic.",
+        "t": "(B) 在新機器還原 02:00 全備份 -> 重放 Binlog (02:00 至 13:59:59) -> 驗證資料 -> 切換連線。",
+        "en": "(B) Restore 02:00 Full Backup on a new machine -> Replay Binlog (02:00 to 13:59:59) -> Verify data -> Switch traffic.",
         "wg": [
           {
             "t": "重放",
@@ -407,17 +412,17 @@
         ]
       },
       {
-        "t": "在新機器還原 02:00 全備份 -> 重放 Binlog (02:00 至 14:05) -> 手動刪除最後 5 分鐘資料。",
-        "en": "Restore 02:00 Full Backup on a new machine -> Replay Binlog (02:00 to 14:05) -> Manually delete the last 5 minutes of data.",
+        "t": "(C) 在新機器還原 02:00 全備份 -> 重放 Binlog (02:00 至 14:05) -> 手動刪除最後 5 分鐘資料。",
+        "en": "(C) Restore 02:00 Full Backup on a new machine -> Replay Binlog (02:00 to 14:05) -> Manually delete the last 5 minutes of data.",
         "wg": []
       },
       {
-        "t": "僅重放 13:55 至 14:00 的 Binlog 到原資料庫。",
-        "en": "Only replay Binlogs from 13:55 to 14:00 onto the original database.",
+        "t": "(D) 僅重放 13:55 至 14:00 的 Binlog 到原資料庫。",
+        "en": "(D) Only replay Binlogs from 13:55 to 14:00 onto the original database.",
         "wg": []
       }
     ],
-    "answer": "1",
+    "answer": "B",
     "why": {
       "t": "正確的 PITR 流程必須基於一個乾淨的 Base（全備份），然後依序重放變更直到「災難發生前一刻」。直接在原庫操作風險極高，且 Binlog 通常不支援直接 Undo。選項 2 是標準且最安全的做法。",
       "en": "A correct PITR process must be based on a clean Base (Full Backup), followed by sequentially replaying changes until 'the moment before the disaster'. Operating directly on the original database is extremely risky, and Binlogs typically do not support direct Undo. Option 2 is the standard and safest approach.",
@@ -428,7 +433,8 @@
           "ps": "phrase"
         }
       ]
-    }
+    },
+    "verified": "2026-03-20T08:36:30"
   },
   {
     "no": "7",
@@ -453,13 +459,13 @@
     "type": "Single Choice",
     "options": [
       {
-        "t": "同意該建議，因為 500GB 的表無論如何都不應直接執行 `ALTER TABLE`。",
-        "en": "Agree with the suggestion, as a 500GB table should never undergo a direct `ALTER TABLE`.",
+        "t": "(A) 同意該建議，因為 500GB 的表無論如何都不應直接執行 `ALTER TABLE`。",
+        "en": "(A) Agree with the suggestion, as a 500GB table should never undergo a direct `ALTER TABLE`.",
         "wg": []
       },
       {
-        "t": "反對該建議，應優先使用 MySQL 8.0 的 Instant DDL 功能，因為此變更僅修改 Metadata，可瞬間完成且風險更低。",
-        "en": "Disagree; prioritize MySQL 8.0's Instant DDL feature, as this change only modifies Metadata, completes instantly, and carries lower risk.",
+        "t": "(B) 反對該建議，應優先使用 MySQL 8.0 的 Instant DDL 功能，因為此變更僅修改 Metadata，可瞬間完成且風險更低。",
+        "en": "(B) Disagree; prioritize MySQL 8.0's Instant DDL feature, as this change only modifies Metadata, completes instantly, and carries lower risk.",
         "wg": [
           {
             "t": "瞬間完成",
@@ -469,17 +475,17 @@
         ]
       },
       {
-        "t": "反對該建議，應使用 `pt-online-schema-change`，因為它比 `gh-ost` 更適合處理新增欄位的操作。",
-        "en": "Disagree; use `pt-online-schema-change` instead, as it is better suited for adding columns than `gh-ost`.",
+        "t": "(C) 反對該建議，應使用 `pt-online-schema-change`，因為它比 `gh-ost` 更適合處理新增欄位的操作。",
+        "en": "(C) Disagree; use `pt-online-schema-change` instead, as it is better suited for adding columns than `gh-ost`.",
         "wg": []
       },
       {
-        "t": "同意該建議，因為 Instant DDL 不支援設定預設值（Default Value）。",
-        "en": "Agree, because Instant DDL does not support setting a Default Value.",
+        "t": "(D) 同意該建議，因為 Instant DDL 不支援設定預設值（Default Value）。",
+        "en": "(D) Agree, because Instant DDL does not support setting a Default Value.",
         "wg": []
       }
     ],
-    "answer": "1",
+    "answer": "B",
     "why": {
       "t": "根據手冊，MySQL 8.0 的 Instant DDL 支援「新增欄位且設為 Default NULL 或常數」。這類操作僅修改 Metadata，不需重建表格，是比 `gh-ost` 更高效且簡單的首選策略。",
       "en": "According to the handbook, MySQL 8.0 Instant DDL supports 'Add Column with Default NULL or constant'. This operation only modifies Metadata and does not rebuild the table, making it a more efficient and simpler choice than `gh-ost`.",
@@ -490,7 +496,8 @@
           "ps": "verb phrase"
         }
       ]
-    }
+    },
+    "verified": "2026-03-20T08:36:30"
   },
   {
     "no": "8",
@@ -520,13 +527,13 @@
     "type": "Single Choice",
     "options": [
       {
-        "t": "設定 `innodb_lock_wait_timeout` 為較大值（如 3600秒），確保 DDL 有足夠時間完成。",
-        "en": "Set `innodb_lock_wait_timeout` to a large value (e.g., 3600s) to ensure the DDL has enough time to complete.",
+        "t": "(A) 設定 `innodb_lock_wait_timeout` 為較大值（如 3600秒），確保 DDL 有足夠時間完成。",
+        "en": "(A) Set `innodb_lock_wait_timeout` to a large value (e.g., 3600s) to ensure the DDL has enough time to complete.",
         "wg": []
       },
       {
-        "t": "設定 `lock_wait_timeout` 為較短時間（如 5秒），若拿不到鎖就快速失敗，避免阻塞後續查詢。",
-        "en": "Set `lock_wait_timeout` to a short duration (e.g., 5s) to fail fast if the lock cannot be acquired, avoiding blocking subsequent queries.",
+        "t": "(B) 設定 `lock_wait_timeout` 為較短時間（如 5秒），若拿不到鎖就快速失敗，避免阻塞後續查詢。",
+        "en": "(B) Set `lock_wait_timeout` to a short duration (e.g., 5s) to fail fast if the lock cannot be acquired, avoiding blocking subsequent queries.",
         "wg": [
           {
             "t": "快速失敗",
@@ -536,17 +543,17 @@
         ]
       },
       {
-        "t": "設定 `sql_log_bin = 0`，暫時關閉 Binlog 寫入以加快鎖的釋放。",
-        "en": "Set `sql_log_bin = 0` to temporarily disable Binlog writing and speed up lock release.",
+        "t": "(C) 設定 `sql_log_bin = 0`，暫時關閉 Binlog 寫入以加快鎖的釋放。",
+        "en": "(C) Set `sql_log_bin = 0` to temporarily disable Binlog writing and speed up lock release.",
         "wg": []
       },
       {
-        "t": "設定 `max_execution_time` 為 0，取消執行時間限制。",
-        "en": "Set `max_execution_time` to 0 to remove execution time limits.",
+        "t": "(D) 設定 `max_execution_time` 為 0，取消執行時間限制。",
+        "en": "(D) Set `max_execution_time` to 0 to remove execution time limits.",
         "wg": []
       }
     ],
-    "answer": "1",
+    "answer": "B",
     "why": {
       "t": "MDL Storm 的成因是 DDL 在等待鎖時會阻塞後續所有請求。將 `lock_wait_timeout` 設短（如 5秒）可以讓 DDL 在無法立即獲得鎖時放棄排隊（Give up），從而保護服務的可用性。",
       "en": "MDL Storms occur because a DDL waiting for a lock blocks all subsequent requests. Setting `lock_wait_timeout` to a short value (e.g., 5s) allows the DDL to give up if it cannot acquire the lock immediately, thereby protecting service availability.",
@@ -557,7 +564,8 @@
           "ps": "verb phrase"
         }
       ]
-    }
+    },
+    "verified": "2026-03-20T08:36:30"
   },
   {
     "no": "9",
@@ -587,8 +595,8 @@
     "type": "Single Choice",
     "options": [
       {
-        "t": "連線排空 (Connection Draining) 與 Graceful Shutdown。",
-        "en": "Connection Draining and Graceful Shutdown.",
+        "t": "(A) 連線排空 (Connection Draining) 與 Graceful Shutdown。",
+        "en": "(A) Connection Draining and Graceful Shutdown.",
         "wg": [
           {
             "t": "連線排空",
@@ -598,22 +606,22 @@
         ]
       },
       {
-        "t": "強制重啟應用程式伺服器 (Force Restart)。",
-        "en": "Force Restart of application servers.",
+        "t": "(B) 強制重啟應用程式伺服器 (Force Restart)。",
+        "en": "(B) Force Restart of application servers.",
         "wg": []
       },
       {
-        "t": "增加 `max_connections` 的上限值。",
-        "en": "Increase the limit of `max_connections`.",
+        "t": "(C) 增加 `max_connections` 的上限值。",
+        "en": "(C) Increase the limit of `max_connections`.",
         "wg": []
       },
       {
-        "t": "在切換期間暫停 Binlog 複製。",
-        "en": "Pause Binlog replication during the switch.",
+        "t": "(D) 在切換期間暫停 Binlog 複製。",
+        "en": "(D) Pause Binlog replication during the switch.",
         "wg": []
       }
     ],
-    "answer": "0",
+    "answer": "A",
     "why": {
       "t": "DNS/VIP 切換並非即時生效，且既有連線不會自動斷開。透過 ProxySQL 或應用程式端的 Graceful Shutdown 機制進行「連線排空」，能確保舊連線處理完畢後再關閉，避免請求在切換瞬間失敗。",
       "en": "DNS/VIP switching is not instantaneous, and existing connections do not disconnect automatically. Using 'Connection Draining' via ProxySQL or application-side Graceful Shutdown ensures old connections are processed before closing, preventing request failures during the switch.",
@@ -624,7 +632,8 @@
           "ps": "verb phrase"
         }
       ]
-    }
+    },
+    "verified": "2026-03-20T08:37:21"
   },
   {
     "no": "10",
@@ -649,27 +658,27 @@
     "type": "Single Choice",
     "options": [
       {
-        "t": "Binlog 保留時間必須長於全備份的間隔（例如設定為 8-14 天）。",
-        "en": "Binlog retention time must be longer than the full backup interval (e.g., set to 8-14 days).",
+        "t": "(A) Binlog 保留時間必須長於全備份的間隔（例如設定為 8-14 天）。",
+        "en": "(A) Binlog retention time must be longer than the full backup interval (e.g., set to 8-14 days).",
         "wg": []
       },
       {
-        "t": "Binlog 保留時間應設定為 24 小時，以節省磁碟空間。",
-        "en": "Binlog retention time should be set to 24 hours to save disk space.",
+        "t": "(B) Binlog 保留時間應設定為 24 小時，以節省磁碟空間。",
+        "en": "(B) Binlog retention time should be set to 24 hours to save disk space.",
         "wg": []
       },
       {
-        "t": "只要有全備份，Binlog 不需要保留，因為全備份包含所有資料。",
-        "en": "As long as there is a full backup, Binlog does not need to be retained because the full backup contains all data.",
+        "t": "(C) 只要有全備份，Binlog 不需要保留，因為全備份包含所有資料。",
+        "en": "(C) As long as there is a full backup, Binlog does not need to be retained because the full backup contains all data.",
         "wg": []
       },
       {
-        "t": "Binlog 保留時間應設定為 0，代表永久保留。",
-        "en": "Binlog retention time should be set to 0, meaning retain forever.",
+        "t": "(D) Binlog 保留時間應設定為 0，代表永久保留。",
+        "en": "(D) Binlog retention time should be set to 0, meaning retain forever.",
         "wg": []
       }
     ],
-    "answer": "0",
+    "answer": "A",
     "why": {
       "t": "PITR 的原理是「還原全備份 + 重放 Binlog」。若全備份是 7 天前做的，你必須擁有這 7 天內完整的 Binlog 才能還原到今天。因此 Binlog 保留時間必須大於全備份的週期。",
       "en": "PITR works by 'Restoring Full Backup + Replaying Binlog'. If the full backup was taken 7 days ago, you must have the complete Binlogs for those 7 days to restore to today. Therefore, Binlog retention time must exceed the full backup cycle.",
@@ -680,7 +689,8 @@
           "ps": "verb"
         }
       ]
-    }
+    },
+    "verified": "2026-03-20T08:37:21"
   },
   {
     "no": "11",
@@ -710,8 +720,8 @@
     "type": "Single Choice",
     "options": [
       {
-        "t": "檢查是否有殘留的 Metadata Lock (MDL) 等待。",
-        "en": "Check for any residual Metadata Lock (MDL) waits.",
+        "t": "(A) 檢查是否有殘留的 Metadata Lock (MDL) 等待。",
+        "en": "(A) Check for any residual Metadata Lock (MDL) waits.",
         "wg": [
           {
             "t": "殘留的",
@@ -721,22 +731,22 @@
         ]
       },
       {
-        "t": "立即重啟 MySQL 服務。",
-        "en": "Immediately restart the MySQL service.",
+        "t": "(B) 立即重啟 MySQL 服務。",
+        "en": "(B) Immediately restart the MySQL service.",
         "wg": []
       },
       {
-        "t": "檢查磁碟空間是否已滿。",
-        "en": "Check if the disk space is full.",
+        "t": "(C) 檢查磁碟空間是否已滿。",
+        "en": "(C) Check if the disk space is full.",
         "wg": []
       },
       {
-        "t": "執行 `FLUSH TABLES WITH READ LOCK`。",
-        "en": "Execute `FLUSH TABLES WITH READ LOCK`.",
+        "t": "(D) 執行 `FLUSH TABLES WITH READ LOCK`。",
+        "en": "(D) Execute `FLUSH TABLES WITH READ LOCK`.",
         "wg": []
       }
     ],
-    "answer": "0",
+    "answer": "A",
     "why": {
       "t": "當 DDL 被殺掉後，若事務回滾（Rollback）耗時過長，或有其他 Session 仍持有相關鎖定，Metadata Lock 可能不會立即釋放。手冊明確指出應檢查 MDL 狀態以排除殘留鎖定。",
       "en": "After a DDL is killed, if the transaction rollback takes too long or other sessions still hold related locks, the Metadata Lock may not be released immediately. The handbook explicitly states to check the MDL status to rule out residual locks.",
@@ -747,7 +757,8 @@
           "ps": "noun"
         }
       ]
-    }
+    },
+    "verified": "2026-03-20T08:37:21"
   },
   {
     "no": "12",
@@ -777,8 +788,8 @@
     "type": "Single Choice",
     "options": [
       {
-        "t": "建立索引極度消耗 CPU 和 IO 資源，可能導致正常查詢的回應變慢（Latency 增加）。",
-        "en": "Creating an index consumes significant CPU and IO resources, which may slow down normal queries (increase Latency).",
+        "t": "(A) 建立索引極度消耗 CPU 和 IO 資源，可能導致正常查詢的回應變慢（Latency 增加）。",
+        "en": "(A) Creating an index consumes significant CPU and IO resources, which may slow down normal queries (increase Latency).",
         "wg": [
           {
             "t": "極度消耗",
@@ -788,22 +799,22 @@
         ]
       },
       {
-        "t": "Online DDL 工具在尖峰時刻無法正確同步 Binlog。",
-        "en": "Online DDL tools cannot correctly synchronize Binlogs during peak hours.",
+        "t": "(B) Online DDL 工具在尖峰時刻無法正確同步 Binlog。",
+        "en": "(B) Online DDL tools cannot correctly synchronize Binlogs during peak hours.",
         "wg": []
       },
       {
-        "t": "尖峰時刻執行 DDL 會強制觸發全表鎖定（Table Lock）。",
-        "en": "Executing DDL during peak hours will forcibly trigger a full Table Lock.",
+        "t": "(C) 尖峰時刻執行 DDL 會強制觸發全表鎖定（Table Lock）。",
+        "en": "(C) Executing DDL during peak hours will forcibly trigger a full Table Lock.",
         "wg": []
       },
       {
-        "t": "MySQL 不允許在 QPS 超過閾值時建立索引。",
-        "en": "MySQL does not allow index creation when QPS exceeds a threshold.",
+        "t": "(D) MySQL 不允許在 QPS 超過閾值時建立索引。",
+        "en": "(D) MySQL does not allow index creation when QPS exceeds a threshold.",
         "wg": []
       }
     ],
-    "answer": "0",
+    "answer": "A",
     "why": {
       "t": "Online DDL 雖然避免了鎖表，但本質上仍需讀取全表資料並寫入新結構，這會產生大量的 IOPS 與 CPU 運算。在尖峰時刻，這些額外負載會與業務流量競爭資源，導致服務延遲（Latency）上升。",
       "en": "While Online DDL avoids table locking, it essentially still requires reading the full table and writing to a new structure, generating significant IOPS and CPU load. During peak hours, this extra load competes with business traffic for resources, causing service latency to rise.",
@@ -814,6 +825,7 @@
           "ps": "verb phrase"
         }
       ]
-    }
+    },
+    "verified": "2026-03-20T08:37:21"
   }
 ]

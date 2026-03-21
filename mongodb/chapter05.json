@@ -1,0 +1,1305 @@
+[
+  {
+    "no": "1",
+    "level": "intermediate",
+    "keywords": "Write Concern, Durability, Failover, Rollback",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您正在為一個金融交易系統設計資料寫入策略，該系統要求極高的資料耐久性，不能容忍任何已確認的寫入在故障轉移（Failover）期間遺失。",
+        "en": "You are designing a data write strategy for a financial transaction system that requires extreme data durability and cannot tolerate any loss of acknowledged writes during failover.",
+        "wg": [
+          {
+            "t": "資料耐久性",
+            "en": "data durability",
+            "ps": "N"
+          },
+          {
+            "t": "故障轉移",
+            "en": "failover",
+            "ps": "N"
+          },
+          {
+            "t": "已確認的",
+            "en": "acknowledged",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "目前的設定是 `w: 1` 且 `j: true`（Journaling 開啟）。",
+        "en": "The current setting is `w: 1` with `j: true` (Journaling enabled).",
+        "wg": []
+      },
+      {
+        "t": "請問這種設定在 Primary 節點崩潰且尚未將資料複製到 Secondary 節點時，會發生什麼潛在風險？",
+        "en": "What potential risk does this setting pose if the Primary node crashes before replicating data to Secondary nodes?",
+        "wg": [
+          {
+            "t": "崩潰",
+            "en": "crashes",
+            "ps": "V"
+          },
+          {
+            "t": "複製",
+            "en": "replicating",
+            "ps": "V"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 不會有風險，因為 `j: true` 保證資料已寫入磁碟，重啟後會自動恢復。",
+        "en": "(A) No risk, because `j: true` guarantees data is written to disk and will automatically recover after restart.",
+        "wg": []
+      },
+      {
+        "t": "(B) 資料可能會遺失。因為新選出的 Primary 沒有這筆資料，舊 Primary 恢復後會執行回滾（Rollback）以與新 Primary 同步。",
+        "en": "(B) Data might be lost. Since the newly elected Primary does not have this data, the old Primary will perform a rollback to sync with the new Primary upon recovery.",
+        "wg": [
+          {
+            "t": "回滾",
+            "en": "rollback",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) 系統會進入唯讀模式，直到舊 Primary 恢復上線為止。",
+        "en": "(C) The system will enter read-only mode until the old Primary comes back online.",
+        "wg": []
+      },
+      {
+        "t": "(D) MongoDB 會自動從 Arbiter 節點恢復遺失的資料。",
+        "en": "(D) MongoDB will automatically recover the lost data from the Arbiter node.",
+        "wg": [
+          {
+            "t": "仲裁者",
+            "en": "Arbiter",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "`w: 1` 只保證 Primary 寫入成功。若在複製到 Secondary 之前 Primary 崩潰，其他節點選出新的 Primary（不包含該筆資料），則舊 Primary 恢復後必須回滾該筆未複製的寫入，導致資料遺失。金融系統應使用 `w: majority`。",
+      "en": "`w: 1` only guarantees the Primary wrote successfully. If the Primary crashes before replicating to Secondaries, and a new Primary (without that data) is elected, the old Primary must rollback the unreplicated write upon recovery, causing data loss. Financial systems should use `w: majority`.",
+      "wg": [
+        {
+          "t": "回滾",
+          "en": "rollback",
+          "ps": "V"
+        },
+        {
+          "t": "未複製的",
+          "en": "unreplicated",
+          "ps": "Adj"
+        }
+      ]
+    },
+    "verified": "2026-03-19T08:29:31"
+  },
+  {
+    "no": "2",
+    "level": "intermediate",
+    "keywords": "Transactions, Session, Code Review, Bug",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "const session = client.startSession();\n\ntry {\n  await session.withTransaction(async () => {\n    const users = client.db('app').collection('users');\n    const logs = client.db('app').collection('logs');\n\n    // Operation A\n    await users.updateOne(\n      { _id: userId }, \n      { $inc: { balance: -100 } }, \n      { session }\n    );\n\n    // Operation B\n    await logs.insertOne(\n      { userId, action: 'debit', timestamp: new Date() }\n    );\n  });\n} finally {\n  await session.endSession();\n}",
+    "question": [
+      {
+        "t": "請審查上述使用 MongoDB 交易的程式碼片段。",
+        "en": "Please review the above code snippet using MongoDB transactions.",
+        "wg": [
+          {
+            "t": "審查",
+            "en": "review",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "開發者的意圖是確保 `users` 的餘額扣款與 `logs` 的寫入是原子的（Atomic）。",
+        "en": "The developer's intention is to ensure that the balance deduction in `users` and the write to `logs` are atomic.",
+        "wg": [
+          {
+            "t": "原子的",
+            "en": "atomic",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "這段程式碼存在什麼嚴重的邏輯錯誤？",
+        "en": "What serious logical error exists in this code?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) `withTransaction` 不支援 `async/await` 語法。",
+        "en": "(A) `withTransaction` does not support `async/await` syntax.",
+        "wg": []
+      },
+      {
+        "t": "(B) Operation B 缺少 `{ session }` 選項，因此它會在交易之外執行。",
+        "en": "(B) Operation B is missing the `{ session }` option, so it will execute outside the transaction.",
+        "wg": []
+      },
+      {
+        "t": "(C) 不能在同一個交易中操作兩個不同的 Collection。",
+        "en": "(C) You cannot operate on two different Collections within the same transaction.",
+        "wg": []
+      },
+      {
+        "t": "(D) `updateOne` 必須使用 `$set` 而不能使用 `$inc`。",
+        "en": "(D) `updateOne` must use `$set` instead of `$inc`.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "在 MongoDB 交易中，所有的讀寫操作都必須明確傳遞 `session` 物件。如果省略，該操作會被視為一般的單文件操作並立即提交，無法隨交易回滾，破壞了原子性。",
+      "en": "In MongoDB transactions, all read/write operations must explicitly pass the `session` object. If omitted, the operation is treated as a standard single-document operation and committed immediately, making it impossible to rollback with the transaction, thus breaking atomicity.",
+      "wg": [
+        {
+          "t": "明確傳遞",
+          "en": "explicitly pass",
+          "ps": "V"
+        },
+        {
+          "t": "省略",
+          "en": "omitted",
+          "ps": "V"
+        }
+      ]
+    },
+    "verified": "2026-03-19T08:29:31"
+  },
+  {
+    "no": "3",
+    "level": "advanced",
+    "keywords": "Anti-pattern, Performance, Latency, WiredTiger",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "await session.withTransaction(async () => {\n  await db.collection('orders').insertOne(order, { session });\n  \n  // Call external payment gateway\n  const paymentResult = await axios.post('https://api.payment.com/charge', { ... });\n  \n  if (paymentResult.status === 200) {\n    await db.collection('inventory').updateOne(..., { session });\n  } else {\n    await session.abortTransaction();\n  }\n});",
+    "question": [
+      {
+        "t": "一位資深工程師在 Code Review 時指出了上述程式碼的一個反模式（Anti-pattern）。",
+        "en": "A senior engineer pointed out an anti-pattern in the above code during a Code Review.",
+        "wg": [
+          {
+            "t": "反模式",
+            "en": "anti-pattern",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "為什麼在 MongoDB 交易區塊中呼叫外部 HTTP API 是不被建議的？",
+        "en": "Why is calling an external HTTP API inside a MongoDB transaction block not recommended?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 外部 API 呼叫會導致 MongoDB 的連線池（Connection Pool）耗盡。",
+        "en": "(A) External API calls will cause MongoDB's Connection Pool to be exhausted.",
+        "wg": []
+      },
+      {
+        "t": "(B) 這會延長交易持有鎖的時間，增加鎖競爭並可能導致 WiredTiger Cache 壓力過大。",
+        "en": "(B) This prolongs the time locks are held, increasing lock contention and potentially causing excessive pressure on the WiredTiger Cache.",
+        "wg": [
+          {
+            "t": "鎖競爭",
+            "en": "lock contention",
+            "ps": "N"
+          },
+          {
+            "t": "壓力",
+            "en": "pressure",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) MongoDB 的交易不支援非資料庫操作的 Rollback。",
+        "en": "(C) MongoDB transactions do not support Rollback of non-database operations.",
+        "wg": []
+      },
+      {
+        "t": "(D) `axios` 函式庫與 MongoDB Driver 不相容。",
+        "en": "(D) The `axios` library is incompatible with the MongoDB Driver.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "交易應盡可能短暫。網路請求（如 HTTP API）通常耗時且不可預測。在交易中等待網路回應會長時間佔用鎖與記憶體資源（WiredTiger Cache），影響整體資料庫吞吐量，甚至觸發 60 秒的交易超時。",
+      "en": "Transactions should be as short as possible. Network requests (like HTTP APIs) are often time-consuming and unpredictable. Waiting for a network response inside a transaction holds locks and memory resources (WiredTiger Cache) for a long time, impacting overall database throughput and potentially triggering the 60-second transaction timeout.",
+      "wg": [
+        {
+          "t": "吞吐量",
+          "en": "throughput",
+          "ps": "N"
+        },
+        {
+          "t": "不可預測",
+          "en": "unpredictable",
+          "ps": "Adj"
+        }
+      ]
+    },
+    "verified": "2026-03-19T08:29:31"
+  },
+  {
+    "no": "4",
+    "level": "advanced",
+    "keywords": "Read Concern, Snapshot, Isolation, Reporting",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您的系統需要每天凌晨產生一份財務報表，該過程需要讀取多個 Collection 並進行計算，耗時約 2 分鐘。",
+        "en": "Your system needs to generate a financial report every morning. The process involves reading multiple Collections and performing calculations, taking about 2 minutes.",
+        "wg": [
+          {
+            "t": "財務報表",
+            "en": "financial report",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "在此期間，系統仍會有新的交易持續寫入資料。為了確保報表數據的一致性（即報表反映的是開始執行當下的數據快照，而非讀取過程中的混合狀態），您應該如何設定？",
+        "en": "During this time, new transactions continue to write data. To ensure data consistency for the report (i.e., the report reflects a data snapshot from the start of execution, rather than a mixed state during the read process), how should you configure it?",
+        "wg": [
+          {
+            "t": "混合狀態",
+            "en": "mixed state",
+            "ps": "N"
+          },
+          {
+            "t": "快照",
+            "en": "snapshot",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 使用 `readConcern: 'majority'`。",
+        "en": "(A) Use `readConcern: 'majority'`.",
+        "wg": []
+      },
+      {
+        "t": "(B) 將資料庫鎖定為唯讀模式（fsyncLock）。",
+        "en": "(B) Lock the database in read-only mode (fsyncLock).",
+        "wg": []
+      },
+      {
+        "t": "(C) 在交易中使用 `readConcern: 'snapshot'`。",
+        "en": "(C) Use `readConcern: 'snapshot'` within a transaction.",
+        "wg": []
+      },
+      {
+        "t": "(D) 使用 `readPreference: 'secondaryPreferred'`。",
+        "en": "(D) Use `readPreference: 'secondaryPreferred'`.",
+        "wg": []
+      }
+    ],
+    "answer": "C",
+    "why": {
+      "t": "`readConcern: 'snapshot'` 保證在交易期間讀取到的資料來自同一個時間點的快照（Snapshot Isolation），避免了不可重複讀（Non-repeatable Reads）或幻讀（Phantom Reads）現象，非常適合需要跨多文件一致性的報表生成。",
+      "en": "`readConcern: 'snapshot'` guarantees that data read during the transaction comes from a snapshot at a single point in time (Snapshot Isolation), avoiding Non-repeatable Reads or Phantom Reads. It is ideal for report generation requiring cross-document consistency.",
+      "wg": [
+        {
+          "t": "不可重複讀",
+          "en": "Non-repeatable Reads",
+          "ps": "N"
+        },
+        {
+          "t": "幻讀",
+          "en": "Phantom Reads",
+          "ps": "N"
+        }
+      ]
+    },
+    "verified": "2026-03-19T08:29:31"
+  },
+  {
+    "no": "5",
+    "level": "advanced",
+    "keywords": "Causal Consistency, Read Your Own Writes, Distributed Systems",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在一個分散式 Replica Set 環境中，使用者更新了自己的個人資料（寫入 Primary），隨後立即重新整理頁面（從 Secondary 讀取）。",
+        "en": "In a distributed Replica Set environment, a user updates their profile (writes to Primary) and immediately refreshes the page (reads from Secondary).",
+        "wg": [
+          {
+            "t": "重新整理",
+            "en": "refreshes",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "由於複製延遲（Replication Lag），使用者可能會看到舊的資料。若要解決此問題並實現「讀取自己的寫入（Read Your Own Writes）」，同時不犧牲過多效能，最佳實務是什麼？",
+        "en": "Due to Replication Lag, the user might see old data. To solve this and achieve 'Read Your Own Writes' without sacrificing too much performance, what is the best practice?",
+        "wg": [
+          {
+            "t": "複製延遲",
+            "en": "Replication Lag",
+            "ps": "N"
+          },
+          {
+            "t": "犧牲",
+            "en": "sacrificing",
+            "ps": "V"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 強制所有讀取都導向 Primary (`readPreference: 'primary'`)。",
+        "en": "(A) Force all reads to be directed to the Primary (`readPreference: 'primary'`).",
+        "wg": []
+      },
+      {
+        "t": "(B) 使用因果一致性（Causal Consistency），在 Client Session 中傳遞操作時間。",
+        "en": "(B) Use Causal Consistency by passing operation time within a Client Session.",
+        "wg": [
+          {
+            "t": "因果一致性",
+            "en": "Causal Consistency",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) 使用 `writeConcern: 'w: all'` 確保所有節點都寫入後才回傳成功。",
+        "en": "(C) Use `writeConcern: 'w: all'` to ensure all nodes have written before returning success.",
+        "wg": []
+      },
+      {
+        "t": "(D) 使用 `readConcern: 'linearizable'`。",
+        "en": "(D) Use `readConcern: 'linearizable'`.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "因果一致性允許 MongoDB 追蹤 Session 中的 `operationTime`。當讀取操作帶有此時間戳記時，Secondary 節點會確保已複製到該時間點的資料後才回傳，既保證了使用者能看到自己的修改，又保留了從 Secondary 讀取以分散負載的能力。",
+      "en": "Causal Consistency allows MongoDB to track `operationTime` within a Session. When a read operation carries this timestamp, the Secondary node ensures it has replicated data up to that point before returning. This guarantees users see their own edits while retaining the ability to read from Secondaries for load balancing.",
+      "wg": [
+        {
+          "t": "時間戳記",
+          "en": "timestamp",
+          "ps": "N"
+        },
+        {
+          "t": "分散負載",
+          "en": "load balancing",
+          "ps": "N"
+        }
+      ]
+    },
+    "verified": "2026-03-19T08:29:31"
+  },
+  {
+    "no": "6",
+    "level": "intermediate",
+    "keywords": "CAP Theorem, Availability, Consistency, Network Partition",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "根據 CAP 定理，當 MongoDB 設定為 `writeConcern: 'majority'` 時，它在網路分區（Network Partition）發生時傾向於哪種特性？",
+        "en": "According to the CAP theorem, when MongoDB is configured with `writeConcern: 'majority'`, which property does it favor during a Network Partition?",
+        "wg": [
+          {
+            "t": "網路分區",
+            "en": "Network Partition",
+            "ps": "N"
+          },
+          {
+            "t": "傾向於",
+            "en": "favor",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "假設一個 3 節點的 Replica Set 分裂為 1 個節點（包含原 Primary）與 2 個節點（Secondaries）的兩個區塊。",
+        "en": "Assume a 3-node Replica Set splits into two partitions: one with 1 node (original Primary) and another with 2 nodes (Secondaries).",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) AP (Availability & Partition Tolerance)：原 Primary 繼續接受寫入。",
+        "en": "(A) AP (Availability & Partition Tolerance): The original Primary continues to accept writes.",
+        "wg": []
+      },
+      {
+        "t": "(B) CP (Consistency & Partition Tolerance)：原 Primary 因為無法獲得多數節點確認而拒絕寫入（或降級）。",
+        "en": "(B) CP (Consistency & Partition Tolerance): The original Primary refuses writes (or steps down) because it cannot obtain acknowledgement from a majority of nodes.",
+        "wg": [
+          {
+            "t": "降級",
+            "en": "steps down",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(C) CA (Consistency & Availability)：系統自動修復網路並繼續運作。",
+        "en": "(C) CA (Consistency & Availability): The system automatically repairs the network and continues operation.",
+        "wg": []
+      },
+      {
+        "t": "(D) 系統會切換到最終一致性模式，暫存寫入直到網路恢復。",
+        "en": "(D) The system switches to eventual consistency mode, buffering writes until the network recovers.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "MongoDB 預設為 CP 系統。使用 `w: majority` 時，若 Primary 無法聯繫到大多數節點（在此例中需要 2 個節點確認，但它被隔離只能看到自己 1 個），寫入操作將會失敗或阻塞，直到超時。這犧牲了可用性（Availability）以確保強一致性（Consistency）。",
+      "en": "MongoDB is a CP system by default. With `w: majority`, if the Primary cannot contact a majority of nodes (it needs 2 acknowledgements but is isolated with only itself), write operations will fail or block until timeout. This sacrifices Availability to ensure Strong Consistency.",
+      "wg": [
+        {
+          "t": "犧牲",
+          "en": "sacrifices",
+          "ps": "V"
+        },
+        {
+          "t": "隔離",
+          "en": "isolated",
+          "ps": "Adj"
+        }
+      ]
+    },
+    "verified": "2026-03-19T08:29:31"
+  },
+  {
+    "no": "7",
+    "level": "intermediate",
+    "keywords": "Schema Design, Embedding, Atomicity, Performance",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您正在設計一個電子商務系統的「購物車」功能，需求是當使用者新增商品時，必須保證購物車狀態的一致性。",
+        "en": "You are designing the 'Shopping Cart' feature for an e-commerce system, requiring that the cart state remains consistent when a user adds items.",
+        "wg": [
+          {
+            "t": "購物車",
+            "en": "shopping cart",
+            "ps": "N"
+          },
+          {
+            "t": "一致性",
+            "en": "consistency",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "考慮到 MongoDB 的特性與效能最佳化，下列哪種設計策略最適合此場景？",
+        "en": "Considering MongoDB's characteristics and performance optimization, which of the following design strategies is most suitable for this scenario?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 將購物車與商品項目分開存放在兩個 Collection，並使用多文件交易（Multi-document Transaction）來確保寫入原子性。",
+        "en": "(A) Store the cart and items in two separate Collections, and use Multi-document Transactions to ensure write atomicity.",
+        "wg": [
+          {
+            "t": "多文件交易",
+            "en": "Multi-document Transaction",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(B) 使用正規化（Normalization）設計，透過應用程式層邏輯來處理兩階段提交。",
+        "en": "(B) Use a normalized design and handle two-phase commit via application-layer logic.",
+        "wg": []
+      },
+      {
+        "t": "(C) 將商品項目嵌入（Embed）到購物車文件中，利用單一文件原子性（Single-document Atomicity）來避免交易開銷。",
+        "en": "(C) Embed the items into the shopping cart document, leveraging Single-document Atomicity to avoid transaction overhead.",
+        "wg": [
+          {
+            "t": "嵌入",
+            "en": "embed",
+            "ps": "V"
+          },
+          {
+            "t": "開銷",
+            "en": "overhead",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(D) 使用 `w: 1` 的寫入關注設定，並接受偶爾的資料不一致以換取最高效能。",
+        "en": "(D) Use a write concern of `w: 1` and accept occasional data inconsistency in exchange for maximum performance.",
+        "wg": []
+      }
+    ],
+    "answer": "C",
+    "why": {
+      "t": "MongoDB 的核心哲學是「資料即文件」。對於購物車這類強關聯且通常一起存取的資料，嵌入式設計（Embedding）能利用單文件原子性，既保證了一致性，又避免了多文件交易帶來的鎖競爭與效能懲罰。",
+      "en": "MongoDB's core philosophy is 'Data as Document.' For data that is strongly related and accessed together like a shopping cart, Embedding leverages single-document atomicity, ensuring consistency while avoiding the lock contention and performance penalties of multi-document transactions.",
+      "wg": [
+        {
+          "t": "強關聯",
+          "en": "strongly related",
+          "ps": "Adj"
+        },
+        {
+          "t": "鎖競爭",
+          "en": "lock contention",
+          "ps": "N"
+        }
+      ]
+    },
+    "verified": "2026-03-19T08:29:31"
+  },
+  {
+    "no": "8",
+    "level": "advanced",
+    "keywords": "Read Concern, Linearizable, Majority, Stale Reads",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您的系統負責處理即時競標（Real-time Bidding），業務邏輯嚴格要求讀取到的價格必須是整個叢集中「絕對最新」的狀態，不能容忍任何因複製延遲（Replication Lag）導致的過時資料。",
+        "en": "Your system handles Real-time Bidding, where business logic strictly requires that the read price must be the 'absolute latest' state across the cluster, tolerating no stale data caused by Replication Lag.",
+        "wg": [
+          {
+            "t": "即時競標",
+            "en": "Real-time Bidding",
+            "ps": "N"
+          },
+          {
+            "t": "絕對最新",
+            "en": "absolute latest",
+            "ps": "Adj"
+          },
+          {
+            "t": "過時資料",
+            "en": "stale data",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "即使這會對讀取效能造成顯著影響，您應該選擇哪種 Read Concern？",
+        "en": "Even if this significantly impacts read performance, which Read Concern should you choose?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) `local`",
+        "en": "(A) `local`",
+        "wg": []
+      },
+      {
+        "t": "(B) `majority`",
+        "en": "(B) `majority`",
+        "wg": []
+      },
+      {
+        "t": "(C) `linearizable`",
+        "en": "(C) `linearizable`",
+        "wg": []
+      },
+      {
+        "t": "(D) `snapshot`",
+        "en": "(D) `snapshot`",
+        "wg": []
+      }
+    ],
+    "answer": "C",
+    "why": {
+      "t": "`linearizable` 讀取關注保證讀取操作反映所有在讀取開始前已完成的寫入，它會強制 Primary 在回傳資料前與大多數節點確認其 Primary 地位，從而避免讀到舊資料。`majority` 僅保證資料不會回滾，但仍可能讀到尚未同步的舊資料。",
+      "en": "`linearizable` read concern guarantees that the read operation reflects all writes that completed before the read started. It forces the Primary to confirm its status with a majority of nodes before returning data, preventing stale reads. `majority` only guarantees data won't rollback but may still return stale data that hasn't synced yet.",
+      "wg": [
+        {
+          "t": "地位",
+          "en": "status",
+          "ps": "N"
+        },
+        {
+          "t": "回滾",
+          "en": "rollback",
+          "ps": "V"
+        }
+      ]
+    },
+    "verified": "2026-03-19T08:29:31"
+  },
+  {
+    "no": "9",
+    "level": "advanced",
+    "keywords": "Transactions, Retry Logic, Error Handling, TransientTransactionError",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "const session = client.startSession();\nsession.startTransaction(options);\ntry {\n  await orders.insertOne({ ... }, { session });\n  await inventory.updateOne({ ... }, { session });\n  await session.commitTransaction();\n} catch (error) {\n  await session.abortTransaction();\n  throw error;\n} finally {\n  session.endSession();\n}",
+    "question": [
+      {
+        "t": "請檢視上述的手動交易控制程式碼。",
+        "en": "Please review the manual transaction control code above.",
+        "wg": []
+      },
+      {
+        "t": "這段程式碼在雲端或不穩定的網路環境中運行時，最主要且危險的缺失是什麼？",
+        "en": "What is the most significant and dangerous deficiency in this code when running in a cloud or unstable network environment?",
+        "wg": [
+          {
+            "t": "缺失",
+            "en": "deficiency",
+            "ps": "N"
+          },
+          {
+            "t": "不穩定的",
+            "en": "unstable",
+            "ps": "Adj"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 忘記設定 `writeConcern: 'majority'`，可能導致資料遺失。",
+        "en": "(A) Forgot to set `writeConcern: 'majority'`, which may lead to data loss.",
+        "wg": []
+      },
+      {
+        "t": "(B) 缺乏針對 `TransientTransactionError` 與 `UnknownTransactionCommitResult` 的自動重試邏輯。",
+        "en": "(B) Lacks automatic retry logic for `TransientTransactionError` and `UnknownTransactionCommitResult`.",
+        "wg": [
+          {
+            "t": "暫時性",
+            "en": "transient",
+            "ps": "Adj"
+          },
+          {
+            "t": "重試邏輯",
+            "en": "retry logic",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) `session.endSession()` 應該放在 `try` 區塊內，而不是 `finally`。",
+        "en": "(C) `session.endSession()` should be placed inside the `try` block, not `finally`.",
+        "wg": []
+      },
+      {
+        "t": "(D) 在交易中不能同時執行 `insertOne` 與 `updateOne`。",
+        "en": "(D) Cannot execute both `insertOne` and `updateOne` simultaneously within a transaction.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "在分散式系統中，暫時性錯誤（如網路瞬斷、Primary 選舉）是常態。官方建議使用 `session.withTransaction()` Helper，因為它內建了針對暫時性錯誤（Transient Errors）與提交結果不明（Unknown Commit Result）的重試機制。手動實作必須自行處理這些迴圈。",
+      "en": "In distributed systems, transient errors (like network blips, Primary elections) are common. It is recommended to use the `session.withTransaction()` helper as it has built-in retry mechanisms for Transient Errors and Unknown Commit Results. Manual implementations must handle these loops themselves.",
+      "wg": [
+        {
+          "t": "暫時性錯誤",
+          "en": "transient errors",
+          "ps": "N"
+        },
+        {
+          "t": "內建",
+          "en": "built-in",
+          "ps": "Adj"
+        }
+      ]
+    },
+    "verified": "2026-03-19T08:31:28"
+  },
+  {
+    "no": "10",
+    "level": "intermediate",
+    "keywords": "Isolation, Dirty Reads, Read Concern, Local",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "假設交易 A 正在更新文件 `doc1`，將欄位 `status` 從 'pending' 改為 'active'，但尚未提交（Commit）。",
+        "en": "Suppose Transaction A is updating document `doc1`, changing the field `status` from 'pending' to 'active', but has not yet committed.",
+        "wg": [
+          {
+            "t": "尚未",
+            "en": "not yet",
+            "ps": "Adv"
+          },
+          {
+            "t": "提交",
+            "en": "commit",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "此時，另一個客戶端使用預設的 `readConcern: 'local'` 讀取 `doc1`。請問該客戶端會讀到什麼值？這稱為什麼現象？",
+        "en": "At this moment, another client reads `doc1` using the default `readConcern: 'local'`. What value will this client see, and what is this phenomenon called?",
+        "wg": [
+          {
+            "t": "現象",
+            "en": "phenomenon",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 讀到 'pending'；這稱為快照隔離（Snapshot Isolation）。",
+        "en": "(A) Sees 'pending'; this is called Snapshot Isolation.",
+        "wg": []
+      },
+      {
+        "t": "(B) 讀到 'active'；這稱為髒讀（Dirty Read）。",
+        "en": "(B) Sees 'active'; this is called Dirty Read.",
+        "wg": [
+          {
+            "t": "髒讀",
+            "en": "Dirty Read",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) 讀取會被阻塞（Blocked），直到交易 A 提交為止。",
+        "en": "(C) The read will be blocked until Transaction A commits.",
+        "wg": [
+          {
+            "t": "阻塞",
+            "en": "blocked",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(D) 讀到 'pending'；因為 MongoDB 預設不允許讀取未提交資料。",
+        "en": "(D) Sees 'pending'; because MongoDB does not allow reading uncommitted data by default.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "MongoDB 的 `readConcern: 'local'` 不保證隔離性，它允許讀取節點上最新的資料，即使該資料是由尚未提交的交易寫入的。若交易 A 後來回滾，客戶端讀到的 'active' 就是無效的，這正是典型的「髒讀」。",
+      "en": "MongoDB's `readConcern: 'local'` does not guarantee isolation; it allows reading the latest data on the node, even if written by an uncommitted transaction. If Transaction A later rolls back, the 'active' status seen by the client becomes invalid, which is a classic 'Dirty Read'.",
+      "wg": [
+        {
+          "t": "隔離性",
+          "en": "isolation",
+          "ps": "N"
+        },
+        {
+          "t": "無效的",
+          "en": "invalid",
+          "ps": "Adj"
+        }
+      ]
+    },
+    "verified": "2026-03-19T08:31:28"
+  },
+  {
+    "no": "11",
+    "level": "advanced",
+    "keywords": "Sharding, Transactions, Performance, Two-Phase Commit",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您的團隊計畫將 MongoDB 從單一 Replica Set 遷移至 Sharded Cluster，且業務邏輯中包含跨多個 Shard 的 ACID 交易。",
+        "en": "Your team plans to migrate MongoDB from a single Replica Set to a Sharded Cluster, and the business logic involves ACID transactions spanning multiple shards.",
+        "wg": [
+          {
+            "t": "遷移",
+            "en": "migrate",
+            "ps": "V"
+          },
+          {
+            "t": "跨多個",
+            "en": "spanning multiple",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "關於跨 Shard 交易（Cross-shard Transactions）的效能特性，下列敘述何者正確？",
+        "en": "Regarding the performance characteristics of Cross-shard Transactions, which of the following statements is correct?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 效能與單一 Replica Set 交易相同，因為 MongoDB 自動平行化處理。",
+        "en": "(A) Performance is the same as single Replica Set transactions because MongoDB handles parallelization automatically.",
+        "wg": []
+      },
+      {
+        "t": "(B) 跨 Shard 交易需要經過兩階段提交（Two-Phase Commit），網路協調成本較高，延遲（Latency）會增加。",
+        "en": "(B) Cross-shard transactions require a Two-Phase Commit, resulting in higher network coordination costs and increased Latency.",
+        "wg": [
+          {
+            "t": "兩階段提交",
+            "en": "Two-Phase Commit",
+            "ps": "N"
+          },
+          {
+            "t": "協調",
+            "en": "coordination",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) 跨 Shard 交易不支援 `writeConcern: 'majority'`，因此寫入速度較快。",
+        "en": "(C) Cross-shard transactions do not support `writeConcern: 'majority'`, so write speed is faster.",
+        "wg": []
+      },
+      {
+        "t": "(D) 只有在所有 Shard 位於同一台實體機器時，才支援跨 Shard 交易。",
+        "en": "(D) Cross-shard transactions are only supported when all shards reside on the same physical machine.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "雖然 MongoDB 4.2+ 支援跨 Shard 交易，但其底層必須協調多個 Shard 的參與者，這涉及類似兩階段提交（2PC）的協定。相比於單一 Replica Set 內的交易，這會顯著增加網路往返次數與鎖定時間，導致較高的延遲。",
+      "en": "Although MongoDB 4.2+ supports cross-shard transactions, internally it must coordinate participants across multiple shards, involving a protocol similar to Two-Phase Commit (2PC). Compared to transactions within a single Replica Set, this significantly increases network round-trips and lock duration, leading to higher latency.",
+      "wg": [
+        {
+          "t": "參與者",
+          "en": "participants",
+          "ps": "N"
+        },
+        {
+          "t": "往返次數",
+          "en": "round-trips",
+          "ps": "N"
+        }
+      ]
+    },
+    "verified": "2026-03-19T08:31:28"
+  },
+  {
+    "no": "12",
+    "level": "intermediate",
+    "keywords": "Write Concern, Use Cases, Logging, Throughput",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您正在設計一個負責收集大量使用者點擊流（Clickstream）日誌的子系統。該資料主要用於離線分析，對即時性與資料完整性要求不高（允許極少量遺失），但寫入吞吐量（Throughput）要求極高。",
+        "en": "You are designing a subsystem to collect massive user clickstream logs. This data is mainly for offline analysis; real-time availability and data integrity requirements are low (minimal loss is acceptable), but write Throughput requirements are extremely high.",
+        "wg": [
+          {
+            "t": "點擊流",
+            "en": "clickstream",
+            "ps": "N"
+          },
+          {
+            "t": "吞吐量",
+            "en": "throughput",
+            "ps": "N"
+          },
+          {
+            "t": "完整性",
+            "en": "integrity",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "下列哪種 Write Concern 設定最適合此場景？",
+        "en": "Which Write Concern setting is most suitable for this scenario?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) `w: 'majority', j: true`",
+        "en": "(A) `w: 'majority', j: true`",
+        "wg": []
+      },
+      {
+        "t": "(B) `w: 'majority'`",
+        "en": "(B) `w: 'majority'`",
+        "wg": []
+      },
+      {
+        "t": "(C) `w: 1`",
+        "en": "(C) `w: 1`",
+        "wg": []
+      },
+      {
+        "t": "(D) 使用交易並設定 `w: 1`",
+        "en": "(D) Use transactions with `w: 1`",
+        "wg": []
+      }
+    ],
+    "answer": "C",
+    "why": {
+      "t": "`w: 1` 僅要求 Primary 確認收到寫入即可，不需要等待 Secondary 確認或寫入 Journal（視設定而定），能提供最低的延遲與最高的吞吐量。對於日誌這類「非關鍵業務」數據，這是典型的反模式修正（避免過度使用強一致性）。",
+      "en": "`w: 1` only requires the Primary to acknowledge the write, without waiting for Secondaries or Journaling (depending on config), offering the lowest latency and highest throughput. For 'non-critical' data like logs, this is a typical anti-pattern fix (avoiding overuse of strong consistency).",
+      "wg": [
+        {
+          "t": "非關鍵業務",
+          "en": "non-critical business",
+          "ps": "Adj"
+        },
+        {
+          "t": "過度使用",
+          "en": "overuse",
+          "ps": "N"
+        }
+      ]
+    },
+    "verified": "2026-03-19T08:31:28"
+  },
+  {
+    "no": "13",
+    "level": "advanced",
+    "keywords": "Concurrency, Write Conflict, Transactions, Locking",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在高併發環境下，有兩個獨立的交易（Transaction A 與 Transaction B）幾乎同時試圖修改同一個 Document。",
+        "en": "In a high-concurrency environment, two independent transactions (Transaction A and Transaction B) attempt to modify the same Document almost simultaneously.",
+        "wg": [
+          {
+            "t": "高併發",
+            "en": "high-concurrency",
+            "ps": "Adj"
+          },
+          {
+            "t": "同時",
+            "en": "simultaneously",
+            "ps": "Adv"
+          }
+        ]
+      },
+      {
+        "t": "假設 Transaction A 先取得了該 Document 的鎖，當 Transaction B 試圖寫入時會發生什麼事？",
+        "en": "Assuming Transaction A acquires the lock on the Document first, what happens when Transaction B attempts to write?",
+        "wg": [
+          {
+            "t": "取得",
+            "en": "acquire",
+            "ps": "V"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) Transaction B 會進入佇列等待，直到 A 提交後自動執行。",
+        "en": "(A) Transaction B will queue and wait, executing automatically after A commits.",
+        "wg": [
+          {
+            "t": "佇列",
+            "en": "queue",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(B) Transaction B 會立即失敗並拋出 `WriteConflict` 錯誤。",
+        "en": "(B) Transaction B will fail immediately and throw a `WriteConflict` error.",
+        "wg": []
+      },
+      {
+        "t": "(C) Transaction B 會覆蓋 Transaction A 的修改，以後來者為準（Last Write Wins）。",
+        "en": "(C) Transaction B will overwrite Transaction A's changes, following Last Write Wins.",
+        "wg": [
+          {
+            "t": "覆蓋",
+            "en": "overwrite",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(D) 兩個交易都會死鎖（Deadlock），需要資料庫管理員介入。",
+        "en": "(D) Both transactions will deadlock and require DBA intervention.",
+        "wg": [
+          {
+            "t": "死鎖",
+            "en": "deadlock",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "MongoDB 的 WiredTiger 引擎使用樂觀併發控制（Optimistic Concurrency Control）的變體。當偵測到寫入衝突（Write Conflict）時，後到的操作不會無限期等待鎖釋放，而是會立即終止並拋出錯誤。這就是為什麼應用程式端必須實作重試邏輯的原因。",
+      "en": "MongoDB's WiredTiger engine uses a variant of Optimistic Concurrency Control. When a Write Conflict is detected, the subsequent operation does not wait indefinitely for the lock; it aborts immediately and throws an error. This is why the application side must implement retry logic.",
+      "wg": [
+        {
+          "t": "樂觀併發控制",
+          "en": "Optimistic Concurrency Control",
+          "ps": "N"
+        },
+        {
+          "t": "終止",
+          "en": "abort",
+          "ps": "V"
+        }
+      ]
+    },
+    "verified": "2026-03-19T08:31:28"
+  },
+  {
+    "no": "14",
+    "level": "advanced",
+    "keywords": "Performance, WiredTiger, Cache, Anti-pattern",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "一位開發者在交易（Transaction）中執行了大量的資料更新，涉及數十萬個 Documents，且該交易持續執行了數分鐘。",
+        "en": "A developer executes a transaction involving massive data updates, affecting hundreds of thousands of Documents, and the transaction runs for several minutes.",
+        "wg": [
+          {
+            "t": "涉及",
+            "en": "involving",
+            "ps": "V"
+          },
+          {
+            "t": "持續",
+            "en": "runs for",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "除了可能觸發 60 秒的預設超時限制外，這種操作對資料庫效能最直接的負面影響是什麼？",
+        "en": "Besides potentially triggering the default 60-second timeout, what is the most direct negative impact of this operation on database performance?",
+        "wg": [
+          {
+            "t": "負面影響",
+            "en": "negative impact",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 會導致 WiredTiger Cache 壓力過大，因為未提交的髒資料必須保留在記憶體中無法被 Evict。",
+        "en": "(A) Causes excessive pressure on the WiredTiger Cache, as uncommitted dirty data must remain in memory and cannot be evicted.",
+        "wg": [
+          {
+            "t": "髒資料",
+            "en": "dirty data",
+            "ps": "N"
+          },
+          {
+            "t": "逐出",
+            "en": "evict",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(B) 會導致硬碟空間瞬間耗盡，因為交易日誌（Journal）無法輪替。",
+        "en": "(B) Causes instant disk space exhaustion because the Journal cannot rotate.",
+        "wg": [
+          {
+            "t": "耗盡",
+            "en": "exhaustion",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) 會導致所有讀取操作（即使是 `readConcern: 'local'`）都被阻塞。",
+        "en": "(C) Causes all read operations (even `readConcern: 'local'`) to be blocked.",
+        "wg": []
+      },
+      {
+        "t": "(D) 會觸發自動分片（Auto-sharding）機制頻繁遷移資料塊。",
+        "en": "(D) Triggers the Auto-sharding mechanism to migrate chunks frequently.",
+        "wg": []
+      }
+    ],
+    "answer": "A",
+    "why": {
+      "t": "在 WiredTiger 引擎中，交易期間修改的資料頁（Dirty Pages）會被釘在 Cache 中直到交易提交或回滾。長運行且大量的交易會佔用大量 Cache 空間，迫使引擎頻繁進行 Cache Eviction 甚至導致效能抖動（Thrashing），嚴重影響整體系統吞吐量。",
+      "en": "In the WiredTiger engine, data pages modified during a transaction (Dirty Pages) are pinned in the Cache until the transaction commits or rolls back. Long-running and massive transactions consume significant Cache space, forcing the engine to perform frequent Cache Eviction or even causing Thrashing, severely impacting overall system throughput.",
+      "wg": [
+        {
+          "t": "釘在",
+          "en": "pinned",
+          "ps": "V"
+        },
+        {
+          "t": "效能抖動",
+          "en": "Thrashing",
+          "ps": "N"
+        }
+      ]
+    },
+    "verified": "2026-03-19T08:31:28"
+  },
+  {
+    "no": "15",
+    "level": "advanced",
+    "keywords": "Transactions, Error Handling, UnknownTransactionCommitResult, Network Failure, Best Practices",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "try {\n  await session.commitTransaction();\n} catch (error) {\n  if (error.hasErrorLabel('UnknownTransactionCommitResult')) {\n     // Current Logic:\n     await session.abortTransaction();\n     throw new Error(\"Transaction failed, please retry.\");\n  }\n  // ... other error handling\n}",
+    "question": [
+      {
+        "t": "在審查一個使用 MongoDB 處理金流支付服務的程式碼時，您注意到上述針對交易提交（Commit）的錯誤處理邏輯。",
+        "en": "While reviewing the code for a financial payment service using MongoDB, you notice the above error handling logic for transaction commits.",
+        "wg": [
+          {
+            "t": "金流支付",
+            "en": "financial payment",
+            "ps": "N"
+          },
+          {
+            "t": "錯誤處理邏輯",
+            "en": "error handling logic",
+            "ps": "NP"
+          }
+        ]
+      },
+      {
+        "t": "在分散式環境中，當網路確認（ACK）遺失時可能會觸發 `UnknownTransactionCommitResult` 錯誤。",
+        "en": "In a distributed environment, an `UnknownTransactionCommitResult` error may be triggered when the network acknowledgment (ACK) is lost.",
+        "wg": [
+          {
+            "t": "分散式環境",
+            "en": "distributed environment",
+            "ps": "NP"
+          },
+          {
+            "t": "網路確認",
+            "en": "network acknowledgment",
+            "ps": "NP"
+          }
+        ]
+      },
+      {
+        "t": "您指出了目前的邏輯是不正確的。根據 MongoDB 的最佳實務，遇到此特定錯誤時應該採取什麼正確行動？",
+        "en": "You flag the current logic as incorrect. According to MongoDB best practices, what is the correct action to take when encountering this specific error?",
+        "wg": [
+          {
+            "t": "最佳實務",
+            "en": "best practices",
+            "ps": "NP"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 為了防止重複付款，應直接假設交易已成功，並記錄一條警告日誌。",
+        "en": "(A) Assume the transaction was successful to prevent duplicate payments, and log a warning.",
+        "wg": [
+          {
+            "t": "重複付款",
+            "en": "duplicate payments",
+            "ps": "NP"
+          }
+        ]
+      },
+      {
+        "t": "(B) 應重複重試 `commitTransaction` 操作，直到伺服器回傳明確的結果為止。",
+        "en": "(B) Retry the `commitTransaction` operation repeatedly until a definitive result is returned.",
+        "wg": [
+          {
+            "t": "明確的",
+            "en": "definitive",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "(C) 應立即中止（Abort）該交易，並從頭開始一個全新的交易。",
+        "en": "(C) Immediately abort the transaction and start a completely new transaction from the beginning.",
+        "wg": [
+          {
+            "t": "中止",
+            "en": "abort",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(D) 應忽略該錯誤，因為 MongoDB Driver 會自動在背景無限期重試所有提交操作。",
+        "en": "(D) Ignore the error, as the MongoDB Driver automatically retries all commit operations indefinitely in the background.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "`UnknownTransactionCommitResult` 表示 Driver 發出了提交請求但未收到回應，此時交易可能已在伺服器端成功提交，也可能尚未提交。由於 `commitTransaction` 操作是冪等的（Idempotent），正確的做法是重試該操作以獲取最終狀態。若直接 Abort 或開啟新交易，可能會導致資料不一致或重複執行。",
+      "en": "`UnknownTransactionCommitResult` indicates that the driver sent the commit request but did not receive a response; the transaction may have been successfully committed on the server or not. Since the `commitTransaction` operation is idempotent, the correct approach is to retry the operation to obtain the final state. Aborting or starting a new transaction immediately could lead to data inconsistency or duplicate execution.",
+      "wg": [
+        {
+          "t": "冪等的",
+          "en": "idempotent",
+          "ps": "Adj"
+        },
+        {
+          "t": "資料不一致",
+          "en": "data inconsistency",
+          "ps": "NP"
+        }
+      ]
+    },
+    "verified": "2026-03-19T08:31:28"
+  }
+]

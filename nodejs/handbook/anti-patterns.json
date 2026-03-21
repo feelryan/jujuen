@@ -27,13 +27,13 @@
     "type": "single",
     "options": [
       {
-        "t": "這會導致記憶體洩漏，因為 `largeData` 變數永遠不會被回收。",
-        "en": "It causes a memory leak because the `largeData` variable is never garbage collected.",
+        "t": "(A) 這會導致記憶體洩漏，因為 `largeData` 變數永遠不會被回收。",
+        "en": "(A) It causes a memory leak because the `largeData` variable is never garbage collected.",
         "wg": []
       },
       {
-        "t": "`fs.readFileSync` 與 `JSON.parse` 都是同步操作，會阻塞 Event Loop，導致伺服器在處理期間無法回應其他請求。",
-        "en": "`fs.readFileSync` and `JSON.parse` are synchronous operations that block the Event Loop, preventing the server from responding to other requests during processing.",
+        "t": "(B) `fs.readFileSync` 與 `JSON.parse` 都是同步操作，會阻塞 Event Loop，導致伺服器在處理期間無法回應其他請求。",
+        "en": "(B) `fs.readFileSync` and `JSON.parse` are synchronous operations that block the Event Loop, preventing the server from responding to other requests during processing.",
         "wg": [
           {
             "t": "同步操作",
@@ -48,17 +48,17 @@
         ]
       },
       {
-        "t": "`res.json` 是非同步的，可能會在檔案讀取完成前就發送回應。",
-        "en": "`res.json` is asynchronous and might send a response before the file reading is complete.",
+        "t": "(C) `res.json` 是非同步的，可能會在檔案讀取完成前就發送回應。",
+        "en": "(C) `res.json` is asynchronous and might send a response before the file reading is complete.",
         "wg": []
       },
       {
-        "t": "Node.js 無法處理大型 JSON 檔案，會直接拋出錯誤。",
-        "en": "Node.js cannot handle large JSON files and will throw an error immediately.",
+        "t": "(D) Node.js 無法處理大型 JSON 檔案，會直接拋出錯誤。",
+        "en": "(D) Node.js cannot handle large JSON files and will throw an error immediately.",
         "wg": []
       }
     ],
-    "answer": "1",
+    "answer": "B",
     "why": {
       "t": "Node.js 是單執行緒的。`fs.readFileSync` 會暫停執行緒直到 I/O 完成，而 `JSON.parse` 在解析大型字串時也是 CPU 密集且同步的。這違反了「單一服務生模型」，導致所有其他連線在操作完成前被「凍結」。應改用 `fs.createReadStream` 搭配串流解析庫（如 JSONStream）。",
       "en": "Node.js is single-threaded. `fs.readFileSync` halts the thread until I/O completes, and `JSON.parse` is CPU-intensive and synchronous when parsing large strings. This violates the 'Single Waiter Model', causing all other connections to be 'frozen' until the operation finishes. You should use `fs.createReadStream` combined with a streaming parser library (like JSONStream).",
@@ -74,7 +74,8 @@
           "ps": "adj."
         }
       ]
-    }
+    },
+    "verified": "2026-03-20T08:20:29"
   },
   {
     "no": "2",
@@ -104,18 +105,18 @@
     "type": "single",
     "options": [
       {
-        "t": "它會依序等待每個 `db.save` 完成，最後才印出 'Done'。",
-        "en": "It will wait for each `db.save` to complete sequentially, and print 'Done' at the very end.",
+        "t": "(A) 它會依序等待每個 `db.save` 完成，最後才印出 'Done'。",
+        "en": "(A) It will wait for each `db.save` to complete sequentially, and print 'Done' at the very end.",
         "wg": []
       },
       {
-        "t": "它會並行（Parallel）執行所有儲存操作，並在所有 Promise 解析後印出 'Done'。",
-        "en": "It will execute all save operations in parallel and print 'Done' after all Promises resolve.",
+        "t": "(B) 它會並行（Parallel）執行所有儲存操作，並在所有 Promise 解析後印出 'Done'。",
+        "en": "(B) It will execute all save operations in parallel and print 'Done' after all Promises resolve.",
         "wg": []
       },
       {
-        "t": "它會幾乎同時觸發所有儲存操作，但不會等待它們完成就立即印出 'Done'。",
-        "en": "It will trigger all save operations almost simultaneously but will print 'Done' immediately without waiting for them to finish.",
+        "t": "(C) 它會幾乎同時觸發所有儲存操作，但不會等待它們完成就立即印出 'Done'。",
+        "en": "(C) It will trigger all save operations almost simultaneously but will print 'Done' immediately without waiting for them to finish.",
         "wg": [
           {
             "t": "觸發",
@@ -125,12 +126,12 @@
         ]
       },
       {
-        "t": "程式會拋出 SyntaxError，因為 `forEach` 內部不能使用 `async`。",
-        "en": "The program will throw a SyntaxError because `async` cannot be used inside `forEach`.",
+        "t": "(D) 程式會拋出 SyntaxError，因為 `forEach` 內部不能使用 `async`。",
+        "en": "(D) The program will throw a SyntaxError because `async` cannot be used inside `forEach`.",
         "wg": []
       }
     ],
-    "answer": "2",
+    "answer": "C",
     "why": {
       "t": "這是經典的 `forEach` 非同步陷阱。`Array.prototype.forEach` 不會等待 callback 回傳的 Promise。因此，迴圈會迅速跑完並執行 `console.log('Done')`，而 `db.save` 的操作則在背景繼續執行（或失敗），導致 Race Condition。正確做法是使用 `for...of` 迴圈或 `Promise.all`。",
       "en": "This is the classic `forEach` async trap. `Array.prototype.forEach` does not await the Promise returned by the callback. Therefore, the loop finishes quickly and executes `console.log('Done')`, while `db.save` operations continue running (or failing) in the background, leading to a Race Condition. The correct approach is to use a `for...of` loop or `Promise.all`.",
@@ -146,7 +147,8 @@
           "ps": "noun"
         }
       ]
-    }
+    },
+    "verified": "2026-03-20T08:20:29"
   },
   {
     "no": "3",
@@ -176,13 +178,13 @@
     "type": "single",
     "options": [
       {
-        "t": "Callback Hell：它使用了過多的巢狀回呼函數。",
-        "en": "Callback Hell: It uses too many nested callback functions.",
+        "t": "(A) Callback Hell：它使用了過多的巢狀回呼函數。",
+        "en": "(A) Callback Hell: It uses too many nested callback functions.",
         "wg": []
       },
       {
-        "t": "Promise Constructor Anti-pattern (Deferred Anti-pattern)：它多餘地包裝了一個已經是 Promise 的物件，增加了複雜度並可能導致錯誤處理遺漏。",
-        "en": "Promise Constructor Anti-pattern (Deferred Anti-pattern): It redundantly wraps an object that is already a Promise, adding complexity and potentially causing error handling oversights.",
+        "t": "(B) Promise Constructor Anti-pattern (Deferred Anti-pattern)：它多餘地包裝了一個已經是 Promise 的物件，增加了複雜度並可能導致錯誤處理遺漏。",
+        "en": "(B) Promise Constructor Anti-pattern (Deferred Anti-pattern): It redundantly wraps an object that is already a Promise, adding complexity and potentially causing error handling oversights.",
         "wg": [
           {
             "t": "多餘地",
@@ -197,17 +199,17 @@
         ]
       },
       {
-        "t": "Sync/Async Mixing：它混合了同步與非同步的程式碼風格。",
-        "en": "Sync/Async Mixing: It mixes synchronous and asynchronous coding styles.",
+        "t": "(C) Sync/Async Mixing：它混合了同步與非同步的程式碼風格。",
+        "en": "(C) Sync/Async Mixing: It mixes synchronous and asynchronous coding styles.",
         "wg": []
       },
       {
-        "t": "Unbounded Concurrency：它沒有限制同時查詢的數量。",
-        "en": "Unbounded Concurrency: It does not limit the number of simultaneous queries.",
+        "t": "(D) Unbounded Concurrency：它沒有限制同時查詢的數量。",
+        "en": "(D) Unbounded Concurrency: It does not limit the number of simultaneous queries.",
         "wg": []
       }
     ],
-    "answer": "1",
+    "answer": "B",
     "why": {
       "t": "`db.findUser(id)` 已經回傳一個 Promise，再用 `new Promise` 包裹是多餘的。這不僅讓程式碼冗長，如果 `resolve` 或 `reject` 內部發生錯誤，該錯誤可能無法被外部正確捕獲。正確寫法是直接 `return db.findUser(id)`。",
       "en": "`db.findUser(id)` already returns a Promise, so wrapping it in `new Promise` is redundant. This not only makes the code verbose but if an error occurs inside `resolve` or `reject`, it might not be caught correctly by the caller. The correct way is simply `return db.findUser(id)`.",
@@ -223,7 +225,8 @@
           "ps": "verb"
         }
       ]
-    }
+    },
+    "verified": "2026-03-20T08:20:29"
   },
   {
     "no": "4",
@@ -253,13 +256,13 @@
     "type": "single",
     "options": [
       {
-        "t": "請求處理速度變慢，因為陣列操作是 O(n) 的。",
-        "en": "Request processing slows down because array operations are O(n).",
+        "t": "(A) 請求處理速度變慢，因為陣列操作是 O(n) 的。",
+        "en": "(A) Request processing slows down because array operations are O(n).",
         "wg": []
       },
       {
-        "t": "會導致記憶體洩漏（Memory Leak），最終引發 Out of Memory 崩潰。",
-        "en": "It will cause a Memory Leak, eventually triggering an Out of Memory crash.",
+        "t": "(B) 會導致記憶體洩漏（Memory Leak），最終引發 Out of Memory 崩潰。",
+        "en": "(B) It will cause a Memory Leak, eventually triggering an Out of Memory crash.",
         "wg": [
           {
             "t": "記憶體洩漏",
@@ -274,17 +277,17 @@
         ]
       },
       {
-        "t": "沒有任何問題，這是紀錄請求的標準做法。",
-        "en": "No issues; this is a standard practice for logging requests.",
+        "t": "(C) 沒有任何問題，這是紀錄請求的標準做法。",
+        "en": "(C) No issues; this is a standard practice for logging requests.",
         "wg": []
       },
       {
-        "t": "會導致 Stack Overflow，因為陣列長度超過限制。",
-        "en": "It will cause a Stack Overflow because the array length exceeds the limit.",
+        "t": "(D) 會導致 Stack Overflow，因為陣列長度超過限制。",
+        "en": "(D) It will cause a Stack Overflow because the array length exceeds the limit.",
         "wg": []
       }
     ],
-    "answer": "1",
+    "answer": "B",
     "why": {
       "t": "這是典型的「漏水水桶」反模式。`req` 物件非常巨大（包含 Headers, Socket 參照等）。將其存入全域變數 `requestHistory` 會導致 Garbage Collector (GC) 無法回收這些物件。隨著請求增加，記憶體會被耗盡。應使用外部 Logging 系統或只儲存極少量的必要資訊。",
       "en": "This is a typical 'Leaky Bucket' anti-pattern. The `req` object is huge (containing Headers, Socket references, etc.). Storing it in the global `requestHistory` variable prevents the Garbage Collector (GC) from reclaiming these objects. As requests increase, memory will be exhausted. Use an external logging system or store only minimal necessary information.",
@@ -300,7 +303,8 @@
           "ps": "adj."
         }
       ]
-    }
+    },
+    "verified": "2026-03-20T08:20:29"
   },
   {
     "no": "5",
@@ -330,13 +334,13 @@
     "type": "single",
     "options": [
       {
-        "t": "風險：執行順序不保證。改進：改用 `forEach`。",
-        "en": "Risk: Execution order is not guaranteed. Improvement: Switch to `forEach`.",
+        "t": "(A) 風險：執行順序不保證。改進：改用 `forEach`。",
+        "en": "(A) Risk: Execution order is not guaranteed. Improvement: Switch to `forEach`.",
         "wg": []
       },
       {
-        "t": "風險：瞬間產生過多併發請求，可能耗盡記憶體或導致資料庫連線逾時。改進：使用 `p-limit` 或 Async Iterator 進行併發控制。",
-        "en": "Risk: Generating too many concurrent requests instantly, potentially exhausting memory or causing database connection timeouts. Improvement: Use `p-limit` or Async Iterator for concurrency control.",
+        "t": "(B) 風險：瞬間產生過多併發請求，可能耗盡記憶體或導致資料庫連線逾時。改進：使用 `p-limit` 或 Async Iterator 進行併發控制。",
+        "en": "(B) Risk: Generating too many concurrent requests instantly, potentially exhausting memory or causing database connection timeouts. Improvement: Use `p-limit` or Async Iterator for concurrency control.",
         "wg": [
           {
             "t": "瞬間",
@@ -351,17 +355,17 @@
         ]
       },
       {
-        "t": "風險：`Promise.all` 是同步阻塞的。改進：使用 `Worker Threads`。",
-        "en": "Risk: `Promise.all` is synchronously blocking. Improvement: Use `Worker Threads`.",
+        "t": "(C) 風險：`Promise.all` 是同步阻塞的。改進：使用 `Worker Threads`。",
+        "en": "(C) Risk: `Promise.all` is synchronously blocking. Improvement: Use `Worker Threads`.",
         "wg": []
       },
       {
-        "t": "風險：無法捕捉單一錯誤。改進：改用 `Promise.race`。",
-        "en": "Risk: Cannot catch individual errors. Improvement: Switch to `Promise.race`.",
+        "t": "(D) 風險：無法捕捉單一錯誤。改進：改用 `Promise.race`。",
+        "en": "(D) Risk: Cannot catch individual errors. Improvement: Switch to `Promise.race`.",
         "wg": []
       }
     ],
-    "answer": "1",
+    "answer": "B",
     "why": {
       "t": "`Promise.all` 會同時啟動陣列中的所有 Promise。對於 10,000 個項目，這意味著同時發起 10,000 個 DB 查詢，極易導致資源耗盡（OOM）或下游服務崩潰。最佳實務是實作「有界併發」（Bounded Concurrency），例如限制同時只有 5-10 個任務在執行。",
       "en": "`Promise.all` starts all Promises in the array simultaneously. For 10,000 items, this means launching 10,000 DB queries at once, which can easily lead to resource exhaustion (OOM) or crash downstream services. The best practice is to implement 'Bounded Concurrency', such as limiting execution to only 5-10 concurrent tasks.",
@@ -377,7 +381,8 @@
           "ps": "noun"
         }
       ]
-    }
+    },
+    "verified": "2026-03-20T08:20:29"
   },
   {
     "no": "6",
@@ -407,13 +412,13 @@
     "type": "single",
     "options": [
       {
-        "t": "將任務包裝在 `process.nextTick()` 中。",
-        "en": "Wrap the task in `process.nextTick()`.",
+        "t": "(A) 將任務包裝在 `process.nextTick()` 中。",
+        "en": "(A) Wrap the task in `process.nextTick()`.",
         "wg": []
       },
       {
-        "t": "使用 `Worker Threads` 或將任務卸載（Offload）到專門的微服務。",
-        "en": "Use `Worker Threads` or offload the task to a dedicated microservice.",
+        "t": "(B) 使用 `Worker Threads` 或將任務卸載（Offload）到專門的微服務。",
+        "en": "(B) Use `Worker Threads` or offload the task to a dedicated microservice.",
         "wg": [
           {
             "t": "卸載",
@@ -423,17 +428,17 @@
         ]
       },
       {
-        "t": "使用 `Promise` 讓它變成非同步。",
-        "en": "Use a `Promise` to make it asynchronous.",
+        "t": "(C) 使用 `Promise` 讓它變成非同步。",
+        "en": "(C) Use a `Promise` to make it asynchronous.",
         "wg": []
       },
       {
-        "t": "增加 `UV_THREADPOOL_SIZE` 的設定值。",
-        "en": "Increase the `UV_THREADPOOL_SIZE` setting.",
+        "t": "(D) 增加 `UV_THREADPOOL_SIZE` 的設定值。",
+        "en": "(D) Increase the `UV_THREADPOOL_SIZE` setting.",
         "wg": []
       }
     ],
-    "answer": "1",
+    "answer": "B",
     "why": {
       "t": "單純使用 Promise 或 `nextTick` 無法解決 CPU 密集任務佔用主執行緒的問題，因為 JavaScript 依然是在同一個執行緒上運算。圖片處理應使用 `worker_threads` 來利用多核 CPU，或是移至獨立的服務以避免影響 API 的回應能力。`UV_THREADPOOL_SIZE` 僅影響 C++ 層面的非同步 I/O (如 fs, crypto)，對純 JS 邏輯或某些第三方庫未必有效。",
       "en": "Simply using Promises or `nextTick` does not solve the issue of CPU-intensive tasks hogging the main thread, as JavaScript still computes on the same thread. Image processing should use `worker_threads` to utilize multi-core CPUs, or be moved to a separate service to avoid impacting API responsiveness. `UV_THREADPOOL_SIZE` only affects C++ level async I/O (like fs, crypto) and may not apply to pure JS logic or certain third-party libraries.",
@@ -449,7 +454,8 @@
           "ps": "noun"
         }
       ]
-    }
+    },
+    "verified": "2026-03-20T08:20:29"
   },
   {
     "no": "7",
@@ -479,13 +485,13 @@
     "type": "single",
     "options": [
       {
-        "t": "Event Loop 會因為磁碟 I/O 速度過慢而被長時間阻塞。",
-        "en": "The Event Loop will be blocked for a long time due to slow disk I/O.",
+        "t": "(A) Event Loop 會因為磁碟 I/O 速度過慢而被長時間阻塞。",
+        "en": "(A) The Event Loop will be blocked for a long time due to slow disk I/O.",
         "wg": []
       },
       {
-        "t": "當檔案大小超過可用記憶體時，會導致 Heap Out of Memory (OOM) 崩潰。",
-        "en": "It will cause a Heap Out of Memory (OOM) crash when the file size exceeds available memory.",
+        "t": "(B) 當檔案大小超過可用記憶體時，會導致 Heap Out of Memory (OOM) 崩潰。",
+        "en": "(B) It will cause a Heap Out of Memory (OOM) crash when the file size exceeds available memory.",
         "wg": [
           {
             "t": "可用記憶體",
@@ -495,17 +501,17 @@
         ]
       },
       {
-        "t": "Node.js 無法讀取超過 1GB 的檔案，會直接拋出 RangeError。",
-        "en": "Node.js cannot read files larger than 1GB and will throw a RangeError immediately.",
+        "t": "(C) Node.js 無法讀取超過 1GB 的檔案，會直接拋出 RangeError。",
+        "en": "(C) Node.js cannot read files larger than 1GB and will throw a RangeError immediately.",
         "wg": []
       },
       {
-        "t": "這段程式碼是安全的，因為 fs.promises.readFile 是非同步操作。",
-        "en": "This code is safe because fs.promises.readFile is an asynchronous operation.",
+        "t": "(D) 這段程式碼是安全的，因為 fs.promises.readFile 是非同步操作。",
+        "en": "(D) This code is safe because fs.promises.readFile is an asynchronous operation.",
         "wg": []
       }
     ],
-    "answer": "1",
+    "answer": "B",
     "why": {
       "t": "雖然 `readFile` 是非同步的，但它會嘗試將整個檔案內容一次性載入記憶體（Buffer）。若檔案大小（如 2GB）接近或超過 Node.js process 的記憶體限制，會導致 OOM 崩潰。最佳實務是使用 Stream（如 `fs.createReadStream` 配合 `pipeline`）來保持固定的記憶體佔用。",
       "en": "Although `readFile` is asynchronous, it attempts to load the entire file content into memory (Buffer) at once. If the file size (e.g., 2GB) approaches or exceeds the Node.js process memory limit, it will cause an OOM crash. The best practice is to use Streams (e.g., `fs.createReadStream` with `pipeline`) to maintain constant memory usage.",
@@ -521,7 +527,8 @@
           "ps": "adjective"
         }
       ]
-    }
+    },
+    "verified": "2026-03-20T08:20:29"
   },
   {
     "no": "8",
@@ -551,13 +558,13 @@
     "type": "single",
     "options": [
       {
-        "t": "Map 的讀取速度比 Object 慢，會影響效能。",
-        "en": "Map reads are slower than Object reads, affecting performance.",
+        "t": "(A) Map 的讀取速度比 Object 慢，會影響效能。",
+        "en": "(A) Map reads are slower than Object reads, affecting performance.",
         "wg": []
       },
       {
-        "t": "這是一個「無上限快取」（Unbounded Cache），缺乏清理機制會導致記憶體洩漏。",
-        "en": "This is an 'Unbounded Cache'; the lack of a cleanup mechanism will lead to a memory leak.",
+        "t": "(B) 這是一個「無上限快取」（Unbounded Cache），缺乏清理機制會導致記憶體洩漏。",
+        "en": "(B) This is an 'Unbounded Cache'; the lack of a cleanup mechanism will lead to a memory leak.",
         "wg": [
           {
             "t": "無上限快取",
@@ -572,17 +579,17 @@
         ]
       },
       {
-        "t": "Map 不能作為全域變數使用，否則會被 Garbage Collection 回收。",
-        "en": "Map cannot be used as a global variable, otherwise it will be collected by Garbage Collection.",
+        "t": "(C) Map 不能作為全域變數使用，否則會被 Garbage Collection 回收。",
+        "en": "(C) Map cannot be used as a global variable, otherwise it will be collected by Garbage Collection.",
         "wg": []
       },
       {
-        "t": "在同步函數中使用 Map 會阻塞 Event Loop。",
-        "en": "Using Map in a synchronous function will block the Event Loop.",
+        "t": "(D) 在同步函數中使用 Map 會阻塞 Event Loop。",
+        "en": "(D) Using Map in a synchronous function will block the Event Loop.",
         "wg": []
       }
     ],
-    "answer": "1",
+    "answer": "B",
     "why": {
       "t": "這段程式碼沒有實作任何快取淘汰策略（如 LRU）或過期時間（TTL）。隨著 `key` 的數量不斷增加，`cache` 物件會無限增長，最終耗盡伺服器記憶體。應使用如 `lru-cache` 等專門的函式庫。",
       "en": "This code does not implement any cache eviction strategy (like LRU) or Time-To-Live (TTL). As the number of `key`s increases, the `cache` object will grow indefinitely, eventually exhausting server memory. Specialized libraries like `lru-cache` should be used.",
@@ -598,7 +605,8 @@
           "ps": "verb"
         }
       ]
-    }
+    },
+    "verified": "2026-03-20T08:20:29"
   },
   {
     "no": "9",
@@ -628,13 +636,13 @@
     "type": "single",
     "options": [
       {
-        "t": "Node.js 是單執行緒的，所有加密運算都在主執行緒上依序執行。",
-        "en": "Node.js is single-threaded, so all crypto operations are executed sequentially on the main thread.",
+        "t": "(A) Node.js 是單執行緒的，所有加密運算都在主執行緒上依序執行。",
+        "en": "(A) Node.js is single-threaded, so all crypto operations are executed sequentially on the main thread.",
         "wg": []
       },
       {
-        "t": "預設的 Libuv Thread Pool 大小為 4，第 5 個請求必須等待執行緒釋出。",
-        "en": "The default Libuv Thread Pool size is 4, so the 5th request must wait for a thread to become available.",
+        "t": "(B) 預設的 Libuv Thread Pool 大小為 4，第 5 個請求必須等待執行緒釋出。",
+        "en": "(B) The default Libuv Thread Pool size is 4, so the 5th request must wait for a thread to become available.",
         "wg": [
           {
             "t": "釋出",
@@ -644,17 +652,17 @@
         ]
       },
       {
-        "t": "pbkdf2 函數本身有全域鎖（Global Lock），無法並行處理。",
-        "en": "The pbkdf2 function itself has a Global Lock and cannot be processed in parallel.",
+        "t": "(C) pbkdf2 函數本身有全域鎖（Global Lock），無法並行處理。",
+        "en": "(C) The pbkdf2 function itself has a Global Lock and cannot be processed in parallel.",
         "wg": []
       },
       {
-        "t": "這是 JavaScript 引擎（V8）的限制，無法同時處理多個 Callback。",
-        "en": "This is a limitation of the JavaScript engine (V8), which cannot handle multiple callbacks simultaneously.",
+        "t": "(D) 這是 JavaScript 引擎（V8）的限制，無法同時處理多個 Callback。",
+        "en": "(D) This is a limitation of the JavaScript engine (V8), which cannot handle multiple callbacks simultaneously.",
         "wg": []
       }
     ],
-    "answer": "1",
+    "answer": "B",
     "why": {
       "t": "Node.js 的非同步 I/O 與部分加密操作（如 `pbkdf2`）依賴 Libuv 的 Thread Pool。預設大小（`UV_THREADPOOL_SIZE`）為 4。因此，前 4 個請求會佔滿執行緒，第 5 個請求必須排隊等待，直到其中一個執行緒完成任務。",
       "en": "Node.js asynchronous I/O and certain crypto operations (like `pbkdf2`) rely on the Libuv Thread Pool. The default size (`UV_THREADPOOL_SIZE`) is 4. Therefore, the first 4 requests occupy all threads, and the 5th request must queue up until one of the threads completes its task.",
@@ -670,7 +678,8 @@
           "ps": "verb phrase"
         }
       ]
-    }
+    },
+    "verified": "2026-03-20T08:21:33"
   },
   {
     "no": "10",
@@ -705,13 +714,13 @@
     "type": "single",
     "options": [
       {
-        "t": "Total Memory Usage (總記憶體使用量)",
-        "en": "Total Memory Usage",
+        "t": "(A) Total Memory Usage (總記憶體使用量)",
+        "en": "(A) Total Memory Usage",
         "wg": []
       },
       {
-        "t": "Event Loop Lag / Latency (事件迴圈延遲)",
-        "en": "Event Loop Lag / Latency",
+        "t": "(B) Event Loop Lag / Latency (事件迴圈延遲)",
+        "en": "(B) Event Loop Lag / Latency",
         "wg": [
           {
             "t": "事件迴圈延遲",
@@ -721,17 +730,17 @@
         ]
       },
       {
-        "t": "Number of Open File Descriptors (開啟的檔案描述符數量)",
-        "en": "Number of Open File Descriptors",
+        "t": "(C) Number of Open File Descriptors (開啟的檔案描述符數量)",
+        "en": "(C) Number of Open File Descriptors",
         "wg": []
       },
       {
-        "t": "Network Throughput (網路吞吐量)",
-        "en": "Network Throughput",
+        "t": "(D) Network Throughput (網路吞吐量)",
+        "en": "(D) Network Throughput",
         "wg": []
       }
     ],
-    "answer": "1",
+    "answer": "B",
     "why": {
       "t": "Event Loop Lag 測量的是「計畫執行的任務」與「實際執行時間」的差值。如果主執行緒被同步程式碼（CPU 密集任務）阻塞，Event Loop 無法及時處理下一個 Tick，導致此延遲指標飆高。這是診斷 CPU 阻塞最直接的訊號。",
       "en": "Event Loop Lag measures the difference between the 'scheduled execution time' and the 'actual execution time'. If the main thread is blocked by synchronous code (CPU-intensive tasks), the Event Loop cannot process the next tick in time, causing this latency metric to spike. This is the most direct signal for diagnosing CPU blocking.",
@@ -747,7 +756,8 @@
           "ps": "verb"
         }
       ]
-    }
+    },
+    "verified": "2026-03-20T08:21:33"
   },
   {
     "no": "11",
@@ -772,13 +782,13 @@
     "type": "single",
     "options": [
       {
-        "t": "setInterval 的時間間隔太短，會導致 CPU 過載。",
-        "en": "The setInterval interval is too short, causing CPU overload.",
+        "t": "(A) setInterval 的時間間隔太短，會導致 CPU 過載。",
+        "en": "(A) The setInterval interval is too short, causing CPU overload.",
         "wg": []
       },
       {
-        "t": "沒有儲存 setInterval 的回傳值並提供清除機制，導致 Timer 永遠運行（Memory Leak）。",
-        "en": "It does not store the return value of setInterval and provide a cleanup mechanism, causing the Timer to run forever (Memory Leak).",
+        "t": "(B) 沒有儲存 setInterval 的回傳值並提供清除機制，導致 Timer 永遠運行（Memory Leak）。",
+        "en": "(B) It does not store the return value of setInterval and provide a cleanup mechanism, causing the Timer to run forever (Memory Leak).",
         "wg": [
           {
             "t": "清除機制",
@@ -793,17 +803,17 @@
         ]
       },
       {
-        "t": "在 constructor 中使用箭頭函式會導致 `this` 綁定錯誤。",
-        "en": "Using an arrow function in the constructor will cause incorrect `this` binding.",
+        "t": "(C) 在 constructor 中使用箭頭函式會導致 `this` 綁定錯誤。",
+        "en": "(C) Using an arrow function in the constructor will cause incorrect `this` binding.",
         "wg": []
       },
       {
-        "t": "Node.js 不建議在 Class 中使用計時器。",
-        "en": "Node.js does not recommend using timers inside Classes.",
+        "t": "(D) Node.js 不建議在 Class 中使用計時器。",
+        "en": "(D) Node.js does not recommend using timers inside Classes.",
         "wg": []
       }
     ],
-    "answer": "1",
+    "answer": "B",
     "why": {
       "t": "當 `UserSession` 實例不再被需要時（例如使用者登出），由於 `setInterval` 仍在運行並引用著 `this`，Garbage Collector 無法回收該實例。這會導致記憶體洩漏。正確做法是儲存 timer ID 並實作 `destroy()` 或 `stop()` 方法來呼叫 `clearInterval`。",
       "en": "When a `UserSession` instance is no longer needed (e.g., user logs out), the Garbage Collector cannot reclaim the instance because `setInterval` is still running and referencing `this`. This leads to a memory leak. The correct approach is to store the timer ID and implement a `destroy()` or `stop()` method to call `clearInterval`.",
@@ -819,7 +829,8 @@
           "ps": "verb"
         }
       ]
-    }
+    },
+    "verified": "2026-03-20T08:21:33"
   },
   {
     "no": "12",
@@ -849,13 +860,13 @@
     "type": "single",
     "options": [
       {
-        "t": "HTTP 連線會立即中斷。",
-        "en": "The HTTP connection will be terminated immediately.",
+        "t": "(A) HTTP 連線會立即中斷。",
+        "en": "(A) The HTTP connection will be terminated immediately.",
         "wg": []
       },
       {
-        "t": "每次請求都會增加一個新的 Listener，且永遠不會被移除，最終導致記憶體洩漏與 MaxListenersExceededWarning。",
-        "en": "A new Listener is added for every request and never removed, eventually leading to a memory leak and MaxListenersExceededWarning.",
+        "t": "(B) 每次請求都會增加一個新的 Listener，且永遠不會被移除，最終導致記憶體洩漏與 MaxListenersExceededWarning。",
+        "en": "(B) A new Listener is added for every request and never removed, eventually leading to a memory leak and MaxListenersExceededWarning.",
         "wg": [
           {
             "t": "移除",
@@ -870,17 +881,17 @@
         ]
       },
       {
-        "t": "eventBus 會自動偵測並移除舊的 Listener。",
-        "en": "The eventBus will automatically detect and remove old Listeners.",
+        "t": "(C) eventBus 會自動偵測並移除舊的 Listener。",
+        "en": "(C) The eventBus will automatically detect and remove old Listeners.",
         "wg": []
       },
       {
-        "t": "res.write 會因為重複綁定而拋出錯誤。",
-        "en": "res.write will throw an error due to duplicate binding.",
+        "t": "(D) res.write 會因為重複綁定而拋出錯誤。",
+        "en": "(D) res.write will throw an error due to duplicate binding.",
         "wg": []
       }
     ],
-    "answer": "1",
+    "answer": "B",
     "why": {
       "t": "全域的 `eventBus` 會一直持有 `listener` 函式的參照，而該函式又透過閉包（Closure）持有 `res` 物件。即使 HTTP 請求結束，這些物件都無法被 GC 回收。必須在 `req.on('close')` 中呼叫 `eventBus.removeListener('new-data', listener)`。",
       "en": "The global `eventBus` retains a reference to the `listener` function, which in turn holds the `res` object via closure. Even after the HTTP request ends, these objects cannot be collected by GC. You must call `eventBus.removeListener('new-data', listener)` inside `req.on('close')`.",
@@ -896,6 +907,7 @@
           "ps": "noun"
         }
       ]
-    }
+    },
+    "verified": "2026-03-20T08:21:33"
   }
 ]

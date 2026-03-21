@@ -1,0 +1,1472 @@
+[
+  {
+    "no": "1",
+    "level": "advanced",
+    "keywords": "PSA Architecture, Write Concern, Arbiter, Availability",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您的團隊為了節省成本，將 MongoDB 複製集架構部署為 PSA（Primary-Secondary-Arbiter）模式。",
+        "en": "To save costs, your team deploys a MongoDB Replica Set in a PSA (Primary-Secondary-Arbiter) architecture.",
+        "wg": [
+          {
+            "t": "節省成本",
+            "en": "save costs",
+            "ps": "VP"
+          },
+          {
+            "t": "部署",
+            "en": "deploy",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "應用程式的寫入設定為 `w: \"majority\"` 以確保資料持久性。",
+        "en": "The application's write setting is configured to `w: \"majority\"` to ensure data durability.",
+        "wg": [
+          {
+            "t": "資料持久性",
+            "en": "data durability",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "如果唯一的 Secondary 節點因硬體故障而離線，但 Primary 與 Arbiter 仍正常運作，接下來的寫入操作會發生什麼情況？",
+        "en": "If the only Secondary node goes offline due to hardware failure, but the Primary and Arbiter are still functioning, what will happen to subsequent write operations?",
+        "wg": [
+          {
+            "t": "硬體故障",
+            "en": "hardware failure",
+            "ps": "N"
+          },
+          {
+            "t": "離線",
+            "en": "offline",
+            "ps": "Adj"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 寫入將成功，因為 Primary 與 Arbiter 構成了多數票（2/3）。",
+        "en": "(A) Writes will succeed because the Primary and Arbiter constitute a majority (2/3).",
+        "wg": []
+      },
+      {
+        "t": "(B) 寫入將失敗或超時，因為 Arbiter 不持有資料，無法滿足 `w: \"majority\"` 的資料複製需求。",
+        "en": "(B) Writes will fail or timeout because the Arbiter does not hold data and cannot satisfy the `w: \"majority\"` replication requirement.",
+        "wg": [
+          {
+            "t": "持有資料",
+            "en": "hold data",
+            "ps": "VP"
+          },
+          {
+            "t": "滿足",
+            "en": "satisfy",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(C) 寫入將成功，但會自動降級為 `w: 1` 直到 Secondary 恢復。",
+        "en": "(C) Writes will succeed but will automatically downgrade to `w: 1` until the Secondary recovers.",
+        "wg": [
+          {
+            "t": "降級",
+            "en": "downgrade",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(D) 叢集將進入唯讀模式，因為無法選出新的 Primary。",
+        "en": "(D) The cluster will enter read-only mode because a new Primary cannot be elected.",
+        "wg": [
+          {
+            "t": "唯讀模式",
+            "en": "read-only mode",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "在 PSA 架構中，雖然 Primary + Arbiter 滿足了選舉的「多數票」需求（維持叢集可用），但 Arbiter 不儲存資料。`w: \"majority\"` 要求資料必須寫入到「過半數的資料持有節點」。當唯一的 Secondary 故障時，僅剩 Primary 一個資料節點，無法滿足 Majority（需 2 個資料節點），導致寫入阻塞直到超時。",
+      "en": "In a PSA architecture, while the Primary + Arbiter satisfy the voting 'majority' (keeping the cluster available), the Arbiter does not store data. `w: \"majority\"` requires data to be written to a 'majority of data-bearing nodes'. When the only Secondary fails, only the Primary remains as a data node, which cannot satisfy the Majority requirement (needing 2 data nodes), causing writes to block until timeout.",
+      "wg": [
+        {
+          "t": "資料持有節點",
+          "en": "data-bearing nodes",
+          "ps": "N"
+        },
+        {
+          "t": "阻塞",
+          "en": "block",
+          "ps": "V"
+        }
+      ]
+    },
+    "verified": "2026-03-19T08:33:04"
+  },
+  {
+    "no": "2",
+    "level": "intermediate",
+    "keywords": "Oplog, Initial Sync, Replication Lag, Maintenance",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您負責維護一個寫入量極大的 MongoDB 叢集，其 Oplog 大小設定為可容納約 1 小時的操作紀錄。",
+        "en": "You are maintaining a write-heavy MongoDB cluster with an Oplog sized to hold approximately 1 hour of operations.",
+        "wg": [
+          {
+            "t": "寫入量極大",
+            "en": "write-heavy",
+            "ps": "Adj"
+          },
+          {
+            "t": "容納",
+            "en": "hold",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "某個 Secondary 節點因硬體維護而停機了 3 小時。",
+        "en": "A Secondary node was taken down for hardware maintenance for 3 hours.",
+        "wg": [
+          {
+            "t": "停機",
+            "en": "taken down",
+            "ps": "VP"
+          }
+        ]
+      },
+      {
+        "t": "當該節點重新啟動並嘗試加入叢集時，最可能發生什麼情況？",
+        "en": "What is the most likely outcome when this node restarts and attempts to rejoin the cluster?",
+        "wg": [
+          {
+            "t": "重新啟動",
+            "en": "restart",
+            "ps": "V"
+          },
+          {
+            "t": "加入",
+            "en": "rejoin",
+            "ps": "V"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 它會從 Primary 快速拉取這 3 小時缺少的 Oplog 並恢復同步。",
+        "en": "(A) It will quickly pull the missing Oplog for these 3 hours from the Primary and resume sync.",
+        "wg": []
+      },
+      {
+        "t": "(B) 它會觸發「初始化同步 (Initial Sync)」，刪除所有資料並從頭重新複製。",
+        "en": "(B) It will trigger 'Initial Sync', deleting all data and recloning from scratch.",
+        "wg": [
+          {
+            "t": "初始化同步",
+            "en": "Initial Sync",
+            "ps": "N"
+          },
+          {
+            "t": "從頭重新複製",
+            "en": "recloning from scratch",
+            "ps": "VP"
+          }
+        ]
+      },
+      {
+        "t": "(C) 它會自動請求 Primary 暫停寫入，直到追上進度為止。",
+        "en": "(C) It will automatically request the Primary to pause writes until it catches up.",
+        "wg": []
+      },
+      {
+        "t": "(D) 它會進入 Arbiter 模式，因為資料已經太舊而無法使用。",
+        "en": "(D) It will enter Arbiter mode because the data is too stale to be used.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "Oplog 是一個固定大小的集合（Capped Collection）。若節點停機時間（3小時）超過了 Oplog 的保留視窗（1小時），最新的 Oplog 紀錄將覆蓋舊紀錄。該 Secondary 醒來後會發現它需要的「下一筆」紀錄已經從 Primary 的 Oplog 中消失，因此無法進行增量同步，必須進入 Initial Sync（全量重新同步）。",
+      "en": "The Oplog is a capped collection. If the node downtime (3 hours) exceeds the Oplog retention window (1 hour), the newest Oplog entries will overwrite the old ones. When the Secondary wakes up, it finds that the 'next' record it needs has dropped off the Primary's Oplog, making incremental sync impossible. It must therefore enter Initial Sync (full resync).",
+      "wg": [
+        {
+          "t": "固定大小的集合",
+          "en": "capped collection",
+          "ps": "N"
+        },
+        {
+          "t": "增量同步",
+          "en": "incremental sync",
+          "ps": "N"
+        }
+      ]
+    },
+    "verified": "2026-03-19T08:33:04"
+  },
+  {
+    "no": "3",
+    "level": "intermediate",
+    "keywords": "Read Preference, Consistency, Stale Reads",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在開發使用者個人資料頁面時，產品經理要求使用者在更新資料後，重新整理頁面必須「立即」看到最新的內容。",
+        "en": "When developing a user profile page, the product manager requires that after a user updates their data, refreshing the page must 'immediately' show the latest content.",
+        "wg": [
+          {
+            "t": "重新整理",
+            "en": "refreshing",
+            "ps": "V"
+          },
+          {
+            "t": "立即",
+            "en": "immediately",
+            "ps": "Adv"
+          }
+        ]
+      },
+      {
+        "t": "為了分散資料庫讀取負載，您目前的讀取設定是 `readPreference: 'secondaryPreferred'`。",
+        "en": "To distribute database read load, your current read setting is `readPreference: 'secondaryPreferred'`.",
+        "wg": [
+          {
+            "t": "分散",
+            "en": "distribute",
+            "ps": "V"
+          },
+          {
+            "t": "負載",
+            "en": "load",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "這種設定最可能導致什麼問題？",
+        "en": "What problem is this configuration most likely to cause?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 寫入操作會變慢，因為需要等待 Secondary 確認。",
+        "en": "(A) Write operations will become slow because they need to wait for Secondary acknowledgment.",
+        "wg": []
+      },
+      {
+        "t": "(B) 違反「讀取自己寫入 (Read-your-own-writes)」的一致性，使用者可能看到舊資料。",
+        "en": "(B) Violation of 'Read-your-own-writes' consistency; the user might see stale data.",
+        "wg": [
+          {
+            "t": "違反",
+            "en": "violation",
+            "ps": "N"
+          },
+          {
+            "t": "舊資料",
+            "en": "stale data",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) Primary 節點會因為處理過多的路由請求而崩潰。",
+        "en": "(C) The Primary node will crash due to handling too many routing requests.",
+        "wg": []
+      },
+      {
+        "t": "(D) 系統會自動拒絕讀取請求，直到複製延遲歸零。",
+        "en": "(D) The system will automatically reject read requests until replication lag is zero.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "使用 `secondaryPreferred` 意味著讀取請求優先發送至 Secondary。由於 MongoDB 的複製是非同步的，Secondary 可能會有複製延遲（Replication Lag）。使用者剛寫入 Primary 的資料可能尚未傳播至 Secondary，導致讀取到舊資料，違反了「讀取自己寫入」的一致性需求。",
+      "en": "Using `secondaryPreferred` means read requests are prioritized to Secondaries. Since MongoDB replication is asynchronous, Secondaries may have Replication Lag. Data just written to the Primary may not have propagated to the Secondary yet, resulting in reading stale data and violating the 'Read-your-own-writes' consistency requirement.",
+      "wg": [
+        {
+          "t": "非同步",
+          "en": "asynchronous",
+          "ps": "Adj"
+        },
+        {
+          "t": "傳播",
+          "en": "propagate",
+          "ps": "V"
+        }
+      ]
+    },
+    "verified": "2026-03-19T08:33:04"
+  },
+  {
+    "no": "4",
+    "level": "advanced",
+    "keywords": "Failover, Rollback, Data Loss, Consistency",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "發生網路分區（Network Partition）時，原有的 Primary 節點被隔離在少數派區域，但仍短暫地接受了客戶端的寫入請求（使用預設 `w: 1`）。",
+        "en": "During a network partition, the original Primary node is isolated in a minority partition but briefly continues to accept client write requests (using default `w: 1`).",
+        "wg": [
+          {
+            "t": "網路分區",
+            "en": "network partition",
+            "ps": "N"
+          },
+          {
+            "t": "隔離",
+            "en": "isolated",
+            "ps": "V"
+          },
+          {
+            "t": "少數派",
+            "en": "minority",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "同時，多數派區域選出了新的 Primary。當網路恢復後，舊 Primary 以 Secondary 身分重新加入叢集。",
+        "en": "Meanwhile, a new Primary is elected in the majority partition. When the network heals, the old Primary rejoins the cluster as a Secondary.",
+        "wg": [
+          {
+            "t": "多數派",
+            "en": "majority",
+            "ps": "N"
+          },
+          {
+            "t": "恢復",
+            "en": "heal",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "那些寫入舊 Primary 但未複製到新 Primary 的資料會如何處理？",
+        "en": "What happens to the data written to the old Primary that was not replicated to the new Primary?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 這些資料會自動合併到新 Primary 的資料庫中。",
+        "en": "(A) The data will be automatically merged into the new Primary's database.",
+        "wg": [
+          {
+            "t": "合併",
+            "en": "merge",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(B) 這些資料會被保留，且新 Primary 的資料會被覆寫以匹配舊 Primary。",
+        "en": "(B) The data will be kept, and the new Primary's data will be overwritten to match the old Primary.",
+        "wg": [
+          {
+            "t": "覆寫",
+            "en": "overwrite",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(C) 這些資料會被回滾（Rollback）並寫入到磁碟上的特定檔案中，不會出現在現有資料庫內。",
+        "en": "(C) The data will be rolled back and written to specific files on disk, and will not appear in the current database.",
+        "wg": [
+          {
+            "t": "回滾",
+            "en": "rollback",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(D) 整個叢集會進入緊急維護模式，需要人工介入解決衝突。",
+        "en": "(D) The entire cluster will enter emergency maintenance mode, requiring manual intervention to resolve conflicts.",
+        "wg": [
+          {
+            "t": "人工介入",
+            "en": "manual intervention",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "answer": "C",
+    "why": {
+      "t": "當舊 Primary 重新加入時，它會發現自己的 Oplog 與新 Primary（現在的權威來源）分叉了。為了維持一致性，MongoDB 會撤銷（Rollback）那些未被複製的寫入操作，並將它們儲存在 `rollback` 目錄下的 BSON 檔案中，供管理員後續手動檢查或恢復，但這些資料會從資料庫中移除。",
+      "en": "When the old Primary rejoins, it finds its Oplog has diverged from the new Primary (the current authority). To maintain consistency, MongoDB rolls back the unreplicated write operations and stores them in BSON files within the `rollback` directory for later manual inspection or recovery, but the data is removed from the database.",
+      "wg": [
+        {
+          "t": "分叉",
+          "en": "diverge",
+          "ps": "V"
+        },
+        {
+          "t": "權威來源",
+          "en": "authority",
+          "ps": "N"
+        }
+      ]
+    },
+    "verified": "2026-03-19T08:33:04"
+  },
+  {
+    "no": "5",
+    "level": "intermediate",
+    "keywords": "Chain Replication, Latency, Replication Lag",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您注意到叢集中某個 Secondary 節點的複製延遲（Replication Lag）特別高。",
+        "en": "You notice that the Replication Lag on a specific Secondary node in your cluster is particularly high.",
+        "wg": [
+          {
+            "t": "複製延遲",
+            "en": "Replication Lag",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "經檢查發現，該節點並非直接從 Primary 同步資料，而是從另一個 Secondary 同步。",
+        "en": "Upon inspection, you find that this node is not syncing directly from the Primary, but from another Secondary.",
+        "wg": [
+          {
+            "t": "同步",
+            "en": "sync",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "這是什麼機制？以及它對系統有何影響？",
+        "en": "What is this mechanism, and what is its impact on the system?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 這是「腦裂 (Split-brain)」，會導致資料不一致。",
+        "en": "(A) This is 'Split-brain', which leads to data inconsistency.",
+        "wg": []
+      },
+      {
+        "t": "(B) 這是「鏈式複製 (Chain Replication)」，優點是減輕 Primary 負載，缺點是可能增加延遲。",
+        "en": "(B) This is 'Chain Replication'. Pros: reduces load on Primary; Cons: may increase latency.",
+        "wg": [
+          {
+            "t": "鏈式複製",
+            "en": "Chain Replication",
+            "ps": "N"
+          },
+          {
+            "t": "減輕",
+            "en": "reduce",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(C) 這是「仲裁模式 (Arbiter Mode)」，該節點不再持有資料。",
+        "en": "(C) This is 'Arbiter Mode', and the node no longer holds data.",
+        "wg": []
+      },
+      {
+        "t": "(D) 這是「分片平衡 (Sharding Balancing)」，正在搬移資料塊。",
+        "en": "(D) This is 'Sharding Balancing', moving data chunks.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "MongoDB 預設允許鏈式複製（Chain Replication），即 Secondary 自動選擇網路延遲較近的其他 Secondary 進行同步。這能減少 Primary 的網路與 CPU 負載，但由於資料需經過多跳（Hop）傳遞，通常會導致末端節點的複製延遲增加。",
+      "en": "MongoDB allows Chain Replication by default, where a Secondary automatically syncs from another Secondary with lower network latency. This reduces the network and CPU load on the Primary, but since data passes through multiple hops, it often increases replication lag on the downstream nodes.",
+      "wg": [
+        {
+          "t": "多跳",
+          "en": "multiple hops",
+          "ps": "N"
+        },
+        {
+          "t": "末端節點",
+          "en": "downstream nodes",
+          "ps": "N"
+        }
+      ]
+    },
+    "verified": "2026-03-19T08:33:04"
+  },
+  {
+    "no": "6",
+    "level": "intermediate",
+    "keywords": "Write Concern, wtimeout, Error Handling",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "try {\n  await db.collection('logs').insertOne(doc, {\n    writeConcern: { w: 'majority', wtimeout: 5000 }\n  });\n} catch (e) {\n  // Handle error\n}",
+    "question": [
+      {
+        "t": "請參考上方的程式碼片段。應用程式在執行寫入時捕捉到一個 `WriteConcernError`，錯誤訊息包含 `wtimeout`。",
+        "en": "Refer to the code snippet above. The application catches a `WriteConcernError` with a `wtimeout` message during a write operation.",
+        "wg": [
+          {
+            "t": "捕捉",
+            "en": "catch",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "這代表該筆資料的狀態為何？",
+        "en": "What does this indicate about the state of the data?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 寫入完全失敗，Primary 上沒有這筆資料。",
+        "en": "(A) The write failed completely; the data is not on the Primary.",
+        "wg": [
+          {
+            "t": "完全失敗",
+            "en": "failed completely",
+            "ps": "VP"
+          }
+        ]
+      },
+      {
+        "t": "(B) 寫入在 Primary 上成功了，但未能在 5000ms 內複製到足夠數量的 Secondary。",
+        "en": "(B) The write succeeded on the Primary but failed to replicate to enough Secondaries within 5000ms.",
+        "wg": [
+          {
+            "t": "足夠數量",
+            "en": "enough",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "(C) 寫入成功，但 Primary 在回應前崩潰了。",
+        "en": "(C) The write succeeded, but the Primary crashed before responding.",
+        "wg": []
+      },
+      {
+        "t": "(D) 資料庫連線已中斷，無法確定資料狀態。",
+        "en": "(D) The database connection was lost, and the data state is indeterminate.",
+        "wg": [
+          {
+            "t": "無法確定",
+            "en": "indeterminate",
+            "ps": "Adj"
+          }
+        ]
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "`wtimeout` 屬於 `WriteConcernError`，這表示 Primary 已經成功接收並寫入了資料，但在等待複製到指定數量（此例為 majority）的 Secondary 時超時了。這並不代表寫入失敗，而是代表資料的「持久性保證」尚未達到預期標準。",
+      "en": "`wtimeout` is a `WriteConcernError`, indicating that the Primary successfully received and wrote the data, but timed out waiting for it to replicate to the specified number of Secondaries (majority in this case). This does not mean the write failed, but rather that the 'durability guarantee' has not yet been met.",
+      "wg": [
+        {
+          "t": "持久性保證",
+          "en": "durability guarantee",
+          "ps": "N"
+        },
+        {
+          "t": "預期標準",
+          "en": "expected standard",
+          "ps": "N"
+        }
+      ]
+    },
+    "verified": "2026-03-19T08:33:04"
+  },
+  {
+    "no": "7",
+    "level": "advanced",
+    "keywords": "PSA Architecture, Write Concern, wtimeout, Blocking",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "db.collection('payments').insertOne(\n  { amount: 500 },\n  { writeConcern: { w: \"majority\", wtimeout: 5000 } }\n);",
+    "question": [
+      {
+        "t": "您的 MongoDB 叢集採用 PSA（Primary-Secondary-Arbiter）架構。",
+        "en": "Your MongoDB cluster uses a PSA (Primary-Secondary-Arbiter) architecture.",
+        "wg": [
+          {
+            "t": "架構",
+            "en": "architecture",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "目前 Secondary 節點因硬體故障而離線，但 Primary 與 Arbiter 運作正常。",
+        "en": "Currently, the Secondary node is offline due to hardware failure, but the Primary and Arbiter are functioning normally.",
+        "wg": [
+          {
+            "t": "離線",
+            "en": "offline",
+            "ps": "Adj"
+          },
+          {
+            "t": "運作正常",
+            "en": "functioning normally",
+            "ps": "VP"
+          }
+        ]
+      },
+      {
+        "t": "應用程式執行了上述的寫入操作，請問結果會是如何？",
+        "en": "The application executes the write operation shown above. What will be the result?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 寫入成功，因為 Primary 與 Arbiter 加起來構成了多數派（Majority）。",
+        "en": "(A) The write succeeds because the Primary and Arbiter together constitute a majority.",
+        "wg": [
+          {
+            "t": "多數派",
+            "en": "majority",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(B) 寫入會被阻塞直到超時（wtimeout），因為 Arbiter 無法寫入資料。",
+        "en": "(B) The write will block until it times out (wtimeout) because the Arbiter cannot write data.",
+        "wg": [
+          {
+            "t": "阻塞",
+            "en": "block",
+            "ps": "V"
+          },
+          {
+            "t": "超時",
+            "en": "times out",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(C) 寫入立即失敗，因為叢集會自動進入唯讀模式。",
+        "en": "(C) The write fails immediately because the cluster automatically enters read-only mode.",
+        "wg": [
+          {
+            "t": "唯讀模式",
+            "en": "read-only mode",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(D) 寫入成功，因為 `w: \"majority\"` 在 PSA 架構下會自動降級為 `w: 1`。",
+        "en": "(D) The write succeeds because `w: \"majority\"` automatically downgrades to `w: 1` in a PSA architecture.",
+        "wg": [
+          {
+            "t": "降級",
+            "en": "downgrades",
+            "ps": "V"
+          }
+        ]
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "在 PSA 架構中，雖然 Primary + Arbiter 滿足了選舉的「投票多數派」，但 `w: \"majority\"` 要求資料必須寫入「持有資料的成員」之過半數。Arbiter 不持有資料，無法對寫入操作進行確認（Acknowledge）。因此，當唯一的 Secondary 離線時，Primary 無法滿足資料複製的多數派要求，寫入將會阻塞直到 `wtimeout`。",
+      "en": "In a PSA architecture, while the Primary + Arbiter satisfy the 'voting majority' for elections, `w: \"majority\"` requires data to be written to a majority of 'data-bearing members'. Since the Arbiter holds no data, it cannot acknowledge write operations. Therefore, when the only Secondary is offline, the Primary cannot satisfy the data replication majority requirement, and the write will block until `wtimeout`.",
+      "wg": [
+        {
+          "t": "持有資料的成員",
+          "en": "data-bearing members",
+          "ps": "N"
+        },
+        {
+          "t": "確認",
+          "en": "acknowledge",
+          "ps": "V"
+        }
+      ]
+    },
+    "verified": "2026-03-19T08:33:04"
+  },
+  {
+    "no": "8",
+    "level": "intermediate",
+    "keywords": "Oplog, Idempotency, Replication, $inc, $set",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "// App executes:\ndb.products.updateOne({ _id: 101 }, { $inc: { stock: -1 } });",
+    "question": [
+      {
+        "t": "您正在排查資料同步問題，並檢查 Secondary 節點上的 Oplog 內容。",
+        "en": "You are troubleshooting a data synchronization issue and inspecting the Oplog content on a Secondary node.",
+        "wg": [
+          {
+            "t": "排查",
+            "en": "troubleshooting",
+            "ps": "V"
+          },
+          {
+            "t": "同步",
+            "en": "synchronization",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "對於應用程式執行的 `$inc`（遞減）操作，您預期在 Oplog 中看到什麼樣的紀錄？",
+        "en": "For the `$inc` (decrement) operation executed by the application, what kind of record do you expect to see in the Oplog?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 一個 `$inc` 操作，與應用程式發出的指令完全相同。",
+        "en": "(A) An `$inc` operation, exactly the same as the command issued by the application.",
+        "wg": []
+      },
+      {
+        "t": "(B) 一個 `$set` 操作，設定為計算後的最終數值。",
+        "en": "(B) A `$set` operation, set to the calculated final value.",
+        "wg": [
+          {
+            "t": "最終數值",
+            "en": "final value",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) 一個 `$diff` 操作，僅紀錄變更的位元組。",
+        "en": "(C) A `$diff` operation, recording only the changed bytes.",
+        "wg": []
+      },
+      {
+        "t": "(D) 不會有紀錄，因為 `$inc` 是在記憶體中計算的。",
+        "en": "(D) There will be no record because `$inc` is calculated in memory.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "Oplog 條目必須是「冪等」的（Idempotent），這意味著多次應用同一個條目必須產生相同的結果。`$inc` 是相對操作，若重複執行會導致數值錯誤；因此 MongoDB 會將其轉換為絕對的 `$set` 操作紀錄在 Oplog 中。",
+      "en": "Oplog entries must be 'idempotent', meaning applying the same entry multiple times must result in the same state. `$inc` is a relative operation; executing it repeatedly would cause incorrect values. Therefore, MongoDB translates it into an absolute `$set` operation in the Oplog.",
+      "wg": [
+        {
+          "t": "冪等",
+          "en": "idempotent",
+          "ps": "Adj"
+        },
+        {
+          "t": "相對操作",
+          "en": "relative operation",
+          "ps": "N"
+        },
+        {
+          "t": "絕對的",
+          "en": "absolute",
+          "ps": "Adj"
+        }
+      ]
+    },
+    "verified": "2026-03-19T08:33:04"
+  },
+  {
+    "no": "9",
+    "level": "intermediate",
+    "keywords": "Split-brain, Voting, Availability, Network Partition",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您部署了一個由 4 個資料節點組成的 MongoDB 複製集（沒有 Arbiter）。",
+        "en": "You have deployed a MongoDB Replica Set consisting of 4 data nodes (no Arbiter).",
+        "wg": [
+          {
+            "t": "資料節點",
+            "en": "data nodes",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "發生嚴重的網路分區（Network Partition），導致節點被平均分隔為兩組（每組 2 個節點）。",
+        "en": "A severe network partition occurs, splitting the nodes evenly into two groups (2 nodes in each group).",
+        "wg": [
+          {
+            "t": "網路分區",
+            "en": "network partition",
+            "ps": "N"
+          },
+          {
+            "t": "分隔",
+            "en": "splitting",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "請問此時叢集的寫入可用性狀態為何？",
+        "en": "What is the write availability status of the cluster at this time?",
+        "wg": [
+          {
+            "t": "寫入可用性",
+            "en": "write availability",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 擁有原 Primary 的那一組將繼續接受寫入。",
+        "en": "(A) The group containing the original Primary will continue to accept writes.",
+        "wg": []
+      },
+      {
+        "t": "(B) 兩組都會選出各自的 Primary，導致腦裂（Split-brain）。",
+        "en": "(B) Both groups will elect their own Primary, causing a split-brain scenario.",
+        "wg": [
+          {
+            "t": "腦裂",
+            "en": "split-brain",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) 整個叢集變為唯讀，因為沒有任何一組擁有過半數票數。",
+        "en": "(C) The entire cluster becomes read-only because neither group has a majority of votes.",
+        "wg": [
+          {
+            "t": "唯讀",
+            "en": "read-only",
+            "ps": "Adj"
+          },
+          {
+            "t": "過半數",
+            "en": "majority",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(D) 節點 ID 較大的一組會自動獲得額外的權重並選出 Primary。",
+        "en": "(D) The group with higher node IDs will automatically gain extra weight and elect a Primary.",
+        "wg": [
+          {
+            "t": "權重",
+            "en": "weight",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "answer": "C",
+    "why": {
+      "t": "在 4 個節點的叢集中，過半數（Majority）需要 `floor(4/2) + 1 = 3` 票。當網路將其分割為 2 對 2 時，沒有任何一方擁有 3 票。因此，原有的 Primary（若存在）會降級為 Secondary，且無法選出新 Primary，導致兩邊都變為唯讀狀態。這也是為何建議始終維持奇數個投票成員的原因。",
+      "en": "In a 4-node cluster, a majority requires `floor(4/2) + 1 = 3` votes. When the network splits them 2 vs 2, neither side has 3 votes. Consequently, the original Primary (if present) steps down to Secondary, and no new Primary can be elected, rendering both sides read-only. This is why maintaining an odd number of voting members is always recommended.",
+      "wg": [
+        {
+          "t": "降級",
+          "en": "steps down",
+          "ps": "VP"
+        },
+        {
+          "t": "奇數",
+          "en": "odd number",
+          "ps": "N"
+        }
+      ]
+    },
+    "verified": "2026-03-19T09:21:26"
+  },
+  {
+    "no": "10",
+    "level": "intermediate",
+    "keywords": "Drivers, Seed List, Auto-discovery, Configuration",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "const uri = \"mongodb://node1:27017,node2:27017,node3:27017/mydb\";\nconst client = new MongoClient(uri);",
+    "question": [
+      {
+        "t": "您的應用程式使用上述的連接字串（Seed List）連接到 MongoDB 複製集。",
+        "en": "Your application connects to a MongoDB Replica Set using the connection string (Seed List) shown above.",
+        "wg": [
+          {
+            "t": "連接字串",
+            "en": "connection string",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "為了應對流量增長，您在叢集中新增了兩個節點 `node4` 與 `node5`，但尚未更新應用程式的連接字串。",
+        "en": "To handle traffic growth, you added two new nodes `node4` and `node5` to the cluster, but have not yet updated the application's connection string.",
+        "wg": [
+          {
+            "t": "流量增長",
+            "en": "traffic growth",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "請問應用程式能否識別並使用這兩個新節點？",
+        "en": "Can the application recognize and use these two new nodes?",
+        "wg": [
+          {
+            "t": "識別",
+            "en": "recognize",
+            "ps": "V"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 可以，驅動程式會透過種子節點自動探索完整的叢集拓撲。",
+        "en": "(A) Yes, the driver will automatically discover the full cluster topology via the seed nodes.",
+        "wg": [
+          {
+            "t": "自動探索",
+            "en": "automatically discover",
+            "ps": "VP"
+          },
+          {
+            "t": "拓撲",
+            "en": "topology",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(B) 不行，應用程式必須重啟並更新連接字串才能連線到新節點。",
+        "en": "(B) No, the application must be restarted with an updated connection string to connect to the new nodes.",
+        "wg": []
+      },
+      {
+        "t": "(C) 僅能用於寫入，讀取請求只會發送到連接字串中定義的節點。",
+        "en": "(C) Only for writes; read requests will only be sent to the nodes defined in the connection string.",
+        "wg": []
+      },
+      {
+        "t": "(D) 不行，且如果 `node1` 故障，應用程式將無法連線。",
+        "en": "(D) No, and if `node1` fails, the application will be unable to connect.",
+        "wg": []
+      }
+    ],
+    "answer": "A",
+    "why": {
+      "t": "MongoDB 驅動程式使用「種子清單（Seed List）」來建立初始連線。一旦連上任一種子節點，驅動程式會執行 `hello` (或 `isMaster`) 指令來獲取當前複製集的完整成員清單（包含新加入的節點）。因此，只要種子節點中至少有一個可達，應用程式就能自動發現新節點。",
+      "en": "MongoDB drivers use the 'Seed List' to establish the initial connection. Once connected to any seed node, the driver executes the `hello` (or `isMaster`) command to retrieve the full member list of the current Replica Set (including newly added nodes). Therefore, as long as at least one seed node is reachable, the application can automatically discover the new nodes.",
+      "wg": [
+        {
+          "t": "種子清單",
+          "en": "Seed List",
+          "ps": "N"
+        },
+        {
+          "t": "初始連線",
+          "en": "initial connection",
+          "ps": "N"
+        }
+      ]
+    },
+    "verified": "2026-03-19T09:21:26"
+  },
+  {
+    "no": "11",
+    "level": "intermediate",
+    "keywords": "Read Preference, High Availability, secondaryPreferred, Trade-off",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您正在設計一個「交易歷史紀錄」查詢服務，該資料是不可變的（Immutable），且業務允許些微的資料延遲。",
+        "en": "You are designing a 'Transaction History' query service where the data is immutable, and the business allows for slight data latency.",
+        "wg": [
+          {
+            "t": "不可變的",
+            "en": "immutable",
+            "ps": "Adj"
+          },
+          {
+            "t": "資料延遲",
+            "en": "data latency",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "為了減輕 Primary 的負載，您希望盡可能從 Secondary 讀取資料；但若所有 Secondary 都不可用，系統仍須保持讀取功能（高可用性）。",
+        "en": "To reduce the load on the Primary, you want to read from Secondaries whenever possible; however, if all Secondaries are unavailable, the system must still maintain read functionality (High Availability).",
+        "wg": [
+          {
+            "t": "減輕",
+            "en": "reduce",
+            "ps": "V"
+          },
+          {
+            "t": "高可用性",
+            "en": "High Availability",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "請問應選擇哪種 Read Preference？",
+        "en": "Which Read Preference should you choose?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) `secondary`",
+        "en": "(A) `secondary`",
+        "wg": []
+      },
+      {
+        "t": "(B) `primaryPreferred`",
+        "en": "(B) `primaryPreferred`",
+        "wg": []
+      },
+      {
+        "t": "(C) `secondaryPreferred`",
+        "en": "(C) `secondaryPreferred`",
+        "wg": []
+      },
+      {
+        "t": "(D) `nearest`",
+        "en": "(D) `nearest`",
+        "wg": []
+      }
+    ],
+    "answer": "C",
+    "why": {
+      "t": "`secondaryPreferred` 模式會優先嘗試從 Secondary 讀取，這符合分流 Primary 負載的需求。更重要的是，當沒有可用的 Secondary 時，它會自動退回（Fallback）到 Primary 進行讀取，確保了高可用性。相比之下，`secondary` 模式在無 Secondary 可用時會拋出錯誤。",
+      "en": "The `secondaryPreferred` mode prioritizes reading from a Secondary, which meets the requirement of offloading the Primary. More importantly, when no Secondaries are available, it automatically falls back to the Primary for reads, ensuring High Availability. In contrast, the `secondary` mode would throw an error if no Secondary is available.",
+      "wg": [
+        {
+          "t": "分流",
+          "en": "offloading",
+          "ps": "V"
+        },
+        {
+          "t": "退回",
+          "en": "falls back",
+          "ps": "V"
+        }
+      ]
+    },
+    "verified": "2026-03-19T09:21:26"
+  },
+  {
+    "no": "12",
+    "level": "advanced",
+    "keywords": "Read Concern, Linearizable, CAP Theorem, Network Partition, Consistency",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您的金融應用程式需要執行一項極為關鍵的讀取操作，該操作必須保證讀取到的資料反映了叢集中最新的寫入狀態，且絕對不能從一個已經與多數派失去聯繫（但尚未察覺）的舊 Primary 節點讀取資料。",
+        "en": "Your financial application needs to perform a critical read operation that must guarantee the data reflects the latest writes in the cluster and must absolutely not read from an old Primary that has lost contact with the majority (but hasn't realized it yet).",
+        "wg": [
+          {
+            "t": "極為關鍵",
+            "en": "critical",
+            "ps": "Adj"
+          },
+          {
+            "t": "多數派",
+            "en": "majority",
+            "ps": "N"
+          },
+          {
+            "t": "尚未察覺",
+            "en": "hasn't realized",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "為了滿足此需求，您應該在讀取操作中使用哪種設定？",
+        "en": "To meet this requirement, which configuration should you use for the read operation?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) `readPreference: \"primary\"`",
+        "en": "(A) `readPreference: \"primary\"`",
+        "wg": []
+      },
+      {
+        "t": "(B) `readConcern: \"majority\"`",
+        "en": "(B) `readConcern: \"majority\"`",
+        "wg": []
+      },
+      {
+        "t": "(C) `readConcern: \"linearizable\"`",
+        "en": "(C) `readConcern: \"linearizable\"`",
+        "wg": []
+      },
+      {
+        "t": "(D) `writeConcern: \"majority\"`",
+        "en": "(D) `writeConcern: \"majority\"`",
+        "wg": []
+      }
+    ],
+    "answer": "C",
+    "why": {
+      "t": "`readConcern: \"linearizable\"` 會在讀取時強制 Primary 節點確認自己仍與多數派節點保持連線（透過確認大多數節點是否能看見該次讀取），從而避免在網路分區時從被隔離的舊 Primary 讀取到過期資料。僅使用 `readPreference: \"primary\"` 無法防止這種情況，因為被隔離的節點在偵測到心跳失敗前仍會認為自己是 Primary。",
+      "en": "`readConcern: \"linearizable\"` forces the Primary node to confirm it is still connected to a majority of nodes (by verifying if the majority can see the read) at the time of reading, thereby preventing stale reads from an isolated old Primary during a network partition. Using only `readPreference: \"primary\"` does not prevent this, as an isolated node may still consider itself Primary before detecting heartbeat failures.",
+      "wg": [
+        {
+          "t": "強制",
+          "en": "force",
+          "ps": "V"
+        },
+        {
+          "t": "被隔離的",
+          "en": "isolated",
+          "ps": "Adj"
+        },
+        {
+          "t": "過期資料",
+          "en": "stale data",
+          "ps": "N"
+        }
+      ]
+    },
+    "verified": "2026-03-19T09:21:26"
+  },
+  {
+    "no": "13",
+    "level": "intermediate",
+    "keywords": "Replica Set Configuration, Priority, Disaster Recovery, Hardware",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您正在架構一個包含 3 個節點的 MongoDB 複製集。",
+        "en": "You are architecting a 3-node MongoDB Replica Set.",
+        "wg": []
+      },
+      {
+        "t": "其中兩個節點位於主要資料中心並配備高效能 SSD，第三個節點位於異地災備中心（DR Site），硬體規格較低且網路延遲較高。",
+        "en": "Two nodes are in the primary data center equipped with high-performance SSDs, while the third node is in a remote Disaster Recovery (DR) site with lower hardware specs and higher network latency.",
+        "wg": [
+          {
+            "t": "異地災備中心",
+            "en": "Disaster Recovery (DR) site",
+            "ps": "N"
+          },
+          {
+            "t": "規格",
+            "en": "specs",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "您希望第三個節點持有資料副本並參與投票以維持高可用性，但**絕對不希望**它成為 Primary 處理寫入流量。",
+        "en": "You want the third node to hold a copy of the data and participate in voting to maintain high availability, but you **absolutely do not want** it to become Primary and handle write traffic.",
+        "wg": [
+          {
+            "t": "絕對不希望",
+            "en": "absolutely do not want",
+            "ps": "Phrase"
+          }
+        ]
+      },
+      {
+        "t": "您應該如何設定該節點？",
+        "en": "How should you configure that node?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 設定 `arbiterOnly: true`。",
+        "en": "(A) Set `arbiterOnly: true`.",
+        "wg": []
+      },
+      {
+        "t": "(B) 設定 `priority: 0`。",
+        "en": "(B) Set `priority: 0`.",
+        "wg": []
+      },
+      {
+        "t": "(C) 設定 `hidden: true`。",
+        "en": "(C) Set `hidden: true`.",
+        "wg": []
+      },
+      {
+        "t": "(D) 設定 `votes: 0`。",
+        "en": "(D) Set `votes: 0`.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "設定 `priority: 0` 可以讓成員保持 Secondary 狀態、持有資料並參與投票，但永遠不會觸發選舉成為 Primary。這適用於硬體較差或位於遠端的備援節點。Arbiter 不持有資料；Hidden 成員雖然 `priority` 也是 0，但對客戶端不可見（通常用於純備份或分析），題目僅要求不成為 Primary，未要求隱藏。",
+      "en": "Setting `priority: 0` allows the member to remain a Secondary, hold data, and participate in voting, but it will never trigger an election to become Primary. This is suitable for backup nodes with lower hardware specs or in remote locations. Arbiters do not hold data; Hidden members also have `priority: 0` but are invisible to clients (usually for backups or analytics), whereas the question only requires preventing it from becoming Primary, not hiding it.",
+      "wg": [
+        {
+          "t": "觸發",
+          "en": "trigger",
+          "ps": "V"
+        },
+        {
+          "t": "備援節點",
+          "en": "backup node",
+          "ps": "N"
+        },
+        {
+          "t": "不可見",
+          "en": "invisible",
+          "ps": "Adj"
+        }
+      ]
+    },
+    "verified": "2026-03-19T09:21:26"
+  },
+  {
+    "no": "14",
+    "level": "advanced",
+    "keywords": "Durability, Journaling, Write Concern, Power Failure",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "const result = await db.collection('payments').insertOne(\n  { amount: 500 },\n  { writeConcern: { w: \"majority\", j: false } }\n);",
+    "question": [
+      {
+        "t": "請參考上方的程式碼片段。應用程式使用了 `w: \"majority\"` 但明確設定（或預設）`j: false`。",
+        "en": "Please refer to the code snippet above. The application uses `w: \"majority\"` but explicitly sets (or defaults to) `j: false`.",
+        "wg": [
+          {
+            "t": "明確設定",
+            "en": "explicitly sets",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "假設在寫入操作成功回應後的瞬間，資料中心發生全面斷電（Power Outage），導致所有節點同時關機。",
+        "en": "Assume that immediately after the write operation returns success, a total power outage occurs in the data center, causing all nodes to shut down simultaneously.",
+        "wg": [
+          {
+            "t": "瞬間",
+            "en": "instant/moment",
+            "ps": "N"
+          },
+          {
+            "t": "全面斷電",
+            "en": "total power outage",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "當電力恢復且叢集重啟後，這筆資料是否保證存在？",
+        "en": "When power is restored and the cluster restarts, is this data guaranteed to exist?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 是，因為 `w: \"majority\"` 保證資料已寫入多數節點的磁碟。",
+        "en": "(A) Yes, because `w: \"majority\"` guarantees data is written to the disk of a majority of nodes.",
+        "wg": []
+      },
+      {
+        "t": "(B) 是，因為 MongoDB 的 Oplog 總是直接寫入磁碟。",
+        "en": "(B) Yes, because MongoDB's Oplog is always written directly to disk.",
+        "wg": []
+      },
+      {
+        "t": "(C) 否，`w: \"majority\"` 僅保證資料複製到多數節點的記憶體中，若未開啟 `j: true`，斷電可能導致資料遺失。",
+        "en": "(C) No, `w: \"majority\"` only guarantees data is replicated to the memory of a majority of nodes. Without `j: true`, a power outage can cause data loss.",
+        "wg": [
+          {
+            "t": "記憶體",
+            "en": "memory",
+            "ps": "N"
+          },
+          {
+            "t": "遺失",
+            "en": "loss",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(D) 否，只有 Arbiter 參與確認時才會寫入磁碟。",
+        "en": "(D) No, data is written to disk only when an Arbiter participates in the acknowledgment.",
+        "wg": []
+      }
+    ],
+    "answer": "C",
+    "why": {
+      "t": "`w: \"majority\"` 確保寫入操作已傳播到多數節點，但預設情況下（取決於 `j` 參數）可能僅存在於記憶體緩衝區（Memory Buffer）中。若要保證在節點崩潰或斷電後資料不遺失，必須設定 `j: true` 以強制將日誌（Journal）刷入磁碟。雖然多數節點同時斷電的機率較低，但在同一機櫃或資料中心斷電的情境下是真實存在的風險。",
+      "en": "`w: \"majority\"` ensures the write operation has propagated to a majority of nodes, but by default (depending on the `j` parameter), it may only exist in memory buffers. To guarantee data survival after a node crash or power outage, `j: true` must be set to force flushing the journal to disk. While the probability of all nodes losing power simultaneously is low, it is a real risk in scenarios like a rack or data center power failure.",
+      "wg": [
+        {
+          "t": "傳播",
+          "en": "propagate",
+          "ps": "V"
+        },
+        {
+          "t": "刷入",
+          "en": "flush",
+          "ps": "V"
+        },
+        {
+          "t": "機櫃",
+          "en": "rack",
+          "ps": "N"
+        }
+      ]
+    },
+    "verified": "2026-03-19T09:21:26"
+  },
+  {
+    "no": "15",
+    "level": "intermediate",
+    "keywords": "Delayed Member, Human Error, Backup, Recovery",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您的團隊擔心人為操作失誤（例如開發人員意外執行了 `db.collection.drop()`）會導致災難性的資料遺失。",
+        "en": "Your team is concerned that human operational errors (e.g., a developer accidentally executing `db.collection.drop()`) could lead to catastrophic data loss.",
+        "wg": [
+          {
+            "t": "人為操作失誤",
+            "en": "human operational errors",
+            "ps": "N"
+          },
+          {
+            "t": "災難性的",
+            "en": "catastrophic",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "由於此類操作會立即複製到所有節點，標準的複製集無法防止此問題。為了在不依賴冷備份（Cold Backup）的情況下提供快速恢復能力，您應該在架構中加入什麼樣的節點？",
+        "en": "Since such operations replicate immediately to all nodes, a standard Replica Set cannot prevent this. To provide quick recovery capabilities without relying on cold backups, what kind of node should you add to the architecture?",
+        "wg": [
+          {
+            "t": "冷備份",
+            "en": "cold backup",
+            "ps": "N"
+          },
+          {
+            "t": "快速恢復能力",
+            "en": "quick recovery capabilities",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 增加一個 Arbiter 節點。",
+        "en": "(A) Add an Arbiter node.",
+        "wg": []
+      },
+      {
+        "t": "(B) 設定一個 `priority: 0` 且帶有 `slaveDelay`（延遲複製）的 Secondary 節點。",
+        "en": "(B) Configure a Secondary node with `priority: 0` and `slaveDelay` (delayed replication).",
+        "wg": [
+          {
+            "t": "延遲複製",
+            "en": "delayed replication",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) 將所有節點的 Oplog 大小增加一倍。",
+        "en": "(C) Double the Oplog size on all nodes.",
+        "wg": []
+      },
+      {
+        "t": "(D) 強制所有寫入使用 `w: \"majority\"`。",
+        "en": "(D) Enforce `w: \"majority\"` for all writes.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "延遲節點（Delayed Member）會刻意比 Primary 晚一段時間（例如 1 小時）應用 Oplog。當發生人為誤刪資料時，該操作雖然會立即傳播，但延遲節點尚未執行該操作。管理者可以利用這段時間窗口，從延遲節點恢復資料，這比從昨晚的備份還原要快得多且資料更完整。",
+      "en": "A Delayed Member intentionally applies the Oplog later than the Primary by a set period (e.g., 1 hour). When accidental data deletion occurs, although the operation propagates immediately, the delayed node has not yet executed it. Administrators can use this time window to recover data from the delayed node, which is much faster and more complete than restoring from the previous night's backup.",
+      "wg": [
+        {
+          "t": "刻意",
+          "en": "intentionally",
+          "ps": "Adv"
+        },
+        {
+          "t": "時間窗口",
+          "en": "time window",
+          "ps": "N"
+        },
+        {
+          "t": "還原",
+          "en": "restore",
+          "ps": "V"
+        }
+      ]
+    },
+    "verified": "2026-03-19T09:21:26"
+  }
+]

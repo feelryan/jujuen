@@ -1,0 +1,1058 @@
+[
+  {
+    "no": "1",
+    "level": "intermediate",
+    "keywords": "Architecture, Server Layer, Storage Engine, InnoDB",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "MySQL 採用可插拔式儲存引擎架構，將職責區分為 Server Layer 與 Storage Engine Layer。",
+        "en": "MySQL adopts a pluggable storage engine architecture, dividing responsibilities between the Server Layer and the Storage Engine Layer.",
+        "wg": [
+          {
+            "t": "可插拔式",
+            "en": "pluggable",
+            "ps": "Adj"
+          },
+          {
+            "t": "儲存引擎",
+            "en": "storage engine",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "下列哪一項功能是由 **Storage Engine Layer (如 InnoDB)** 直接負責，而非 Server Layer？",
+        "en": "Which of the following features is directly handled by the **Storage Engine Layer (e.g., InnoDB)**, rather than the Server Layer?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) SQL 語法解析 (Parser) 與優化 (Optimizer)",
+        "en": "(A) SQL Syntax Parsing (Parser) and Optimization (Optimizer)",
+        "wg": []
+      },
+      {
+        "t": "(B) 二進位日誌 (Binlog) 的寫入與管理",
+        "en": "(B) Writing and management of Binary Logs (Binlog)",
+        "wg": []
+      },
+      {
+        "t": "(C) 儲存程序 (Stored Procedures) 與觸發器 (Triggers) 的執行",
+        "en": "(C) Execution of Stored Procedures and Triggers",
+        "wg": []
+      },
+      {
+        "t": "(D) 交易的列級鎖定 (Row-Level Locking) 與 MVCC 實作",
+        "en": "(D) Implementation of Transaction Row-Level Locking and MVCC",
+        "wg": [
+          {
+            "t": "列級鎖定",
+            "en": "row-level locking",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "answer": "D",
+    "why": {
+      "t": "Server Layer 負責與客戶端溝通、解析 SQL、優化查詢以及處理跨引擎功能（如 Binlog、Stored Procedures）。Storage Engine Layer（如 InnoDB）則專注於資料的實際存取、交易處理、鎖定機制（Locking）與崩潰恢復。",
+      "en": "The Server Layer handles client communication, SQL parsing, query optimization, and cross-engine features (like Binlog, Stored Procedures). The Storage Engine Layer (e.g., InnoDB) focuses on actual data access, transaction processing, locking mechanisms, and crash recovery.",
+      "wg": [
+        {
+          "t": "崩潰恢復",
+          "en": "crash recovery",
+          "ps": "N"
+        }
+      ]
+    },
+    "verified": "2026-03-19T13:43:32"
+  },
+  {
+    "no": "2",
+    "level": "advanced",
+    "keywords": "Crash Recovery, 2PC, Redo Log, Binlog",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "UPDATE accounts SET balance = balance + 100 WHERE id = 1;",
+    "question": [
+      {
+        "t": "在執行上述 UPDATE 語句時，MySQL 內部使用兩階段提交 (2PC) 來確保 Redo Log 與 Binlog 的一致性。",
+        "en": "When executing the above UPDATE statement, MySQL internally uses Two-Phase Commit (2PC) to ensure consistency between the Redo Log and Binlog.",
+        "wg": [
+          {
+            "t": "兩階段提交",
+            "en": "Two-Phase Commit",
+            "ps": "N"
+          },
+          {
+            "t": "一致性",
+            "en": "consistency",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "若系統在 **Binlog 寫入並 fsync 成功後**，但在 **Redo Log 狀態變更為 Commit 之前** 發生崩潰 (Crash)，",
+        "en": "If the system crashes **after the Binlog is written and fsync-ed successfully**, but **before the Redo Log status is changed to Commit**,",
+        "wg": []
+      },
+      {
+        "t": "請問 MySQL 重啟後的恢復行為為何？",
+        "en": "what will be the recovery behavior of MySQL upon restart?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 交易回滾 (Rollback)，因為 Redo Log 尚未標記為 Commit。",
+        "en": "(A) Transaction Rollback, because the Redo Log is not yet marked as Commit.",
+        "wg": [
+          {
+            "t": "回滾",
+            "en": "rollback",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(B) 交易提交 (Commit)，因為 Binlog 已完整寫入，系統會依據 Binlog 補齊 Redo Log 的提交狀態。",
+        "en": "(B) Transaction Commit, because the Binlog is fully written, and the system will complete the Redo Log commit status based on the Binlog.",
+        "wg": [
+          {
+            "t": "補齊",
+            "en": "complete/fill in",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(C) 資料庫進入損毀狀態，需人工介入修復。",
+        "en": "(C) The database enters a corrupted state and requires manual intervention.",
+        "wg": []
+      },
+      {
+        "t": "(D) 視 `innodb_flush_log_at_trx_commit` 的設定值而定。",
+        "en": "(D) Depends on the setting of `innodb_flush_log_at_trx_commit`.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "在 Crash Recovery 流程中，若發現 Redo Log 處於 `prepare` 狀態，MySQL 會檢查 Binlog 的完整性。若 Binlog 完整（即 XID 一致），則視為交易成功並執行提交 (Commit)，以確保主庫與從庫（依賴 Binlog）的資料一致。",
+      "en": "During the Crash Recovery process, if the Redo Log is found in the `prepare` state, MySQL checks the integrity of the Binlog. If the Binlog is complete (i.e., XIDs match), the transaction is considered successful and is committed to ensure data consistency between the Primary and Replicas (which rely on the Binlog).",
+      "wg": [
+        {
+          "t": "完整性",
+          "en": "integrity",
+          "ps": "N"
+        }
+      ]
+    },
+    "verified": "2026-03-19T13:43:32"
+  },
+  {
+    "no": "3",
+    "level": "intermediate",
+    "keywords": "WAL, I/O Optimization, Performance",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在高併發寫入場景下，MySQL 採用 WAL (Write-Ahead Logging) 機制來提升效能。",
+        "en": "In high-concurrency write scenarios, MySQL uses the WAL (Write-Ahead Logging) mechanism to improve performance.",
+        "wg": [
+          {
+            "t": "高併發",
+            "en": "high-concurrency",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "請問 WAL 提升寫入效能的主要物理原理是什麼？",
+        "en": "What is the primary physical principle behind how WAL improves write performance?",
+        "wg": [
+          {
+            "t": "物理原理",
+            "en": "physical principle",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 將多次寫入合併為一次，減少 CPU Context Switch。",
+        "en": "(A) Merges multiple writes into one, reducing CPU Context Switches.",
+        "wg": []
+      },
+      {
+        "t": "(B) 將對資料檔案的隨機 I/O (Random I/O) 轉換為對日誌檔案的順序 I/O (Sequential I/O)。",
+        "en": "(B) Converts Random I/O on data files into Sequential I/O on log files.",
+        "wg": [
+          {
+            "t": "隨機 I/O",
+            "en": "Random I/O",
+            "ps": "N"
+          },
+          {
+            "t": "順序 I/O",
+            "en": "Sequential I/O",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) 透過壓縮演算法減少寫入磁碟的資料量。",
+        "en": "(C) Reduces the amount of data written to disk through compression algorithms.",
+        "wg": []
+      },
+      {
+        "t": "(D) 暫時關閉 ACID 的持久性 (Durability) 檢查以加速寫入。",
+        "en": "(D) Temporarily disables ACID Durability checks to accelerate writes.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "直接修改 `.ibd` 資料檔案通常涉及磁頭跳轉的隨機 I/O，速度較慢。WAL 機制允許先將修改記錄在 Redo Log 中（這是追加式的順序 I/O，速度極快），之後再由後台執行緒將 Dirty Page 刷入資料檔案。",
+      "en": "Directly modifying `.ibd` data files usually involves Random I/O with disk head seeking, which is slow. The WAL mechanism allows modifications to be recorded first in the Redo Log (which is append-only Sequential I/O and extremely fast), and later flushed to data files by background threads.",
+      "wg": [
+        {
+          "t": "磁頭跳轉",
+          "en": "disk head seeking",
+          "ps": "N"
+        }
+      ]
+    },
+    "verified": "2026-03-19T13:43:32"
+  },
+  {
+    "no": "4",
+    "level": "advanced",
+    "keywords": "Doublewrite Buffer, Partial Page Write, Data Integrity",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "InnoDB 預設開啟 Doublewrite Buffer。",
+        "en": "InnoDB enables the Doublewrite Buffer by default.",
+        "wg": []
+      },
+      {
+        "t": "考慮到 Redo Log 已經具備 Crash Recovery 的能力，為什麼我們仍然需要 Doublewrite Buffer？",
+        "en": "Considering that the Redo Log already provides Crash Recovery capabilities, why do we still need the Doublewrite Buffer?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) Redo Log 記錄的是邏輯 SQL，無法修復物理層面的 Page 損毀。",
+        "en": "(A) Redo Log records logical SQL and cannot repair physical Page corruption.",
+        "wg": []
+      },
+      {
+        "t": "(B) 解決 Partial Page Write 問題：若 Page 本身在寫入時發生物理損毀，Redo Log 無法在損毀的 Page 上進行重做。",
+        "en": "(B) To solve the Partial Page Write problem: If a Page is physically corrupted during a write, the Redo Log cannot be re-applied on a corrupted Page.",
+        "wg": [
+          {
+            "t": "物理損毀",
+            "en": "physical corruption",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) Doublewrite Buffer 提供了額外的快取層，可以加速讀取效能。",
+        "en": "(C) The Doublewrite Buffer provides an extra caching layer that accelerates read performance.",
+        "wg": []
+      },
+      {
+        "t": "(D) 為了支援 Binlog 與 Redo Log 之間的 2PC 機制。",
+        "en": "(D) To support the 2PC mechanism between Binlog and Redo Log.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "InnoDB Page (16KB) 與 OS Page (通常 4KB) 大小不一致。若寫入中途斷電，可能導致 Page 只寫了一半 (Partial Page Write)。Redo Log 記錄的是「對 Page 的修改」，若 Page 本身結構已損壞，Redo Log 無法應用。Doublewrite Buffer 提供了原始 Page 的副本，確保能還原出一個完好的 Page 來應用 Redo Log。",
+      "en": "InnoDB Page (16KB) and OS Page (typically 4KB) sizes differ. A power loss during a write can result in a partially written page (Partial Page Write). The Redo Log records 'modifications to a Page'; if the Page structure itself is corrupted, the Redo Log cannot be applied. The Doublewrite Buffer provides a copy of the original Page, ensuring a healthy Page can be restored to apply the Redo Log.",
+      "wg": [
+        {
+          "t": "副本",
+          "en": "copy/replica",
+          "ps": "N"
+        },
+        {
+          "t": "還原",
+          "en": "restore",
+          "ps": "V"
+        }
+      ]
+    },
+    "verified": "2026-03-19T13:43:32"
+  },
+  {
+    "no": "5",
+    "level": "intermediate",
+    "keywords": "Configuration, ACID, Durability, Best Practices",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您正在設計一個核心金融交易系統，對於資料遺失的容忍度為零。",
+        "en": "You are designing a core financial transaction system with zero tolerance for data loss.",
+        "wg": [
+          {
+            "t": "容忍度",
+            "en": "tolerance",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "下列哪一組 MySQL 設定（俗稱「雙 1 設定」）能確保最高的持久性 (Durability)？",
+        "en": "Which of the following MySQL configurations (commonly known as 'Double 1 settings') ensures the highest Durability?",
+        "wg": [
+          {
+            "t": "持久性",
+            "en": "Durability",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) `innodb_flush_log_at_trx_commit = 1`, `sync_binlog = 1`",
+        "en": "(A) `innodb_flush_log_at_trx_commit = 1`, `sync_binlog = 1`",
+        "wg": []
+      },
+      {
+        "t": "(B) `innodb_flush_log_at_trx_commit = 2`, `sync_binlog = 0`",
+        "en": "(B) `innodb_flush_log_at_trx_commit = 2`, `sync_binlog = 0`",
+        "wg": []
+      },
+      {
+        "t": "(C) `innodb_flush_log_at_trx_commit = 0`, `sync_binlog = 1`",
+        "en": "(C) `innodb_flush_log_at_trx_commit = 0`, `sync_binlog = 1`",
+        "wg": []
+      },
+      {
+        "t": "(D) `innodb_flush_log_at_trx_commit = 1`, `sync_binlog = 100`",
+        "en": "(D) `innodb_flush_log_at_trx_commit = 1`, `sync_binlog = 100`",
+        "wg": []
+      }
+    ],
+    "answer": "A",
+    "why": {
+      "t": "`innodb_flush_log_at_trx_commit=1` 確保每次交易提交都將 Redo Log 寫入磁碟（防止 Server Crash 掉資料）；`sync_binlog=1` 確保每次提交都將 Binlog 寫入磁碟（防止 Replication 資料不一致）。這是 ACID 中 Durability 的最高保證。",
+      "en": "`innodb_flush_log_at_trx_commit=1` ensures Redo Log is written to disk on every commit (preventing data loss on Server Crash); `sync_binlog=1` ensures Binlog is written to disk on every commit (preventing Replication inconsistency). This is the highest guarantee for Durability in ACID.",
+      "wg": []
+    },
+    "verified": "2026-03-19T13:43:32"
+  },
+  {
+    "no": "6",
+    "level": "intermediate",
+    "keywords": "Log Types, Redo Log, Binlog, Undo Log",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "關於 MySQL 三種核心日誌 (Redo Log, Undo Log, Binlog) 的特性比較，下列敘述何者**錯誤**？",
+        "en": "Regarding the comparison of MySQL's three core logs (Redo Log, Undo Log, Binlog), which of the following statements is **incorrect**?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) **Redo Log** 是物理日誌，記錄 Page 的修改，採用循環寫入 (Circular Write) 方式。",
+        "en": "(A) **Redo Log** is a physical log recording Page modifications and uses a Circular Write method.",
+        "wg": [
+          {
+            "t": "循環寫入",
+            "en": "Circular Write",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(B) **Binlog** 是邏輯日誌，記錄 SQL 語句或資料列變更，採用追加寫入 (Append-only) 方式。",
+        "en": "(B) **Binlog** is a logical log recording SQL statements or row changes and uses an Append-only method.",
+        "wg": [
+          {
+            "t": "追加寫入",
+            "en": "Append-only",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) **Undo Log** 主要用於交易回滾 (Rollback) 與 MVCC，記錄的是資料修改前的狀態。",
+        "en": "(C) **Undo Log** is mainly used for transaction Rollback and MVCC, recording the state of data before modification.",
+        "wg": []
+      },
+      {
+        "t": "(D) **Redo Log** 與 **Binlog** 都是由 Storage Engine Layer (InnoDB) 負責維護與寫入。",
+        "en": "(D) Both **Redo Log** and **Binlog** are maintained and written by the Storage Engine Layer (InnoDB).",
+        "wg": []
+      }
+    ],
+    "answer": "D",
+    "why": {
+      "t": "Redo Log 是 InnoDB 儲存引擎特有的；但 **Binlog 是屬於 MySQL Server Layer 的功能**，所有儲存引擎共用。這是兩者在架構層級上最大的區別。",
+      "en": "Redo Log is specific to the InnoDB storage engine; however, **Binlog is a feature of the MySQL Server Layer**, shared across all storage engines. This is the major architectural difference between the two.",
+      "wg": [
+        {
+          "t": "架構層級",
+          "en": "architectural level",
+          "ps": "N"
+        }
+      ]
+    },
+    "verified": "2026-03-19T13:43:32"
+  },
+  {
+    "no": "7",
+    "level": "intermediate",
+    "keywords": "Buffer Pool, Dirty Page, Memory Architecture",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在 InnoDB 的架構設計中，Buffer Pool 不僅僅是一個快取 (Cache)，而是資料的主要操作區。",
+        "en": "In InnoDB's architectural design, the Buffer Pool is not merely a cache but the primary workspace for data.",
+        "wg": [
+          {
+            "t": "主要操作區",
+            "en": "primary workspace",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "當記憶體中的 Page 被修改，但尚未寫入磁碟 (Disk) 時，該 Page 被稱為什麼？",
+        "en": "When a Page in memory has been modified but not yet written to the disk, what is that Page called?",
+        "wg": [
+          {
+            "t": "尚未寫入",
+            "en": "not yet written",
+            "ps": "Phrase"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) Hot Page",
+        "en": "(A) Hot Page",
+        "wg": []
+      },
+      {
+        "t": "(B) Dirty Page",
+        "en": "(B) Dirty Page",
+        "wg": []
+      },
+      {
+        "t": "(C) Active Page",
+        "en": "(C) Active Page",
+        "wg": []
+      },
+      {
+        "t": "(D) Pinned Page",
+        "en": "(D) Pinned Page",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "在 InnoDB 中，被修改過但尚未 Flush 到磁碟的 Page 稱為 Dirty Page (髒頁)。這是資料庫 I/O 優化的關鍵，允許將多次修改合併後再寫入磁碟。",
+      "en": "In InnoDB, a Page that has been modified but not yet flushed to disk is called a Dirty Page. This is key to database I/O optimization, allowing multiple modifications to be merged before writing to disk.",
+      "wg": [
+        {
+          "t": "髒頁",
+          "en": "Dirty Page",
+          "ps": "N"
+        },
+        {
+          "t": "合併",
+          "en": "merge",
+          "ps": "V"
+        }
+      ]
+    },
+    "verified": "2026-03-19T13:43:32"
+  },
+  {
+    "no": "8",
+    "level": "intermediate",
+    "keywords": "Undo Log, MVCC, Rollback, Logical Log",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "當交易需要回滾 (Rollback) 或支援 MVCC (多版本併發控制) 時，MySQL 依賴哪一種日誌來提供資料的「舊值」？",
+        "en": "When a transaction needs to rollback or support MVCC (Multi-Version Concurrency Control), which log does MySQL rely on to provide the 'old value' of the data?",
+        "wg": [
+          {
+            "t": "回滾",
+            "en": "rollback",
+            "ps": "V"
+          },
+          {
+            "t": "舊值",
+            "en": "old value",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) Redo Log",
+        "en": "(A) Redo Log",
+        "wg": []
+      },
+      {
+        "t": "(B) Binlog",
+        "en": "(B) Binlog",
+        "wg": []
+      },
+      {
+        "t": "(C) Undo Log",
+        "en": "(C) Undo Log",
+        "wg": []
+      },
+      {
+        "t": "(D) Error Log",
+        "en": "(D) Error Log",
+        "wg": []
+      }
+    ],
+    "answer": "C",
+    "why": {
+      "t": "Undo Log 是邏輯日誌，記錄了如何撤銷修改 (例如 INSERT 的反向是 DELETE)，因此用於交易回滾與 MVCC 的快照讀取。Redo Log 用於崩潰恢復，Binlog 用於複製。",
+      "en": "The Undo Log is a logical log that records how to undo modifications (e.g., the reverse of INSERT is DELETE), so it is used for transaction rollback and snapshot reads in MVCC. Redo Log is for crash recovery, and Binlog is for replication.",
+      "wg": [
+        {
+          "t": "快照讀取",
+          "en": "snapshot read",
+          "ps": "N"
+        },
+        {
+          "t": "撤銷",
+          "en": "undo",
+          "ps": "V"
+        }
+      ]
+    },
+    "verified": "2026-03-19T13:43:32"
+  },
+  {
+    "no": "9",
+    "level": "advanced",
+    "keywords": "Update Lifecycle, Locking, Execution Flow",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "UPDATE accounts SET balance = balance + 100 WHERE id = 1;",
+    "question": [
+      {
+        "t": "考慮上述的 UPDATE 語句，在 MySQL 的執行生命週期中，InnoDB 何時會對該資料行 (Row) 進行加鎖？",
+        "en": "Considering the UPDATE statement above, at what stage in the MySQL execution lifecycle does InnoDB acquire a lock on the row?",
+        "wg": [
+          {
+            "t": "執行生命週期",
+            "en": "execution lifecycle",
+            "ps": "N"
+          },
+          {
+            "t": "加鎖",
+            "en": "acquire a lock",
+            "ps": "V"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 在 Optimizer 決定執行計畫之前。",
+        "en": "(A) Before the Optimizer decides the execution plan.",
+        "wg": []
+      },
+      {
+        "t": "(B) 在 Storage Engine 讀取階段，當 Page 被載入或檢查時。",
+        "en": "(B) During the Storage Engine reading phase, when the Page is loaded or checked.",
+        "wg": []
+      },
+      {
+        "t": "(C) 在寫入 Redo Log 完成之後。",
+        "en": "(C) After writing to the Redo Log is complete.",
+        "wg": []
+      },
+      {
+        "t": "(D) 在交易提交 (Commit) 的最後階段。",
+        "en": "(D) At the final stage of transaction commit.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "鎖定發生在 Storage Engine 層實際存取資料時。當 Executor 請求 InnoDB 讀取該行以進行更新時，InnoDB 會先將 Page 載入 Buffer Pool 並對該行加鎖，隨後才進行 Undo Log 寫入與記憶體更新。",
+      "en": "Locking occurs when the Storage Engine layer actually accesses the data. When the Executor requests InnoDB to fetch the row for update, InnoDB loads the Page into the Buffer Pool and locks the row, followed by Undo Log writing and memory updates.",
+      "wg": [
+        {
+          "t": "實際存取",
+          "en": "actually access",
+          "ps": "V"
+        }
+      ]
+    },
+    "verified": "2026-03-19T13:44:51"
+  },
+  {
+    "no": "10",
+    "level": "intermediate",
+    "keywords": "WAL, I/O Optimization, Sequential I/O",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在設計高吞吐量的寫入系統時，為什麼 WAL (Write-Ahead Logging) 機制能顯著提升效能？",
+        "en": "When designing high-throughput write systems, why does the WAL (Write-Ahead Logging) mechanism significantly improve performance?",
+        "wg": [
+          {
+            "t": "高吞吐量",
+            "en": "high-throughput",
+            "ps": "Adj"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 它會自動將資料寫入速度更快的 SSD 硬碟。",
+        "en": "(A) It automatically writes data to faster SSD drives.",
+        "wg": []
+      },
+      {
+        "t": "(B) 它將隨機 I/O (修改資料檔) 轉換為順序 I/O (寫入日誌)。",
+        "en": "(B) It converts random I/O (modifying data files) into sequential I/O (writing logs).",
+        "wg": [
+          {
+            "t": "隨機 I/O",
+            "en": "random I/O",
+            "ps": "N"
+          },
+          {
+            "t": "順序 I/O",
+            "en": "sequential I/O",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) 它完全繞過了檔案系統快取 (Filesystem Cache)。",
+        "en": "(C) It completely bypasses the filesystem cache.",
+        "wg": []
+      },
+      {
+        "t": "(D) 它會在寫入前對資料進行高壓縮。",
+        "en": "(D) It highly compresses data before writing.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "直接修改 `.ibd` 資料檔通常涉及磁頭跳轉的隨機 I/O，速度較慢。WAL 確保先將修改順序寫入 Log (Sequential I/O)，這在物理磁碟上速度極快，從而提升了寫入併發能力。",
+      "en": "Directly modifying `.ibd` data files usually involves random I/O with disk head seeking, which is slow. WAL ensures modifications are written sequentially to the Log first (Sequential I/O), which is extremely fast on physical disks, thereby improving write concurrency.",
+      "wg": [
+        {
+          "t": "磁頭跳轉",
+          "en": "disk head seeking",
+          "ps": "N"
+        },
+        {
+          "t": "併發能力",
+          "en": "concurrency capability",
+          "ps": "N"
+        }
+      ]
+    },
+    "verified": "2026-03-19T13:44:51"
+  },
+  {
+    "no": "11",
+    "level": "intermediate",
+    "keywords": "Configuration, Buffer Pool Size, Best Practices",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您正在配置一台擁有 64GB 實體記憶體的專用 MySQL 伺服器。",
+        "en": "You are configuring a dedicated MySQL server with 64GB of physical memory.",
+        "wg": [
+          {
+            "t": "專用",
+            "en": "dedicated",
+            "ps": "Adj"
+          },
+          {
+            "t": "實體記憶體",
+            "en": "physical memory",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "為了避免作業系統 Swapping 並最大化資料庫效能，`innodb_buffer_pool_size` 的建議設定範圍通常是多少？",
+        "en": "To avoid OS swapping and maximize database performance, what is the generally recommended range for `innodb_buffer_pool_size`?",
+        "wg": [
+          {
+            "t": "建議設定範圍",
+            "en": "recommended setting range",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 10-20% (約 6-12GB)",
+        "en": "(A) 10-20% (approx. 6-12GB)",
+        "wg": []
+      },
+      {
+        "t": "(B) 40-50% (約 25-32GB)",
+        "en": "(B) 40-50% (approx. 25-32GB)",
+        "wg": []
+      },
+      {
+        "t": "(C) 60-75% (約 38-48GB)",
+        "en": "(C) 60-75% (approx. 38-48GB)",
+        "wg": []
+      },
+      {
+        "t": "(D) 90-100% (約 58-64GB)",
+        "en": "(D) 90-100% (approx. 58-64GB)",
+        "wg": []
+      }
+    ],
+    "answer": "C",
+    "why": {
+      "t": "一般建議將專用伺服器的 60%-75% 記憶體分配給 Buffer Pool。分配過高 (如 >90%) 可能導致 OS 沒有足夠記憶體運作或處理連線 (Thread Stack)，引發 Swapping 導致效能驟降。",
+      "en": "It is generally recommended to allocate 60%-75% of memory to the Buffer Pool on a dedicated server. Allocating too much (e.g., >90%) may leave insufficient memory for the OS or connection handling (Thread Stack), causing Swapping and severe performance degradation.",
+      "wg": [
+        {
+          "t": "驟降",
+          "en": "severe degradation",
+          "ps": "N"
+        }
+      ]
+    },
+    "verified": "2026-03-19T13:44:51"
+  },
+  {
+    "no": "12",
+    "level": "advanced",
+    "keywords": "Redo Log, Circular Write, Checkpoints",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "Redo Log 採用「循環寫入」(Circular Write) 機制，這與 Binlog 的追加寫入不同。",
+        "en": "Redo Log uses a 'Circular Write' mechanism, which differs from the append-only nature of Binlog.",
+        "wg": [
+          {
+            "t": "循環寫入",
+            "en": "Circular Write",
+            "ps": "N"
+          },
+          {
+            "t": "追加寫入",
+            "en": "append-only",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "這種設計意味著什麼？",
+        "en": "What does this design imply?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) Redo Log 會隨著時間無限增長，需要手動刪除。",
+        "en": "(A) Redo Log grows infinitely over time and requires manual deletion.",
+        "wg": []
+      },
+      {
+        "t": "(B) 當空間用完時，舊的日誌記錄會被覆蓋 (透過 Checkpoints 機制)。",
+        "en": "(B) When space runs out, old log records are overwritten (via the Checkpoints mechanism).",
+        "wg": [
+          {
+            "t": "覆蓋",
+            "en": "overwrite",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(C) Redo Log 無法用於崩潰恢復。",
+        "en": "(C) Redo Log cannot be used for crash recovery.",
+        "wg": []
+      },
+      {
+        "t": "(D) Redo Log 的寫入速度比 Binlog 慢。",
+        "en": "(D) Redo Log write speed is slower than Binlog.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "Redo Log 的大小是固定的。當寫入位置追上 Checkpoint 時，表示舊的 Log 對應的 Dirty Page 已經寫入磁碟，因此可以安全地覆蓋舊 Log 以重複利用空間。",
+      "en": "The size of the Redo Log is fixed. When the write position catches up to the Checkpoint, it means the Dirty Pages corresponding to the old logs have been written to disk, so the old logs can be safely overwritten to reuse space.",
+      "wg": [
+        {
+          "t": "重複利用",
+          "en": "reuse",
+          "ps": "V"
+        }
+      ]
+    },
+    "verified": "2026-03-19T13:44:51"
+  },
+  {
+    "no": "13",
+    "level": "advanced",
+    "keywords": "Doublewrite Buffer, System Tablespace, Data Integrity",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "為了防止 Partial Page Write (部分頁寫入) 導致資料損毀，InnoDB 使用 Doublewrite Buffer。",
+        "en": "To prevent data corruption caused by Partial Page Writes, InnoDB uses the Doublewrite Buffer.",
+        "wg": [
+          {
+            "t": "部分頁寫入",
+            "en": "Partial Page Write",
+            "ps": "N"
+          },
+          {
+            "t": "資料損毀",
+            "en": "data corruption",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "在將 Page 寫入真正的資料檔 (.ibd) 之前，InnoDB 會先執行什麼操作？",
+        "en": "Before writing a Page to the actual data file (.ibd), what operation does InnoDB perform first?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 將 Page 寫入 Binlog。",
+        "en": "(A) Write the Page to the Binlog.",
+        "wg": []
+      },
+      {
+        "t": "(B) 將 Page 順序寫入 System Tablespace 的 Doublewrite 區域。",
+        "en": "(B) Sequentially write the Page to the Doublewrite area in the System Tablespace.",
+        "wg": [
+          {
+            "t": "順序寫入",
+            "en": "sequentially write",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(C) 將 Page 寫入 `/tmp` 目錄下的暫存檔。",
+        "en": "(C) Write the Page to a temporary file in the `/tmp` directory.",
+        "wg": []
+      },
+      {
+        "t": "(D) 計算 Checksum 並僅儲存在記憶體中。",
+        "en": "(D) Calculate the Checksum and store it only in memory.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "Doublewrite Buffer 的運作機制是：先把 Dirty Page 順序寫入共享表空間 (System Tablespace) 的 Doublewrite 區域並 fsync，確保有一份完整的副本後，才寫入真正的資料檔位置。",
+      "en": "The mechanism of the Doublewrite Buffer is: first sequentially write the Dirty Page to the Doublewrite area in the shared tablespace (System Tablespace) and fsync, ensuring a complete copy exists before writing to the actual data file location.",
+      "wg": [
+        {
+          "t": "共享表空間",
+          "en": "shared tablespace",
+          "ps": "N"
+        },
+        {
+          "t": "副本",
+          "en": "copy",
+          "ps": "N"
+        }
+      ]
+    },
+    "verified": "2026-03-19T13:44:51"
+  },
+  {
+    "no": "14",
+    "level": "intermediate",
+    "keywords": "Architecture, Server Layer, Stored Procedures",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "MySQL 架構區分為 Server Layer 與 Storage Engine Layer。",
+        "en": "MySQL architecture is divided into the Server Layer and the Storage Engine Layer.",
+        "wg": []
+      },
+      {
+        "t": "下列哪一項功能是由 **Server Layer** 負責，而非 InnoDB 引擎？",
+        "en": "Which of the following features is handled by the **Server Layer** rather than the InnoDB engine?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 行級鎖定 (Row-level locking)",
+        "en": "(A) Row-level locking",
+        "wg": []
+      },
+      {
+        "t": "(B) 崩潰恢復 (Crash Recovery)",
+        "en": "(B) Crash Recovery",
+        "wg": []
+      },
+      {
+        "t": "(C) 預存程序與視圖 (Stored Procedures & Views)",
+        "en": "(C) Stored Procedures & Views",
+        "wg": [
+          {
+            "t": "預存程序",
+            "en": "Stored Procedures",
+            "ps": "N"
+          },
+          {
+            "t": "視圖",
+            "en": "Views",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(D) MVCC (多版本併發控制)",
+        "en": "(D) MVCC (Multi-Version Concurrency Control)",
+        "wg": []
+      }
+    ],
+    "answer": "C",
+    "why": {
+      "t": "所有跨引擎的功能，如 Stored Procedures, Triggers, Views 以及 SQL 解析與優化，都位於 Server Layer。鎖定、交易處理與崩潰恢復則是 Storage Engine (InnoDB) 的職責。",
+      "en": "All cross-engine features, such as Stored Procedures, Triggers, Views, as well as SQL parsing and optimization, reside in the Server Layer. Locking, transaction processing, and crash recovery are the responsibilities of the Storage Engine (InnoDB).",
+      "wg": [
+        {
+          "t": "跨引擎",
+          "en": "cross-engine",
+          "ps": "Adj"
+        }
+      ]
+    },
+    "verified": "2026-03-19T13:44:51"
+  },
+  {
+    "no": "15",
+    "level": "advanced",
+    "keywords": "Crash Recovery, 2PC, Binlog, Consistency",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在兩階段提交 (2PC) 過程中，若資料庫在 **Redo Log 狀態為 prepare** 之後，但 **Binlog 尚未寫入** 之前發生崩潰。",
+        "en": "During the Two-Phase Commit (2PC) process, if the database crashes **after the Redo Log is in prepare state** but **before the Binlog is written**.",
+        "wg": [
+          {
+            "t": "兩階段提交",
+            "en": "Two-Phase Commit",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "重啟後，MySQL 會如何處理該筆交易？",
+        "en": "How will MySQL handle this transaction upon restart?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 提交 (Commit) 該交易。",
+        "en": "(A) Commit the transaction.",
+        "wg": []
+      },
+      {
+        "t": "(B) 回滾 (Rollback) 該交易。",
+        "en": "(B) Rollback the transaction.",
+        "wg": []
+      },
+      {
+        "t": "(C) 資料庫進入損毀狀態無法啟動。",
+        "en": "(C) The database enters a corrupted state and cannot start.",
+        "wg": []
+      },
+      {
+        "t": "(D) 該交易會保留在 prepare 狀態，等待人工介入。",
+        "en": "(D) The transaction remains in the prepare state, waiting for manual intervention.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "崩潰恢復時，若 Redo Log 處於 prepare 狀態，MySQL 會檢查 Binlog。若 Binlog 中沒有該交易的紀錄 (不完整)，為了確保主從一致性 (Replica 沒有這筆資料)，MySQL 會選擇回滾該交易。",
+      "en": "During crash recovery, if the Redo Log is in the prepare state, MySQL checks the Binlog. If the transaction record is missing from the Binlog (incomplete), MySQL will rollback the transaction to ensure Primary-Replica consistency (since the Replica doesn't have this data).",
+      "wg": [
+        {
+          "t": "主從一致性",
+          "en": "Primary-Replica consistency",
+          "ps": "N"
+        }
+      ]
+    },
+    "verified": "2026-03-19T13:44:51"
+  }
+]
