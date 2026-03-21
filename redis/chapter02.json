@@ -1,0 +1,1400 @@
+[
+  {
+    "no": "1",
+    "level": "intermediate",
+    "keywords": "Redis, ZSet, Internal Encoding, Memory Optimization, Listpack, Skiplist",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您正在維護一個遊戲排行榜服務，使用 Redis ZSet 儲存數萬個小型公會的排名（每個公會約 50–100 人）。",
+        "en": "You are maintaining a game leaderboard service using Redis ZSet to store rankings for tens of thousands of small guilds (about 50–100 members each).",
+        "wg": [
+          {
+            "t": "公會",
+            "en": "guild",
+            "ps": "N"
+          },
+          {
+            "t": "排行榜",
+            "en": "leaderboard",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "您觀察到當某個公會的成員數增加到超過 128 人時，該 Key 的記憶體佔用量突然呈現非線性的顯著增長。",
+        "en": "You observe that when a guild's membership grows beyond 128, the memory usage for that Key suddenly increases significantly and non-linearly.",
+        "wg": [
+          {
+            "t": "非線性",
+            "en": "non-linear",
+            "ps": "Adj"
+          },
+          {
+            "t": "顯著增長",
+            "en": "significant increase",
+            "ps": "NP"
+          }
+        ]
+      },
+      {
+        "t": "根據 Redis 的內部實作機制，最可能的原因是什麼？",
+        "en": "Based on Redis's internal implementation mechanisms, what is the most likely reason?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) Redis 開始對該 Key 進行磁碟置換 (Swapping) 以節省記憶體。",
+        "en": "(A) Redis started swapping this Key to disk to save memory.",
+        "wg": [
+          {
+            "t": "磁碟置換",
+            "en": "swapping",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(B) 底層編碼從緊湊的 Listpack 轉換為指標密集的 Skiplist 與 Hashtable。",
+        "en": "(B) The underlying encoding switched from compact Listpack to pointer-heavy Skiplist and Hashtable.",
+        "wg": [
+          {
+            "t": "底層編碼",
+            "en": "underlying encoding",
+            "ps": "NP"
+          },
+          {
+            "t": "指標密集",
+            "en": "pointer-heavy",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "(C) Redis 自動將該 ZSet 轉換為 List 結構以優化寫入效能。",
+        "en": "(C) Redis automatically converted the ZSet to a List structure to optimize write performance.",
+        "wg": []
+      },
+      {
+        "t": "(D) 因為成員數量增加，Redis 必須為每個成員分配額外的 SDS 緩衝區。",
+        "en": "(D) Because the number of members increased, Redis had to allocate extra SDS buffers for each member.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "當 ZSet 的元素數量或大小超過閾值（如 `zset-max-listpack-entries`）時，Redis 會將底層結構從 Listpack（連續記憶體，無指標開銷）轉換為 Skiplist + Hashtable。Skiplist 每個節點包含多個指標，且需搭配 Hashtable 儲存映射，因此記憶體開銷會顯著增加。",
+      "en": "When the number or size of elements in a ZSet exceeds the threshold (e.g., `zset-max-listpack-entries`), Redis converts the underlying structure from Listpack (contiguous memory, no pointer overhead) to Skiplist + Hashtable. Skiplist nodes contain multiple pointers and require a Hashtable for mapping, causing a significant increase in memory overhead.",
+      "wg": [
+        {
+          "t": "閾值",
+          "en": "threshold",
+          "ps": "N"
+        },
+        {
+          "t": "記憶體開銷",
+          "en": "memory overhead",
+          "ps": "NP"
+        }
+      ]
+    }
+  },
+  {
+    "no": "2",
+    "level": "intermediate",
+    "keywords": "Redis, SDS, Binary Safe, C String, Internal Structure",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在系統設計中，您決定將序列化後的 Protobuf 二進位資料直接儲存在 Redis String 中。",
+        "en": "In a system design, you decide to store serialized Protobuf binary data directly in Redis Strings.",
+        "wg": [
+          {
+            "t": "序列化",
+            "en": "serialized",
+            "ps": "Adj"
+          },
+          {
+            "t": "二進位資料",
+            "en": "binary data",
+            "ps": "NP"
+          }
+        ]
+      },
+      {
+        "t": "相較於標準 C 語言字串 (`char*`)，為何 Redis 的 SDS (Simple Dynamic String) 能安全地處理這些資料而不發生截斷或損壞？",
+        "en": "Compared to standard C strings (`char*`), why can Redis's SDS (Simple Dynamic String) safely handle this data without truncation or corruption?",
+        "wg": [
+          {
+            "t": "截斷",
+            "en": "truncation",
+            "ps": "N"
+          },
+          {
+            "t": "損壞",
+            "en": "corruption",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) SDS 會自動將所有二進位資料編碼為 Base64 字串。",
+        "en": "(A) SDS automatically encodes all binary data into Base64 strings.",
+        "wg": []
+      },
+      {
+        "t": "(B) SDS 使用特殊的結束符號代替 `\\0`，避免與資料內容衝突。",
+        "en": "(B) SDS uses a special termination symbol instead of `\\0` to avoid conflict with data content.",
+        "wg": []
+      },
+      {
+        "t": "(C) SDS 明確記錄了字串長度 `len`，因此不依賴 `\\0` 來判斷字串結尾。",
+        "en": "(C) SDS explicitly records the string length `len`, so it does not rely on `\\0` to determine the end of the string.",
+        "wg": [
+          {
+            "t": "明確記錄",
+            "en": "explicitly records",
+            "ps": "VP"
+          },
+          {
+            "t": "依賴",
+            "en": "rely on",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(D) SDS 在寫入時會過濾掉所有非 ASCII 字元。",
+        "en": "(D) SDS filters out all non-ASCII characters during writing.",
+        "wg": []
+      }
+    ],
+    "answer": "(C)",
+    "why": {
+      "t": "標準 C 字串以 Null Terminator (`\\0`) 標記結尾，若二進位資料中包含 0 byte，會導致字串被提早截斷。SDS 透過 header 中的 `len` 屬性追蹤長度，實現了「二進位安全 (Binary Safe)」，可儲存包含空字元在內的任意資料。",
+      "en": "Standard C strings use a Null Terminator (`\\0`) to mark the end. If binary data contains a 0 byte, it causes the string to be truncated prematurely. SDS tracks length via the `len` attribute in its header, achieving 'Binary Safety' and allowing storage of arbitrary data including null characters.",
+      "wg": [
+        {
+          "t": "二進位安全",
+          "en": "Binary Safe",
+          "ps": "Adj"
+        },
+        {
+          "t": "空字元",
+          "en": "null character",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "3",
+    "level": "advanced",
+    "keywords": "Redis, Latency Spike, Big Key, UNLINK, Skiplist",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您的監控系統顯示 Redis 實體偶爾會出現 300–500ms 的延遲尖峰 (Latency Spike)。",
+        "en": "Your monitoring system shows that the Redis instance occasionally experiences latency spikes of 300–500ms.",
+        "wg": [
+          {
+            "t": "延遲尖峰",
+            "en": "latency spike",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "經排查，這是由一個 Cron Job 定期刪除擁有 200 萬成員的 ZSet (Big Key) 所引起的。",
+        "en": "Investigation reveals this is caused by a Cron Job periodically deleting a ZSet (Big Key) with 2 million members.",
+        "wg": [
+          {
+            "t": "排查",
+            "en": "investigation",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "為何單純的 `DEL` 操作會導致主執行緒阻塞，以及最佳的解決方案為何？",
+        "en": "Why does a simple `DEL` operation block the main thread, and what is the best solution?",
+        "wg": [
+          {
+            "t": "主執行緒",
+            "en": "main thread",
+            "ps": "N"
+          },
+          {
+            "t": "阻塞",
+            "en": "block",
+            "ps": "V"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 阻塞是因為磁碟 I/O 寫入過慢；應開啟 AOF 持久化優化。",
+        "en": "(A) Blocking is due to slow disk I/O writes; AOF persistence optimization should be enabled.",
+        "wg": []
+      },
+      {
+        "t": "(B) 阻塞是因為釋放 Skiplist 需要遍歷並釋放數百萬個指標；應改用 `UNLINK` (Lazy Free)。",
+        "en": "(B) Blocking is because freeing a Skiplist requires traversing and freeing millions of pointers; `UNLINK` (Lazy Free) should be used instead.",
+        "wg": [
+          {
+            "t": "遍歷",
+            "en": "traversing",
+            "ps": "V"
+          },
+          {
+            "t": "釋放",
+            "en": "freeing",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(C) 阻塞是因為 Redis 需要重新平衡紅黑樹；應減少 ZSet 的層數。",
+        "en": "(C) Blocking is because Redis needs to rebalance the Red-Black Tree; ZSet levels should be reduced.",
+        "wg": [
+          {
+            "t": "重新平衡",
+            "en": "rebalance",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(D) 阻塞是因為網路頻寬不足以傳輸刪除確認；應增加網路吞吐量。",
+        "en": "(D) Blocking is because network bandwidth is insufficient to transmit the delete acknowledgement; network throughput should be increased.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "ZSet 底層若為 Skiplist，刪除時需要逐個節點釋放記憶體，這是一個 O(N) 的 CPU 密集操作，會阻塞 Redis 的單一主執行緒。`UNLINK` 指令會將 Key 從 Keyspace 中移除，並將實際的記憶體釋放工作交由背景執行緒非同步處理，從而避免阻塞。",
+      "en": "If the ZSet is backed by a Skiplist, deletion requires freeing memory node by node. This is an O(N) CPU-intensive operation that blocks Redis's single main thread. The `UNLINK` command removes the Key from the Keyspace and offloads the actual memory reclamation to a background thread asynchronously, avoiding blocking.",
+      "wg": [
+        {
+          "t": "CPU 密集",
+          "en": "CPU-intensive",
+          "ps": "Adj"
+        },
+        {
+          "t": "非同步",
+          "en": "asynchronously",
+          "ps": "Adv"
+        }
+      ]
+    }
+  },
+  {
+    "no": "4",
+    "level": "advanced",
+    "keywords": "Redis, Listpack, Performance, CPU Usage, Trade-off",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "為了節省記憶體，您將 `hash-max-listpack-entries` 設定為極大值（例如 10,000）。",
+        "en": "To save memory, you set `hash-max-listpack-entries` to a very large value (e.g., 10,000).",
+        "wg": []
+      },
+      {
+        "t": "雖然記憶體使用量顯著下降，但您發現當應用程式頻繁更新這些 Hash 中的欄位時，Redis 的 CPU 使用率卻異常飆升。",
+        "en": "Although memory usage dropped significantly, you notice that Redis CPU usage spikes abnormally when the application frequently updates fields in these Hashes.",
+        "wg": [
+          {
+            "t": "異常飆升",
+            "en": "spikes abnormally",
+            "ps": "VP"
+          }
+        ]
+      },
+      {
+        "t": "這是因為 Listpack 結構在修改時面臨什麼樣的效能權衡？",
+        "en": "What performance trade-off does the Listpack structure face during modification that causes this?",
+        "wg": [
+          {
+            "t": "效能權衡",
+            "en": "performance trade-off",
+            "ps": "NP"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) Listpack 每次更新都需要進行全表雜湊 (Rehashing)。",
+        "en": "(A) Listpack requires a full table rehashing for every update.",
+        "wg": []
+      },
+      {
+        "t": "(B) Listpack 是連續記憶體區塊，插入或修改長度變動時需要移動後續所有資料 (Memmove)。",
+        "en": "(B) Listpack is a contiguous memory block; insertion or length modification requires moving all subsequent data (Memmove).",
+        "wg": [
+          {
+            "t": "連續記憶體區塊",
+            "en": "contiguous memory block",
+            "ps": "NP"
+          },
+          {
+            "t": "移動",
+            "en": "moving",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(C) Listpack 使用了過多的指標，導致 CPU Cache Miss 增加。",
+        "en": "(C) Listpack uses too many pointers, leading to increased CPU Cache Misses.",
+        "wg": []
+      },
+      {
+        "t": "(D) Listpack 不支援隨機存取，每次寫入都必須從頭遍歷。",
+        "en": "(D) Listpack does not support random access; every write requires traversing from the beginning.",
+        "wg": []
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "Listpack (與 Ziplist) 為了緊湊性犧牲了修改效能。它是類似陣列的連續記憶體，若在中間插入資料或修改導致長度變化，必須重新分配記憶體並移動 (Copy/Memmove) 該位置之後的所有資料。當元素數量很大時，這會變成昂貴的 O(N) 操作。",
+      "en": "Listpack (and Ziplist) sacrifices modification performance for compactness. It is an array-like contiguous memory block. Inserting data in the middle or modifying it such that length changes requires memory reallocation and moving (Copy/Memmove) all subsequent data. With a large number of elements, this becomes an expensive O(N) operation.",
+      "wg": [
+        {
+          "t": "緊湊性",
+          "en": "compactness",
+          "ps": "N"
+        },
+        {
+          "t": "重新分配",
+          "en": "reallocation",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "5",
+    "level": "intermediate",
+    "keywords": "Redis, Skiplist, System Design, Data Structures, Range Query",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在系統設計面試中，面試官詢問：為何 Redis 的 ZSet 選擇使用跳躍表 (Skiplist) 而非紅黑樹 (Red-Black Tree) 作為主要實作結構？",
+        "en": "In a system design interview, the interviewer asks: Why does Redis ZSet choose to use Skiplist instead of Red-Black Tree as the primary implementation structure?",
+        "wg": [
+          {
+            "t": "跳躍表",
+            "en": "Skiplist",
+            "ps": "N"
+          },
+          {
+            "t": "紅黑樹",
+            "en": "Red-Black Tree",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "除了實作簡單之外，下列哪項是 Skiplist 在 Redis 使用場景中的主要優勢？",
+        "en": "Besides implementation simplicity, which of the following is a key advantage of Skiplist in Redis usage scenarios?",
+        "wg": [
+          {
+            "t": "使用場景",
+            "en": "usage scenarios",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) Skiplist 的單點查找時間複雜度恆定為 O(1)。",
+        "en": "(A) Skiplist's single-point lookup time complexity is constantly O(1).",
+        "wg": []
+      },
+      {
+        "t": "(B) Skiplist 在進行範圍查詢 (Range Scan) 時效率更高且實作更直觀。",
+        "en": "(B) Skiplist is more efficient and intuitive to implement for Range Scans.",
+        "wg": [
+          {
+            "t": "範圍查詢",
+            "en": "Range Scan",
+            "ps": "N"
+          },
+          {
+            "t": "直觀",
+            "en": "intuitive",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "(C) Skiplist 不需要額外的記憶體指標，比樹結構更省空間。",
+        "en": "(C) Skiplist does not require extra memory pointers, making it more space-efficient than tree structures.",
+        "wg": []
+      },
+      {
+        "t": "(D) Skiplist 保證了最壞情況下的效能優於平衡樹。",
+        "en": "(D) Skiplist guarantees better worst-case performance than balanced trees.",
+        "wg": [
+          {
+            "t": "最壞情況",
+            "en": "worst-case",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "answer": "(B)",
+    "why": {
+      "t": "ZSet 非常頻繁地使用 `ZRANGE` 或 `ZREVRANGE` 進行範圍查找。在 Skiplist 中，只需找到範圍的起點，然後沿著底層鏈結串列遍歷即可，這利用了快取局部性且邏輯簡單。相比之下，平衡樹的範圍遍歷涉及複雜的中序遍歷 (In-order traversal)，實作較繁瑣且指標跳躍較多。",
+      "en": "ZSet frequently uses `ZRANGE` or `ZREVRANGE` for range lookups. In a Skiplist, one only needs to find the start of the range and then traverse the underlying linked list, which leverages cache locality and is logically simple. In contrast, range traversal in balanced trees involves complex in-order traversal, which is harder to implement and involves more pointer jumping.",
+      "wg": [
+        {
+          "t": "快取局部性",
+          "en": "cache locality",
+          "ps": "N"
+        },
+        {
+          "t": "中序遍歷",
+          "en": "in-order traversal",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "chapter02-q06",
+    "level": "advanced",
+    "keywords": "Redis, Hash, Rehash, Performance, Incremental Rehash",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "Redis 的 Hash 表在資料量增長時需要進行擴容 (Rehash)。",
+        "en": "Redis Hash tables need to expand (Rehash) as the data volume grows.",
+        "wg": [
+          {
+            "t": "擴容",
+            "en": "expand",
+            "ps": "V"
+          },
+          {
+            "t": "資料量",
+            "en": "data volume",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "為了避免在擴容過程中阻塞主執行緒 (Main Thread)，Redis 採用了什麼機制？",
+        "en": "To avoid blocking the Main Thread during the expansion process, what mechanism does Redis employ?",
+        "wg": [
+          {
+            "t": "阻塞",
+            "en": "blocking",
+            "ps": "V"
+          },
+          {
+            "t": "主執行緒",
+            "en": "Main Thread",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 寫入時複製 (Copy-on-Write)：在背景執行緒中建立新表。",
+        "en": "(A) Copy-on-Write: Create a new table in a background thread.",
+        "wg": []
+      },
+      {
+        "t": "(B) 漸進式 Rehash (Incremental Rehash)：將資料搬移分攤到後續的 CRUD 操作與定時任務中。",
+        "en": "(B) Incremental Rehash: Distribute data migration across subsequent CRUD operations and scheduled tasks.",
+        "wg": [
+          {
+            "t": "分攤",
+            "en": "distribute",
+            "ps": "V"
+          },
+          {
+            "t": "定時任務",
+            "en": "scheduled tasks",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) 停止世界 (Stop-the-World)：暫停所有請求直到 Rehash 完成。",
+        "en": "(C) Stop-the-World: Pause all requests until Rehash is complete.",
+        "wg": []
+      },
+      {
+        "t": "(D) 鎖分段 (Lock Striping)：僅鎖定正在搬移的 Bucket。",
+        "en": "(D) Lock Striping: Only lock the Bucket currently being moved.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "Redis 採用漸進式 Rehash，維護兩個 Hash 表 (ht[0], ht[1])。每次執行操作時，順便搬移少量的 Bucket 到新表，避免一次性搬移大量資料導致長時間阻塞。",
+      "en": "Redis uses Incremental Rehash, maintaining two Hash tables (ht[0], ht[1]). With each operation, it moves a small number of buckets to the new table, avoiding long blocks caused by moving massive data at once.",
+      "wg": [
+        {
+          "t": "一次性",
+          "en": "all at once",
+          "ps": "Adv"
+        }
+      ]
+    }
+  },
+  {
+    "no": "chapter02-q07",
+    "level": "intermediate",
+    "keywords": "Redis, SDS, Memory Allocation, Performance, String",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在 Redis 中頻繁地對 String 進行 `APPEND` 操作時，SDS (Simple Dynamic String) 如何優化效能？",
+        "en": "When frequently performing `APPEND` operations on a String in Redis, how does SDS (Simple Dynamic String) optimize performance?",
+        "wg": [
+          {
+            "t": "頻繁地",
+            "en": "frequently",
+            "ps": "Adv"
+          }
+        ]
+      },
+      {
+        "t": "請選出正確的記憶體管理策略。",
+        "en": "Please select the correct memory management strategy.",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 使用鏈結串列 (Linked List) 串接新字串，避免記憶體複製。",
+        "en": "(A) Use a Linked List to concatenate new strings, avoiding memory copying.",
+        "wg": []
+      },
+      {
+        "t": "(B) 空間預分配 (Space Pre-allocation)：分配比實際需求更多的空間，減少系統呼叫 (System Call) 次數。",
+        "en": "(B) Space Pre-allocation: Allocate more space than actually needed to reduce the number of System Calls.",
+        "wg": [
+          {
+            "t": "預分配",
+            "en": "pre-allocation",
+            "ps": "N"
+          },
+          {
+            "t": "系統呼叫",
+            "en": "System Call",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) 總是剛好分配所需的空間，以節省記憶體。",
+        "en": "(C) Always allocate exactly the required space to save memory.",
+        "wg": []
+      },
+      {
+        "t": "(D) 使用記憶體映射 (mmap) 直接操作磁碟檔案。",
+        "en": "(D) Use memory mapping (mmap) to manipulate disk files directly.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "SDS 採用空間預分配策略。當字串長度小於 1MB 時，擴容會分配雙倍空間；超過 1MB 則多分配 1MB。這能大幅減少連續 append 時的記憶體重分配次數。",
+      "en": "SDS uses a space pre-allocation strategy. When string length is less than 1MB, expansion allocates double the space; if over 1MB, it allocates an extra 1MB. This significantly reduces memory reallocations during continuous appends.",
+      "wg": [
+        {
+          "t": "擴容",
+          "en": "expansion",
+          "ps": "N"
+        },
+        {
+          "t": "重分配",
+          "en": "reallocation",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "chapter02-q08",
+    "level": "intermediate",
+    "keywords": "Redis, Memory Optimization, Hash, System Design, Metadata",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您需要儲存 1,000 萬個 IoT 裝置的狀態（每個狀態僅包含少量欄位）。",
+        "en": "You need to store the status of 10 million IoT devices (each status contains only a few fields).",
+        "wg": [
+          {
+            "t": "裝置",
+            "en": "device",
+            "ps": "N"
+          },
+          {
+            "t": "欄位",
+            "en": "field",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "為了優化記憶體使用，您決定將這些裝置分組存入 Redis Hash 中，而非為每個裝置建立單獨的 String Key。",
+        "en": "To optimize memory usage, you decide to group these devices into Redis Hashes instead of creating a separate String Key for each device.",
+        "wg": [
+          {
+            "t": "分組",
+            "en": "group",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "請問這樣做最主要的記憶體節省來源是什麼？",
+        "en": "What is the primary source of memory savings in this approach?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) Hash 會自動對 Value 進行 LZF 壓縮。",
+        "en": "(A) Hash automatically applies LZF compression to Values.",
+        "wg": []
+      },
+      {
+        "t": "(B) 減少了全域字典 (Global Dict) 中大量的 `redisObject` Metadata 與指標開銷。",
+        "en": "(B) Reduces the massive overhead of `redisObject` metadata and pointers in the Global Dict.",
+        "wg": [
+          {
+            "t": "全域字典",
+            "en": "Global Dict",
+            "ps": "N"
+          },
+          {
+            "t": "開銷",
+            "en": "overhead",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) Hash 儲存在磁碟上，而 String 儲存在記憶體中。",
+        "en": "(C) Hash is stored on disk, while String is stored in memory.",
+        "wg": []
+      },
+      {
+        "t": "(D) Hash 使用了 Bloom Filter 來過濾重複的 Key。",
+        "en": "(D) Hash uses Bloom Filter to filter out duplicate Keys.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "每個 Redis Key (String) 都需要一個 `redisObject` 結構、dictEntry 以及相關指標，這對於小物件來說是巨大的浪費。使用 Hash (Listpack 編碼) 可以將多個小物件緊湊地存放在一塊連續記憶體中，大幅減少 Metadata。",
+      "en": "Each Redis Key (String) requires a `redisObject` structure, dictEntry, and related pointers, which is a huge waste for small objects. Using Hash (Listpack encoding) stores multiple small objects compactly in a contiguous memory block, significantly reducing metadata.",
+      "wg": [
+        {
+          "t": "緊湊地",
+          "en": "compactly",
+          "ps": "Adv"
+        }
+      ]
+    }
+  },
+  {
+    "no": "chapter02-q09",
+    "level": "intermediate",
+    "keywords": "Redis, Anti-pattern, JSON, Performance, Network Bandwidth",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在代碼審查 (Code Review) 中，您發現同事將巨大的 JSON User Profile 存入 Redis String。",
+        "en": "During a Code Review, you notice a colleague storing huge JSON User Profiles in Redis Strings.",
+        "wg": [
+          {
+            "t": "代碼審查",
+            "en": "Code Review",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "每次應用程式只需要讀取其中的 `last_login` 欄位，卻總是執行 `GET` 獲取整個 JSON。",
+        "en": "The application only needs to read the `last_login` field, but it always executes `GET` to retrieve the entire JSON.",
+        "wg": []
+      },
+      {
+        "t": "除了 Client 端 CPU 消耗外，這種做法最大的缺點是什麼？",
+        "en": "Besides Client-side CPU consumption, what is the biggest drawback of this approach?",
+        "wg": [
+          {
+            "t": "缺點",
+            "en": "drawback",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) Redis 無法保證 JSON 字串的原子性 (Atomicity)。",
+        "en": "(A) Redis cannot guarantee the atomicity of JSON strings.",
+        "wg": []
+      },
+      {
+        "t": "(B) 浪費網路頻寬 (Network Bandwidth)，尤其在高併發場景下。",
+        "en": "(B) Wastes Network Bandwidth, especially in high concurrency scenarios.",
+        "wg": [
+          {
+            "t": "網路頻寬",
+            "en": "Network Bandwidth",
+            "ps": "N"
+          },
+          {
+            "t": "高併發",
+            "en": "high concurrency",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) JSON 字串會導致 Redis 的 AOF 檔案損壞。",
+        "en": "(C) JSON strings can cause corruption of Redis AOF files.",
+        "wg": []
+      },
+      {
+        "t": "(D) String 類型的最大長度限制為 1KB，無法儲存完整 Profile。",
+        "en": "(D) The maximum length limit for String type is 1KB, which cannot store the full Profile.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "傳輸不需要的大量資料會消耗寶貴的網路頻寬，增加延遲。較佳做法是使用 Hash (Flatten JSON) 並透過 `HGET` 獲取單一欄位，或使用 RedisJSON。",
+      "en": "Transmitting large amounts of unneeded data consumes valuable network bandwidth and increases latency. A better approach is to use Hash (Flatten JSON) and retrieve a single field via `HGET`, or use RedisJSON.",
+      "wg": [
+        {
+          "t": "傳輸",
+          "en": "transmit",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "chapter02-q10",
+    "level": "advanced",
+    "keywords": "Redis, Listpack, Ziplist, Cascading Update, Internal Encoding",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "Redis 7.0 引入了 Listpack 來逐漸取代 Ziplist。",
+        "en": "Redis 7.0 introduced Listpack to gradually replace Ziplist.",
+        "wg": [
+          {
+            "t": "取代",
+            "en": "replace",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "請問 Ziplist 存在哪一個嚴重的效能隱患，促使了這次的架構升級？",
+        "en": "What serious performance hazard in Ziplist prompted this architectural upgrade?",
+        "wg": [
+          {
+            "t": "效能隱患",
+            "en": "performance hazard",
+            "ps": "N"
+          },
+          {
+            "t": "架構升級",
+            "en": "architectural upgrade",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 記憶體碎片化 (Memory Fragmentation)。",
+        "en": "(A) Memory Fragmentation.",
+        "wg": []
+      },
+      {
+        "t": "(B) 連鎖更新 (Cascading Update)。",
+        "en": "(B) Cascading Update.",
+        "wg": [
+          {
+            "t": "連鎖更新",
+            "en": "Cascading Update",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) 無法支援超過 4GB 的資料。",
+        "en": "(C) Inability to support data larger than 4GB.",
+        "wg": []
+      },
+      {
+        "t": "(D) 與 ARM 架構 CPU 不相容。",
+        "en": "(D) Incompatibility with ARM architecture CPUs.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "Ziplist 在每個節點記錄了「前一個節點的長度」(prevlen)。當插入一個新節點導致 prevlen 變長（例如從 1 byte 變 5 bytes），可能會觸發下一個節點的 prevlen 更新，進而引發連鎖反應，導致 O(N^2) 的最差情況。Listpack 移除了 prevlen 屬性，解決了此問題。",
+      "en": "Ziplist records the 'previous entry length' (prevlen) in each node. When inserting a new node causes prevlen to grow (e.g., from 1 byte to 5 bytes), it may trigger an update in the next node's prevlen, causing a chain reaction and O(N^2) worst-case performance. Listpack removes the prevlen attribute, solving this issue.",
+      "wg": [
+        {
+          "t": "連鎖反應",
+          "en": "chain reaction",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "chapter02-q11",
+    "level": "intermediate",
+    "keywords": "Redis, Redis Object, Internal Encoding, Debugging",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "Redis 使用 `redisObject` 結構作為所有資料類型的通用介面。",
+        "en": "Redis uses the `redisObject` structure as a common interface for all data types.",
+        "wg": [
+          {
+            "t": "通用介面",
+            "en": "common interface",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "當您對一個 Key 執行 `OBJECT ENCODING` 指令時，您實際上是在查詢 `redisObject` 中的哪個資訊？",
+        "en": "When you execute the `OBJECT ENCODING` command on a Key, which information in `redisObject` are you actually querying?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 該物件的 LRU 時間戳記 (Last Accessed Time)。",
+        "en": "(A) The LRU timestamp (Last Accessed Time) of the object.",
+        "wg": []
+      },
+      {
+        "t": "(B) 該物件實際使用的底層資料結構實作（例如 `embstr` 或 `hashtable`）。",
+        "en": "(B) The actual underlying data structure implementation used by the object (e.g., `embstr` or `hashtable`).",
+        "wg": [
+          {
+            "t": "底層資料結構",
+            "en": "underlying data structure",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) 該物件的引用計數 (Reference Count)。",
+        "en": "(C) The Reference Count of the object.",
+        "wg": []
+      },
+      {
+        "t": "(D) 該物件所屬的 Redis 資料類型（例如 String 或 List）。",
+        "en": "(D) The Redis Data Type the object belongs to (e.g., String or List).",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "`redisObject` 包含 `type`（對外類型，如 String）與 `encoding`（對內實作）。`OBJECT ENCODING` 顯示的是 `encoding` 欄位，這對於效能調優與理解記憶體行為至關重要。",
+      "en": "`redisObject` contains `type` (external type, e.g., String) and `encoding` (internal implementation). `OBJECT ENCODING` reveals the `encoding` field, which is crucial for performance tuning and understanding memory behavior.",
+      "wg": [
+        {
+          "t": "效能調優",
+          "en": "performance tuning",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "12",
+    "level": "intermediate",
+    "keywords": "Redis, ZSet, Internal Encoding, Dict, Skiplist, Memory Overhead",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "當 Redis ZSet 的元素數量超過 `zset-max-listpack-entries` 閾值時，底層會轉換為由 `Dict` (Hash Table) 與 `Skiplist` 組成的雙重結構。",
+        "en": "When the number of elements in a Redis ZSet exceeds the `zset-max-listpack-entries` threshold, the underlying encoding converts to a dual structure consisting of a `Dict` (Hash Table) and a `Skiplist`.",
+        "wg": [
+          {
+            "t": "雙重結構",
+            "en": "dual structure",
+            "ps": "N"
+          },
+          {
+            "t": "閾值",
+            "en": "threshold",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "為何 Redis 願意犧牲額外的記憶體來同時維護這兩種資料結構，而不是僅使用其中一種？",
+        "en": "Why is Redis willing to sacrifice extra memory to maintain both data structures simultaneously, rather than using just one?",
+        "wg": [
+          {
+            "t": "犧牲",
+            "en": "sacrifice",
+            "ps": "V"
+          },
+          {
+            "t": "同時維護",
+            "en": "maintain simultaneously",
+            "ps": "V"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) `Dict` 用於支援 O(1) 的成員分數查詢 (`ZSCORE`)，而 `Skiplist` 用於支援高效的範圍查詢 (`ZRANGE`)。",
+        "en": "(A) The `Dict` supports O(1) member score lookup (`ZSCORE`), while the `Skiplist` supports efficient range queries (`ZRANGE`).",
+        "wg": [
+          {
+            "t": "範圍查詢",
+            "en": "range queries",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(B) `Dict` 用於儲存資料的備份以防止 `Skiplist` 損壞，提供更高的資料耐久性。",
+        "en": "(B) The `Dict` stores a backup of the data to prevent `Skiplist` corruption, providing higher data durability.",
+        "wg": [
+          {
+            "t": "耐久性",
+            "en": "durability",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) `Skiplist` 僅用於儲存 Score，而 `Dict` 僅用於儲存 Member 字串，兩者互補以節省空間。",
+        "en": "(C) The `Skiplist` stores only Scores, while the `Dict` stores only Member strings, complementing each other to save space.",
+        "wg": [
+          {
+            "t": "互補",
+            "en": "complement",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(D) `Dict` 用於處理寫入操作 (`ZADD`)，而 `Skiplist` 專門處理讀取操作，以實現讀寫分離。",
+        "en": "(D) The `Dict` handles write operations (`ZADD`), while the `Skiplist` is dedicated to read operations, achieving read-write separation.",
+        "wg": [
+          {
+            "t": "讀寫分離",
+            "en": "read-write separation",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "answer": "A",
+    "why": {
+      "t": "Redis ZSet 在大數據量下結合了兩者的優點：Dict (Hash Table) 確保了查詢特定成員分數的時間複雜度為 O(1)，而 Skiplist 確保了範圍排序操作 (Range Scan) 的效率。若只用 Skiplist，查詢分數需 O(log N)；若只用 Dict，範圍查詢需全表排序 O(N log N)。",
+      "en": "Redis ZSet combines the strengths of both structures for large datasets: The Dict (Hash Table) ensures O(1) time complexity for looking up a specific member's score, while the Skiplist ensures efficiency for range sorting operations (Range Scan). Using only Skiplist would make score lookup O(log N); using only Dict would make range queries require full sorting O(N log N).",
+      "wg": [
+        {
+          "t": "時間複雜度",
+          "en": "time complexity",
+          "ps": "N"
+        },
+        {
+          "t": "全表排序",
+          "en": "full table sort",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "13",
+    "level": "intermediate",
+    "keywords": "Redis, SDS, Memory Management, Lazy Free, String",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "SDS (Simple Dynamic String) 採用了「空間預分配」(Pre-allocation) 來優化字串增長。",
+        "en": "SDS (Simple Dynamic String) uses 'Pre-allocation' to optimize string growth.",
+        "wg": [
+          {
+            "t": "空間預分配",
+            "en": "Pre-allocation",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "相對地，當一個 SDS 字串被縮短（例如透過 `TRIM` 操作截斷中間部分）時，Redis 如何處理多餘的記憶體空間？",
+        "en": "Conversely, when an SDS string is shortened (e.g., truncated via a `TRIM` operation), how does Redis handle the excess memory space?",
+        "wg": [
+          {
+            "t": "縮短",
+            "en": "shortened",
+            "ps": "V"
+          },
+          {
+            "t": "截斷",
+            "en": "truncated",
+            "ps": "V"
+          },
+          {
+            "t": "多餘的",
+            "en": "excess",
+            "ps": "Adj"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 立即呼叫 `realloc` 釋放多餘記憶體，以節省系統資源。",
+        "en": "(A) Immediately calls `realloc` to free excess memory to save system resources.",
+        "wg": [
+          {
+            "t": "立即",
+            "en": "immediately",
+            "ps": "Adv"
+          }
+        ]
+      },
+      {
+        "t": "(B) 採用「惰性空間釋放」(Lazy Free) 策略，不立即釋放記憶體，僅修改長度屬性，以便未來再次增長時使用。",
+        "en": "(B) Adopts a 'Lazy Free' strategy, not freeing memory immediately but only modifying the length property, to be used for future growth.",
+        "wg": [
+          {
+            "t": "惰性空間釋放",
+            "en": "Lazy Free",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) 將多餘空間標記為 `garbage`，等待背景執行緒的 Garbage Collector 回收。",
+        "en": "(C) Marks the excess space as `garbage` and waits for the background thread's Garbage Collector to reclaim it.",
+        "wg": [
+          {
+            "t": "回收",
+            "en": "reclaim",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(D) 只有當多餘空間超過 1MB 時才會觸發記憶體重整，否則保持不變。",
+        "en": "(D) Triggers memory compaction only when the excess space exceeds 1MB; otherwise, it remains unchanged.",
+        "wg": [
+          {
+            "t": "記憶體重整",
+            "en": "memory compaction",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "SDS 為了避免頻繁的記憶體重分配 (Reallocation)，在字串縮短時不會立即釋放空間，而是更新 `len` 屬性並保留 `free` 空間。這使得後續的 `APPEND` 操作可以直接使用這些空間，無需再次請求系統記憶體。",
+      "en": "To avoid frequent memory reallocation, SDS does not immediately release space when a string is shortened. Instead, it updates the `len` property and retains the `free` space. This allows subsequent `APPEND` operations to use this space directly without requesting system memory again.",
+      "wg": [
+        {
+          "t": "記憶體重分配",
+          "en": "memory reallocation",
+          "ps": "N"
+        },
+        {
+          "t": "請求",
+          "en": "requesting",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "14",
+    "level": "advanced",
+    "keywords": "Redis, Performance, Encoding Conversion, CPU Spike, Anti-pattern",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在監控 Redis 效能時，您發現某個 Hash Key 的操作經常導致 CPU 瞬間飆高。",
+        "en": "While monitoring Redis performance, you notice that operations on a specific Hash Key frequently cause CPU spikes.",
+        "wg": [
+          {
+            "t": "瞬間飆高",
+            "en": "spikes",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "經排查，該 Key 的元素數量頻繁地在 `hash-max-listpack-entries` 設定值（例如 512）上下波動（新增後刪除，再新增）。",
+        "en": "Upon investigation, the number of elements in that Key frequently fluctuates around the `hash-max-listpack-entries` setting (e.g., 512) (adding then deleting, then adding again).",
+        "wg": [
+          {
+            "t": "波動",
+            "en": "fluctuates",
+            "ps": "V"
+          },
+          {
+            "t": "排查",
+            "en": "investigation",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "請問造成 CPU 飆高的主要原因為何？",
+        "en": "What is the primary cause of the CPU spikes?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) Listpack 結構在元素超過 512 時會發生 Buffer Overflow，觸發錯誤處理機制。",
+        "en": "(A) The Listpack structure suffers a Buffer Overflow when elements exceed 512, triggering error handling mechanisms.",
+        "wg": [
+          {
+            "t": "錯誤處理機制",
+            "en": "error handling mechanisms",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(B) Redis 在 Listpack 與 Hashtable 兩種編碼之間反覆進行全量轉換 (Encoding Conversion)，涉及 O(N) 的記憶體重分配與資料搬移。",
+        "en": "(B) Redis repeatedly performs full Encoding Conversion between Listpack and Hashtable, involving O(N) memory reallocation and data copying.",
+        "wg": [
+          {
+            "t": "全量轉換",
+            "en": "full conversion",
+            "ps": "N"
+          },
+          {
+            "t": "資料搬移",
+            "en": "data copying",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) Hashtable 的 Rehash 機制在元素減少時會立即觸發縮容，導致主執行緒阻塞。",
+        "en": "(C) The Hashtable's Rehash mechanism immediately triggers shrinking when elements decrease, causing the main thread to block.",
+        "wg": [
+          {
+            "t": "縮容",
+            "en": "shrinking",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(D) Listpack 的查詢複雜度為 O(N)，在 512 個元素時查詢效能急劇下降。",
+        "en": "(D) Listpack's lookup complexity is O(N), and lookup performance degrades sharply at 512 elements.",
+        "wg": [
+          {
+            "t": "急劇下降",
+            "en": "degrades sharply",
+            "ps": "V"
+          }
+        ]
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "這是一個常見的效能陷阱。當資料量跨越閾值時，Redis 會將緊湊的 Listpack 轉換為 Hashtable（或反之）。這是一個 O(N) 的操作。若資料量在閾值邊緣反覆震盪，會導致系統不斷執行昂貴的編碼轉換，消耗大量 CPU。",
+      "en": "This is a common performance pitfall. When data volume crosses the threshold, Redis converts the compact Listpack to a Hashtable (or vice versa). This is an O(N) operation. If the data volume oscillates around the threshold, the system continuously performs expensive encoding conversions, consuming significant CPU.",
+      "wg": [
+        {
+          "t": "效能陷阱",
+          "en": "performance pitfall",
+          "ps": "N"
+        },
+        {
+          "t": "反覆震盪",
+          "en": "oscillates",
+          "ps": "V"
+        },
+        {
+          "t": "昂貴的",
+          "en": "expensive",
+          "ps": "Adj"
+        }
+      ]
+    }
+  },
+  {
+    "no": "15",
+    "level": "advanced",
+    "keywords": "Redis, Skiplist, Data Structures, Probabilistic, Implementation",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "Redis 的 ZSet 使用跳躍表 (Skiplist) 作為核心實作之一。",
+        "en": "Redis ZSet uses Skiplist as one of its core implementations.",
+        "wg": []
+      },
+      {
+        "t": "不同於 AVL 樹或紅黑樹透過旋轉 (Rotation) 來維持平衡，Skiplist 在插入新節點時，如何決定該節點的高度（層數）？",
+        "en": "Unlike AVL trees or Red-Black trees which use rotation to maintain balance, how does a Skiplist determine the height (number of levels) of a new node during insertion?",
+        "wg": [
+          {
+            "t": "旋轉",
+            "en": "rotation",
+            "ps": "N"
+          },
+          {
+            "t": "維持平衡",
+            "en": "maintain balance",
+            "ps": "V"
+          },
+          {
+            "t": "高度",
+            "en": "height",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 根據節點 Key 的雜湊值 (Hash Value) 計算層數，確保分佈均勻。",
+        "en": "(A) Calculates the level based on the Hash Value of the node's Key to ensure uniform distribution.",
+        "wg": [
+          {
+            "t": "雜湊值",
+            "en": "Hash Value",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(B) 採用機率性策略 (Probabilistic)，類似擲硬幣的方式隨機決定層數 (Power Law Distribution)。",
+        "en": "(B) Uses a Probabilistic strategy, similar to flipping a coin, to randomly determine the level (Power Law Distribution).",
+        "wg": [
+          {
+            "t": "機率性",
+            "en": "Probabilistic",
+            "ps": "Adj"
+          },
+          {
+            "t": "冪次定律分佈",
+            "en": "Power Law Distribution",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) 嚴格按照完全二元樹 (Complete Binary Tree) 的結構分配層數，每兩個節點升一層。",
+        "en": "(C) Strictly assigns levels according to a Complete Binary Tree structure, promoting one level for every two nodes.",
+        "wg": [
+          {
+            "t": "完全二元樹",
+            "en": "Complete Binary Tree",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(D) 根據當前 Skiplist 的最大深度動態調整，總是將新節點設為最大深度減一。",
+        "en": "(D) Dynamically adjusts based on the current maximum depth of the Skiplist, always setting the new node to the maximum depth minus one.",
+        "wg": [
+          {
+            "t": "最大深度",
+            "en": "maximum depth",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "Skiplist 是一種機率性資料結構 (Probabilistic Data Structure)。它不強制全域平衡，而是透過隨機生成層數（通常是基於冪次定律，例如有 1/2 機率升級到下一層）來達到期望值為 O(log N) 的查詢效率。這使得實作比平衡樹簡單許多。",
+      "en": "Skiplist is a Probabilistic Data Structure. It does not enforce global balance but uses random level generation (typically based on a power law, e.g., a 1/2 probability of promoting to the next level) to achieve an expected lookup efficiency of O(log N). This makes the implementation much simpler than balanced trees.",
+      "wg": [
+        {
+          "t": "機率性資料結構",
+          "en": "Probabilistic Data Structure",
+          "ps": "N"
+        },
+        {
+          "t": "期望值",
+          "en": "expected value",
+          "ps": "N"
+        }
+      ]
+    }
+  }
+]
