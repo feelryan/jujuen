@@ -1,0 +1,813 @@
+[
+  {
+    "no": "1",
+    "level": "Hard",
+    "keywords": "Producer, Throughput, Batching, Configuration",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你正在為一個日誌聚合平台（Log Aggregation Platform）設計 Kafka Producer 配置。該場景每天需處理 TB 級別的數據，對於 5 秒內的延遲是可以接受的，但首要目標是最大化吞吐量（Throughput）並減少網路頻寬消耗。下列哪一組配置最適合此需求？",
+        "en": "You are designing a Kafka Producer configuration for a Log Aggregation Platform. The scenario processes TB-level data daily; latency within 5 seconds is acceptable, but the primary goal is to maximize throughput and minimize network bandwidth usage. Which of the following configurations is most suitable?",
+        "wg": [
+          {
+            "t": "日誌聚合平台",
+            "en": "Log Aggregation Platform",
+            "ps": "noun"
+          },
+          {
+            "t": "吞吐量",
+            "en": "Throughput",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) `batch.size=16384`, `linger.ms=0`, `compression.type=none`",
+        "en": "(A) `batch.size=16384`, `linger.ms=0`, `compression.type=none`",
+        "wg": []
+      },
+      {
+        "t": "(B) `batch.size=131072`, `linger.ms=50`, `compression.type=zstd`",
+        "en": "(B) `batch.size=131072`, `linger.ms=50`, `compression.type=zstd`",
+        "wg": []
+      },
+      {
+        "t": "(C) `batch.size=32768`, `linger.ms=0`, `acks=0`",
+        "en": "(C) `batch.size=32768`, `linger.ms=0`, `acks=0`",
+        "wg": []
+      },
+      {
+        "t": "(D) `batch.size=16384`, `linger.ms=5`, `max.in.flight.requests.per.connection=1`",
+        "en": "(D) `batch.size=16384`, `linger.ms=5`, `max.in.flight.requests.per.connection=1`",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "選項 (B) 正確：為了最大化吞吐量，應增加 `batch.size`（如 128KB）並設定非零的 `linger.ms`（如 50ms）以允許 Producer 累積更多數據形成 Batch，減少網路請求次數；同時使用 `zstd` 等高壓縮比演算法可節省頻寬。選項 (A) 使用預設值且無壓縮，無法應對高吞吐。選項 (C) 雖然 `acks=0` 快，但 `linger.ms=0` 會導致 Batch 過小。選項 (D) 限制 flight requests 會嚴重降低吞吐量。",
+      "en": "Option (B) is correct: To maximize throughput, you should increase `batch.size` (e.g., 128KB) and set a non-zero `linger.ms` (e.g., 50ms) to allow the Producer to accumulate more data into a batch, reducing the number of network requests. Using high-ratio compression like `zstd` also saves bandwidth. Option (A) uses defaults without compression, unsuitable for high throughput. Option (C) has `linger.ms=0`, leading to small batches despite `acks=0`. Option (D) severely limits throughput by restricting in-flight requests.",
+      "wg": [
+        {
+          "t": "壓縮比",
+          "en": "compression ratio",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "2",
+    "level": "Medium",
+    "keywords": "Anti-pattern, Latency, Throughput, Code",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "for (String record : records) {\n    producer.send(new ProducerRecord<>(topic, record)).get();\n}",
+    "question": [
+      {
+        "t": "在程式碼審查（Code Review）中，你發現一位工程師寫了如上的 Kafka 發送邏輯。根據效能調校的最佳實務，這種寫法會導致什麼主要問題？",
+        "en": "During a Code Review, you notice an engineer wrote the Kafka sending logic as shown above. According to performance tuning best practices, what is the main issue with this approach?",
+        "wg": [
+          {
+            "t": "程式碼審查",
+            "en": "Code Review",
+            "ps": "noun"
+          },
+          {
+            "t": "最佳實務",
+            "en": "best practices",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) 會導致 Broker 端發生死鎖（Deadlock）。",
+        "en": "(A) It will cause a deadlock on the Broker side.",
+        "wg": [
+          {
+            "t": "死鎖",
+            "en": "Deadlock",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "(B) 雖然延遲極低，但會導致資料重複發送。",
+        "en": "(B) Although latency is extremely low, it will cause duplicate data transmission.",
+        "wg": []
+      },
+      {
+        "t": "(C) 強迫同步發送，破壞 Batching 機制，將吞吐量限制在 `1 / RTT`。",
+        "en": "(C) It forces synchronous sending, breaking the Batching mechanism and limiting throughput to `1 / RTT`.",
+        "wg": [
+          {
+            "t": "往返時間",
+            "en": "RTT (Round-Trip Time)",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "(D) 會導致 Consumer 無法依序讀取訊息。",
+        "en": "(D) It will prevent the Consumer from reading messages in order.",
+        "wg": []
+      }
+    ],
+    "answer": "C",
+    "why": {
+      "t": "選項 (C) 正確：使用 `.get()` 會使非同步的 `send()` 變為同步阻塞操作。這意味著必須等待前一條訊息確認（Ack）後才能發送下一條，完全破壞了 Kafka 的 Micro-batching 機制，導致吞吐量極低（受限於網路往返時間 RTT）。選項 (A) 不會發生。選項 (B) 描述錯誤，這種寫法延遲反而很高。選項 (D) 與發送模式無直接關係。",
+      "en": "Option (C) is correct: Using `.get()` turns the asynchronous `send()` into a synchronous blocking operation. This means the next message cannot be sent until the previous one is acknowledged, completely breaking Kafka's Micro-batching mechanism and resulting in extremely low throughput (limited by network RTT). Option (A) will not happen. Option (B) is incorrect as latency would actually be high. Option (D) is unrelated to the sending mode.",
+      "wg": [
+        {
+          "t": "同步阻塞",
+          "en": "synchronous blocking",
+          "ps": "adjective"
+        }
+      ]
+    }
+  },
+  {
+    "no": "3",
+    "level": "Medium",
+    "keywords": "Latency, Producer, Configuration, Real-time",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "針對一個「即時詐欺偵測」系統，業務要求訊息產生後必須盡快發送，延遲（Latency）是最高優先級。下列哪一項 Producer 配置調整最符合此目標？",
+        "en": "For a 'Real-time Fraud Detection' system, the business requires messages to be sent as soon as they are generated, making Latency the highest priority. Which of the following Producer configuration adjustments best aligns with this goal?",
+        "wg": [
+          {
+            "t": "即時詐欺偵測",
+            "en": "Real-time Fraud Detection",
+            "ps": "noun"
+          },
+          {
+            "t": "最高優先級",
+            "en": "highest priority",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) 設定 `linger.ms=0` 並使用 `compression.type=lz4`。",
+        "en": "(A) Set `linger.ms=0` and use `compression.type=lz4`.",
+        "wg": []
+      },
+      {
+        "t": "(B) 設定 `linger.ms=100` 以確保 Batch 被填滿。",
+        "en": "(B) Set `linger.ms=100` to ensure the Batch is filled.",
+        "wg": []
+      },
+      {
+        "t": "(C) 設定 `acks=all` 並配合 `min.insync.replicas=3`。",
+        "en": "(C) Set `acks=all` combined with `min.insync.replicas=3`.",
+        "wg": []
+      },
+      {
+        "t": "(D) 設定 `batch.size=1048576` (1MB)。",
+        "en": "(D) Set `batch.size=1048576` (1MB).",
+        "wg": []
+      }
+    ],
+    "answer": "A",
+    "why": {
+      "t": "選項 (A) 正確：`linger.ms=0` 確保訊息一旦產生就立即發送，不等待 Batch 填滿，適合低延遲場景；`lz4` 壓縮速度快，對延遲影響極小。選項 (B) 增加 `linger.ms` 會直接增加延遲。選項 (C) 雖然增加可靠性，但 `acks=all` 會增加等待 Follower 確認的時間，不利於極致低延遲。選項 (D) 過大的 `batch.size` 在低延遲場景下若無配合 `linger.ms` 調整可能無效或浪費記憶體。",
+      "en": "Option (A) is correct: `linger.ms=0` ensures messages are sent immediately upon generation without waiting for a batch to fill, suitable for low-latency scenarios; `lz4` is fast and has minimal impact on latency. Option (B) increasing `linger.ms` directly adds latency. Option (C) increases reliability but `acks=all` adds latency by waiting for Follower acknowledgments. Option (D) an excessively large `batch.size` is either ineffective or wasteful in low-latency scenarios without proper `linger.ms` tuning.",
+      "wg": [
+        {
+          "t": "可靠性",
+          "en": "reliability",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "4",
+    "level": "Hard",
+    "keywords": "Broker, OS Tuning, Partitions, Anti-pattern",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "關於 Kafka Broker 的架構設計與作業系統層級調校，下列哪一個敘述是**錯誤**的（Anti-pattern）？",
+        "en": "Regarding Kafka Broker architecture design and OS-level tuning, which of the following statements is an **Anti-pattern** (incorrect)?",
+        "wg": [
+          {
+            "t": "架構設計",
+            "en": "architecture design",
+            "ps": "noun"
+          },
+          {
+            "t": "作業系統層級",
+            "en": "OS-level",
+            "ps": "adjective"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) 為了提升平行處理能力，應盡可能增加 Partition 數量，例如單一 Broker 承載 50,000 個以上的 Partitions。",
+        "en": "(A) To improve parallelism, maximize the number of partitions, for example, hosting over 50,000 partitions on a single Broker.",
+        "wg": [
+          {
+            "t": "平行處理能力",
+            "en": "parallelism",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "(B) 應設定 `vm.swappiness=1` 以避免 Broker 的記憶體被 Swap 到磁碟導致效能崩潰。",
+        "en": "(B) Set `vm.swappiness=1` to prevent Broker memory from being swapped to disk, which causes performance collapse.",
+        "wg": []
+      },
+      {
+        "t": "(C) 建議將 JVM Heap Size 設定為實體記憶體的 50% 以下，保留足夠空間給 OS Page Cache。",
+        "en": "(C) It is recommended to set JVM Heap Size to less than 50% of physical RAM, leaving enough space for the OS Page Cache.",
+        "wg": []
+      },
+      {
+        "t": "(D) 在高併發與隨機讀取（如追趕進度）的場景下，使用 SSD 可以顯著提升效能。",
+        "en": "(D) In scenarios with high concurrency and random reads (like catching up), using SSDs can significantly improve performance.",
+        "wg": []
+      }
+    ],
+    "answer": "A",
+    "why": {
+      "t": "選項 (A) 是反模式：雖然 Partition 是平行單位，但過多的 Partitions（如單機 > 4,000）會導致 Broker 重啟時產生大量的 Leader Election，造成長時間不可用，並增加記憶體碎片化與端對端延遲。選項 (B)、(C)、(D) 均為正確的最佳實務。",
+      "en": "Option (A) is an anti-pattern: While partitions are units of parallelism, excessive partitions (e.g., > 4,000 per broker) lead to massive Leader Elections during broker restarts, causing long downtime, memory fragmentation, and increased end-to-end latency. Options (B), (C), and (D) are all correct best practices.",
+      "wg": [
+        {
+          "t": "反模式",
+          "en": "anti-pattern",
+          "ps": "noun"
+        },
+        {
+          "t": "碎片化",
+          "en": "fragmentation",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "5",
+    "level": "Medium",
+    "keywords": "Consumer, Tuning, Throughput, Network",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你的 Kafka Consumer 運作正常，但監控顯示它發出了大量請求，每次卻只拉取到極少量的數據（例如幾百 Bytes），導致 Broker CPU 負載過高。為了優化此狀況，你應該調整哪一個參數？",
+        "en": "Your Kafka Consumer is working, but monitoring shows it issues a large number of requests while fetching very little data each time (e.g., a few hundred bytes), causing high CPU load on the Broker. To optimize this, which parameter should you adjust?",
+        "wg": [
+          {
+            "t": "監控",
+            "en": "monitoring",
+            "ps": "noun"
+          },
+          {
+            "t": "負載",
+            "en": "load",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) 增加 `fetch.min.bytes`。",
+        "en": "(A) Increase `fetch.min.bytes`.",
+        "wg": []
+      },
+      {
+        "t": "(B) 減少 `fetch.max.wait.ms`。",
+        "en": "(B) Decrease `fetch.max.wait.ms`.",
+        "wg": []
+      },
+      {
+        "t": "(C) 增加 `session.timeout.ms`。",
+        "en": "(C) Increase `session.timeout.ms`.",
+        "wg": []
+      },
+      {
+        "t": "(D) 設定 `enable.auto.commit=false`。",
+        "en": "(D) Set `enable.auto.commit=false`.",
+        "wg": []
+      }
+    ],
+    "answer": "A",
+    "why": {
+      "t": "選項 (A) 正確：`fetch.min.bytes` 告訴 Broker「除非累積了至少 X bytes 的資料，否則不要回傳給我」。增加此值可以減少 Consumer 在資料量少時的頻繁空轉請求，降低 Broker 負載並提升有效吞吐量。選項 (B) 減少等待時間反而會加劇頻繁請求的問題。選項 (C) 與 (D) 與拉取資料的效率無直接關係。",
+      "en": "Option (A) is correct: `fetch.min.bytes` tells the Broker, \"Do not respond unless at least X bytes of data have accumulated.\" Increasing this value reduces frequent empty or small requests when data volume is low, lowering Broker load and improving effective throughput. Option (B) decreasing wait time would exacerbate the frequent request issue. Options (C) and (D) are not directly related to fetch efficiency.",
+      "wg": [
+        {
+          "t": "空轉請求",
+          "en": "busy-wait requests / empty requests",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "6",
+    "level": "Medium",
+    "keywords": "Throughput, Latency, Mental Model",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在 Kafka 的效能心智模型中，我們常將「高吞吐量（High Throughput）」與「低延遲（Low Latency）」比喻為「公車」與「計程車」。根據此模型，下列哪一種操作相當於「讓公車等待更久以載滿乘客」，從而提升整體運輸效率？",
+        "en": "In the Kafka performance mental model, 'High Throughput' and 'Low Latency' are often likened to a 'Bus' and a 'Taxi'. Based on this model, which of the following operations is equivalent to 'making the bus wait longer to fill up with passengers', thereby improving overall transport efficiency?",
+        "wg": [
+          {
+            "t": "心智模型",
+            "en": "mental model",
+            "ps": "noun"
+          },
+          {
+            "t": "運輸效率",
+            "en": "transport efficiency",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) 增加 Producer 的 `linger.ms` 設定。",
+        "en": "(A) Increase the Producer's `linger.ms` setting.",
+        "wg": []
+      },
+      {
+        "t": "(B) 設定 Producer 的 `acks=1`。",
+        "en": "(B) Set the Producer's `acks=1`.",
+        "wg": []
+      },
+      {
+        "t": "(C) 增加 Broker 的 `num.network.threads`。",
+        "en": "(C) Increase the Broker's `num.network.threads`.",
+        "wg": []
+      },
+      {
+        "t": "(D) 使用 SSD 替換 HDD。",
+        "en": "(D) Replace HDD with SSD.",
+        "wg": []
+      }
+    ],
+    "answer": "A",
+    "why": {
+      "t": "選項 (A) 正確：`linger.ms` 控制 Producer 在發送 Batch 前願意等待的時間。增加此值就像讓公車多等一下，以便湊滿更多乘客（訊息），這樣單次發車（網路請求）的平均成本最低，能顯著提升吞吐量。選項 (B) 涉及可靠性。選項 (C) 與 (D) 是基礎設施層面的優化，不屬於 Batching 策略的比喻。",
+      "en": "Option (A) is correct: `linger.ms` controls how long the Producer waits before sending a batch. Increasing this value is like making the bus wait longer to gather more passengers (messages), minimizing the average cost per trip (network request) and significantly improving throughput. Option (B) relates to reliability. Options (C) and (D) are infrastructure optimizations, not part of the batching strategy analogy.",
+      "wg": [
+        {
+          "t": "基礎設施",
+          "en": "infrastructure",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "7",
+    "level": "Medium",
+    "keywords": "Compression, Network, CPU, Bottleneck",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你正在管理一個負責「資料倉儲入庫（Data Warehousing）」的 Kafka Cluster，該場景對吞吐量（Throughput）要求極高。監控顯示 Broker 的網路頻寬（Network Bandwidth）已接近飽和，但 CPU 使用率僅約 20%。",
+        "en": "You are managing a Kafka Cluster responsible for 'Data Warehousing' ingestion, where throughput is critical. Monitoring shows that the Broker's network bandwidth is nearing saturation, but CPU usage is only around 20%.",
+        "wg": [
+          {
+            "t": "資料倉儲入庫",
+            "en": "Data Warehousing ingestion",
+            "ps": "noun phrase"
+          },
+          {
+            "t": "飽和",
+            "en": "saturation",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "為了在不升級硬體的情況下提升整體吞吐量，下列哪項調整最為有效？",
+        "en": "To increase overall throughput without upgrading hardware, which of the following adjustments is most effective?",
+        "wg": []
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) 在 Producer 端啟用壓縮（如 compression.type=zstd），以 CPU 資源換取網路頻寬。",
+        "en": "(A) Enable compression on the Producer (e.g., compression.type=zstd) to trade CPU resources for network bandwidth.",
+        "wg": [
+          {
+            "t": "啟用壓縮",
+            "en": "Enable compression",
+            "ps": "verb phrase"
+          }
+        ]
+      },
+      {
+        "t": "(B) 將 Producer 的 batch.size 設定減半，以減少單次傳輸的封包大小。",
+        "en": "(B) Halve the Producer's batch.size setting to reduce the packet size of single transmissions.",
+        "wg": []
+      },
+      {
+        "t": "(C) 增加 Broker 的 num.network.threads 數量，以處理更多的網路連線。",
+        "en": "(C) Increase the number of num.network.threads on the Broker to handle more network connections.",
+        "wg": []
+      },
+      {
+        "t": "(D) 將 Producer 的 acks 設定改為 0，以完全忽略確認回應。",
+        "en": "(D) Change the Producer's acks setting to 0 to completely ignore acknowledgment responses.",
+        "wg": []
+      }
+    ],
+    "answer": "A",
+    "why": {
+      "t": "當網路成為瓶頸（飽和）且 CPU 仍有餘裕時，啟用壓縮（Compression）是最佳策略。這能顯著減少透過網路傳輸的數據量，從而提升吞吐量。選項 (B) 減小 Batch Size 會導致更多的小請求，反而增加網路負擔；選項 (C) 增加執行緒無法解決頻寬物理限制；選項 (D) 雖然能提升速度，但會犧牲可靠性且不直接解決頻寬飽和問題。",
+      "en": "When the network is the bottleneck (saturated) and CPU is underutilized, enabling compression is the best strategy. It significantly reduces the amount of data transmitted over the network, thereby increasing throughput. Option (B) reducing Batch Size leads to more small requests, worsening network overhead; Option (C) adding threads cannot solve physical bandwidth limits; Option (D) sacrifices reliability and doesn't directly address bandwidth saturation.",
+      "wg": [
+        {
+          "t": "餘裕",
+          "en": "headroom / underutilized",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "8",
+    "level": "Hard",
+    "keywords": "Memory, Page Cache, JVM, Heap",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "一位工程師正在配置一台擁有 64GB RAM 的實體機器作為 Kafka Broker。為了「最大化效能」，他在啟動腳本中設定了 `-Xmx48G -Xms48G`，將大部分記憶體分配給 JVM Heap。",
+        "en": "An engineer is configuring a physical machine with 64GB of RAM as a Kafka Broker. To 'maximize performance', they set `-Xmx48G -Xms48G` in the startup script, allocating most of the memory to the JVM Heap.",
+        "wg": [
+          {
+            "t": "啟動腳本",
+            "en": "startup script",
+            "ps": "noun phrase"
+          }
+        ]
+      },
+      {
+        "t": "根據 Kafka 的架構設計，這個配置為何是一個 Anti-pattern（反模式）？",
+        "en": "According to Kafka's architectural design, why is this configuration an Anti-pattern?",
+        "wg": []
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) 過大的 Heap 會導致 Garbage Collection (GC) 暫停時間過長，且剝奪了作業系統用於 Page Cache 的記憶體，導致磁碟 I/O 增加。",
+        "en": "(A) An excessively large Heap leads to long Garbage Collection (GC) pauses and starves the operating system of memory for Page Cache, increasing disk I/O.",
+        "wg": [
+          {
+            "t": "剝奪",
+            "en": "starves / deprives",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "(B) Kafka 完全依賴 JVM Heap 來儲存訊息，48GB 仍然太少，應該設定為 60GB 以上。",
+        "en": "(B) Kafka relies entirely on the JVM Heap to store messages; 48GB is still too little and should be set to over 60GB.",
+        "wg": []
+      },
+      {
+        "t": "(C) Java 無法有效管理超過 32GB 的記憶體，這會導致 JVM 崩潰。",
+        "en": "(C) Java cannot effectively manage memory over 32GB, which will cause the JVM to crash.",
+        "wg": []
+      },
+      {
+        "t": "(D) 這樣設定會導致 Kafka 無法建立足夠的網路連線（File Descriptors）。",
+        "en": "(D) This setting will prevent Kafka from establishing enough network connections (File Descriptors).",
+        "wg": []
+      }
+    ],
+    "answer": "A",
+    "why": {
+      "t": "Kafka 依賴作業系統的 Page Cache 來快取磁碟上的訊息（Log segments），而非將訊息儲存在 JVM Heap 中。若將大部分 RAM 分給 Heap，OS 就沒有足夠記憶體做快取，導致讀取必須頻繁訪問磁碟，效能會大幅下降。此外，超大 Heap 也會導致長時間的 GC 停頓。建議 Heap 不超過 RAM 的 50%（通常 6-10GB 對 Broker 來說已足夠）。",
+      "en": "Kafka relies on the OS Page Cache to cache messages (Log segments) from disk, rather than storing them in the JVM Heap. Allocating most RAM to the Heap leaves insufficient memory for the OS cache, forcing frequent disk reads and degrading performance. Additionally, a huge Heap causes long GC pauses. It is recommended that Heap does not exceed 50% of RAM (often 6-10GB is sufficient for a Broker).",
+      "wg": [
+        {
+          "t": "快取",
+          "en": "cache",
+          "ps": "verb/noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "9",
+    "level": "Hard",
+    "keywords": "Partitions, Availability, Leader Election, Recovery",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你的團隊為了追求極致的平行處理能力，在一個 Kafka Cluster 中建立了超過 500,000 個分區（Partitions）。",
+        "en": "Your team created over 500,000 partitions in a Kafka Cluster to achieve extreme parallelism.",
+        "wg": [
+          {
+            "t": "極致的",
+            "en": "extreme / ultimate",
+            "ps": "adjective"
+          },
+          {
+            "t": "平行處理能力",
+            "en": "parallelism / parallel processing capability",
+            "ps": "noun phrase"
+          }
+        ]
+      },
+      {
+        "t": "當某個 Broker 發生故障並重啟時，這種「過多分區」的設計主要會造成什麼嚴重的負面影響？",
+        "en": "When a Broker fails and restarts, what is the primary severe negative impact of this 'excessive partitions' design?",
+        "wg": []
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) 會導致 Controller 需要花費極長的時間進行 Leader Election，造成長時間的服務不可用（Unavailability）。",
+        "en": "(A) It will cause the Controller to take an extremely long time to perform Leader Election, resulting in prolonged service unavailability.",
+        "wg": [
+          {
+            "t": "服務不可用",
+            "en": "service unavailability",
+            "ps": "noun phrase"
+          }
+        ]
+      },
+      {
+        "t": "(B) 會導致磁碟空間瞬間被填滿，因為每個分區都預佔了 1GB 的空間。",
+        "en": "(B) It will cause disk space to fill up instantly because each partition pre-allocates 1GB of space.",
+        "wg": []
+      },
+      {
+        "t": "(C) 會導致 Consumer 無法連線，因為 Consumer Group 數量有限制。",
+        "en": "(C) It will cause Consumers to fail to connect because there is a limit on the number of Consumer Groups.",
+        "wg": []
+      },
+      {
+        "t": "(D) 會導致網路頻寬被 Partition Metadata 佔滿，無法傳輸實際數據。",
+        "en": "(D) It will cause network bandwidth to be saturated by Partition Metadata, preventing actual data transmission.",
+        "wg": []
+      }
+    ],
+    "answer": "A",
+    "why": {
+      "t": "雖然 Partition 是平行單元，但過多的 Partition 會在 Broker 宕機或重啟時造成巨大的負擔。Controller 必須依序為每個受影響的 Partition 選舉新的 Leader。若 Partition 數以十萬計，這個過程可能持續數十秒甚至數分鐘，期間這些 Partition 無法寫入或讀取，導致嚴重的可用性問題。",
+      "en": "While partitions are units of parallelism, too many create a huge burden during Broker failure or restart. The Controller must sequentially elect a new Leader for each affected partition. With hundreds of thousands of partitions, this process can take tens of seconds or even minutes, during which these partitions are unavailable for read/write, causing severe availability issues.",
+      "wg": [
+        {
+          "t": "宕機",
+          "en": "downtime / crash",
+          "ps": "verb/noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "10",
+    "level": "Medium",
+    "keywords": "Latency, GC, Troubleshooting, P99",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你正在排查一個 Kafka 延遲問題：系統的平均延遲（P50）很低，但 P99 延遲偶爾會飆升到數秒鐘。同時你觀察到這些尖峰發生時，Broker 並沒有明顯的磁碟或網路負載。",
+        "en": "You are troubleshooting a Kafka latency issue: the system's average latency (P50) is low, but P99 latency occasionally spikes to several seconds. You also observe that when these spikes occur, the Broker shows no significant disk or network load.",
+        "wg": [
+          {
+            "t": "飆升",
+            "en": "spikes / surges",
+            "ps": "verb"
+          },
+          {
+            "t": "尖峰",
+            "en": "spikes / peaks",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "這最可能是由下列哪一個因素引起的？",
+        "en": "Which of the following factors is most likely causing this?",
+        "wg": []
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) JVM 的 Garbage Collection (GC) 觸發了長時間的 Stop-the-world (STW) 暫停。",
+        "en": "(A) JVM Garbage Collection (GC) triggered a long Stop-the-world (STW) pause.",
+        "wg": [
+          {
+            "t": "暫停",
+            "en": "pause",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "(B) Producer 的 batch.size 設定過大，導致記憶體不足。",
+        "en": "(B) The Producer's batch.size setting is too large, causing insufficient memory.",
+        "wg": []
+      },
+      {
+        "t": "(C) Consumer 的 fetch.min.bytes 設定過高，導致長時間輪詢等待。",
+        "en": "(C) The Consumer's fetch.min.bytes setting is too high, causing long polling waits.",
+        "wg": []
+      },
+      {
+        "t": "(D) Broker 的硬碟空間即將耗盡。",
+        "en": "(D) The Broker's disk space is running out.",
+        "wg": []
+      }
+    ],
+    "answer": "A",
+    "why": {
+      "t": "P99 延遲飆高但 P50 正常，且無明顯 I/O 負載，是典型的 GC 停頓（Stop-the-world）特徵。當 JVM 執行 Full GC 時，所有應用程式執行緒（包括處理請求的執行緒）都會暫停，導致外部請求看起來像是「卡住」了。建議檢查 GC log 並考慮使用 G1GC 或 ZGC。",
+      "en": "High P99 latency with normal P50 and no significant I/O load is a classic symptom of GC pauses (Stop-the-world). When the JVM performs a Full GC, all application threads (including those handling requests) are paused, making external requests appear 'stuck'. It is recommended to check GC logs and consider using G1GC or ZGC.",
+      "wg": [
+        {
+          "t": "特徵",
+          "en": "symptom / characteristic",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "11",
+    "level": "Medium",
+    "keywords": "Latency, Acks, Durability, Trade-off",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在需要「高資料耐久性（High Durability）」的場景（如金融交易），我們通常將 Producer 的 `acks` 設為 `all`。",
+        "en": "In scenarios requiring 'High Durability' (e.g., financial transactions), we typically set the Producer's `acks` to `all`.",
+        "wg": [
+          {
+            "t": "高資料耐久性",
+            "en": "High Durability",
+            "ps": "noun phrase"
+          }
+        ]
+      },
+      {
+        "t": "從效能角度來看，為什麼 `acks=all` 會比 `acks=1` 產生較高的延遲（Latency）？",
+        "en": "From a performance perspective, why does `acks=all` result in higher latency compared to `acks=1`?",
+        "wg": []
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) 因為 Leader Broker 必須等待所有同步副本（ISR）都確認寫入成功後，才能回覆 Producer。",
+        "en": "(A) Because the Leader Broker must wait for all in-sync replicas (ISR) to acknowledge the write before responding to the Producer.",
+        "wg": [
+          {
+            "t": "同步副本",
+            "en": "in-sync replicas",
+            "ps": "noun phrase"
+          }
+        ]
+      },
+      {
+        "t": "(B) 因為 `acks=all` 會強制 Producer 關閉 Batching 機制，改為逐條發送。",
+        "en": "(B) Because `acks=all` forces the Producer to disable the Batching mechanism and send messages one by one.",
+        "wg": []
+      },
+      {
+        "t": "(C) 因為 `acks=all` 會觸發 Broker 進行磁碟重組（Defragmentation）。",
+        "en": "(C) Because `acks=all` triggers disk defragmentation on the Broker.",
+        "wg": []
+      },
+      {
+        "t": "(D) 因為 `acks=all` 需要 Producer 先壓縮數據再發送，消耗了 CPU 時間。",
+        "en": "(D) Because `acks=all` requires the Producer to compress data before sending, consuming CPU time.",
+        "wg": []
+      }
+    ],
+    "answer": "A",
+    "why": {
+      "t": "`acks=1` 只需 Leader 確認寫入即可回覆，速度快但有風險。`acks=all` 則要求 Leader 必須等待所有 ISR（In-Sync Replicas）都完成寫入確認。這意味著延遲至少包含了「最慢的那個 Follower」的網路往返與寫入時間，因此延遲較高。",
+      "en": "`acks=1` only requires the Leader to acknowledge the write, which is fast but risky. `acks=all` requires the Leader to wait for all ISR (In-Sync Replicas) to acknowledge. This means the latency includes at least the network round-trip and write time of the 'slowest Follower', resulting in higher latency.",
+      "wg": [
+        {
+          "t": "往返",
+          "en": "round-trip",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "12",
+    "level": "Medium",
+    "keywords": "OS Tuning, Swappiness, Performance, Stability",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在作業系統層級調校（OS Tuning）中，建議將 Kafka Broker 機器的 `vm.swappiness` 參數設定為 `1`（或極低值）。",
+        "en": "In OS Tuning, it is recommended to set the `vm.swappiness` parameter on Kafka Broker machines to `1` (or a very low value).",
+        "wg": [
+          {
+            "t": "作業系統層級調校",
+            "en": "OS Tuning",
+            "ps": "noun phrase"
+          }
+        ]
+      },
+      {
+        "t": "如果不這樣做，最可能導致什麼災難性的效能後果？",
+        "en": "If this is not done, what catastrophic performance consequence is most likely to occur?",
+        "wg": []
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) Broker 的記憶體頁面（Memory Pages）被置換到磁碟（Swap），導致處理速度從微秒級（RAM）跌落至毫秒級（Disk），引發嚴重的延遲與超時。",
+        "en": "(A) Broker memory pages are swapped to disk, causing processing speeds to drop from microseconds (RAM) to milliseconds (Disk), triggering severe latency and timeouts.",
+        "wg": [
+          {
+            "t": "置換",
+            "en": "swapped",
+            "ps": "verb"
+          },
+          {
+            "t": "跌落",
+            "en": "drop / degrade",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "(B) 作業系統會拒絕分配新的 File Descriptors，導致 Broker 無法接受新連線。",
+        "en": "(B) The operating system will refuse to allocate new File Descriptors, preventing the Broker from accepting new connections.",
+        "wg": []
+      },
+      {
+        "t": "(C) Kafka 的 Log Cleaner 執行緒會停止運作，導致磁碟空間無限增長。",
+        "en": "(C) The Kafka Log Cleaner thread will stop working, causing disk space to grow indefinitely.",
+        "wg": []
+      },
+      {
+        "t": "(D) 會導致網路卡（NIC）進入省電模式，降低網路吞吐量。",
+        "en": "(D) It will cause the Network Interface Card (NIC) to enter power-saving mode, reducing network throughput.",
+        "wg": []
+      }
+    ],
+    "answer": "A",
+    "why": {
+      "t": "Kafka 對記憶體存取速度極度敏感。若 OS 因為 `swappiness` 設定過高而將 Broker 的記憶體（包含 Heap 或 Page Cache）Swap 到磁碟，存取速度會慢幾個數量級（RAM vs Disk）。這會導致 Broker 看起來像「死機」一樣，引發 Controller 誤判、Partition 重新選舉等連鎖反應。設定為 1 是為了告訴 OS：除非記憶體完全耗盡，否則盡量不要 Swap。",
+      "en": "Kafka is extremely sensitive to memory access speeds. If the OS swaps Broker memory (Heap or Page Cache) to disk due to high `swappiness`, access speeds drop by orders of magnitude (RAM vs Disk). This makes the Broker appear 'dead', triggering Controller misjudgment, Partition re-elections, and chain reactions. Setting it to 1 tells the OS: avoid swapping unless memory is absolutely exhausted.",
+      "wg": [
+        {
+          "t": "連鎖反應",
+          "en": "chain reactions",
+          "ps": "noun phrase"
+        }
+      ]
+    }
+  }
+]

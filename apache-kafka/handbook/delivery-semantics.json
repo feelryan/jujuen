@@ -1,0 +1,701 @@
+[
+  {
+    "no": "1",
+    "level": "Medium",
+    "keywords": "Idempotent Producer, Scope, Atomicity",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "開發者僅在 Producer 設定 `enable.idempotence = true`，但未啟用 Transactional API（未設定 `transactional.id`）。",
+        "en": "A developer sets `enable.idempotence = true` on the Producer but does not enable the Transactional API (no `transactional.id` is set).",
+        "wg": []
+      },
+      {
+        "t": "請問在這種配置下，Kafka **無法** 保證下列哪一項行為？",
+        "en": "Which of the following behaviors is **NOT** guaranteed by Kafka under this configuration?",
+        "wg": []
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) 單一 Partition 內的訊息順序性。",
+        "en": "(A) Message ordering within a single partition.",
+        "wg": []
+      },
+      {
+        "t": "(B) 單一 Producer Session 內的訊息不重複（Deduplication）。",
+        "en": "(B) Message deduplication within a single Producer Session.",
+        "wg": []
+      },
+      {
+        "t": "(C) 跨多個 Partition 寫入的原子性（Atomicity）。",
+        "en": "(C) Atomicity of writes across multiple partitions.",
+        "wg": [
+          {
+            "t": "原子性",
+            "en": "Atomicity",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "(D) 當 Broker 收到重複 Sequence Number 時會自動丟棄。",
+        "en": "(D) Automatic discarding of messages when the Broker receives a duplicate Sequence Number.",
+        "wg": []
+      }
+    ],
+    "answer": "C",
+    "why": {
+      "t": "冪等性生產者 (Idempotent Producer) 的作用範圍僅限於「單一 Partition」與「單一 Session」。若要保證跨 Partition 的寫入要嘛全成功、要嘛全失敗（原子性），必須使用 Transactional API。",
+      "en": "The scope of an Idempotent Producer is limited to a 'single partition' and 'single session'. To guarantee that writes across multiple partitions either all succeed or all fail (atomicity), the Transactional API must be used.",
+      "wg": []
+    }
+  },
+  {
+    "no": "2",
+    "level": "Medium",
+    "keywords": "Consumer, isolation.level, Dirty Read",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你的團隊實作了 Kafka Transactions 來確保 Exactly-Once Semantics (EOS)，Producer 端已正確設定並使用 `commitTransaction()`。",
+        "en": "Your team implemented Kafka Transactions to ensure Exactly-Once Semantics (EOS), and the Producer is correctly configured and uses `commitTransaction()`.",
+        "wg": []
+      },
+      {
+        "t": "然而，下游 Consumer 仍然偶爾會讀到那些最終被 Producer `abortTransaction()` 的訊息（髒讀）。",
+        "en": "However, the downstream Consumer still occasionally reads messages that were eventually aborted by the Producer (dirty reads).",
+        "wg": [
+          {
+            "t": "髒讀",
+            "en": "Dirty Read",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "請問最可能的原因是什麼？",
+        "en": "What is the most likely cause?",
+        "wg": []
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) Consumer 的 `enable.auto.commit` 設為 `true`。",
+        "en": "(A) The Consumer's `enable.auto.commit` is set to `true`.",
+        "wg": []
+      },
+      {
+        "t": "(B) Consumer 的 `isolation.level` 保持預設值 `read_uncommitted`。",
+        "en": "(B) The Consumer's `isolation.level` is left at the default value `read_uncommitted`.",
+        "wg": [
+          {
+            "t": "隔離級別",
+            "en": "Isolation Level",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "(C) Producer 的 `transactional.id` 不夠獨特。",
+        "en": "(C) The Producer's `transactional.id` is not unique enough.",
+        "wg": []
+      },
+      {
+        "t": "(D) Broker 的 `min.insync.replicas` 設定過低。",
+        "en": "(D) The Broker's `min.insync.replicas` setting is too low.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "Consumer 預設的隔離級別是 `read_uncommitted`，這會讀取所有寫入 Log 的訊息，無論交易是否成功。必須顯式設定為 `read_committed` 才能過濾掉未提交或已中止的交易訊息。",
+      "en": "The default isolation level for a Consumer is `read_uncommitted`, which reads all messages written to the log regardless of transaction status. You must explicitly set it to `read_committed` to filter out uncommitted or aborted transaction messages.",
+      "wg": []
+    }
+  },
+  {
+    "no": "3",
+    "level": "Hard",
+    "keywords": "Read-Process-Write, sendOffsetsToTransaction, Anti-pattern",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "try {\n    producer.beginTransaction();\n    // ... process records ...\n    producer.send(outputRecord);\n    \n    // ❌ Suspicious Line:\n    consumer.commitSync(); \n    \n    producer.commitTransaction();\n} catch (Exception e) {\n    producer.abortTransaction();\n}",
+    "question": [
+      {
+        "t": "在實作「讀取-處理-寫入」(Read-Process-Write) 的 Exactly-Once 流程時，工程師寫出了如上的程式碼。",
+        "en": "An engineer wrote the code above while implementing a 'Read-Process-Write' Exactly-Once flow.",
+        "wg": []
+      },
+      {
+        "t": "請指出使用 `consumer.commitSync()` 而非 `producer.sendOffsetsToTransaction(...)` 的主要風險為何？",
+        "en": "Identify the main risk of using `consumer.commitSync()` instead of `producer.sendOffsetsToTransaction(...)`.",
+        "wg": []
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) `commitSync` 會導致編譯錯誤，因為在交易區塊中不允許使用。",
+        "en": "(A) `commitSync` will cause a compilation error because it is not allowed inside a transaction block.",
+        "wg": []
+      },
+      {
+        "t": "(B) 破壞了原子性：若 `producer.commitTransaction()` 失敗，Offset 可能已經被提交，導致訊息遺失或狀態不一致。",
+        "en": "(B) Breaks atomicity: If `producer.commitTransaction()` fails, the offset might have already been committed, leading to message loss or inconsistent state.",
+        "wg": [
+          {
+            "t": "原子性",
+            "en": "Atomicity",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "(C) `commitSync` 效能太差，會導致交易超時。",
+        "en": "(C) `commitSync` has poor performance and will cause the transaction to timeout.",
+        "wg": []
+      },
+      {
+        "t": "(D) 會導致 Producer 拋出 `ProducerFencedException`。",
+        "en": "(D) It will cause the Producer to throw a `ProducerFencedException`.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "EOS 的核心在於將「訊息發送」與「Offset 提交」綁定在同一個交易中。使用 `consumer.commitSync()` 會直接向 Group Coordinator 提交 Offset，獨立於 Producer 的交易狀態。若後續交易 Abort，Offset 卻已推進，就會導致資料遺失（已讀取但未成功產出結果）。",
+      "en": "The core of EOS is binding 'message sending' and 'offset commit' into the same transaction. Using `consumer.commitSync()` commits offsets directly to the Group Coordinator, independent of the Producer's transaction state. If the transaction subsequently aborts but the offset has moved forward, it leads to data loss (read but output not persisted).",
+      "wg": []
+    }
+  },
+  {
+    "no": "4",
+    "level": "Medium",
+    "keywords": "Side-Effect, Anti-pattern, External System",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "關於 Kafka Transactions 與外部系統副作用（如發送 Email、呼叫外部 REST API），下列敘述何者正確？",
+        "en": "Regarding Kafka Transactions and external system side effects (e.g., sending emails, calling external REST APIs), which of the following statements is true?",
+        "wg": [
+          {
+            "t": "副作用",
+            "en": "Side Effects",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) 只要將外部 API 呼叫放在 `beginTransaction()` 與 `commitTransaction()` 之間，Kafka 就能在交易失敗時自動回滾該操作。",
+        "en": "(A) As long as the external API call is placed between `beginTransaction()` and `commitTransaction()`, Kafka can automatically rollback that operation if the transaction fails.",
+        "wg": []
+      },
+      {
+        "t": "(B) Kafka 的交易機制僅保證 Kafka 內部狀態的一致性，無法回滾已經執行的外部 I/O 操作。",
+        "en": "(B) Kafka's transaction mechanism only guarantees the consistency of Kafka's internal state and cannot rollback external I/O operations that have already been executed.",
+        "wg": []
+      },
+      {
+        "t": "(C) 必須在 Consumer 端設定 `isolation.level=read_committed`，才能防止外部 API 被重複呼叫。",
+        "en": "(C) You must set `isolation.level=read_committed` on the Consumer side to prevent the external API from being called multiple times.",
+        "wg": []
+      },
+      {
+        "t": "(D) 應該使用 Kafka Connect 來取代 Producer API，這樣就能支援所有外部系統的交易回滾。",
+        "en": "(D) You should use Kafka Connect instead of the Producer API, as it supports transaction rollback for all external systems.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "這是常見的「副作用謬誤」。Kafka 無法控制外部系統（如 Email Server 或 REST API）。一旦外部請求發出，即使 Kafka 交易隨後 Abort，外部操作也已經發生且無法撤銷。這類操作應移至 Consumer 端並設計為冪等 (Idempotent)。",
+      "en": "This is the common 'Side-Effect Fallacy'. Kafka cannot control external systems (like Email Servers or REST APIs). Once an external request is sent, even if the Kafka transaction subsequently aborts, the external operation has already occurred and cannot be undone. Such operations should be moved to the Consumer side and designed to be idempotent.",
+      "wg": []
+    }
+  },
+  {
+    "no": "5",
+    "level": "Hard",
+    "keywords": "Zombie Fencing, transactional.id, ProducerFencedException",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在 Kubernetes 環境中，一個負責交易寫入的 Pod 因為網路問題暫時失聯（但未崩潰），K8s 啟動了一個新的 Pod 來接手。",
+        "en": "In a Kubernetes environment, a Pod responsible for transactional writes temporarily loses connectivity (but hasn't crashed), and K8s starts a new Pod to take over.",
+        "wg": []
+      },
+      {
+        "t": "當舊的 Pod 恢復連線並試圖提交它之前未完成的交易時，Kafka 如何防止資料錯亂？",
+        "en": "When the old Pod regains connectivity and attempts to commit its previously unfinished transaction, how does Kafka prevent data corruption?",
+        "wg": []
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) 透過 `enable.idempotence` 的 Sequence Number 偵測重複並丟棄。",
+        "en": "(A) Detects duplicates via `enable.idempotence` Sequence Numbers and discards them.",
+        "wg": []
+      },
+      {
+        "t": "(B) 透過相同的 `transactional.id` 觸發 Zombie Fencing 機制，Broker 會拒絕舊 Producer 的請求並拋出 `ProducerFencedException`。",
+        "en": "(B) Triggers the Zombie Fencing mechanism via the same `transactional.id`; the Broker rejects the old Producer's request and throws a `ProducerFencedException`.",
+        "wg": [
+          {
+            "t": "殭屍隔離",
+            "en": "Zombie Fencing",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "(C) 舊的 Pod 會自動偵測到新的 Pod 存在而自行關閉。",
+        "en": "(C) The old Pod automatically detects the existence of the new Pod and shuts itself down.",
+        "wg": []
+      },
+      {
+        "t": "(D) 透過 Consumer Group 的 Rebalance 機制來阻擋寫入。",
+        "en": "(D) Blocks writes via the Consumer Group Rebalance mechanism.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "這是 `transactional.id` 的核心功能。當新實例以相同的 ID 初始化交易時，Transaction Coordinator 會增加該 ID 的 Epoch。舊實例嘗試操作時，Broker 發現其 Epoch 過舊，便會視其為「殭屍」並拒絕請求（Fencing）。",
+      "en": "This is the core function of `transactional.id`. When a new instance initializes a transaction with the same ID, the Transaction Coordinator increments the Epoch for that ID. When the old instance tries to operate, the Broker sees its Epoch is outdated, treats it as a 'zombie', and rejects the request (Fencing).",
+      "wg": []
+    }
+  },
+  {
+    "no": "6",
+    "level": "Hard",
+    "keywords": "Performance, LSO, Head-of-line blocking",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你的系統中有一個長時間運行的交易（Long-Running Transaction），持續了數分鐘尚未提交。",
+        "en": "Your system has a Long-Running Transaction that has been ongoing for several minutes without committing.",
+        "wg": []
+      },
+      {
+        "t": "這對下游設定為 `isolation.level=read_committed` 的 Consumer 會有什麼具體影響？",
+        "en": "What specific impact does this have on downstream Consumers configured with `isolation.level=read_committed`?",
+        "wg": []
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) 沒有影響，Consumer 會跳過該交易，繼續讀取後續已提交的訊息。",
+        "en": "(A) No impact; the Consumer will skip that transaction and continue reading subsequent committed messages.",
+        "wg": []
+      },
+      {
+        "t": "(B) Consumer 會發生 Head-of-line blocking，卡在該交易開始的 Offset（Last Stable Offset），無法讀取該位置之後即使已經提交的訊息。",
+        "en": "(B) The Consumer will experience Head-of-line blocking, getting stuck at the transaction's start offset (Last Stable Offset), unable to read even committed messages after that point.",
+        "wg": [
+          {
+            "t": "佇列頭阻塞",
+            "en": "Head-of-line blocking",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "(C) Consumer 會讀取到該交易的部分訊息，但在交易完成前標記為「待定」。",
+        "en": "(C) The Consumer will read partial messages from that transaction but mark them as 'pending' until the transaction completes.",
+        "wg": []
+      },
+      {
+        "t": "(D) Consumer 會自動切換回 `read_uncommitted` 模式以避免延遲。",
+        "en": "(D) The Consumer will automatically switch back to `read_uncommitted` mode to avoid latency.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "為了保證順序性，`read_committed` 的 Consumer 不能讀取 Last Stable Offset (LSO) 之後的資料。LSO 定義為「第一條未完成交易的起始 Offset」。因此，只要有一筆交易卡住，LSO 就無法推進，導致後續所有已提交的交易也都無法被讀取。",
+      "en": "To guarantee ordering, a `read_committed` Consumer cannot read data past the Last Stable Offset (LSO). The LSO is defined as the 'start offset of the first unfinished transaction'. Therefore, if one transaction is stuck, the LSO cannot advance, causing all subsequent committed transactions to be unreadable as well.",
+      "wg": []
+    }
+  },
+  {
+    "no": "7",
+    "level": "Medium",
+    "keywords": "Configuration, acks, initTransactions",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "Properties props = new Properties();\nprops.put(\"bootstrap.servers\", \"localhost:9092\");\nprops.put(\"transactional.id\", \"my-app-tx-1\");\nprops.put(\"enable.idempotence\", \"true\");\nprops.put(\"acks\", \"1\"); // 注意此設定\n\nKafkaProducer<String, String> producer = new KafkaProducer<>(props);\nproducer.initTransactions();",
+    "question": [
+      {
+        "t": "一位工程師嘗試初始化 Kafka Transactional Producer，程式碼如上所示。請問執行這段程式碼時會發生什麼情況？",
+        "en": "An engineer attempts to initialize a Kafka Transactional Producer with the code snippet above. What will happen when this code is executed?",
+        "wg": []
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) 初始化成功，但交易保證將降級為 At-least-once。",
+        "en": "(A) Initialization succeeds, but transaction guarantees degrade to At-least-once.",
+        "wg": []
+      },
+      {
+        "t": "(B) 初始化成功，但在呼叫 `commitTransaction()` 時會拋出例外。",
+        "en": "(B) Initialization succeeds, but an exception will be thrown when calling `commitTransaction()`.",
+        "wg": []
+      },
+      {
+        "t": "(C) 初始化失敗並拋出 `ConfigException`，因為交易機制強制要求 `acks=all`。",
+        "en": "(C) Initialization fails with a `ConfigException` because transactions strictly require `acks=all`.",
+        "wg": []
+      },
+      {
+        "t": "(D) 初始化失敗，因為 `enable.idempotence` 必須設為 `false` 才能配合 `acks=1`。",
+        "en": "(D) Initialization fails because `enable.idempotence` must be set to `false` to work with `acks=1`.",
+        "wg": []
+      }
+    ],
+    "answer": "C",
+    "why": {
+      "t": "Kafka 的交易機制（Transactions）與冪等性生產者（Idempotence）都強烈依賴資料的持久性保證。若要啟用交易，`acks` 必須明確設定為 `all`（或 `-1`）。如果設定為 `1` 或 `0`，`KafkaProducer` 在初始化時會檢測到配置衝突並拋出 `ConfigException`。",
+      "en": "Kafka Transactions and Idempotence rely heavily on durability guarantees. To enable transactions, `acks` must be explicitly set to `all` (or `-1`). If set to `1` or `0`, the `KafkaProducer` will detect the configuration conflict during initialization and throw a `ConfigException`.",
+      "wg": [
+        {
+          "t": "持久性保證",
+          "en": "durability guarantees",
+          "ps": "noun phrase"
+        },
+        {
+          "t": "配置衝突",
+          "en": "configuration conflict",
+          "ps": "noun phrase"
+        }
+      ]
+    }
+  },
+  {
+    "no": "8",
+    "level": "Hard",
+    "keywords": "Mixed Workload, isolation.level, read_committed",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "一個 Kafka Topic 同時接收來自「交易型 Producer (Transactional)」與「非交易型 Producer (Non-transactional)」的訊息。",
+        "en": "A Kafka Topic receives messages from both a 'Transactional Producer' and a 'Non-transactional Producer' simultaneously.",
+        "wg": []
+      },
+      {
+        "t": "若下游 Consumer 設定 `isolation.level = read_committed`，下列關於該 Consumer 行為的敘述何者正確？",
+        "en": "If a downstream Consumer is configured with `isolation.level = read_committed`, which of the following statements about its behavior is correct?",
+        "wg": [
+          {
+            "t": "非交易型",
+            "en": "Non-transactional",
+            "ps": "adjective"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) Consumer 會完全忽略非交易型 Producer 發送的訊息，只讀取已提交的交易訊息。",
+        "en": "(A) The Consumer will completely ignore messages from the Non-transactional Producer and only read committed transactional messages.",
+        "wg": []
+      },
+      {
+        "t": "(B) Consumer 會讀取所有訊息，但非交易型訊息也必須等待 Broker 產生虛擬的 Commit 標記後才能被讀取。",
+        "en": "(B) The Consumer will read all messages, but non-transactional messages must wait for a virtual Commit marker from the Broker before being read.",
+        "wg": []
+      },
+      {
+        "t": "(C) Consumer 會立即讀取非交易型訊息（不需等待），而交易型訊息則需等到 Commit 後才可見。",
+        "en": "(C) The Consumer will read non-transactional messages immediately (without waiting), while transactional messages are only visible after Commit.",
+        "wg": []
+      },
+      {
+        "t": "(D) Consumer 會拋出例外並停止運作，因為 `read_committed` 模式不支援混合型工作負載。",
+        "en": "(D) The Consumer will throw an exception and stop, as `read_committed` mode does not support mixed workloads.",
+        "wg": []
+      }
+    ],
+    "answer": "C",
+    "why": {
+      "t": "這是混合工作負載（Mixed Workload）的一個常見陷阱。`read_committed` 模式僅針對「交易型訊息」進行過濾（隱藏未提交的訊息）。對於「非交易型訊息」，Kafka 視為「已立即提交」，因此 Consumer 無需等待即可讀取。這可能導致 Consumer 讀到非交易 Producer 發出的重複訊息，破壞整體的 Exactly-Once 語義。",
+      "en": "This is a common pitfall in Mixed Workloads. The `read_committed` mode only filters 'transactional messages' (hiding uncommitted ones). For 'non-transactional messages', Kafka treats them as 'immediately committed', so the Consumer reads them without waiting. This can lead to the Consumer reading duplicate messages from non-transactional producers, breaking the overall Exactly-Once semantics.",
+      "wg": [
+        {
+          "t": "混合工作負載",
+          "en": "Mixed Workload",
+          "ps": "noun phrase"
+        },
+        {
+          "t": "陷阱",
+          "en": "pitfall",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "9",
+    "level": "Hard",
+    "keywords": "Infrastructure, __transaction_state, Availability",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你的 Kafka 叢集運作正常，普通訊息的收發皆無問題，但所有使用 Transactions 的應用程式卻突然開始拋出錯誤，無法提交交易。",
+        "en": "Your Kafka cluster is operating normally for standard message production and consumption, but all applications using Transactions suddenly start throwing errors and cannot commit transactions.",
+        "wg": []
+      },
+      {
+        "t": "經檢查，發現叢集中有一個 Broker 節點離線。最可能導致此現象的根本原因是什麼？",
+        "en": "Upon inspection, one Broker node in the cluster is found to be offline. What is the most likely root cause of this phenomenon?",
+        "wg": [
+          {
+            "t": "根本原因",
+            "en": "root cause",
+            "ps": "noun phrase"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) 應用程式的 `transaction.timeout.ms` 設定過短，導致 Broker 離線時發生逾時。",
+        "en": "(A) The application's `transaction.timeout.ms` is set too short, causing timeouts when the Broker is offline.",
+        "wg": []
+      },
+      {
+        "t": "(B) 內部主題 `__transaction_state` 的 `min.insync.replicas` 設定過於嚴格，導致單一 Broker 離線後無法寫入交易狀態。",
+        "en": "(B) The `min.insync.replicas` setting for the internal topic `__transaction_state` is too strict, preventing transaction state writes after a single Broker goes offline.",
+        "wg": []
+      },
+      {
+        "t": "(C) Transaction Coordinator 只能在 Controller 節點上運行，而該離線節點剛好是 Controller。",
+        "en": "(C) The Transaction Coordinator can only run on the Controller node, and the offline node happened to be the Controller.",
+        "wg": []
+      },
+      {
+        "t": "(D) 交易機制需要所有 Broker 在線才能進行兩階段提交（2PC）。",
+        "en": "(D) The transaction mechanism requires all Brokers to be online to perform Two-Phase Commit (2PC).",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "Kafka 將交易狀態儲存在內部的 `__transaction_state` 主題中。如果該主題的 `min.insync.replicas` 設定為 3，而叢集只有 3 個 Broker，那麼只要有 1 個 Broker 離線，就無法滿足寫入條件（ISR < min.insync.replicas），導致 Transaction Coordinator 無法記錄狀態，進而使所有交易失敗。這是基礎設施層級常見的可用性陷阱。",
+      "en": "Kafka stores transaction state in the internal `__transaction_state` topic. If `min.insync.replicas` for this topic is set to 3 and the cluster has only 3 Brokers, losing just 1 Broker makes it impossible to satisfy the write condition (ISR < min.insync.replicas). This prevents the Transaction Coordinator from recording state, causing all transactions to fail. This is a common availability pitfall at the infrastructure level.",
+      "wg": [
+        {
+          "t": "內部主題",
+          "en": "internal topic",
+          "ps": "noun phrase"
+        },
+        {
+          "t": "可用性陷阱",
+          "en": "availability pitfall",
+          "ps": "noun phrase"
+        }
+      ]
+    }
+  },
+  {
+    "no": "10",
+    "level": "Medium",
+    "keywords": "API Usage, initTransactions, Best Practice",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "while (true) {\n    ConsumerRecords records = consumer.poll(Duration.ofMillis(100));\n    if (records.isEmpty()) continue;\n\n    // Point A\n    producer.initTransactions(); \n    producer.beginTransaction();\n    \n    // ... 處理邏輯 ...\n    \n    producer.commitTransaction();\n}",
+    "question": [
+      {
+        "t": "在審閱一段 Kafka Transaction 程式碼時，你發現開發者將 `producer.initTransactions()` 放在 `while` 迴圈內部（如 Point A 所示）。",
+        "en": "While reviewing some Kafka Transaction code, you notice the developer placed `producer.initTransactions()` inside the `while` loop (as shown at Point A).",
+        "wg": []
+      },
+      {
+        "t": "這種寫法有什麼問題？",
+        "en": "What is the problem with this approach?",
+        "wg": []
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) 沒有問題，這是確保每次交易都有新 Epoch 的標準做法。",
+        "en": "(A) No problem; this is the standard practice to ensure a new Epoch for each transaction.",
+        "wg": []
+      },
+      {
+        "t": "(B) 會導致 `ProducerFencedException`，因為每次呼叫都會被視為新的實例。",
+        "en": "(B) It will cause a `ProducerFencedException` because each call is treated as a new instance.",
+        "wg": []
+      },
+      {
+        "t": "(C) 這是反模式（Anti-pattern）。`initTransactions()` 應該只在應用程式啟動時呼叫一次，重複呼叫會造成不必要的 Coordinator 互動與效能損耗。",
+        "en": "(C) This is an anti-pattern. `initTransactions()` should be called exactly once at application startup; repeated calls cause unnecessary Coordinator interaction and performance overhead.",
+        "wg": []
+      },
+      {
+        "t": "(D) 會拋出 `IllegalStateException`，因為在交易進行中不能重新初始化。",
+        "en": "(D) It will throw an `IllegalStateException` because you cannot re-initialize while a transaction is in progress.",
+        "wg": []
+      }
+    ],
+    "answer": "C",
+    "why": {
+      "t": "`initTransactions()` 的作用是向 Coordinator 註冊 `transactional.id` 並獲取 Producer ID (PID) 與 Epoch。這是一個相對昂貴的網路操作，且設計上只需在 Producer 實例啟動時執行一次。雖然重複呼叫在某些版本可能不會報錯（若狀態未變），但在迴圈中頻繁呼叫是錯誤的用法，會影響效能。",
+      "en": "`initTransactions()` registers the `transactional.id` with the Coordinator and retrieves the Producer ID (PID) and Epoch. This is a relatively expensive network operation designed to be executed exactly once when the Producer instance starts. While repeated calls might not error in some versions (if state hasn't changed), calling it frequently inside a loop is incorrect usage and impacts performance.",
+      "wg": [
+        {
+          "t": "反模式",
+          "en": "anti-pattern",
+          "ps": "noun"
+        },
+        {
+          "t": "昂貴的",
+          "en": "expensive",
+          "ps": "adjective (resource-wise)"
+        }
+      ]
+    }
+  },
+  {
+    "no": "11",
+    "level": "Hard",
+    "keywords": "Error Handling, KafkaException, abortTransaction",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "try {\n    producer.beginTransaction();\n    // ... 業務邏輯 ...\n    producer.commitTransaction();\n} catch (ProducerFencedException e) {\n    producer.close();\n} catch (KafkaException e) {\n    // 如何處理一般性 Kafka 錯誤？\n    // How to handle generic Kafka errors?\n    ______?______\n}",
+    "question": [
+      {
+        "t": "在實作 Transaction Loop 的錯誤處理時，若捕獲到一般的 `KafkaException`（非 `ProducerFencedException`），下列哪種處理方式是正確的？",
+        "en": "When implementing error handling for a Transaction Loop, if a generic `KafkaException` (not `ProducerFencedException`) is caught, which of the following handling approaches is correct?",
+        "wg": []
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) 呼叫 `producer.abortTransaction()`，然後在下一次迴圈重試。",
+        "en": "(A) Call `producer.abortTransaction()`, then retry in the next loop iteration.",
+        "wg": []
+      },
+      {
+        "t": "(B) 呼叫 `producer.close()` 並重啟應用程式，因為交易狀態已不可信。",
+        "en": "(B) Call `producer.close()` and restart the application, as the transaction state is no longer trusted.",
+        "wg": []
+      },
+      {
+        "t": "(C) 忽略錯誤並嘗試再次呼叫 `producer.commitTransaction()`。",
+        "en": "(C) Ignore the error and attempt to call `producer.commitTransaction()` again.",
+        "wg": []
+      },
+      {
+        "t": "(D) 呼叫 `producer.initTransactions()` 來重置狀態。",
+        "en": "(D) Call `producer.initTransactions()` to reset the state.",
+        "wg": []
+      }
+    ],
+    "answer": "A",
+    "why": {
+      "t": "`KafkaException` 通常代表可恢復的錯誤（如暫時的網路問題或 Broker 繁忙）。在這種情況下，正確的做法是呼叫 `abortTransaction()` 來回滾當前交易，清除髒狀態，然後讓應用程式繼續下一次迴圈的處理。只有遇到 `ProducerFencedException` 或授權錯誤等致命錯誤時，才需要關閉 Producer。",
+      "en": "`KafkaException` usually indicates a recoverable error (like temporary network issues or Broker busy). In this case, the correct approach is to call `abortTransaction()` to rollback the current transaction and clear any dirty state, then allow the application to proceed to the next loop iteration. Closing the Producer is only necessary for fatal errors like `ProducerFencedException` or authorization failures.",
+      "wg": [
+        {
+          "t": "可恢復的錯誤",
+          "en": "recoverable error",
+          "ps": "noun phrase"
+        },
+        {
+          "t": "致命錯誤",
+          "en": "fatal error",
+          "ps": "noun phrase"
+        }
+      ]
+    }
+  },
+  {
+    "no": "12",
+    "level": "Medium",
+    "keywords": "Mental Model, Transaction Marker, Log Storage",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "關於 Kafka 交易機制在 Broker 端儲存層（Log Storage）的實作，下列敘述何者正確？",
+        "en": "Regarding the implementation of Kafka Transactions at the Broker storage layer (Log Storage), which of the following statements is correct?",
+        "wg": [
+          {
+            "t": "儲存層",
+            "en": "storage layer",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) 未提交的交易訊息只會暫存在記憶體中，直到 Commit 後才寫入磁碟 Log。",
+        "en": "(A) Uncommitted transaction messages are buffered in memory only and are written to the disk Log only after Commit.",
+        "wg": []
+      },
+      {
+        "t": "(B) 交易訊息會立即寫入 Log，但 Commit 時會額外寫入一條特殊的「控制批次」(Control Batch / Marker) 來標示交易結束。",
+        "en": "(B) Transaction messages are written to the Log immediately, but upon Commit, a special 'Control Batch' (Marker) is written to indicate the end of the transaction.",
+        "wg": []
+      },
+      {
+        "t": "(C) 交易訊息會寫入一個暫存的 Topic，Commit 後才搬移到目標 Topic。",
+        "en": "(C) Transaction messages are written to a temporary Topic and moved to the target Topic only after Commit.",
+        "wg": []
+      },
+      {
+        "t": "(D) 交易訊息與普通訊息在 Log 中沒有區別，狀態完全由 `__transaction_state` 主題維護。",
+        "en": "(D) There is no difference between transaction messages and regular messages in the Log; state is maintained entirely by the `__transaction_state` topic.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "Kafka 的交易實作採用「寫入即持久化」策略。交易訊息會像普通訊息一樣被追加到 Partition Log 中。當交易提交或中止時，Coordinator 會寫入一條特殊的「交易標記」（Transaction Marker / Control Batch）到 Log 中。Consumer 讀取時，會根據這些標記來決定是否將前面的訊息傳遞給應用程式（如果是 Commit）或丟棄（如果是 Abort）。",
+      "en": "Kafka's transaction implementation uses a 'write-ahead persistence' strategy. Transaction messages are appended to the Partition Log just like regular messages. When a transaction is committed or aborted, the Coordinator writes a special 'Transaction Marker' (Control Batch) to the Log. Consumers use these markers to decide whether to deliver the preceding messages to the application (if Committed) or discard them (if Aborted).",
+      "wg": [
+        {
+          "t": "交易標記",
+          "en": "Transaction Marker",
+          "ps": "noun phrase"
+        },
+        {
+          "t": "控制批次",
+          "en": "Control Batch",
+          "ps": "noun phrase"
+        }
+      ]
+    }
+  }
+]

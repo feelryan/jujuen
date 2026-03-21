@@ -1,0 +1,762 @@
+[
+  {
+    "no": "1",
+    "level": "Hard",
+    "keywords": "acks, min.insync.replicas, durability, data loss",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你正在為一個金融交易系統配置 Kafka Producer，目標是零資料遺失。",
+        "en": "You are configuring a Kafka Producer for a financial transaction system with a goal of zero data loss.",
+        "wg": []
+      },
+      {
+        "t": "你設定了 `acks=all` 並開啟了無限重試，但在一次 Leader Broker 硬碟故障後，仍然發現部分已確認（Committed）的資料遺失了。",
+        "en": "You set `acks=all` and enabled infinite retries, but after a Leader Broker disk failure, you still found that some committed data was lost.",
+        "wg": [
+          {
+            "t": "已確認",
+            "en": "Committed",
+            "ps": "adj"
+          },
+          {
+            "t": "硬碟故障",
+            "en": "disk failure",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "請問最可能遺漏了哪一項關鍵配置？",
+        "en": "Which critical configuration was most likely missed?",
+        "wg": []
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) Producer 端的 `enable.idempotence` 未設為 `true`。",
+        "en": "(A) `enable.idempotence` on the Producer side was not set to `true`.",
+        "wg": []
+      },
+      {
+        "t": "(B) Topic 層級的 `min.insync.replicas` 仍維持預設值（通常為 1）。",
+        "en": "(B) The Topic-level `min.insync.replicas` was left at its default value (usually 1).",
+        "wg": []
+      },
+      {
+        "t": "(C) Producer 端的 `retries` 次數設定不足。",
+        "en": "(C) The `retries` count on the Producer side was insufficient.",
+        "wg": []
+      },
+      {
+        "t": "(D) Broker 端的 `unclean.leader.election.enable` 設為了 `false`。",
+        "en": "(D) `unclean.leader.election.enable` on the Broker side was set to `false`.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "即使設定了 `acks=all`，如果 Topic 的 `min.insync.replicas` 為 1，當 ISR (In-Sync Replicas) 列表中只有 Leader 自己時，Broker 仍會接受寫入。",
+      "en": "Even with `acks=all`, if the Topic's `min.insync.replicas` is 1, the Broker will still accept writes when the ISR (In-Sync Replicas) list contains only the Leader itself.",
+      "wg": [
+        {
+          "t": "接受寫入",
+          "en": "accept writes",
+          "ps": "verb phrase"
+        }
+      ]
+    }
+  },
+  {
+    "no": "2",
+    "level": "Medium",
+    "keywords": "idempotence, max.in.flight.requests.per.connection, ordering",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在 Kafka 0.11 之後的版本，若開啟了冪等性生產者 (`enable.idempotence=true`)，為了保持單一 Partition 內的訊息順序，`max.in.flight.requests.per.connection` 的最大安全值是多少？",
+        "en": "In Kafka versions after 0.11, if the idempotent producer is enabled (`enable.idempotence=true`), what is the maximum safe value for `max.in.flight.requests.per.connection` to maintain message ordering within a single partition?",
+        "wg": [
+          {
+            "t": "冪等性生產者",
+            "en": "idempotent producer",
+            "ps": "noun"
+          },
+          {
+            "t": "訊息順序",
+            "en": "message ordering",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) 必須設為 1，否則重試時會導致亂序。",
+        "en": "(A) Must be set to 1, otherwise retries will cause out-of-order messages.",
+        "wg": []
+      },
+      {
+        "t": "(B) 可以設為小於或等於 5。",
+        "en": "(B) Can be set to less than or equal to 5.",
+        "wg": []
+      },
+      {
+        "t": "(C) 只要開啟冪等性，此數值可以設為任意整數。",
+        "en": "(C) As long as idempotence is enabled, this value can be set to any integer.",
+        "wg": []
+      },
+      {
+        "t": "(D) 必須設為 0，代表同步發送。",
+        "en": "(D) Must be set to 0, representing synchronous sending.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "開啟冪等性後，Broker 會檢查訊息的序列號 (Sequence Number)。即使 `max.in.flight` > 1 (最多 5)，若前一條訊息失敗，Broker 會拒絕後續序號的寫入，直到前一條重試成功，從而保證順序。",
+      "en": "When idempotence is enabled, the Broker checks the message Sequence Number. Even if `max.in.flight` > 1 (up to 5), if a previous message fails, the Broker will reject writes with subsequent sequence numbers until the previous one is successfully retried, thereby guaranteeing order.",
+      "wg": [
+        {
+          "t": "序列號",
+          "en": "Sequence Number",
+          "ps": "noun"
+        },
+        {
+          "t": "拒絕",
+          "en": "reject",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "3",
+    "level": "Medium",
+    "keywords": "exception handling, retries, dlq, producer",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在 Producer 的 Callback 邏輯中，遇到下列哪一種 Exception 時，應該直接將訊息送往 Dead Letter Queue (DLQ) 或報警，而不是嘗試重試？",
+        "en": "In the Producer's Callback logic, which of the following Exceptions should trigger sending the message directly to a Dead Letter Queue (DLQ) or alerting, rather than attempting to retry?",
+        "wg": [
+          {
+            "t": "報警",
+            "en": "alerting",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) `NotEnoughReplicasException`",
+        "en": "(A) `NotEnoughReplicasException`",
+        "wg": []
+      },
+      {
+        "t": "(B) `RecordTooLargeException`",
+        "en": "(B) `RecordTooLargeException`",
+        "wg": []
+      },
+      {
+        "t": "(C) `NetworkException`",
+        "en": "(C) `NetworkException`",
+        "wg": []
+      },
+      {
+        "t": "(D) `TimeoutException`",
+        "en": "(D) `TimeoutException`",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "`RecordTooLargeException` 屬於不可恢復的錯誤（資料本身有問題或配置不符），重試通常無效；而其他選項皆屬於瞬時錯誤 (Transient Errors)，通常可透過重試解決。",
+      "en": "`RecordTooLargeException` is an unrecoverable error (issue with the data itself or configuration mismatch), so retrying is usually futile; whereas the other options are transient errors that can typically be resolved by retrying.",
+      "wg": [
+        {
+          "t": "不可恢復的錯誤",
+          "en": "unrecoverable error",
+          "ps": "noun"
+        },
+        {
+          "t": "瞬時錯誤",
+          "en": "Transient Errors",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "4",
+    "level": "Medium",
+    "keywords": "throughput, compression, batching, latency",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "針對「高吞吐量日誌收集 (Log Aggregation)」場景，允許極少量的資料遺失，但要求極高的寫入效率。",
+        "en": "For a 'High Throughput Log Aggregation' scenario, where minimal data loss is tolerable but extremely high write efficiency is required.",
+        "wg": []
+      },
+      {
+        "t": "下列哪一組 Producer 配置最符合此需求？",
+        "en": "Which of the following Producer configurations best meets this requirement?",
+        "wg": []
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) `acks=all`, `compression.type=none`, `batch.size=16384`",
+        "en": "(A) `acks=all`, `compression.type=none`, `batch.size=16384`",
+        "wg": []
+      },
+      {
+        "t": "(B) `acks=1`, `compression.type=lz4`, `linger.ms=20`, `batch.size=32768`",
+        "en": "(B) `acks=1`, `compression.type=lz4`, `linger.ms=20`, `batch.size=32768`",
+        "wg": []
+      },
+      {
+        "t": "(C) `acks=0`, `retries=0`, `max.in.flight.requests.per.connection=1`",
+        "en": "(C) `acks=0`, `retries=0`, `max.in.flight.requests.per.connection=1`",
+        "wg": []
+      },
+      {
+        "t": "(D) `acks=all`, `enable.idempotence=true`, `linger.ms=0`",
+        "en": "(D) `acks=all`, `enable.idempotence=true`, `linger.ms=0`",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "`acks=1` 在效能與可靠性間取得平衡；啟用壓縮 (`lz4`) 可節省頻寬；增加 `linger.ms` 與 `batch.size` 能提升批次發送效率，減少網路請求次數。",
+      "en": "`acks=1` strikes a balance between performance and reliability; enabling compression (`lz4`) saves bandwidth; increasing `linger.ms` and `batch.size` improves batch sending efficiency and reduces the number of network requests.",
+      "wg": [
+        {
+          "t": "批次發送",
+          "en": "batch sending",
+          "ps": "noun"
+        },
+        {
+          "t": "網路請求",
+          "en": "network requests",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "5",
+    "level": "Hard",
+    "keywords": "NotEnoughReplicasException, isr, operations, availability",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你的 Topic 設定為 `replication.factor=3` 且 `min.insync.replicas=2`。",
+        "en": "Your Topic is configured with `replication.factor=3` and `min.insync.replicas=2`.",
+        "wg": []
+      },
+      {
+        "t": "在進行叢集維護時，你同時重啟了兩台 Broker。此時 Producer 嘗試寫入該 Topic 卻拋出 `NotEnoughReplicasException`。",
+        "en": "During cluster maintenance, you restarted two Brokers simultaneously. The Producer tried to write to the Topic but threw a `NotEnoughReplicasException`.",
+        "wg": [
+          {
+            "t": "叢集維護",
+            "en": "cluster maintenance",
+            "ps": "noun"
+          },
+          {
+            "t": "拋出",
+            "en": "threw",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "關於此現象，下列敘述何者正確？",
+        "en": "Which of the following statements about this phenomenon is correct?",
+        "wg": []
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) 這是因為 Leader Broker 已經當機，無法處理請求。",
+        "en": "(A) This is because the Leader Broker is down and cannot process requests.",
+        "wg": []
+      },
+      {
+        "t": "(B) 這是因為當前的 ISR (In-Sync Replicas) 數量小於 2，Broker 為了保證資料安全性而拒絕寫入。",
+        "en": "(B) This is because the current count of ISR (In-Sync Replicas) is less than 2, and the Broker rejected the write to ensure data safety.",
+        "wg": []
+      },
+      {
+        "t": "(C) 這是 Producer 端的連線逾時錯誤，與 Broker 狀態無關。",
+        "en": "(C) This is a connection timeout error on the Producer side and is unrelated to the Broker status.",
+        "wg": []
+      },
+      {
+        "t": "(D) 只要 Leader 還活著，`acks=all` 應該要能成功寫入，這是 Kafka 的 Bug。",
+        "en": "(D) As long as the Leader is alive, `acks=all` should succeed; this is a Kafka bug.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "`NotEnoughReplicasException` 明確表示當下健康的 ISR 數量不足以滿足 `min.insync.replicas` 的要求。即使 Leader 活著，若無法複製到足夠的 Follower，寫入也會被拒絕。",
+      "en": "`NotEnoughReplicasException` explicitly indicates that the number of healthy ISRs at the moment is insufficient to meet the `min.insync.replicas` requirement. Even if the Leader is alive, the write will be rejected if it cannot be replicated to enough Followers.",
+      "wg": [
+        {
+          "t": "明確表示",
+          "en": "explicitly indicates",
+          "ps": "verb phrase"
+        }
+      ]
+    }
+  },
+  {
+    "no": "6",
+    "level": "Medium",
+    "keywords": "anti-pattern, blocking, performance, get()",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "producer.send(record).get();",
+    "question": [
+      {
+        "t": "在 Code Review 時，你發現同事在發送高頻率交易資料的迴圈中使用了 `producer.send(record).get()`。",
+        "en": "During a Code Review, you noticed a colleague using `producer.send(record).get()` inside a loop sending high-frequency transaction data.",
+        "wg": [
+          {
+            "t": "高頻率",
+            "en": "high-frequency",
+            "ps": "adj"
+          },
+          {
+            "t": "迴圈",
+            "en": "loop",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "這種寫法屬於哪種 Anti-pattern，且會造成什麼主要後果？",
+        "en": "Which Anti-pattern does this coding style belong to, and what is the primary consequence?",
+        "wg": []
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) 這是「同步阻塞 (Blocking)」模式，會導致吞吐量 (Throughput) 大幅下降。",
+        "en": "(A) This is the 'Blocking' pattern, which will cause a drastic drop in Throughput.",
+        "wg": []
+      },
+      {
+        "t": "(B) 這是「非同步 (Async)」模式，會導致大量資料遺失。",
+        "en": "(B) This is the 'Async' pattern, which will cause significant data loss.",
+        "wg": []
+      },
+      {
+        "t": "(C) 這是「冪等性破壞」模式，會導致重複資料。",
+        "en": "(C) This is the 'Idempotence Breaking' pattern, which will cause duplicate data.",
+        "wg": []
+      },
+      {
+        "t": "(D) 這是為了確保 `acks=all` 生效的必要寫法，沒有負面後果。",
+        "en": "(D) This is a necessary coding style to ensure `acks=all` takes effect, with no negative consequences.",
+        "wg": []
+      }
+    ],
+    "answer": "A",
+    "why": {
+      "t": "`get()` 會強制等待 Broker 回應後才發送下一條訊息，將 Kafka 高效的批次非同步發送機制變成了序列化的同步發送，效能可能下降 100 倍以上。",
+      "en": "`get()` forces a wait for the Broker's response before sending the next message, turning Kafka's efficient batched asynchronous sending mechanism into serialized synchronous sending, potentially degrading performance by over 100 times.",
+      "wg": [
+        {
+          "t": "序列化",
+          "en": "serialized",
+          "ps": "adj"
+        },
+        {
+          "t": "強制等待",
+          "en": "forces a wait",
+          "ps": "verb phrase"
+        }
+      ]
+    }
+  },
+  {
+    "no": "7",
+    "level": "Hard",
+    "keywords": "acks, min.insync.replicas, data loss, durability",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "某團隊聲稱他們的 Kafka 生產者配置了 `acks=all`，因此具備「絕對的資料安全性」，但在一次單一 Broker 當機的事故中，他們仍然遺失了剛寫入的資料。",
+        "en": "A team claims their Kafka Producer is configured with `acks=all` and thus has 'absolute data safety', yet they still lost recently written data during a single Broker crash event.",
+        "wg": [
+          {
+            "t": "絕對的資料安全性",
+            "en": "absolute data safety",
+            "ps": "phrase"
+          }
+        ]
+      },
+      {
+        "t": "根據 Handbook 中的「虛假的安全感 (False Sense of Security)」反模式，最可能導致此資料遺失的原因是什麼？",
+        "en": "According to the 'False Sense of Security' anti-pattern in the Handbook, what is the most likely cause of this data loss?",
+        "wg": []
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) Topic 的 `replication.factor` 設定過高，導致同步延遲。",
+        "en": "(A) The Topic's `replication.factor` was set too high, causing synchronization latency.",
+        "wg": []
+      },
+      {
+        "t": "(B) Topic 的 `min.insync.replicas` 設定為 1，當 ISR 僅剩 Leader 一台時，`acks=all` 退化為 `acks=1`。",
+        "en": "(B) The Topic's `min.insync.replicas` was set to 1, causing `acks=all` to degrade to `acks=1` when the Leader was the only ISR.",
+        "wg": [
+          {
+            "t": "退化",
+            "en": "degrade",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "(C) 生產者未開啟 `enable.idempotence=true`，導致訊息被重複寫入而非遺失。",
+        "en": "(C) The producer did not enable `enable.idempotence=true`, causing messages to be duplicated rather than lost.",
+        "wg": []
+      },
+      {
+        "t": "(D) 生產者的 `retries` 次數設定不足，導致發送失敗後沒有重試。",
+        "en": "(D) The producer's `retries` count was insufficient, causing no retries after a send failure.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "即使設定 `acks=all`，若 Topic 的 `min.insync.replicas` 為 1（舊版預設值），當其他副本落後或不可用導致 ISR 列表中只剩 Leader 時，Broker 仍會接受寫入。此時若該 Leader 當機，資料便會遺失。這被稱為「虛假的安全感」。",
+      "en": "Even with `acks=all`, if the Topic's `min.insync.replicas` is set to 1 (legacy default), the Broker will still accept writes when the ISR list contains only the Leader. If that Leader crashes, the data is lost. This is known as the 'False Sense of Security'.",
+      "wg": [
+        {
+          "t": "虛假的安全感",
+          "en": "False Sense of Security",
+          "ps": "phrase"
+        }
+      ]
+    }
+  },
+  {
+    "no": "8",
+    "level": "Medium",
+    "keywords": "delivery.timeout.ms, retries, configuration, timeout",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "props.put(ProducerConfig.RETRIES_CONFIG, Integer.MAX_VALUE);\nprops.put(ProducerConfig.DELIVERY_TIMEOUT_MS_CONFIG, 120000); // 2 minutes",
+    "question": [
+      {
+        "t": "你的 Producer 配置如上方所示。假設 Kafka 叢集發生了持續 5 分鐘的網路中斷，這段期間所有發送請求都會失敗。",
+        "en": "Your Producer is configured as shown above. Assume the Kafka cluster experiences a network outage lasting 5 minutes, during which all send requests fail.",
+        "wg": []
+      },
+      {
+        "t": "請問對於在網路中斷剛開始時發送的一條訊息，Producer 會如何處理？",
+        "en": "How will the Producer handle a message sent right at the beginning of the outage?",
+        "wg": []
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) 因為 `retries` 設為無限大，Producer 會持續重試直到 5 分鐘後網路恢復，最終發送成功。",
+        "en": "(A) Because `retries` is set to infinity, the Producer will keep retrying until the network recovers after 5 minutes, eventually succeeding.",
+        "wg": []
+      },
+      {
+        "t": "(B) Producer 會在約 2 分鐘後停止重試並拋出 Timeout 相關的 Exception，因為 `delivery.timeout.ms` 限制了總處理時間。",
+        "en": "(B) The Producer will stop retrying after approximately 2 minutes and throw a Timeout-related Exception, because `delivery.timeout.ms` limits the total processing time.",
+        "wg": []
+      },
+      {
+        "t": "(C) Producer 會立即拋出 `NetworkException`，因為它偵測到網路不可用。",
+        "en": "(C) The Producer will immediately throw a `NetworkException` because it detects the network is unavailable.",
+        "wg": []
+      },
+      {
+        "t": "(D) Producer 會將訊息寫入本地磁碟暫存，等待網路恢復後自動重發。",
+        "en": "(D) The Producer will write the message to a local disk buffer and automatically resend it after the network recovers.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "現代 Kafka Producer 的重試機制主要由 `delivery.timeout.ms` 控制。即使 `retries` 設為無限大，一旦超過 `delivery.timeout.ms`（此例為 2 分鐘），Producer 就會放棄重試並回報錯誤。",
+      "en": "Modern Kafka Producer retry mechanisms are primarily controlled by `delivery.timeout.ms`. Even if `retries` is set to infinity, once `delivery.timeout.ms` (2 minutes in this case) is exceeded, the Producer will give up retrying and report an error.",
+      "wg": [
+        {
+          "t": "放棄",
+          "en": "give up",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "9",
+    "level": "Medium",
+    "keywords": "acks=1, data loss, leader, replication",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在「高吞吐日誌模式 (High Throughput Pattern)」中，我們通常將 `acks` 設定為 `1`。",
+        "en": "In the 'High Throughput Pattern', we typically set `acks` to `1`.",
+        "wg": []
+      },
+      {
+        "t": "請問在這種設定下，發生下列哪種情況會導致資料遺失？",
+        "en": "Under this configuration, which of the following scenarios will result in data loss?",
+        "wg": []
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) Leader 收到訊息並寫入記憶體後立即回傳 ACK，但在同步給 Follower 之前就當機了。",
+        "en": "(A) The Leader receives the message and writes it to memory, sends an ACK immediately, but crashes before replicating to Followers.",
+        "wg": []
+      },
+      {
+        "t": "(B) Follower 收到訊息但尚未寫入硬碟時當機。",
+        "en": "(B) A Follower receives the message but crashes before writing it to disk.",
+        "wg": []
+      },
+      {
+        "t": "(C) Producer 發送訊息時網路瞬斷，導致 Leader 沒有收到請求。",
+        "en": "(C) A network glitch occurs while the Producer is sending, so the Leader never receives the request.",
+        "wg": []
+      },
+      {
+        "t": "(D) Leader 成功將訊息寫入硬碟 (fsync)，但尚未回傳 ACK 給 Producer。",
+        "en": "(D) The Leader successfully writes the message to disk (fsync) but has not yet sent an ACK back to the Producer.",
+        "wg": []
+      }
+    ],
+    "answer": "A",
+    "why": {
+      "t": "`acks=1` 代表 Leader 只要將資料寫入本地 Log（通常僅在 Page Cache）就會回傳成功。若此時 Leader 在資料複製到任何 Follower 之前就發生故障，該條已確認的訊息就會永久遺失。",
+      "en": "`acks=1` means the Leader returns success as soon as the data is written to its local log (usually just Page Cache). If the Leader fails at this point before the data is replicated to any Follower, the acknowledged message is permanently lost.",
+      "wg": [
+        {
+          "t": "永久遺失",
+          "en": "permanently lost",
+          "ps": "phrase"
+        }
+      ]
+    }
+  },
+  {
+    "no": "10",
+    "level": "Medium",
+    "keywords": "linger.ms, latency, batching, performance",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你正在開發一個對延遲極度敏感 (Latency-sensitive) 的即時通知系統。目前的 Producer 設定為 `linger.ms=50` 與 `batch.size=32768`。",
+        "en": "You are developing a highly latency-sensitive real-time notification system. The current Producer configuration is `linger.ms=50` and `batch.size=32768`.",
+        "wg": [
+          {
+            "t": "對延遲極度敏感",
+            "en": "highly latency-sensitive",
+            "ps": "adjective"
+          }
+        ]
+      },
+      {
+        "t": "監控顯示訊息發送的延遲 (Latency) 偏高。為了優化延遲，你應該如何調整 `linger.ms`？",
+        "en": "Monitoring shows that message send latency is high. To optimize for latency, how should you adjust `linger.ms`?",
+        "wg": []
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) 將 `linger.ms` 增加到 100，以確保批次填滿。",
+        "en": "(A) Increase `linger.ms` to 100 to ensure batches are full.",
+        "wg": []
+      },
+      {
+        "t": "(B) 將 `linger.ms` 設為 0，讓訊息能盡快發送，不等待批次累積。",
+        "en": "(B) Set `linger.ms` to 0 so messages are sent as soon as possible without waiting for batch accumulation.",
+        "wg": []
+      },
+      {
+        "t": "(C) 保持 `linger.ms` 不變，改為增加 `batch.size`。",
+        "en": "(C) Keep `linger.ms` unchanged and increase `batch.size` instead.",
+        "wg": []
+      },
+      {
+        "t": "(D) 將 `linger.ms` 設為 -1，強制開啟同步發送模式。",
+        "en": "(D) Set `linger.ms` to -1 to force synchronous sending mode.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "`linger.ms` 控制 Producer 在發送批次前等待更多訊息加入的時間。對於低延遲場景，應將其設為 0（或極小值），避免人為增加等待時間。雖然這可能降低吞吐量，但能滿足低延遲需求。",
+      "en": "`linger.ms` controls how long the Producer waits for more messages to join a batch before sending. For low-latency scenarios, it should be set to 0 (or a very small value) to avoid adding artificial wait time. While this may reduce throughput, it meets the low-latency requirement.",
+      "wg": [
+        {
+          "t": "人為增加",
+          "en": "artificially adding",
+          "ps": "phrase"
+        }
+      ]
+    }
+  },
+  {
+    "no": "11",
+    "level": "Medium",
+    "keywords": "idempotence, performance, anti-pattern, overhead",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在 Code Review 中，有同事建議將 `enable.idempotence` 設為 `false`，理由是「我們不需要精確一次 (Exactly-once) 的保證，而且關閉它可以大幅提升效能」。",
+        "en": "During a Code Review, a colleague suggests setting `enable.idempotence` to `false`, arguing that 'we don't need Exactly-once guarantees, and disabling it will significantly improve performance'.",
+        "wg": []
+      },
+      {
+        "t": "根據 Handbook 的最佳實務，你應該如何回應？",
+        "en": "According to the Handbook's best practices, how should you respond?",
+        "wg": []
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) 同意該建議，因為冪等性確實會帶來顯著的 CPU 與網路開銷。",
+        "en": "(A) Agree with the suggestion, as idempotence does introduce significant CPU and network overhead.",
+        "wg": []
+      },
+      {
+        "t": "(B) 反對該建議。在現代 Kafka 版本中，冪等性的效能開銷微乎其微，且能免費提供訊息排序與去重保護，應預設開啟。",
+        "en": "(B) Reject the suggestion. In modern Kafka versions, the performance overhead of idempotence is negligible, and it provides message ordering and deduplication protection for free, so it should be enabled by default.",
+        "wg": [
+          {
+            "t": "微乎其微",
+            "en": "negligible",
+            "ps": "adjective"
+          }
+        ]
+      },
+      {
+        "t": "(C) 同意該建議，但要求同時將 `acks` 設為 `all` 以補償安全性。",
+        "en": "(C) Agree with the suggestion, but require setting `acks` to `all` to compensate for safety.",
+        "wg": []
+      },
+      {
+        "t": "(D) 反對該建議，因為關閉冪等性會導致 Producer 無法使用 `retries` 功能。",
+        "en": "(D) Reject the suggestion, because disabling idempotence will prevent the Producer from using the `retries` feature.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "這是一個常見的反模式誤區。實際上，冪等性對效能的影響極小，但關閉它卻可能導致重複資料或順序錯亂。除非有極端特殊的理由，否則應永遠保持開啟。",
+      "en": "This is a common anti-pattern misconception. In reality, the performance impact of idempotence is minimal, but disabling it can lead to duplicate data or out-of-order messages. Unless there is an extremely specific reason, it should always be kept enabled.",
+      "wg": [
+        {
+          "t": "誤區",
+          "en": "misconception",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "12",
+    "level": "Medium",
+    "keywords": "idempotence, mechanism, ProducerID, SequenceNumber, deduplication",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "Kafka 的冪等性生產者 (Idempotent Producer) 是如何讓 Broker 識別並丟棄重複訊息的？",
+        "en": "How does the Kafka Idempotent Producer allow the Broker to identify and discard duplicate messages?",
+        "wg": [
+          {
+            "t": "識別並丟棄",
+            "en": "identify and discard",
+            "ps": "phrase"
+          }
+        ]
+      },
+      {
+        "t": "Broker 主要依賴訊息中的哪兩個標記來進行判斷？",
+        "en": "Which two markers in the message does the Broker primarily rely on to make this judgment?",
+        "wg": []
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) Message Timestamp 與 Message Hash",
+        "en": "(A) Message Timestamp and Message Hash",
+        "wg": []
+      },
+      {
+        "t": "(B) ProducerID 與 SequenceNumber",
+        "en": "(B) ProducerID and SequenceNumber",
+        "wg": []
+      },
+      {
+        "t": "(C) TransactionID 與 GroupID",
+        "en": "(C) TransactionID and GroupID",
+        "wg": []
+      },
+      {
+        "t": "(D) Topic Name 與 Partition Index",
+        "en": "(D) Topic Name and Partition Index",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "開啟冪等性後，Producer 會為每條訊息附上 `ProducerID` 與遞增的 `SequenceNumber`。Broker 會快取每個 PID 最近的 SequenceNumber，若收到較小或相同的序號，則視為重複並丟棄。",
+      "en": "When idempotence is enabled, the Producer attaches a `ProducerID` and an incrementing `SequenceNumber` to each message. The Broker caches the latest SequenceNumber for each PID; if it receives a sequence number that is lower or equal, it treats it as a duplicate and discards it.",
+      "wg": [
+        {
+          "t": "遞增",
+          "en": "incrementing",
+          "ps": "adjective"
+        }
+      ]
+    }
+  }
+]

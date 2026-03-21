@@ -1,0 +1,949 @@
+[
+  {
+    "no": "1",
+    "level": "Medium",
+    "keywords": "retention, segment, rolling, low-traffic",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "log.retention.ms = 60000 // 1 minute\nsegment.ms = 604800000 // 7 days (default)\nTopic Traffic: 1 message per hour",
+    "question": [
+      {
+        "t": "你正在為一個低流量的 Topic 設定保留策略，希望訊息在寫入後 1 分鐘內過期刪除。你將 `log.retention.ms` 設定為 60000（1 分鐘），但觀察後發現，訊息在數小時甚至數天後仍然存在且可被消費。請問最可能的原因是什麼？",
+        "en": "You are configuring a retention policy for a low-traffic topic, expecting messages to expire 1 minute after being written. You set `log.retention.ms` to 60000 (1 minute), but observe that messages remain available for consumption for hours or even days. What is the most likely reason?",
+        "wg": [
+          {
+            "t": "低流量",
+            "en": "low-traffic",
+            "ps": "adj."
+          },
+          {
+            "t": "保留策略",
+            "en": "retention policy",
+            "ps": "noun"
+          },
+          {
+            "t": "過期",
+            "en": "expire",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) Kafka 的 Log Cleaner 執行緒崩潰了，導致無法執行刪除操作。",
+        "en": "(A) The Kafka Log Cleaner thread has crashed, preventing deletion operations.",
+        "wg": []
+      },
+      {
+        "t": "(B) 保留策略僅適用於已關閉的 Log Segment，而由於流量過低，當前的 Active Segment 尚未達到滾動條件。",
+        "en": "(B) Retention policies only apply to closed Log Segments, and due to low traffic, the current Active Segment has not met the rolling conditions.",
+        "wg": [
+          {
+            "t": "已關閉的",
+            "en": "closed",
+            "ps": "adj."
+          },
+          {
+            "t": "滾動",
+            "en": "rolling",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "(C) `log.retention.check.interval.ms` 的預設值過大，導致檢查頻率不足。",
+        "en": "(C) The default value of `log.retention.check.interval.ms` is too large, resulting in insufficient check frequency.",
+        "wg": []
+      },
+      {
+        "t": "(D) 你必須同時啟用 `cleanup.policy=compact` 才能讓時間保留策略生效。",
+        "en": "(D) You must also enable `cleanup.policy=compact` for the time-based retention policy to take effect.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "Kafka 的保留策略（Retention Policy）是作用在「Log Segment」級別，且僅針對「已關閉（Closed/Rolled）」的 Segment 進行清理。當前正在寫入的 Active Segment 即使包含超過保留時間的舊訊息，也不會被刪除。在低流量場景下，若未調整 `segment.ms`，Active Segment 可能很久都不會滾動，導致資料無法被清理。",
+      "en": "Kafka's retention policy operates at the 'Log Segment' level and only cleans up 'Closed/Rolled' segments. The Active Segment currently being written to will not be deleted even if it contains messages older than the retention time. In low-traffic scenarios, if `segment.ms` is not adjusted, the Active Segment may not roll for a long time, preventing data from being cleaned up.",
+      "wg": [
+        {
+          "t": "作用在...級別",
+          "en": "operates at the ... level",
+          "ps": "phrase"
+        },
+        {
+          "t": "清理",
+          "en": "clean up",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "2",
+    "level": "Hard",
+    "keywords": "compaction, tombstone, consumer, zombie data",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "cleanup.policy = compact\ndelete.retention.ms = 86400000 // 24 hours\nConsumer Downtime: 48 hours",
+    "question": [
+      {
+        "t": "在一個啟用 Log Compaction 的 Topic 中，Producer 發送了一個 Key 的 Tombstone（Value=null）以刪除該資料。然而，某個 Consumer Group 因故障停機了 48 小時，修復後重新上線繼續消費。已知 `delete.retention.ms` 設定為 24 小時。請問這種情況最可能導致什麼後果？",
+        "en": "In a topic with Log Compaction enabled, a Producer sends a Tombstone (Value=null) for a Key to delete that data. However, a Consumer Group goes down for 48 hours due to a failure and then comes back online to resume consumption. Given that `delete.retention.ms` is set to 24 hours, what is the most likely consequence of this situation?",
+        "wg": [
+          {
+            "t": "墓碑訊息",
+            "en": "Tombstone",
+            "ps": "noun"
+          },
+          {
+            "t": "停機",
+            "en": "downtime",
+            "ps": "noun"
+          },
+          {
+            "t": "後果",
+            "en": "consequence",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) Consumer 會收到一個錯誤例外，因為它試圖讀取的 Offset 已經不存在。",
+        "en": "(A) The Consumer will receive an error exception because the Offset it attempts to read no longer exists.",
+        "wg": []
+      },
+      {
+        "t": "(B) Consumer 會自動重置 Offset 到最新的位置，跳過所有遺失的數據。",
+        "en": "(B) The Consumer will automatically reset its Offset to the latest position, skipping all missing data.",
+        "wg": []
+      },
+      {
+        "t": "(C) Consumer 可能會錯過該刪除事件（Tombstone），導致其本地資料庫中仍保留著該 Key 的舊數據（Zombie Data）。",
+        "en": "(C) The Consumer may miss the deletion event (Tombstone), causing it to retain old data for that Key in its local database (Zombie Data).",
+        "wg": [
+          {
+            "t": "錯過",
+            "en": "miss",
+            "ps": "verb"
+          },
+          {
+            "t": "殭屍數據",
+            "en": "Zombie Data",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "(D) Kafka 會偵測到 Consumer 落後過多，並強制保留該 Tombstone 直到 Consumer 確認消費。",
+        "en": "(D) Kafka will detect that the Consumer is lagging too far behind and forcibly retain the Tombstone until the Consumer acknowledges consumption.",
+        "wg": []
+      }
+    ],
+    "answer": "C",
+    "why": {
+      "t": "`delete.retention.ms` 控制 Tombstone 在 Log 中保留的時間。一旦超過這個時間，Tombstone 本身就會被物理刪除。如果 Consumer 停機時間超過此設定，它在上線後將無法讀到這條「刪除指令」，導致它本地緩存的狀態沒有被刪除，與 Kafka 的實際狀態不一致（即 Zombie Data）。",
+      "en": "`delete.retention.ms` controls how long a Tombstone is retained in the Log. Once this time is exceeded, the Tombstone itself is physically removed. If a Consumer is down for longer than this setting, it will not read this 'delete instruction' upon coming back online, causing its local cached state to remain undeleted and inconsistent with Kafka's actual state (i.e., Zombie Data).",
+      "wg": [
+        {
+          "t": "物理刪除",
+          "en": "physically removed",
+          "ps": "verb"
+        },
+        {
+          "t": "不一致",
+          "en": "inconsistent",
+          "ps": "adj."
+        }
+      ]
+    }
+  },
+  {
+    "no": "3",
+    "level": "Medium",
+    "keywords": "retention, hybrid, traffic spike, stability",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你的團隊負責維護一個日誌聚合（Log Aggregation）叢集，通常資料保留期為 7 天。某次促銷活動導致流量暴增 5 倍，結果 Broker 的磁碟空間在 2 天內就被耗盡並導致崩潰。為了避免未來發生類似的磁碟滿載事故，你應該優先實施哪項「混合保留策略」？",
+        "en": "Your team maintains a Log Aggregation cluster with a typical data retention period of 7 days. A promotional event caused traffic to spike 5x, filling up the Broker's disk space within 2 days and causing a crash. To prevent similar disk-full incidents in the future, which 'Hybrid Retention' strategy should you prioritize implementing?",
+        "wg": [
+          {
+            "t": "日誌聚合",
+            "en": "Log Aggregation",
+            "ps": "noun"
+          },
+          {
+            "t": "流量暴增",
+            "en": "traffic spike",
+            "ps": "noun"
+          },
+          {
+            "t": "耗盡",
+            "en": "exhausted / filled up",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) 啟用 `cleanup.policy=compact` 以減少重複日誌佔用的空間。",
+        "en": "(A) Enable `cleanup.policy=compact` to reduce space occupied by duplicate logs.",
+        "wg": []
+      },
+      {
+        "t": "(B) 同時設定 `log.retention.hours` 與 `log.retention.bytes`，讓空間限制成為最後一道防線。",
+        "en": "(B) Configure both `log.retention.hours` and `log.retention.bytes`, making the space limit the final line of defense.",
+        "wg": [
+          {
+            "t": "最後一道防線",
+            "en": "final line of defense",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "(C) 增加 `log.segment.bytes` 的大小，減少檔案句柄（File Handlers）的開銷。",
+        "en": "(C) Increase the size of `log.segment.bytes` to reduce the overhead of file handlers.",
+        "wg": []
+      },
+      {
+        "t": "(D) 將資料壓縮格式改為 `gzip` 以獲得更高的壓縮比。",
+        "en": "(D) Change the data compression format to `gzip` to achieve a higher compression ratio.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "僅依賴時間（`hours`）無法防禦突發流量導致的空間耗盡。最佳實務是採用混合策略：同時設定時間與空間上限（`log.retention.bytes`）。當流量暴增時，`bytes` 限制會優先觸發並刪除舊資料，雖然這會縮短實際可回溯的時間（例如從 7 天變 2 天），但能確保 Broker 磁碟不會爆滿而宕機，保證了系統的可用性。",
+      "en": "Relying solely on time (`hours`) cannot protect against space exhaustion caused by traffic spikes. The best practice is a hybrid strategy: setting both time and space limits (`log.retention.bytes`). When traffic spikes, the `bytes` limit triggers first to delete old data. Although this shortens the actual retention period (e.g., from 7 days to 2 days), it ensures the Broker disk does not fill up and crash, guaranteeing system availability.",
+      "wg": [
+        {
+          "t": "防禦",
+          "en": "protect against",
+          "ps": "verb"
+        },
+        {
+          "t": "可用性",
+          "en": "availability",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "4",
+    "level": "Medium",
+    "keywords": "event sourcing, compaction, anti-pattern, audit trail",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你正在設計一個銀行轉帳系統的交易紀錄 Topic，該 Topic 需要作為「審計軌跡（Audit Trail）」來追蹤帳戶的所有歷史變動。開發團隊建議將此 Topic 設定為 `cleanup.policy=compact` 以節省儲存空間。作為資深工程師，你應該如何評估這個建議？",
+        "en": "You are designing a transaction record Topic for a banking transfer system, which needs to serve as an 'Audit Trail' to track all historical changes to accounts. The development team suggests setting this Topic to `cleanup.policy=compact` to save storage space. As a senior engineer, how should you evaluate this suggestion?",
+        "wg": [
+          {
+            "t": "審計軌跡",
+            "en": "Audit Trail",
+            "ps": "noun"
+          },
+          {
+            "t": "歷史變動",
+            "en": "historical changes",
+            "ps": "noun"
+          },
+          {
+            "t": "評估",
+            "en": "evaluate",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) 同意。Compact 策略會保留每個 Key 的最新狀態，這對於計算帳戶餘額已經足夠，且能大幅節省成本。",
+        "en": "(A) Agree. The Compact strategy retains the latest state for each Key, which is sufficient for calculating account balances and saves significant costs.",
+        "wg": []
+      },
+      {
+        "t": "(B) 反對。這是 Event Sourcing 的反模式。Compact 會刪除同一個 Key（帳號）的舊交易紀錄，導致無法重建完整的歷史變更過程。",
+        "en": "(B) Disagree. This is an anti-pattern for Event Sourcing. Compact will delete old transaction records for the same Key (account), making it impossible to reconstruct the full history of changes.",
+        "wg": [
+          {
+            "t": "反模式",
+            "en": "anti-pattern",
+            "ps": "noun"
+          },
+          {
+            "t": "重建",
+            "en": "reconstruct",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "(C) 同意，但前提是必須將 `min.cleanable.dirty.ratio` 設定為 0，確保所有資料都被壓縮。",
+        "en": "(C) Agree, but only if `min.cleanable.dirty.ratio` is set to 0 to ensure all data is compacted.",
+        "wg": []
+      },
+      {
+        "t": "(D) 反對。Compact 策略會導致寫入效能大幅下降，不適合高頻交易系統。",
+        "en": "(D) Disagree. The Compact strategy causes a significant drop in write performance and is not suitable for high-frequency trading systems.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "Log Compaction 的世界觀是「狀態表（Table）」，它只保證保留每個 Key 的「最新值」。對於需要完整歷史紀錄（如銀行交易流水、審計日誌）的「事件流（Stream）」場景，使用 Compact 會導致中間的狀態變更被刪除，從而丟失數據的完整性。這類場景應使用 Delete 策略。",
+      "en": "Log Compaction's worldview is a 'Table of State', guaranteeing only the retention of the 'latest value' for each Key. For 'Stream of Events' scenarios requiring full historical records (like bank transaction logs or audit trails), using Compact will cause intermediate state changes to be deleted, resulting in a loss of data integrity. The Delete strategy should be used for such scenarios.",
+      "wg": [
+        {
+          "t": "完整性",
+          "en": "integrity",
+          "ps": "noun"
+        },
+        {
+          "t": "中間的",
+          "en": "intermediate",
+          "ps": "adj."
+        }
+      ]
+    }
+  },
+  {
+    "no": "5",
+    "level": "Hard",
+    "keywords": "compaction, tuning, dirty ratio, I/O",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你有一個使用 `cleanup.policy=compact` 的 Topic，儲存了龐大的產品目錄（Product Catalog）。你發現磁碟空間使用量過高，且觀察到 Log 中存在大量尚未被清理的舊數據（Dirty Records）。你希望以「增加 Broker I/O 負載」為代價，換取更積極的空間釋放。你應該調整哪個參數？",
+        "en": "You have a Topic using `cleanup.policy=compact` that stores a massive Product Catalog. You notice excessive disk space usage and observe a large amount of uncleaned old data (Dirty Records) in the Log. You want to trade 'increased Broker I/O load' for more aggressive space reclamation. Which parameter should you adjust?",
+        "wg": [
+          {
+            "t": "龐大的",
+            "en": "massive",
+            "ps": "adj."
+          },
+          {
+            "t": "代價",
+            "en": "trade-off / cost",
+            "ps": "noun"
+          },
+          {
+            "t": "積極的",
+            "en": "aggressive",
+            "ps": "adj."
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) 調高 `log.cleaner.threads` 的數量。",
+        "en": "(A) Increase the number of `log.cleaner.threads`.",
+        "wg": []
+      },
+      {
+        "t": "(B) 調低 `min.cleanable.dirty.ratio`（例如從 0.5 調至 0.1）。",
+        "en": "(B) Decrease `min.cleanable.dirty.ratio` (e.g., from 0.5 to 0.1).",
+        "wg": []
+      },
+      {
+        "t": "(C) 調高 `segment.ms` 以延後 Segment 的滾動。",
+        "en": "(C) Increase `segment.ms` to delay the rolling of Segments.",
+        "wg": []
+      },
+      {
+        "t": "(D) 調高 `log.retention.bytes`。",
+        "en": "(D) Increase `log.retention.bytes`.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "`min.cleanable.dirty.ratio` 控制 Log Cleaner 啟動清理的門檻。預設值 0.5 表示只有當 Log 中「髒數據（可被清理的舊值）」佔比達到 50% 時才進行清理。調低此數值（如 0.1）會讓 Cleaner 更頻繁地觸發，雖然能更有效地釋放磁碟空間，但代價是需要更頻繁地讀寫磁碟（I/O Overhead）來執行重組。",
+      "en": "`min.cleanable.dirty.ratio` controls the threshold for the Log Cleaner to start cleaning. The default 0.5 means cleaning only occurs when 'dirty data (cleanable old values)' makes up 50% of the log. Lowering this value (e.g., to 0.1) triggers the Cleaner more frequently, releasing disk space more effectively, but at the cost of more frequent disk reads/writes (I/O Overhead) to perform the compaction.",
+      "wg": [
+        {
+          "t": "門檻",
+          "en": "threshold",
+          "ps": "noun"
+        },
+        {
+          "t": "重組",
+          "en": "compaction / reorganization",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "6",
+    "level": "Hard",
+    "keywords": "GDPR, crypto-shredding, immutable, compliance",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你的公司必須符合 GDPR 法規中的「被遺忘權（Right to be Forgotten）」，需要在用戶提出請求時刪除其所有個資。然而，這些資料散落在 Kafka 多個不可變（Immutable）的 Topic 中，且保留期長達數年。在不破壞 Kafka 循序寫入特性的前提下，最符合業界標準的解決方案是什麼？",
+        "en": "Your company must comply with the GDPR 'Right to be Forgotten', requiring the deletion of all personal data upon user request. However, this data is scattered across multiple Immutable Topics in Kafka with retention periods of several years. Without violating Kafka's sequential write nature, what is the industry-standard solution?",
+        "wg": [
+          {
+            "t": "被遺忘權",
+            "en": "Right to be Forgotten",
+            "ps": "noun"
+          },
+          {
+            "t": "不可變",
+            "en": "Immutable",
+            "ps": "adj."
+          },
+          {
+            "t": "循序寫入",
+            "en": "sequential write",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) 使用 Kafka Admin API 強制修改特定的 Log Segment 檔案，將該用戶資料覆寫為 0。",
+        "en": "(A) Use the Kafka Admin API to forcibly modify specific Log Segment files, overwriting the user data with 0s.",
+        "wg": []
+      },
+      {
+        "t": "(B) 實作 Crypto-shredding（加密銷毀）：資料寫入前使用用戶專屬金鑰加密，刪除時僅需銷毀該金鑰，使密文無法解密。",
+        "en": "(B) Implement Crypto-shredding: Encrypt data with a user-specific key before writing. To delete, simply destroy the key, rendering the ciphertext undecryptable.",
+        "wg": [
+          {
+            "t": "加密銷毀",
+            "en": "Crypto-shredding",
+            "ps": "noun"
+          },
+          {
+            "t": "密文",
+            "en": "ciphertext",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "(C) 啟用 `cleanup.policy=compact`，並發送該用戶所有歷史訊息的 Tombstone。",
+        "en": "(C) Enable `cleanup.policy=compact` and send Tombstones for all historical messages of that user.",
+        "wg": []
+      },
+      {
+        "t": "(D) 將所有 Topic 的保留時間縮短為 30 天，以確保資料自動過期。",
+        "en": "(D) Shorten the retention time of all Topics to 30 days to ensure data expires automatically.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "Kafka 的 Log 是不可變的（Immutable），無法直接修改歷史檔案。選項 (C) 僅適用於 Compact Topic 且無法保證立即物理刪除。Crypto-shredding 是處理此類合規需求的標準模式：將資料加密儲存，並將金鑰分開管理。當需要「刪除」資料時，只需刪除對應的解密金鑰，資料即變成無法讀取的亂碼，符合法規上的刪除定義，且無需對龐大的 Kafka Log 進行昂貴的重寫操作。",
+      "en": "Kafka Logs are immutable, and historical files cannot be directly modified. Option (C) only applies to Compact Topics and does not guarantee immediate physical deletion. Crypto-shredding is the standard pattern for such compliance needs: store data encrypted and manage keys separately. When 'deletion' is required, simply deleting the corresponding decryption key renders the data unreadable ciphertext, meeting the legal definition of deletion without expensive rewriting of massive Kafka Logs.",
+      "wg": [
+        {
+          "t": "合規",
+          "en": "compliance",
+          "ps": "noun"
+        },
+        {
+          "t": "昂貴的",
+          "en": "expensive / costly",
+          "ps": "adj."
+        }
+      ]
+    }
+  },
+  {
+    "no": "7",
+    "level": "Medium",
+    "keywords": "compaction, active segment, duplicates, mental model",
+    "parentNo": null,
+    "images": "",
+    "codeSnippet": "",
+    "question": [
+      {
+        "t": "你正在使用 `cleanup.policy=compact` 的 Topic 來儲存使用者的最新狀態（User Profile）。QA 團隊回報了一個問題：當他們在短時間內連續更新同一個使用者的資料時，Consumer 仍然會讀到該使用者的多筆重複紀錄（舊值與新值），彷彿 Compaction 沒有生效。",
+        "en": "You are using a topic with `cleanup.policy=compact` to store the latest user profiles. The QA team reports an issue: when they update the same user's data continuously in a short period, the Consumer still reads multiple duplicate records (old and new values) for that user, as if Compaction is not working.",
+        "wg": [
+          {
+            "t": "使用者設定檔",
+            "en": "User Profile",
+            "ps": "noun"
+          },
+          {
+            "t": "連續更新",
+            "en": "update continuously",
+            "ps": "verb phrase"
+          }
+        ]
+      },
+      {
+        "t": "經過檢查，Broker 的 Compaction 執行緒運作正常。請問造成此現象最可能的原因是什麼？",
+        "en": "After checking, the Broker's Compaction threads are running normally. What is the most likely cause of this phenomenon?",
+        "wg": []
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) 這是正常的。Compaction 只會針對「已關閉（Closed/Rolled）」的 Segment 進行清理，正在寫入的 Active Segment 不會被壓縮。",
+        "en": "(A) This is normal. Compaction only cleans 'Closed/Rolled' segments; the Active Segment currently being written to is never compacted.",
+        "wg": [
+          {
+            "t": "已關閉",
+            "en": "Closed/Rolled",
+            "ps": "adjective"
+          },
+          {
+            "t": "正在寫入",
+            "en": "currently being written",
+            "ps": "verb phrase"
+          }
+        ]
+      },
+      {
+        "t": "(B) `min.cleanable.dirty.ratio` 設定過高，導致 Kafka 認為髒數據還不夠多，因此尚未觸發清理。",
+        "en": "(B) The `min.cleanable.dirty.ratio` is set too high, causing Kafka to think there isn't enough dirty data to trigger cleaning yet.",
+        "wg": []
+      },
+      {
+        "t": "(C) Producer 沒有正確設定 Key，導致 Kafka 將這些訊息視為不同的資料而無法壓縮。",
+        "en": "(C) The Producer did not set the Key correctly, causing Kafka to treat these messages as different data and unable to compact them.",
+        "wg": []
+      },
+      {
+        "t": "(D) Consumer 的 `isolation.level` 設定為 `read_uncommitted`，導致讀取到了尚未被壓縮的髒數據。",
+        "en": "(D) The Consumer's `isolation.level` is set to `read_uncommitted`, causing it to read dirty data that hasn't been compacted yet.",
+        "wg": []
+      }
+    ],
+    "answer": "A",
+    "why": {
+      "t": "Kafka 的 Log Compaction 機制是基於 Segment 檔案運作的。當下的 Active Segment 負責接收寫入，為了效能考量，Kafka 絕對不會對 Active Segment 進行壓縮。只有當 Segment 寫滿並滾動（Rolled）成為唯讀的舊 Segment 後，Cleaner Thread 才會對其進行掃描與壓縮。因此，在 Active Segment 內的重複 Key 會暫時共存，直到該 Segment 被關閉。",
+      "en": "Kafka's Log Compaction mechanism operates on Segment files. The current Active Segment is responsible for accepting writes, and for performance reasons, Kafka never compacts the Active Segment. Only after a Segment is full and rolled into a read-only old Segment will the Cleaner Thread scan and compact it. Therefore, duplicate Keys within the Active Segment will coexist temporarily until that Segment is closed.",
+      "wg": [
+        {
+          "t": "效能考量",
+          "en": "performance reasons",
+          "ps": "noun phrase"
+        },
+        {
+          "t": "暫時共存",
+          "en": "coexist temporarily",
+          "ps": "verb phrase"
+        }
+      ]
+    }
+  },
+  {
+    "no": "8",
+    "level": "Hard",
+    "keywords": "__consumer_offsets, internal topic, compaction, anti-pattern",
+    "parentNo": null,
+    "images": "",
+    "codeSnippet": "",
+    "question": [
+      {
+        "t": "你的團隊在 Kafka 叢集上運行大量的自動化整合測試（Integration Tests）。為了確保測試隔離性，每次測試執行時，測試腳本都會隨機生成一個全新的 `group.id` 來消費資料。",
+        "en": "Your team runs extensive automated integration tests on a Kafka cluster. To ensure test isolation, the test script generates a brand new, random `group.id` to consume data for each test run.",
+        "wg": [
+          {
+            "t": "整合測試",
+            "en": "Integration Tests",
+            "ps": "noun"
+          },
+          {
+            "t": "測試隔離性",
+            "en": "test isolation",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "一段時間後，你發現 Broker 的記憶體使用量異常飆高，且載入 Metadata 的速度變得很慢。請問這個做法觸發了什麼問題？",
+        "en": "After a while, you notice that the Broker's memory usage spikes abnormally, and loading Metadata becomes very slow. What issue has this practice triggered?",
+        "wg": []
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) 隨機 Group ID 導致 Kafka 無法利用 Page Cache，增加了磁碟 I/O 負擔。",
+        "en": "(A) Random Group IDs prevent Kafka from utilizing Page Cache, increasing disk I/O load.",
+        "wg": []
+      },
+      {
+        "t": "(B) 內部 Topic `__consumer_offsets` 無限膨脹。因為每個隨機 Group ID 都是一個獨一無二的 Key，導致 Compaction 無法刪除舊的 Offset 紀錄。",
+        "en": "(B) The internal topic `__consumer_offsets` grows indefinitely. Since each random Group ID is a unique Key, Compaction cannot remove old Offset records.",
+        "wg": [
+          {
+            "t": "無限膨脹",
+            "en": "grows indefinitely",
+            "ps": "verb phrase"
+          },
+          {
+            "t": "獨一無二",
+            "en": "unique",
+            "ps": "adjective"
+          }
+        ]
+      },
+      {
+        "t": "(C) 建立過多的 Consumer Group 會導致 Zookeeper 的 ZNode 數量超過上限，造成叢集不穩定。",
+        "en": "(C) Creating too many Consumer Groups causes the number of ZNodes in Zookeeper to exceed the limit, causing cluster instability.",
+        "wg": []
+      },
+      {
+        "t": "(D) 每個新的 Group ID 都會觸發一次 Rebalance，導致 Broker CPU 資源耗盡。",
+        "en": "(D) Each new Group ID triggers a Rebalance, exhausting Broker CPU resources.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "Kafka 將 Consumer Group 的 Offset 儲存在內部的 `__consumer_offsets` Topic 中，該 Topic 預設使用 Compact 策略，Key 是 `group.id` + `topic` + `partition`。如果不斷生成隨機的 `group.id`，意味著 Key 永遠不重複，Compaction 機制就無法合併或刪除舊資料，導致該 Topic 體積無限增長，消耗 Broker 大量記憶體來維護索引。",
+      "en": "Kafka stores Consumer Group Offsets in the internal `__consumer_offsets` topic, which uses the Compact policy by default. The Key is `group.id` + `topic` + `partition`. If random `group.id`s are constantly generated, it means the Keys are never repeated. The Compaction mechanism cannot merge or delete old data, causing the topic size to grow indefinitely and consuming a large amount of Broker memory to maintain indexes.",
+      "wg": [
+        {
+          "t": "維護索引",
+          "en": "maintain indexes",
+          "ps": "verb phrase"
+        }
+      ]
+    }
+  },
+  {
+    "no": "9",
+    "level": "Medium",
+    "keywords": "tiered storage, retention, cost, architecture",
+    "parentNo": null,
+    "images": "",
+    "codeSnippet": "",
+    "question": [
+      {
+        "t": "你的公司因應新的合規要求，必須將所有的交易日誌（Transaction Logs）保留至少 2 年。目前的 Kafka 叢集使用高效能 SSD，若直接擴充硬碟容量以滿足 2 年的儲存需求，成本將高得無法接受。",
+        "en": "Due to new compliance requirements, your company must retain all Transaction Logs for at least 2 years. The current Kafka cluster uses high-performance SSDs, and expanding disk capacity directly to meet the 2-year storage requirement would be prohibitively expensive.",
+        "wg": [
+          {
+            "t": "合規要求",
+            "en": "compliance requirements",
+            "ps": "noun"
+          },
+          {
+            "t": "無法接受",
+            "en": "prohibitively",
+            "ps": "adverb"
+          }
+        ]
+      },
+      {
+        "t": "在不犧牲寫入效能的前提下，下列哪項架構決策最能解決此問題？",
+        "en": "Without sacrificing write performance, which of the following architectural decisions best solves this problem?",
+        "wg": []
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) 啟用 Log Compaction，只保留每筆交易的最後狀態，以節省空間。",
+        "en": "(A) Enable Log Compaction to keep only the final state of each transaction to save space.",
+        "wg": []
+      },
+      {
+        "t": "(B) 啟用分層儲存（Tiered Storage），將近期熱數據保留在本地 SSD，超過一定時間的冷數據自動卸載至 S3 或 GCS 等物件儲存。",
+        "en": "(B) Enable Tiered Storage to keep recent hot data on local SSDs and automatically offload cold data older than a certain time to object storage like S3 or GCS.",
+        "wg": [
+          {
+            "t": "分層儲存",
+            "en": "Tiered Storage",
+            "ps": "noun"
+          },
+          {
+            "t": "卸載",
+            "en": "offload",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "(C) 將 `log.retention.bytes` 設定為極大值，並啟用 `zstd` 最高壓縮比，強行塞入現有硬碟。",
+        "en": "(C) Set `log.retention.bytes` to a very large value and enable `zstd` with the highest compression ratio to force fit into existing disks.",
+        "wg": []
+      },
+      {
+        "t": "(D) 撰寫一個 Consumer 將資料備份到 Hadoop，然後將 Kafka 的保留期設為 7 天。",
+        "en": "(D) Write a Consumer to backup data to Hadoop, then set Kafka's retention period to 7 days.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "分層儲存（Tiered Storage）是解決長期保留與成本矛盾的最佳方案。它解耦了「運算（Broker）」與「儲存」，讓昂貴的 Broker SSD 只需處理近期的讀寫（熱數據），而海量的歷史數據（冷數據）則存放在便宜且無限擴充的物件儲存（Object Store）中。選項 (A) 會遺失歷史軌跡；選項 (D) 雖然可行，但這意味著 Kafka 本身不再擁有完整數據，Consumer 若要重播 1 年前的資料將變得非常困難（需要從 Hadoop 倒回來）。",
+      "en": "Tiered Storage is the best solution for the conflict between long-term retention and cost. It decouples 'Compute (Broker)' from 'Storage', allowing expensive Broker SSDs to handle only recent reads/writes (hot data), while massive amounts of historical data (cold data) are stored in cheap and infinitely scalable Object Stores. Option (A) loses historical trails; Option (D) is viable but means Kafka itself no longer holds complete data, making it very difficult for a Consumer to replay data from 1 year ago (requiring restoration from Hadoop).",
+      "wg": [
+        {
+          "t": "解耦",
+          "en": "decouple",
+          "ps": "verb"
+        },
+        {
+          "t": "重播",
+          "en": "replay",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "10",
+    "level": "Medium",
+    "keywords": "compaction, null key, pitfall, disk usage",
+    "parentNo": null,
+    "images": "",
+    "codeSnippet": "",
+    "question": [
+      {
+        "t": "你維護的一個 Topic 設定了 `cleanup.policy=compact`，預期磁碟使用量應該會隨著 Key 的重複更新而趨於穩定。然而，監控顯示該 Topic 的磁碟使用量持續線性增長，幾乎沒有釋放空間。",
+        "en": "You maintain a topic configured with `cleanup.policy=compact`, expecting disk usage to stabilize as Keys are repeatedly updated. However, monitoring shows that the topic's disk usage continues to grow linearly with almost no space released.",
+        "wg": [
+          {
+            "t": "趨於穩定",
+            "en": "stabilize",
+            "ps": "verb"
+          },
+          {
+            "t": "線性增長",
+            "en": "grow linearly",
+            "ps": "verb phrase"
+          }
+        ]
+      },
+      {
+        "t": "經查 Log Cleaner 執行緒正常運作。進一步分析訊息內容後，發現 Producer 存在 Bug。下列哪種 Producer 行為會導致 Compaction 失效？",
+        "en": "The Log Cleaner threads are running normally. After further analyzing the message content, a bug is found in the Producer. Which of the following Producer behaviors would cause Compaction to fail?",
+        "wg": []
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) Producer 發送了大量的 `Value=null` 訊息（Tombstones）。",
+        "en": "(A) The Producer sent a large number of `Value=null` messages (Tombstones).",
+        "wg": []
+      },
+      {
+        "t": "(B) Producer 發送訊息時未指定 Key（即 `Key=null`）。",
+        "en": "(B) The Producer did not specify a Key when sending messages (i.e., `Key=null`).",
+        "wg": []
+      },
+      {
+        "t": "(C) Producer 使用了 Snappy 壓縮格式，而 Broker 設定為 GZIP。",
+        "en": "(C) The Producer used Snappy compression format, while the Broker is configured for GZIP.",
+        "wg": []
+      },
+      {
+        "t": "(D) Producer 的 `batch.size` 設定得太小，導致訊息過於零碎。",
+        "en": "(D) The Producer's `batch.size` is set too small, causing messages to be too fragmented.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "Log Compaction 的核心依賴於「Key」來識別哪些訊息是同一筆資料的更新。如果 Producer 發送 `Key=null` 的訊息，Kafka 無法判斷這些訊息屬於誰，因此無法進行壓縮（Compaction）。這些無 Key 的訊息會被視為獨立事件保留下來，直到觸發 Delete 策略（如果有的話），否則會永久佔用空間。",
+      "en": "Log Compaction relies on the 'Key' to identify which messages are updates to the same data. If the Producer sends messages with `Key=null`, Kafka cannot determine who these messages belong to and therefore cannot compact them. These keyless messages are treated as independent events and retained until a Delete policy is triggered (if any); otherwise, they will occupy space permanently.",
+      "wg": [
+        {
+          "t": "識別",
+          "en": "identify",
+          "ps": "verb"
+        },
+        {
+          "t": "永久佔用",
+          "en": "occupy permanently",
+          "ps": "verb phrase"
+        }
+      ]
+    }
+  },
+  {
+    "no": "11",
+    "level": "Hard",
+    "keywords": "segment size, file handlers, OS resources, performance",
+    "parentNo": null,
+    "images": "",
+    "codeSnippet": "",
+    "question": [
+      {
+        "t": "為了讓過期資料能更精確地「準時」被刪除，你將一個高流量 Topic 的 `segment.bytes` 從預設的 1GB 大幅調降為 1MB。部署後不久，Broker 崩潰並拋出 `java.io.IOException: Too many open files`。",
+        "en": "To allow expired data to be deleted more precisely 'on time', you drastically reduced the `segment.bytes` of a high-traffic topic from the default 1GB to 1MB. Shortly after deployment, the Broker crashed with `java.io.IOException: Too many open files`.",
+        "wg": [
+          {
+            "t": "大幅調降",
+            "en": "drastically reduced",
+            "ps": "verb phrase"
+          },
+          {
+            "t": "崩潰",
+            "en": "crashed",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "請問為什麼調整 Segment 大小會導致這個錯誤？",
+        "en": "Why did adjusting the Segment size cause this error?",
+        "wg": []
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) 每個 Segment 對應多個實體檔案（.log, .index, .timeindex 等），Segment 過小導致檔案數量暴增，耗盡了作業系統的 File Descriptor 額度。",
+        "en": "(A) Each Segment corresponds to multiple physical files (.log, .index, .timeindex, etc.). Too small Segments caused the number of files to explode, exhausting the OS File Descriptor limit.",
+        "wg": [
+          {
+            "t": "實體檔案",
+            "en": "physical files",
+            "ps": "noun"
+          },
+          {
+            "t": "耗盡",
+            "en": "exhausting",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "(B) 1MB 的 Segment 太小，導致 Kafka 無法寫入任何大於 1MB 的單條訊息，引發 Buffer Overflow。",
+        "en": "(B) A 1MB Segment is too small, causing Kafka to be unable to write any single message larger than 1MB, triggering a Buffer Overflow.",
+        "wg": []
+      },
+      {
+        "t": "(C) 頻繁的 Segment 滾動（Rolling）導致 Zookeeper 的 Metadata 更新過於頻繁，造成連線逾時。",
+        "en": "(C) Frequent Segment Rolling caused Zookeeper Metadata to update too frequently, resulting in connection timeouts.",
+        "wg": []
+      },
+      {
+        "t": "(D) 小檔案會導致磁碟碎片化（Fragmentation），使得磁碟讀寫頭無法定位檔案。",
+        "en": "(D) Small files cause disk fragmentation, making it impossible for the disk read/write head to locate files.",
+        "wg": []
+      }
+    ],
+    "answer": "A",
+    "why": {
+      "t": "Kafka 的每個 Log Segment 不僅包含資料檔（.log），還包含索引檔（.index, .timeindex）。Broker 需要為每個開啟的 Segment 維護 File Handles（檔案句柄）。當 `segment.bytes` 設定過小且流量大時，會產生數以萬計的小檔案。若作業系統的 `ulimit -n`（最大開啟檔案數）限制不足，就會導致 Broker 因無法開啟新檔案而崩潰。",
+      "en": "Each Kafka Log Segment contains not only the data file (.log) but also index files (.index, .timeindex). The Broker needs to maintain File Handles for each open Segment. When `segment.bytes` is set too small and traffic is high, tens of thousands of small files are generated. If the OS `ulimit -n` (max open files) limit is insufficient, the Broker will crash because it cannot open new files.",
+      "wg": [
+        {
+          "t": "檔案句柄",
+          "en": "File Handles",
+          "ps": "noun"
+        },
+        {
+          "t": "限制不足",
+          "en": "limit is insufficient",
+          "ps": "phrase"
+        }
+      ]
+    }
+  },
+  {
+    "no": "12",
+    "level": "Medium",
+    "keywords": "CDC, cache, compaction, use case",
+    "parentNo": null,
+    "images": "",
+    "codeSnippet": "",
+    "question": [
+      {
+        "t": "你正在開發一個微服務，需要將上游資料庫的 `Users` 表格同步到本地記憶體快取（Local Cache）中，以便快速查詢。上游使用 CDC（Change Data Capture）技術將資料庫變更寫入 Kafka。",
+        "en": "You are developing a microservice that needs to synchronize the upstream database's `Users` table to a local in-memory cache for fast lookups. The upstream uses CDC (Change Data Capture) technology to write database changes to Kafka.",
+        "wg": [
+          {
+            "t": "同步",
+            "en": "synchronize",
+            "ps": "verb"
+          },
+          {
+            "t": "記憶體快取",
+            "en": "in-memory cache",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "為了確保新加入的微服務實例（Instance）能以最快速度建立完整的 `Users` 表格狀態，且不會讀取到過時的修改紀錄，該 Topic 應採用哪種清理策略？",
+        "en": "To ensure that a newly added microservice instance can build the complete `Users` table state as quickly as possible without reading obsolete modification records, which cleanup policy should be adopted for this topic?",
+        "wg": []
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) `cleanup.policy=delete`，並設定極短的 `retention.ms`。",
+        "en": "(A) `cleanup.policy=delete`, with a very short `retention.ms`.",
+        "wg": []
+      },
+      {
+        "t": "(B) `cleanup.policy=compact`。這將確保每個 User ID 只保留最新的狀態，Consumer 只需讀取每個 Key 的最後一筆值即可重建表格。",
+        "en": "(B) `cleanup.policy=compact`. This ensures that only the latest state is retained for each User ID, so the Consumer only needs to read the last value of each Key to rebuild the table.",
+        "wg": [
+          {
+            "t": "重建表格",
+            "en": "rebuild the table",
+            "ps": "verb phrase"
+          }
+        ]
+      },
+      {
+        "t": "(C) `cleanup.policy=delete`，但設定 `retention.bytes` 為資料庫大小的 2 倍。",
+        "en": "(C) `cleanup.policy=delete`, but set `retention.bytes` to twice the size of the database.",
+        "wg": []
+      },
+      {
+        "t": "(D) 同時啟用 `delete` 與 `compact`，並設定 `min.cleanable.dirty.ratio=0.9`。",
+        "en": "(D) Enable both `delete` and `compact`, and set `min.cleanable.dirty.ratio=0.9`.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "這是 Log Compaction 的典型應用場景：將 Kafka 當作「狀態表（Table of State）」而非單純的事件流。在 CDC 場景中，我們只關心 User 的「當前最新資料」，中間的修改過程（例如名字從 A 改成 B 再改成 C，我們只在乎 C）對於建立 Cache 來說是多餘的。使用 Compact 可以大幅減少 Consumer 在啟動時需要讀取的資料量，加快冷啟動速度。",
+      "en": "This is a typical use case for Log Compaction: treating Kafka as a 'Table of State' rather than just a stream of events. In a CDC scenario, we only care about the User's 'current latest data'; intermediate modifications (e.g., name changing from A to B then to C, where we only care about C) are redundant for building the cache. Using Compact significantly reduces the amount of data the Consumer needs to read at startup, speeding up cold starts.",
+      "wg": [
+        {
+          "t": "典型應用場景",
+          "en": "typical use case",
+          "ps": "noun phrase"
+        },
+        {
+          "t": "冷啟動",
+          "en": "cold starts",
+          "ps": "noun"
+        }
+      ]
+    }
+  }
+]

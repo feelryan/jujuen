@@ -1,0 +1,805 @@
+[
+  {
+    "no": "1",
+    "level": "Easy",
+    "keywords": "Kafka Connect, Kafka Streams, Architecture, Use Case",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你的團隊需要將 PostgreSQL 中的「使用者資料表」同步到 Snowflake 進行數據分析。需求僅涉及單純的資料搬運與欄位名稱對應，不需要進行複雜的聚合運算。",
+        "en": "Your team needs to sync a 'Users' table from PostgreSQL to Snowflake for data analytics. The requirement involves only simple data movement and column mapping, without complex aggregation.",
+        "wg": [
+          {
+            "t": "資料搬運",
+            "en": "data movement",
+            "ps": "noun"
+          },
+          {
+            "t": "聚合運算",
+            "en": "aggregation",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "根據「管線工程 (Plumbing) vs. 大腦邏輯 (Processing)」的心智模型，下列哪項工具是最合適的選擇？",
+        "en": "Based on the 'Plumbing vs. Processing' mental model, which tool is the most appropriate choice?",
+        "wg": []
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) Kafka Streams",
+        "en": "(A) Kafka Streams",
+        "wg": []
+      },
+      {
+        "t": "(B) Kafka Connect",
+        "en": "(B) Kafka Connect",
+        "wg": []
+      },
+      {
+        "t": "(C) Native Kafka Consumer",
+        "en": "(C) Native Kafka Consumer",
+        "wg": []
+      },
+      {
+        "t": "(D) ksqlDB",
+        "en": "(D) ksqlDB",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "Kafka Connect 專注於「管線工程 (Plumbing)」，即資料的搬運與適配，且採用 Configuration over Code 的模式，最適合異質系統間的同步。Kafka Streams 與 ksqlDB 則更適合處理轉換與聚合邏輯。",
+      "en": "Kafka Connect focuses on 'Plumbing' (moving and adapting data) and follows a Configuration over Code model, making it ideal for syncing between heterogeneous systems. Kafka Streams and ksqlDB are better suited for transformation and aggregation logic.",
+      "wg": [
+        {
+          "t": "管線工程",
+          "en": "Plumbing",
+          "ps": "noun"
+        },
+        {
+          "t": "異質系統",
+          "en": "heterogeneous systems",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "2",
+    "level": "Medium",
+    "keywords": "Anti-pattern, Kafka Streams, Performance, External Lookup",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "stream.map(record -> {\n  var userInfo = restClient.getUser(record.key()); // External API Call\n  return new EnrichedRecord(record, userInfo);\n})",
+    "question": [
+      {
+        "t": "在 Code Review 中，你發現同事在 Kafka Streams 的 `map` 操作中呼叫外部 REST API 來豐富 (Enrich) 訊息內容（如上方程式碼所示）。",
+        "en": "During a code review, you notice a colleague calling an external REST API within a Kafka Streams `map` operation to enrich messages (as shown in the code snippet).",
+        "wg": [
+          {
+            "t": "豐富",
+            "en": "enrich",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "這種做法被稱為「外部查詢陷阱 (External Lookup Trap)」。請問它主要會導致什麼嚴重的後果？",
+        "en": "This practice is known as the 'External Lookup Trap'. What is the primary severe consequence it causes?",
+        "wg": []
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) 資料重複寫入 (Data Duplication)",
+        "en": "(A) Data Duplication",
+        "wg": []
+      },
+      {
+        "t": "(B) Schema Registry 驗證失敗",
+        "en": "(B) Schema Registry validation failure",
+        "wg": []
+      },
+      {
+        "t": "(C) 吞吐量崩潰與背壓 (Throughput collapse and Backpressure)",
+        "en": "(C) Throughput collapse and Backpressure",
+        "wg": []
+      },
+      {
+        "t": "(D) RocksDB 狀態儲存空間不足",
+        "en": "(D) Insufficient RocksDB state store space",
+        "wg": []
+      }
+    ],
+    "answer": "C",
+    "why": {
+      "t": "Stream 處理速度極快 (如每秒數萬條)，而外部 API 呼叫通常有較高的延遲 (Latency)。這會導致處理線程阻塞，進而引發背壓 (Backpressure)，嚴重拖垮整個 Consumer Group 的效能。正確做法是將外部資料透過 Connect 匯入為 KTable 進行內部 Join。",
+      "en": "Stream processing is extremely fast (e.g., tens of thousands of msgs/sec), while external API calls usually have high latency. This blocks processing threads, causing backpressure and severely degrading the performance of the entire Consumer Group. The correct approach is to import external data as a KTable via Connect for an internal Join.",
+      "wg": [
+        {
+          "t": "延遲",
+          "en": "latency",
+          "ps": "noun"
+        },
+        {
+          "t": "背壓",
+          "en": "backpressure",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "3",
+    "level": "Medium",
+    "keywords": "Kafka Streams, Join, GlobalKTable, Optimization",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你需要將一個高流量的「訂單流 (Orders)」與一個變動緩慢的「產品資訊表 (Products)」進行 Join。",
+        "en": "You need to join a high-traffic 'Orders' stream with a slowly changing 'Products' table.",
+        "wg": []
+      },
+      {
+        "t": "訂單流的 Key 是 `OrderId`，而產品表的 Key 是 `ProductId`。為了避免對巨大的訂單流進行 Repartition (重分區) 操作以提升效能，你應該將產品表載入為哪種結構？",
+        "en": "The Order stream is keyed by `OrderId`, and the Product table is keyed by `ProductId`. To avoid repartitioning the massive Order stream and improve performance, which structure should you load the Product table into?",
+        "wg": [
+          {
+            "t": "重分區",
+            "en": "repartition",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) KTable",
+        "en": "(A) KTable",
+        "wg": []
+      },
+      {
+        "t": "(B) GlobalKTable",
+        "en": "(B) GlobalKTable",
+        "wg": []
+      },
+      {
+        "t": "(C) KStream",
+        "en": "(C) KStream",
+        "wg": []
+      },
+      {
+        "t": "(D) StateStore",
+        "en": "(D) StateStore",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "使用 `GlobalKTable` 會將該 Topic 的全部資料複製到所有應用實例中，允許進行 Non-key Join (即不需要兩邊 Key 相同)。若使用普通 `KTable`，則必須先將訂單流依據 `ProductId` 進行 Repartition，這在大流量下非常昂貴。",
+      "en": "Using `GlobalKTable` replicates the entire topic data to all application instances, allowing for Non-key Joins (where keys don't need to match). Using a standard `KTable` would require repartitioning the order stream by `ProductId` first, which is very expensive for high-traffic streams.",
+      "wg": [
+        {
+          "t": "應用實例",
+          "en": "application instances",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "4",
+    "level": "Hard",
+    "keywords": "CDC, Dual Write, Microservices, Architecture",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在微服務架構中，常見的一個問題是「Dual Write」：應用程式寫入資料庫後，嘗試發送事件到 Kafka，但其中一個操作失敗導致資料不一致。",
+        "en": "A common issue in microservices architecture is 'Dual Write': the application writes to the database and then tries to send an event to Kafka, but one operation fails, leading to data inconsistency.",
+        "wg": [
+          {
+            "t": "雙重寫入",
+            "en": "Dual Write",
+            "ps": "noun"
+          },
+          {
+            "t": "資料不一致",
+            "en": "data inconsistency",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "根據 Handbook 的建議，下列哪種模式是解決此問題的「黃金標準」？",
+        "en": "According to the Handbook, which pattern is the 'Gold Standard' for solving this problem?",
+        "wg": []
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) 在應用層實作兩階段提交 (2PC)",
+        "en": "(A) Implement Two-Phase Commit (2PC) in the application layer",
+        "wg": []
+      },
+      {
+        "t": "(B) 使用 Kafka Connect 的 CDC (如 Debezium) 監聽資料庫 Transaction Log",
+        "en": "(B) Use Kafka Connect CDC (e.g., Debezium) to listen to the database Transaction Log",
+        "wg": []
+      },
+      {
+        "t": "(C) 先寫入 Kafka，再由 Consumer 寫入資料庫",
+        "en": "(C) Write to Kafka first, then have a Consumer write to the database",
+        "wg": []
+      },
+      {
+        "t": "(D) 在應用層增加重試機制 (Retry Loop)",
+        "en": "(D) Add a retry mechanism (Retry Loop) in the application layer",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "CDC (Change Data Capture) 透過監聽資料庫的 Binlog/WAL，將資料庫變更直接轉為事件流。這確保了「只要資料寫入 DB，事件就一定會產生」，徹底解決了應用層 Dual Write 帶來的原子性問題。",
+      "en": "CDC (Change Data Capture) listens to the database Binlog/WAL and converts DB changes directly into event streams. This ensures that 'if data is written to the DB, an event is guaranteed to be produced', completely solving the atomicity issue of Dual Write in the application layer.",
+      "wg": [
+        {
+          "t": "原子性",
+          "en": "atomicity",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "5",
+    "level": "Medium",
+    "keywords": "Kafka Connect, SMT, Best Practice",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "Kafka Connect 提供了 SMT (Single Message Transforms) 功能。關於 SMT 的使用時機，下列哪項敘述符合最佳實務？",
+        "en": "Kafka Connect provides SMT (Single Message Transforms). Which of the following statements aligns with best practices regarding when to use SMT?",
+        "wg": [
+          {
+            "t": "最佳實務",
+            "en": "best practices",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) 適合用於涉及多條訊息關聯的複雜邏輯",
+        "en": "(A) Suitable for complex logic involving correlations across multiple messages",
+        "wg": []
+      },
+      {
+        "t": "(B) 適合用於簡單的資料清洗，如遮蔽個資 (Masking PII) 或欄位更名",
+        "en": "(B) Suitable for simple data cleansing, such as Masking PII or renaming fields",
+        "wg": []
+      },
+      {
+        "t": "(C) 應該用來取代所有的 ETL 流程以減少架構複雜度",
+        "en": "(C) Should be used to replace all ETL processes to reduce architectural complexity",
+        "wg": []
+      },
+      {
+        "t": "(D) 適合用於呼叫外部 API 進行資料補全",
+        "en": "(D) Suitable for calling external APIs for data enrichment",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "SMT 僅適合輕量級、單條訊息的轉換 (Lightweight Tasks)。若邏輯牽涉到跨多條訊息、外部查詢或複雜 ETL，應轉用 Kafka Streams 或 ksqlDB，否則會導致 Connector 難以除錯且效能低落。",
+      "en": "SMT is only suitable for lightweight, single-message transformations. If the logic involves cross-message processing, external queries, or complex ETL, it should be moved to Kafka Streams or ksqlDB; otherwise, the Connector becomes hard to debug and suffers from poor performance.",
+      "wg": [
+        {
+          "t": "輕量級",
+          "en": "lightweight",
+          "ps": "adj"
+        }
+      ]
+    }
+  },
+  {
+    "no": "6",
+    "level": "Medium",
+    "keywords": "Kafka Connect, Production Readiness, Error Handling",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在將 Kafka Connect 部署到生產環境前，為了避免單一筆格式錯誤的訊息 (Poison Pill) 導致整個 Connector 停止運作，你應該配置什麼機制？",
+        "en": "Before deploying Kafka Connect to production, what mechanism should you configure to prevent a single malformed message (Poison Pill) from stopping the entire Connector?",
+        "wg": [
+          {
+            "t": "毒藥丸 (指惡意或錯誤的資料)",
+            "en": "Poison Pill",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) 增加 `tasks.max` 的數量",
+        "en": "(A) Increase the number of `tasks.max`",
+        "wg": []
+      },
+      {
+        "t": "(B) 配置 Dead Letter Queue (DLQ) 將錯誤訊息導流",
+        "en": "(B) Configure a Dead Letter Queue (DLQ) to divert error messages",
+        "wg": []
+      },
+      {
+        "t": "(C) 設定 `acks=0` 忽略所有錯誤",
+        "en": "(C) Set `acks=0` to ignore all errors",
+        "wg": []
+      },
+      {
+        "t": "(D) 使用 Standalone 模式替代 Distributed 模式",
+        "en": "(D) Use Standalone mode instead of Distributed mode",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "配置 Dead Letter Queue (DLQ) 是生產環境的標準做法。它允許 Connector 略過無法處理的錯誤訊息並將其寫入另一個 Topic 供後續排查，確保正常的資料流不被中斷。",
+      "en": "Configuring a Dead Letter Queue (DLQ) is a standard practice for production. It allows the Connector to skip unprocessable error messages and write them to another topic for later inspection, ensuring the normal data flow is not interrupted.",
+      "wg": [
+        {
+          "t": "導流",
+          "en": "divert",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "7",
+    "level": "Hard",
+    "keywords": "Kafka Streams, Co-partitioning, Join, Architecture",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你正在開發一個 Kafka Streams 應用程式，需要對兩個 Topic 進行 `join` 操作。儘管兩個 Topic 的 Key 都是 `userId`，但在執行時卻發生了 Join 結果不正確或失敗的情況。",
+        "en": "You are developing a Kafka Streams application that needs to `join` two topics. Although both topics are keyed by `userId`, you are experiencing incorrect join results or failures at runtime.",
+        "wg": []
+      },
+      {
+        "t": "這最可能是違反了下列哪項「協同分區 (Co-partitioning)」的要求？",
+        "en": "This is most likely a violation of which 'Co-partitioning' requirement?",
+        "wg": [
+          {
+            "t": "協同分區",
+            "en": "Co-partitioning",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) 兩個 Topic 的 Partition Count (分區數量) 必須相同",
+        "en": "(A) The Partition Count of both topics must be the same",
+        "wg": []
+      },
+      {
+        "t": "(B) 兩個 Topic 的 Retention Policy (保留策略) 必須相同",
+        "en": "(B) The Retention Policy of both topics must be the same",
+        "wg": []
+      },
+      {
+        "t": "(C) 兩個 Topic 必須使用相同的 Schema Registry Subject",
+        "en": "(C) Both topics must use the same Schema Registry Subject",
+        "wg": []
+      },
+      {
+        "t": "(D) 兩個 Topic 的 Replication Factor (副本因子) 必須相同",
+        "en": "(D) The Replication Factor of both topics must be the same",
+        "wg": []
+      }
+    ],
+    "answer": "A",
+    "why": {
+      "t": "Kafka Streams 在進行一般 Join 時，要求來源 Topic 必須 Co-partitioned。這意味著它們必須擁有「相同的 Partition Count」以及相同的分區策略 (Partitioning Strategy)，以確保相同 Key 的資料會落在同一個 Stream Task 中處理。",
+      "en": "When performing a standard Join, Kafka Streams requires source topics to be Co-partitioned. This means they must have the 'same Partition Count' and the same Partitioning Strategy, ensuring that data with the same Key lands in the same Stream Task for processing.",
+      "wg": [
+        {
+          "t": "分區策略",
+          "en": "Partitioning Strategy",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "8",
+    "level": "Medium",
+    "keywords": "Schema Registry, Anti-pattern, Kafka Connect, Production Readiness",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你正在使用 Kafka Connect 構建一個從 MySQL 到 BigQuery 的資料管道。為了開發方便，你在 Topic 中使用了純 JSON 格式 (Schemaless JSON) 而未配置 Schema Registry。",
+        "en": "You are building a data pipeline from MySQL to BigQuery using Kafka Connect. For development convenience, you used raw JSON format (Schemaless JSON) in the topics without configuring Schema Registry.",
+        "wg": [
+          {
+            "t": "資料管道",
+            "en": "data pipeline",
+            "ps": "noun"
+          },
+          {
+            "t": "純 JSON 格式",
+            "en": "raw JSON format",
+            "ps": "noun phrase"
+          }
+        ]
+      },
+      {
+        "t": "當上游 MySQL 的某個資料表欄位型別發生變更時，下游的 Sink Connector 隨即崩潰並停止運作。這種情況對應到手冊中的哪一個反模式 (Anti-pattern)？",
+        "en": "When a column type in the upstream MySQL table changed, the downstream Sink Connector immediately crashed and stopped working. Which anti-pattern from the handbook does this scenario correspond to?",
+        "wg": [
+          {
+            "t": "崩潰",
+            "en": "crashed",
+            "ps": "verb"
+          },
+          {
+            "t": "反模式",
+            "en": "anti-pattern",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) 濫用 Connect 進行 ETL (Abusing Connect for ETL)",
+        "en": "(A) Abusing Connect for ETL",
+        "wg": []
+      },
+      {
+        "t": "(B) 外部查詢陷阱 (The External Lookup Trap)",
+        "en": "(B) The External Lookup Trap",
+        "wg": []
+      },
+      {
+        "t": "(C) 忽視 Schema 管理 (Ignoring Schema Registry)",
+        "en": "(C) Ignoring Schema Registry",
+        "wg": []
+      },
+      {
+        "t": "(D) 協同分區錯誤 (Co-partitioning Error)",
+        "en": "(D) Co-partitioning Error",
+        "wg": []
+      }
+    ],
+    "answer": "C",
+    "why": {
+      "t": "正確答案是 (C)。忽視 Schema Registry 是常見的反模式。當使用純 JSON 或 String 時，缺乏明確的 Schema 約束，一旦上游資料結構變更，下游無法適配就會導致解析錯誤 (Poison Pill)。最佳實務是強制使用 Avro/Protobuf 並搭配 Schema Registry 進行相容性檢查。",
+      "en": "The correct answer is (C). Ignoring Schema Registry is a common anti-pattern. When using raw JSON or String, there is no explicit schema enforcement. If the upstream data structure changes, the downstream cannot adapt, leading to parsing errors (Poison Pill). The best practice is to enforce Avro/Protobuf with Schema Registry for compatibility checks.",
+      "wg": [
+        {
+          "t": "相容性檢查",
+          "en": "compatibility checks",
+          "ps": "noun phrase"
+        }
+      ]
+    }
+  },
+  {
+    "no": "9",
+    "level": "Hard",
+    "keywords": "Kafka Streams, Interactive Queries, Architecture, State Store",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你正在設計一個 Kafka Streams 應用程式來計算即時的「庫存計數」。前端應用程式需要透過 REST API 查詢特定商品的當前庫存量。",
+        "en": "You are designing a Kafka Streams application to calculate real-time 'inventory counts'. A frontend application needs to query the current inventory of specific items via a REST API.",
+        "wg": [
+          {
+            "t": "庫存計數",
+            "en": "inventory counts",
+            "ps": "noun phrase"
+          }
+        ]
+      },
+      {
+        "t": "為了避免將計算結果寫回外部資料庫（如 Redis）僅供查詢所造成的延遲與架構複雜度，你應該使用 Kafka Streams 的哪項功能？",
+        "en": "To avoid the latency and architectural complexity of writing calculation results back to an external database (like Redis) just for querying, which Kafka Streams feature should you use?",
+        "wg": [
+          {
+            "t": "外部資料庫",
+            "en": "external database",
+            "ps": "noun phrase"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) GlobalKTable Join",
+        "en": "(A) GlobalKTable Join",
+        "wg": []
+      },
+      {
+        "t": "(B) Interactive Queries (IQ)",
+        "en": "(B) Interactive Queries (IQ)",
+        "wg": []
+      },
+      {
+        "t": "(C) Single Message Transforms (SMT)",
+        "en": "(C) Single Message Transforms (SMT)",
+        "wg": []
+      },
+      {
+        "t": "(D) Dead Letter Queue (DLQ)",
+        "en": "(D) Dead Letter Queue (DLQ)",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "正確答案是 (B)。Interactive Queries (IQ) 允許外部應用程式直接查詢 Kafka Streams 內部的 State Store (RocksDB)，無需將狀態寫出到外部資料庫。這簡化了架構並實現了「狀態即資料庫」的概念。",
+      "en": "The correct answer is (B). Interactive Queries (IQ) allow external applications to directly query the internal State Store (RocksDB) of Kafka Streams, eliminating the need to write state out to an external database. This simplifies the architecture and realizes the concept of 'state as a database'.",
+      "wg": [
+        {
+          "t": "狀態即資料庫",
+          "en": "state as a database",
+          "ps": "phrase"
+        }
+      ]
+    }
+  },
+  {
+    "no": "10",
+    "level": "Easy",
+    "keywords": "Kafka Connect, Deployment, Production Readiness, Fault Tolerance",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在將 Kafka Connect 部署到生產環境時，手冊強烈建議使用 **Distributed Mode** 而非 Standalone Mode。",
+        "en": "When deploying Kafka Connect to a production environment, the handbook strongly recommends using **Distributed Mode** instead of Standalone Mode.",
+        "wg": [
+          {
+            "t": "生產環境",
+            "en": "production environment",
+            "ps": "noun phrase"
+          }
+        ]
+      },
+      {
+        "t": "相較於 Standalone Mode，Distributed Mode 提供了哪項關鍵的架構優勢？",
+        "en": "Compared to Standalone Mode, what key architectural advantage does Distributed Mode provide?",
+        "wg": [
+          {
+            "t": "架構優勢",
+            "en": "architectural advantage",
+            "ps": "noun phrase"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) 支援更複雜的 SMT 轉換邏輯",
+        "en": "(A) Supports more complex SMT transformation logic",
+        "wg": []
+      },
+      {
+        "t": "(B) 自動負載平衡 (Rebalancing) 與容錯 (Fault Tolerance)",
+        "en": "(B) Automatic load balancing (Rebalancing) and Fault Tolerance",
+        "wg": [
+          {
+            "t": "自動負載平衡",
+            "en": "automatic load balancing",
+            "ps": "noun phrase"
+          },
+          {
+            "t": "容錯",
+            "en": "fault tolerance",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "(C) 能夠直接執行 SQL 查詢",
+        "en": "(C) Ability to execute SQL queries directly",
+        "wg": []
+      },
+      {
+        "t": "(D) 不需要依賴 Kafka Brokers 即可運作",
+        "en": "(D) Can operate without depending on Kafka Brokers",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "正確答案是 (B)。Distributed Mode 允許 Connector 跨多個 Worker 節點執行。當某個節點故障或新增節點時，它會自動進行 Rebalancing，確保高可用性與擴展性。Standalone Mode 僅適合開發測試，不具備這些特性。",
+      "en": "The correct answer is (B). Distributed Mode allows Connectors to run across multiple Worker nodes. When a node fails or a new node is added, it automatically performs Rebalancing, ensuring high availability and scalability. Standalone Mode is only suitable for development/testing and lacks these features.",
+      "wg": [
+        {
+          "t": "高可用性",
+          "en": "high availability",
+          "ps": "noun phrase"
+        }
+      ]
+    }
+  },
+  {
+    "no": "11",
+    "level": "Medium",
+    "keywords": "Kafka Streams, Windowing, Use Case, Fraud Detection",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你需要實作一個詐欺偵測功能：當同一位用戶在 **5 分鐘的時間視窗** 內，於兩個物理距離過遠的地點進行交易時，觸發警報。",
+        "en": "You need to implement a fraud detection feature: trigger an alert when the same user performs transactions in two physically distant locations within a **5-minute time window**.",
+        "wg": [
+          {
+            "t": "時間視窗",
+            "en": "time window",
+            "ps": "noun"
+          },
+          {
+            "t": "詐欺偵測",
+            "en": "fraud detection",
+            "ps": "noun phrase"
+          }
+        ]
+      },
+      {
+        "t": "根據手冊的心智模型，哪一個組件最適合處理這類涉及「時間視窗」與「跨事件聚合」的邏輯？",
+        "en": "According to the handbook's mental model, which component is best suited to handle logic involving 'time windows' and 'cross-event aggregation'?",
+        "wg": [
+          {
+            "t": "跨事件聚合",
+            "en": "cross-event aggregation",
+            "ps": "noun phrase"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) Kafka Connect 搭配 SMT",
+        "en": "(A) Kafka Connect with SMT",
+        "wg": []
+      },
+      {
+        "t": "(B) Kafka Streams",
+        "en": "(B) Kafka Streams",
+        "wg": []
+      },
+      {
+        "t": "(C) 傳統資料庫 SQL 查詢",
+        "en": "(C) Traditional Database SQL Query",
+        "wg": []
+      },
+      {
+        "t": "(D) Kafka Producer Client",
+        "en": "(D) Kafka Producer Client",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "正確答案是 (B)。Kafka Streams 被視為「大腦邏輯 (Processing)」，專長於處理 Windowing、Aggregation 與 Join 等狀態運算。Connect 僅負責搬運；傳統 DB 在處理即時串流視窗時效率較低且複雜。",
+      "en": "The correct answer is (B). Kafka Streams is considered the 'Processing Brain', specializing in stateful operations like Windowing, Aggregation, and Join. Connect is only for plumbing; traditional DBs are less efficient and more complex when handling real-time streaming windows.",
+      "wg": [
+        {
+          "t": "狀態運算",
+          "en": "stateful operations",
+          "ps": "noun phrase"
+        }
+      ]
+    }
+  },
+  {
+    "no": "12",
+    "level": "Easy",
+    "keywords": "ksqlDB, Ecosystem, Ad-hoc Query, Decision Tree",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你的團隊想要對 Kafka Topic 中的資料進行 **Ad-hoc (臨時性) 的探索性查詢**，以快速驗證某個業務假設，且希望使用類似 SQL 的語法。",
+        "en": "Your team wants to perform **Ad-hoc exploratory queries** on data in a Kafka Topic to quickly validate a business hypothesis, and prefers using SQL-like syntax.",
+        "wg": [
+          {
+            "t": "臨時性的",
+            "en": "Ad-hoc",
+            "ps": "adjective"
+          },
+          {
+            "t": "探索性查詢",
+            "en": "exploratory queries",
+            "ps": "noun phrase"
+          }
+        ]
+      },
+      {
+        "t": "根據整合光譜 (Integration Spectrum)，下列哪個工具最適合此場景？",
+        "en": "According to the Integration Spectrum, which tool is most suitable for this scenario?",
+        "wg": [
+          {
+            "t": "整合光譜",
+            "en": "Integration Spectrum",
+            "ps": "noun phrase"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) Kafka Connect",
+        "en": "(A) Kafka Connect",
+        "wg": []
+      },
+      {
+        "t": "(B) Kafka Streams (Java/Scala DSL)",
+        "en": "(B) Kafka Streams (Java/Scala DSL)",
+        "wg": []
+      },
+      {
+        "t": "(C) ksqlDB",
+        "en": "(C) ksqlDB",
+        "wg": []
+      },
+      {
+        "t": "(D) Kafka Consumer Client",
+        "en": "(D) Kafka Consumer Client",
+        "wg": []
+      }
+    ],
+    "answer": "C",
+    "why": {
+      "t": "正確答案是 (C)。ksqlDB 提供了 SQL 介面，非常適合進行互動式、臨時性的資料探索與快速原型驗證。Kafka Streams 則更適合構建需要編譯與部署的長期運行微服務。",
+      "en": "The correct answer is (C). ksqlDB provides a SQL interface, making it ideal for interactive, ad-hoc data exploration and rapid prototyping. Kafka Streams is better suited for building long-running microservices that require compilation and deployment.",
+      "wg": [
+        {
+          "t": "快速原型驗證",
+          "en": "rapid prototyping",
+          "ps": "noun phrase"
+        }
+      ]
+    }
+  }
+]

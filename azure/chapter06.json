@@ -1,0 +1,1243 @@
+[
+  {
+    "no": "1",
+    "level": "intermediate",
+    "keywords": "SLA, Availability, Architecture, System Design",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您正在設計一個關鍵任務的應用程式，該程式由 Azure App Service（SLA 99.95%）與 Azure SQL Database（SLA 99.99%）組成，兩者具有依賴關係。",
+        "en": "You are designing a mission-critical application consisting of Azure App Service (SLA 99.95%) and Azure SQL Database (SLA 99.99%) with a dependency relationship.",
+        "wg": [
+          {
+            "t": "關鍵任務",
+            "en": "mission-critical",
+            "ps": "Adj"
+          },
+          {
+            "t": "依賴關係",
+            "en": "dependency relationship",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "若此架構部署於單一區域且沒有並行備援，請問此系統的理論複合 SLA 為何？",
+        "en": "If this architecture is deployed in a single region without parallel redundancy, what is the theoretical composite SLA of this system?",
+        "wg": [
+          {
+            "t": "複合 SLA",
+            "en": "composite SLA",
+            "ps": "N"
+          },
+          {
+            "t": "並行備援",
+            "en": "parallel redundancy",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 高於 99.99%，因為 Azure SQL 的穩定性會提升整體表現。",
+        "en": "(A) Higher than 99.99%, as Azure SQL's stability improves overall performance.",
+        "wg": []
+      },
+      {
+        "t": "(B) 介於 99.95% 與 99.99% 之間，取兩者的平均值。",
+        "en": "(B) Between 99.95% and 99.99%, taking the average of the two.",
+        "wg": []
+      },
+      {
+        "t": "(C) 等於 99.95%，由最低的元件決定。",
+        "en": "(C) Equal to 99.95%, determined by the lowest component.",
+        "wg": []
+      },
+      {
+        "t": "(D) 低於 99.95%，因為串聯元件的可用性是各元件 SLA 的乘積。",
+        "en": "(D) Lower than 99.95%, because the availability of serial components is the product of individual SLAs.",
+        "wg": [
+          {
+            "t": "串聯元件",
+            "en": "serial components",
+            "ps": "N"
+          },
+          {
+            "t": "乘積",
+            "en": "product",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "answer": "D",
+    "why": {
+      "t": "在串聯依賴（Serial Dependency）中，系統必須所有元件都正常運作才能提供服務。計算公式為 `0.9995 * 0.9999 ≈ 0.9994`，因此複合 SLA 會低於任何單一元件的 SLA。",
+      "en": "In a serial dependency, the system requires all components to be functional to provide service. The calculation is `0.9995 * 0.9999 ≈ 0.9994`, so the composite SLA is lower than that of any single component.",
+      "wg": []
+    }
+  },
+  {
+    "no": "2",
+    "level": "advanced",
+    "keywords": "Resilience, Retry Pattern, Thundering Herd, Anti-pattern",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "var retryPolicy = Policy\n    .Handle<HttpRequestException>()\n    .WaitAndRetryAsync(3, retryAttempt => \n        TimeSpan.FromSeconds(2)); // Fixed interval",
+    "question": [
+      {
+        "t": "在審查資淺工程師提交的程式碼時，您發現了上述的重試策略設定。",
+        "en": "While reviewing code submitted by a junior engineer, you noticed the retry strategy configuration above.",
+        "wg": []
+      },
+      {
+        "t": "假設此服務有數千個並發用戶端，當下游服務從短暫故障中恢復時，此設定最可能導致什麼風險？",
+        "en": "Assuming this service has thousands of concurrent clients, what is the most likely risk this configuration poses when the downstream service recovers from a transient fault?",
+        "wg": [
+          {
+            "t": "並發用戶端",
+            "en": "concurrent clients",
+            "ps": "N"
+          },
+          {
+            "t": "短暫故障",
+            "en": "transient fault",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 驚群效應 (Thundering Herd)，因為缺乏隨機抖動 (Jitter)。",
+        "en": "(A) Thundering Herd, due to the lack of Jitter.",
+        "wg": [
+          {
+            "t": "驚群效應",
+            "en": "Thundering Herd",
+            "ps": "N"
+          },
+          {
+            "t": "隨機抖動",
+            "en": "Jitter",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(B) 資源洩漏，因為沒有正確處置 HttpClient。",
+        "en": "(B) Resource leaks, due to improper disposal of HttpClient.",
+        "wg": []
+      },
+      {
+        "t": "(C) 永久性錯誤重試，因為 HttpRequestException 包含 404。",
+        "en": "(C) Retrying on permanent errors, as HttpRequestException includes 404.",
+        "wg": []
+      },
+      {
+        "t": "(D) 延遲過高，因為 2 秒的間隔太長。",
+        "en": "(D) Excessive latency, because the 2-second interval is too long.",
+        "wg": []
+      }
+    ],
+    "answer": "A",
+    "why": {
+      "t": "使用固定時間間隔（如固定的 2 秒）進行重試，會導致所有等待中的用戶端在同一時刻發起請求，形成「驚群效應」，可能再次壓垮剛恢復的服務。解決方案是加入 Jitter（隨機性）。",
+      "en": "Using a fixed time interval (e.g., exactly 2 seconds) for retries causes all waiting clients to initiate requests at the exact same moment, creating a 'Thundering Herd' effect that can immediately crash the recovering service again. The solution is to introduce Jitter (randomness).",
+      "wg": [
+        {
+          "t": "壓垮",
+          "en": "overwhelm/crash",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "3",
+    "level": "intermediate",
+    "keywords": "Azure SQL, Disaster Recovery, Failover Groups, Architecture",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您的團隊正在規劃 Azure SQL Database 的災難復原 (DR) 策略。",
+        "en": "Your team is planning a Disaster Recovery (DR) strategy for Azure SQL Database.",
+        "wg": []
+      },
+      {
+        "t": "需求是：當主要區域發生災難時，必須能自動或手動切換至次要區域，且應用程式的連線字串 (Connection String) 無需更改。",
+        "en": "The requirement is: In the event of a disaster in the primary region, failover to the secondary region must be possible (automatic or manual) without changing the application's Connection String.",
+        "wg": [
+          {
+            "t": "連線字串",
+            "en": "Connection String",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "請問您應該選擇哪項功能？",
+        "en": "Which feature should you choose?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) Active Geo-Replication",
+        "en": "(A) Active Geo-Replication",
+        "wg": []
+      },
+      {
+        "t": "(B) Failover Groups",
+        "en": "(B) Failover Groups",
+        "wg": []
+      },
+      {
+        "t": "(C) Azure SQL Data Sync",
+        "en": "(C) Azure SQL Data Sync",
+        "wg": []
+      },
+      {
+        "t": "(D) Zone-redundant configuration",
+        "en": "(D) Zone-redundant configuration",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "Failover Groups 提供了一個讀寫接聽端點（Listener Endpoint），在發生容錯移轉時，DNS 會自動指向新的主資料庫，因此應用程式無需更改連線字串。Active Geo-Replication 雖然支援跨區複寫，但通常需要手動更新應用程式設定以指向新的伺服器名稱。",
+      "en": "Failover Groups provide a read-write listener endpoint. During a failover, DNS automatically points to the new primary database, so the application does not need to change its connection string. While Active Geo-Replication supports cross-region replication, it typically requires manually updating application settings to point to the new server name.",
+      "wg": [
+        {
+          "t": "接聽端點",
+          "en": "listener endpoint",
+          "ps": "N"
+        },
+        {
+          "t": "容錯移轉",
+          "en": "failover",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "4",
+    "level": "intermediate",
+    "keywords": "Circuit Breaker, Resilience, Design Pattern",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您的應用程式依賴一個不穩定的第三方 API，該 API 偶爾會完全當機並持續回傳 503 Service Unavailable。",
+        "en": "Your application depends on an unstable third-party API that occasionally goes down completely and continuously returns 503 Service Unavailable.",
+        "wg": [
+          {
+            "t": "不穩定的",
+            "en": "unstable",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "為了避免持續呼叫該 API 浪費資源並導致您的系統回應變慢，您應該實作哪種模式來「快速失敗」並給予對方復原時間？",
+        "en": "To avoid wasting resources by continuously calling the API and slowing down your system, which pattern should you implement to 'fail fast' and give the dependency time to recover?",
+        "wg": [
+          {
+            "t": "快速失敗",
+            "en": "fail fast",
+            "ps": "V"
+          },
+          {
+            "t": "復原時間",
+            "en": "recovery time",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 指數退避重試 (Retry with Exponential Backoff)",
+        "en": "(A) Retry with Exponential Backoff",
+        "wg": []
+      },
+      {
+        "t": "(B) 斷路器 (Circuit Breaker)",
+        "en": "(B) Circuit Breaker",
+        "wg": []
+      },
+      {
+        "t": "(C) 負載平衡 (Load Balancing)",
+        "en": "(C) Load Balancing",
+        "wg": []
+      },
+      {
+        "t": "(D) 競爭消費者 (Competing Consumers)",
+        "en": "(D) Competing Consumers",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "斷路器模式能在偵測到高失敗率時「斷開」電路，直接阻斷對故障服務的呼叫並立即回傳錯誤，從而防止連鎖故障並給予下游系統喘息空間。單純的重試（即使有退避）在服務完全當機時仍會產生不必要的流量與延遲。",
+      "en": "The Circuit Breaker pattern 'opens' the circuit when a high failure rate is detected, blocking calls to the failing service and returning an error immediately. This prevents cascading failures and gives the downstream system breathing room. Simple retries (even with backoff) still generate unnecessary traffic and latency when a service is completely down.",
+      "wg": [
+        {
+          "t": "連鎖故障",
+          "en": "cascading failures",
+          "ps": "N"
+        },
+        {
+          "t": "喘息空間",
+          "en": "breathing room",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "5",
+    "level": "intermediate",
+    "keywords": "Storage, HA, DR, GZRS",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您需要為儲存帳戶 (Storage Account) 選擇合適的備援選項。",
+        "en": "You need to choose the appropriate redundancy option for a Storage Account.",
+        "wg": []
+      },
+      {
+        "t": "業務需求要求：在主要區域內必須能承受單一資料中心 (Zone) 的故障（高可用性），同時必須將資料複製到次要區域以應對區域級災難（災難復原）。",
+        "en": "Business requirements dictate: It must withstand a single data center (Zone) failure within the primary region (High Availability), and data must be replicated to a secondary region to handle region-level disasters (Disaster Recovery).",
+        "wg": [
+          {
+            "t": "承受",
+            "en": "withstand",
+            "ps": "V"
+          },
+          {
+            "t": "區域級災難",
+            "en": "region-level disaster",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "請問哪個選項最符合此需求？",
+        "en": "Which option best fits this requirement?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) GRS (Geo-Redundant Storage)",
+        "en": "(A) GRS (Geo-Redundant Storage)",
+        "wg": []
+      },
+      {
+        "t": "(B) ZRS (Zone-Redundant Storage)",
+        "en": "(B) ZRS (Zone-Redundant Storage)",
+        "wg": []
+      },
+      {
+        "t": "(C) GZRS (Geo-Zone-Redundant Storage)",
+        "en": "(C) GZRS (Geo-Zone-Redundant Storage)",
+        "wg": []
+      },
+      {
+        "t": "(D) LRS (Locally-Redundant Storage)",
+        "en": "(D) LRS (Locally-Redundant Storage)",
+        "wg": []
+      }
+    ],
+    "answer": "C",
+    "why": {
+      "t": "GZRS 結合了 ZRS 與 GRS 的優點：在主要區域內使用 ZRS（跨可用性區域複製）提供高可用性，同時將資料非同步複製到次要區域提供災難復原。GRS 在主要區域內僅使用 LRS（單一資料中心內複製），無法抵抗區域內的單一資料中心故障。",
+      "en": "GZRS combines the benefits of ZRS and GRS: it uses ZRS (replication across Availability Zones) in the primary region for High Availability, while asynchronously replicating data to a secondary region for Disaster Recovery. GRS only uses LRS (replication within a single data center) in the primary region and cannot withstand a single data center failure within that region.",
+      "wg": [
+        {
+          "t": "非同步複製",
+          "en": "asynchronously replicate",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "chapter06-q06",
+    "level": "intermediate",
+    "keywords": "Azure Front Door, Traffic Manager, Global Load Balancing, Anycast",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您正在設計一個部署於三個 Azure 區域的全球性 Web 應用程式。",
+        "en": "You are designing a global web application deployed across three Azure regions.",
+        "wg": [
+          {
+            "t": "全球性",
+            "en": "global",
+            "ps": "Adj"
+          },
+          {
+            "t": "部署",
+            "en": "deployed",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "您需要一個全球負載平衡解決方案，該方案需支援 SSL 終止、Web 應用程式防火牆 (WAF)，並使用 Anycast 協定而非 DNS TTL 來提供最快的容錯移轉速度。",
+        "en": "You need a global load balancing solution that supports SSL termination, Web Application Firewall (WAF), and provides the fastest failover using Anycast protocol rather than DNS TTL.",
+        "wg": [
+          {
+            "t": "負載平衡",
+            "en": "load balancing",
+            "ps": "N"
+          },
+          {
+            "t": "終止",
+            "en": "termination",
+            "ps": "N"
+          },
+          {
+            "t": "容錯移轉",
+            "en": "failover",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "請問您應該選擇哪項服務？",
+        "en": "Which service should you choose?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) Azure Traffic Manager",
+        "en": "(A) Azure Traffic Manager",
+        "wg": []
+      },
+      {
+        "t": "(B) Azure Front Door",
+        "en": "(B) Azure Front Door",
+        "wg": []
+      },
+      {
+        "t": "(C) Azure Application Gateway",
+        "en": "(C) Azure Application Gateway",
+        "wg": []
+      },
+      {
+        "t": "(D) Azure Load Balancer",
+        "en": "(D) Azure Load Balancer",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "Azure Front Door 是全球性的 L7 負載平衡器，使用 Anycast 網路提供快速容錯移轉，並內建 WAF 與 SSL 終止功能。Traffic Manager 雖然也是全球性的，但基於 DNS，受限於 TTL 導致移轉較慢且不具備 WAF。Application Gateway 是區域性 (Regional) 服務。",
+      "en": "Azure Front Door is a global L7 load balancer that uses Anycast networking for fast failover and includes built-in WAF and SSL termination. Traffic Manager is also global but DNS-based, making failover slower due to TTL, and it lacks WAF. Application Gateway is a regional service.",
+      "wg": [
+        {
+          "t": "區域性",
+          "en": "regional",
+          "ps": "Adj"
+        },
+        {
+          "t": "受限於",
+          "en": "constrained by",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "chapter06-q07",
+    "level": "intermediate",
+    "keywords": "Region Pairs, Updates, Maintenance, DR",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您的組織需要為關鍵虛擬機器規劃災難復原 (DR) 策略，並決定將資料複寫到次要區域。",
+        "en": "Your organization requires a Disaster Recovery (DR) strategy for critical virtual machines and decides to replicate data to a secondary region.",
+        "wg": [
+          {
+            "t": "災難復原",
+            "en": "Disaster Recovery",
+            "ps": "N"
+          },
+          {
+            "t": "複寫",
+            "en": "replicate",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "為什麼 Azure 建議使用指定的「配對區域」(Region Pairs，例如 East US 與 West US) 而非任意區域？",
+        "en": "Why does Azure recommend using designated 'Region Pairs' (e.g., East US & West US) instead of any arbitrary region?",
+        "wg": [
+          {
+            "t": "配對區域",
+            "en": "Region Pairs",
+            "ps": "N"
+          },
+          {
+            "t": "任意",
+            "en": "arbitrary",
+            "ps": "Adj"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 這是實現低延遲複寫的唯一方法。",
+        "en": "(A) It is the only way to achieve low latency replication.",
+        "wg": []
+      },
+      {
+        "t": "(B) Azure 會在配對區域間依序進行平台更新，以將同時停機的風險降至最低。",
+        "en": "(B) Azure serializes platform updates across pairs to minimize the risk of simultaneous downtime.",
+        "wg": [
+          {
+            "t": "依序進行",
+            "en": "serializes",
+            "ps": "V"
+          },
+          {
+            "t": "同時",
+            "en": "simultaneous",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "(C) 配對區域總是位於同一個實體資料中心內。",
+        "en": "(C) Region pairs are always located within the same physical data center.",
+        "wg": []
+      },
+      {
+        "t": "(D) 只有配對區域才支援可用性區域 (Availability Zones)。",
+        "en": "(D) Only region pairs support Availability Zones.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "Azure 配對區域的主要優勢之一是平台維護更新的序列化 (Serialization)。Azure 確保不會同時更新配對中的兩個區域，從而保證在維護期間至少有一個區域是可用的。此外，配對區域通常位於同一地緣政治邊界內以符合資料駐留規範。",
+      "en": "A key advantage of Azure Region Pairs is the serialization of platform maintenance updates. Azure ensures that both regions in a pair are not updated simultaneously, guaranteeing that at least one region remains available during maintenance. Additionally, pairs usually stay within the same geopolitical boundary for data residency.",
+      "wg": [
+        {
+          "t": "序列化",
+          "en": "serialization",
+          "ps": "N"
+        },
+        {
+          "t": "資料駐留",
+          "en": "data residency",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "chapter06-q08",
+    "level": "advanced",
+    "keywords": "Bulkhead Pattern, Microservices, Resilience, Thread Pool",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在微服務架構中，Service A 同時呼叫外部的「支付 API」與內部的「庫存 API」。",
+        "en": "In a microservices architecture, Service A calls an external 'Payment API' and an internal 'Inventory API'.",
+        "wg": [
+          {
+            "t": "微服務架構",
+            "en": "microservices architecture",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "當支付 API 變得極度緩慢時，Service A 的執行緒池 (Thread Pool) 因等待回應而耗盡，導致對回應快速的庫存 API 之呼叫也開始失敗。",
+        "en": "When the Payment API becomes extremely slow, Service A's thread pool is exhausted waiting for responses, causing calls to the fast-responding Inventory API to fail as well.",
+        "wg": [
+          {
+            "t": "耗盡",
+            "en": "exhausted",
+            "ps": "Adj"
+          },
+          {
+            "t": "執行緒池",
+            "en": "thread pool",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "哪種設計模式最能解決此資源隔離問題？",
+        "en": "Which design pattern best addresses this resource isolation issue?",
+        "wg": [
+          {
+            "t": "資源隔離",
+            "en": "resource isolation",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) Circuit Breaker (斷路器)",
+        "en": "(A) Circuit Breaker",
+        "wg": []
+      },
+      {
+        "t": "(B) Retry with Exponential Backoff (指數退避重試)",
+        "en": "(B) Retry with Exponential Backoff",
+        "wg": []
+      },
+      {
+        "t": "(C) Bulkhead (艙壁模式)",
+        "en": "(C) Bulkhead",
+        "wg": []
+      },
+      {
+        "t": "(D) Cache-Aside (快取旁路)",
+        "en": "(D) Cache-Aside",
+        "wg": []
+      }
+    ],
+    "answer": "C",
+    "why": {
+      "t": "艙壁模式 (Bulkhead) 透過將資源（如執行緒池、連線）隔離成不同的集區，確保單一依賴服務的故障或延遲不會拖垮整個系統或影響其他依賴服務。斷路器雖能防止持續呼叫故障服務，但艙壁模式更直接針對「資源耗盡與隔離」問題。",
+      "en": "The Bulkhead pattern isolates resources (such as thread pools or connections) into separate pools, ensuring that a failure or latency in one dependency does not take down the entire system or affect other dependencies. While Circuit Breaker prevents continuous calls to a failing service, Bulkhead specifically addresses 'resource exhaustion and isolation'.",
+      "wg": [
+        {
+          "t": "艙壁",
+          "en": "bulkhead",
+          "ps": "N"
+        },
+        {
+          "t": "拖垮",
+          "en": "take down",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "chapter06-q09",
+    "level": "advanced",
+    "keywords": "SLA, Math, Active-Active, Availability",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您有一個關鍵服務部署在兩個 Azure 區域，採用 Active-Active 架構。",
+        "en": "You have a critical service deployed in two Azure regions using an Active-Active architecture.",
+        "wg": [
+          {
+            "t": "關鍵",
+            "en": "critical",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "假設每個區域的獨立 SLA 為 99.9%，且全球負載平衡器是 100% 可靠的。",
+        "en": "Assume each region has an individual SLA of 99.9%, and the global load balancer is 100% reliable.",
+        "wg": [
+          {
+            "t": "獨立",
+            "en": "individual",
+            "ps": "Adj"
+          },
+          {
+            "t": "可靠的",
+            "en": "reliable",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "請問此系統的理論複合 SLA 是多少？",
+        "en": "What is the theoretical composite SLA of this system?",
+        "wg": [
+          {
+            "t": "複合",
+            "en": "composite",
+            "ps": "Adj"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 99.8%",
+        "en": "(A) 99.8%",
+        "wg": []
+      },
+      {
+        "t": "(B) 99.9%",
+        "en": "(B) 99.9%",
+        "wg": []
+      },
+      {
+        "t": "(C) 99.99%",
+        "en": "(C) 99.99%",
+        "wg": []
+      },
+      {
+        "t": "(D) 99.9999%",
+        "en": "(D) 99.9999%",
+        "wg": []
+      }
+    ],
+    "answer": "D",
+    "why": {
+      "t": "並聯系統的不可用率是各元件不可用率的乘積。單一區域不可用率為 0.1% (0.001)。兩個區域同時不可用的機率為 0.001 * 0.001 = 0.000001。因此可用性為 1 - 0.000001 = 99.9999% (六個九)。",
+      "en": "The unavailability of a parallel system is the product of the unavailability of its components. The unavailability of a single region is 0.1% (0.001). The probability of both regions being unavailable simultaneously is 0.001 * 0.001 = 0.000001. Thus, the availability is 1 - 0.000001 = 99.9999% (six nines).",
+      "wg": [
+        {
+          "t": "並聯",
+          "en": "parallel",
+          "ps": "Adj"
+        },
+        {
+          "t": "乘積",
+          "en": "product",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "chapter06-q10",
+    "level": "intermediate",
+    "keywords": "Cosmos DB, CAP Theorem, Consistency, Multi-region Writes",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您正在使用 Azure Cosmos DB 並啟用了多區域寫入 (Multi-region Writes)，目標是達到最高的可用性 (99.999%) 與最低的寫入延遲。",
+        "en": "You are using Azure Cosmos DB with Multi-region Writes enabled, aiming for the highest possible availability (99.999%) and lowest write latency.",
+        "wg": [
+          {
+            "t": "多區域寫入",
+            "en": "Multi-region Writes",
+            "ps": "N"
+          },
+          {
+            "t": "延遲",
+            "en": "latency",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "根據 CAP 定理與 Azure 實務，您應該選擇哪種一致性層級，且需面對什麼權衡？",
+        "en": "According to the CAP theorem and Azure practices, which consistency level should you choose, and what is the trade-off?",
+        "wg": [
+          {
+            "t": "一致性層級",
+            "en": "consistency level",
+            "ps": "N"
+          },
+          {
+            "t": "權衡",
+            "en": "trade-off",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 強一致性 (Strong Consistency)；會增加延遲。",
+        "en": "(A) Strong Consistency; increased latency.",
+        "wg": []
+      },
+      {
+        "t": "(B) 最終一致性 (Eventual Consistency)；需在應用層處理資料衝突。",
+        "en": "(B) Eventual Consistency; need to handle data conflicts in the application layer.",
+        "wg": [
+          {
+            "t": "衝突",
+            "en": "conflicts",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) 邊界陳舊一致性 (Bounded Staleness)；保證零資料遺失。",
+        "en": "(C) Bounded Staleness; guarantees zero data loss.",
+        "wg": []
+      },
+      {
+        "t": "(D) 強一致性 (Strong Consistency)；RPO 為零。",
+        "en": "(D) Strong Consistency; zero RPO.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "為了在多區域環境中獲得最低延遲與最高可用性 (AP)，必須犧牲強一致性。最終一致性 (Eventual Consistency) 提供最快的讀寫速度，但意味著不同區域的資料可能會暫時不一致，應用程式必須設計衝突解決機制。",
+      "en": "To achieve the lowest latency and highest availability (AP) in a multi-region environment, strong consistency must be sacrificed. Eventual Consistency offers the fastest read/write speeds but implies that data across regions may be temporarily inconsistent, requiring the application to design conflict resolution mechanisms.",
+      "wg": [
+        {
+          "t": "犧牲",
+          "en": "sacrifice",
+          "ps": "V"
+        },
+        {
+          "t": "暫時",
+          "en": "temporarily",
+          "ps": "Adv"
+        }
+      ]
+    }
+  },
+  {
+    "no": "chapter06-q11",
+    "level": "intermediate",
+    "keywords": "RPO, RTO, Metrics, Backup",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您的資料庫備份策略是：每天凌晨 2 點進行完整備份，每 15 分鐘進行一次交易紀錄 (Transaction Log) 備份。",
+        "en": "Your database backup strategy involves a full backup every day at 2 AM and transaction log backups every 15 minutes.",
+        "wg": [
+          {
+            "t": "交易紀錄",
+            "en": "transaction log",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "若發生災難導致資料庫損毀，且執行完整還原需要 3 小時。請問此系統的 RPO 與 RTO 分別是多少？",
+        "en": "If a disaster corrupts the database and a full restore takes 3 hours, what are the RPO and RTO of this system?",
+        "wg": [
+          {
+            "t": "損毀",
+            "en": "corrupts",
+            "ps": "V"
+          },
+          {
+            "t": "還原",
+            "en": "restore",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) RPO = 24 小時, RTO = 15 分鐘",
+        "en": "(A) RPO = 24 hours, RTO = 15 minutes",
+        "wg": []
+      },
+      {
+        "t": "(B) RPO = 15 分鐘, RTO = 3 小時",
+        "en": "(B) RPO = 15 minutes, RTO = 3 hours",
+        "wg": []
+      },
+      {
+        "t": "(C) RPO = 3 小時, RTO = 15 分鐘",
+        "en": "(C) RPO = 3 hours, RTO = 15 minutes",
+        "wg": []
+      },
+      {
+        "t": "(D) RPO = 0, RTO = 3 小時",
+        "en": "(D) RPO = 0, RTO = 3 hours",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "RPO (復原點目標) 是最大可接受的資料遺失量，由備份頻率決定，此處為交易紀錄的間隔 15 分鐘。RTO (復原時間目標) 是恢復服務所需的時間，此處為還原操作所需的 3 小時。",
+      "en": "RPO (Recovery Point Objective) is the maximum acceptable data loss, determined by backup frequency, which is the 15-minute transaction log interval here. RTO (Recovery Time Objective) is the time required to restore service, which is the 3 hours needed for the restore operation.",
+      "wg": [
+        {
+          "t": "頻率",
+          "en": "frequency",
+          "ps": "N"
+        },
+        {
+          "t": "間隔",
+          "en": "interval",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "12",
+    "level": "intermediate",
+    "keywords": "Retry Pattern, HTTP Status Codes, Anti-pattern, Resilience",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "services.AddHttpClient(\"MyClient\")\n    .AddStandardResilienceHandler(options => \n    {\n        options.Retry.ShouldHandle = new PredicateBuilder<HttpResponseMessage>()\n            .HandleResult(response => \n                response.StatusCode == HttpStatusCode.InternalServerError || // 500\n                response.StatusCode == HttpStatusCode.ServiceUnavailable ||  // 503\n                response.StatusCode == HttpStatusCode.Unauthorized ||        // 401\n                response.StatusCode == HttpStatusCode.NotFound);             // 404\n    });",
+    "question": [
+      {
+        "t": "您正在審查一段設定 HTTP 用戶端韌性（Resilience）的程式碼，如上所示。",
+        "en": "You are reviewing a code snippet that configures HTTP client resilience, as shown above.",
+        "wg": [
+          {
+            "t": "韌性",
+            "en": "resilience",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "該設定意圖透過重試機制來提高系統的穩定性。",
+        "en": "The configuration intends to improve system stability through a retry mechanism.",
+        "wg": []
+      },
+      {
+        "t": "請問這段程式碼存在什麼主要的設計缺陷？",
+        "en": "What is the major design flaw in this code?",
+        "wg": [
+          {
+            "t": "設計缺陷",
+            "en": "design flaw",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 針對 500 與 503 錯誤進行重試會導致伺服器負載過重，應移除這些狀態碼。",
+        "en": "(A) Retrying on 500 and 503 errors will overload the server; these status codes should be removed.",
+        "wg": []
+      },
+      {
+        "t": "(B) 針對 401 (Unauthorized) 與 404 (Not Found) 進行重試是無效的，因為這些通常是永久性錯誤。",
+        "en": "(B) Retrying on 401 (Unauthorized) and 404 (Not Found) is ineffective because these are typically permanent errors.",
+        "wg": [
+          {
+            "t": "永久性錯誤",
+            "en": "permanent errors",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) 缺少了斷路器 (Circuit Breaker) 的設定，這在任何重試策略中都是強制需要的。",
+        "en": "(C) It lacks Circuit Breaker configuration, which is mandatory in any retry strategy.",
+        "wg": []
+      },
+      {
+        "t": "(D) PredicateBuilder 不支援同時處理多種 HTTP 狀態碼。",
+        "en": "(D) PredicateBuilder does not support handling multiple HTTP status codes simultaneously.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "重試模式僅適用於「暫時性故障」（Transient Faults），如網路瞬斷或伺服器忙碌（503, 429）。401（未授權）與 404（找不到資源）屬於邏輯或設定錯誤，重試並無法解決問題，反而會浪費資源並增加延遲。",
+      "en": "The Retry pattern applies only to 'Transient Faults' such as network glitches or server busy (503, 429). 401 (Unauthorized) and 404 (Not Found) are logical or configuration errors; retrying cannot fix them and instead wastes resources and increases latency.",
+      "wg": [
+        {
+          "t": "暫時性故障",
+          "en": "transient faults",
+          "ps": "N"
+        },
+        {
+          "t": "邏輯錯誤",
+          "en": "logical errors",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "13",
+    "level": "advanced",
+    "keywords": "DR, Pilot Light, Cost Optimization, RTO, Architecture",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您的公司希望為關鍵應用程式建立災難復原 (DR) 方案。",
+        "en": "Your company wants to establish a Disaster Recovery (DR) plan for a critical application.",
+        "wg": []
+      },
+      {
+        "t": "目前的 Active-Active 架構成本過高，管理層希望大幅降低閒置成本，但仍要求在災難發生時能於 1 小時內恢復服務 (RTO < 1h)。",
+        "en": "The current Active-Active architecture is too expensive. Management wants to significantly reduce idle costs but still requires service restoration within 1 hour during a disaster (RTO < 1h).",
+        "wg": [
+          {
+            "t": "閒置成本",
+            "en": "idle costs",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "您已經建立了自動化的 CI/CD 流程。",
+        "en": "You have already established an automated CI/CD pipeline.",
+        "wg": []
+      },
+      {
+        "t": "下列哪種 DR 策略最符合需求？",
+        "en": "Which of the following DR strategies best meets the requirements?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) **Cold DR**：僅在次要區域保留資料備份，災難發生時才開始佈建基礎設施與部署程式碼。",
+        "en": "(A) **Cold DR**: Keep only data backups in the secondary region; provision infrastructure and deploy code only when a disaster occurs.",
+        "wg": [
+          {
+            "t": "佈建",
+            "en": "provision",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(B) **Pilot Light**：在次要區域部署基礎設施與程式碼，但將運算資源縮減至最小（或零），僅在災難時擴展。",
+        "en": "(B) **Pilot Light**: Deploy infrastructure and code to the secondary region but scale compute resources to the minimum (or zero), scaling up only during a disaster.",
+        "wg": [
+          {
+            "t": "擴展",
+            "en": "scale up",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(C) **Warm Standby**：在次要區域維持一套與主要區域完全相同規模的環境，隨時準備接手流量。",
+        "en": "(C) **Warm Standby**: Maintain an environment in the secondary region scaled identically to the primary region, ready to take over traffic at any time.",
+        "wg": []
+      },
+      {
+        "t": "(D) **Multi-Cloud**：將應用程式同時部署到 AWS 與 Azure，以避免單一雲端供應商故障。",
+        "en": "(D) **Multi-Cloud**: Deploy the application to both AWS and Azure simultaneously to avoid single cloud provider failure.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "Pilot Light 策略透過 CI/CD 保持次要區域的程式碼與設定為最新狀態，但保持最小資源運作以節省成本，能在短時間內（< 1小時）擴展以滿足 RTO 需求。Cold DR 風險在於設定漂移 (Configuration Drift) 且 RTO 通常較長；Warm Standby 成本較高。",
+      "en": "The Pilot Light strategy keeps the code and configuration in the secondary region up-to-date via CI/CD but maintains minimal resources to save costs, allowing scaling within a short time (< 1 hour) to meet RTO requirements. Cold DR risks configuration drift and typically has a longer RTO; Warm Standby is more expensive.",
+      "wg": [
+        {
+          "t": "設定漂移",
+          "en": "configuration drift",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "14",
+    "level": "intermediate",
+    "keywords": "Availability Zones, App Service, Zone Redundancy, HA",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您正在 Azure East US 區域部署一個關鍵的 App Service Web App。",
+        "en": "You are deploying a critical App Service Web App in the Azure East US region.",
+        "wg": []
+      },
+      {
+        "t": "為了確保該區域內單一資料中心故障時服務仍能運作，您將 App Service Plan 擴展 (Scale out) 至 3 個執行個體。",
+        "en": "To ensure the service remains operational if a single datacenter within the region fails, you scale out the App Service Plan to 3 instances.",
+        "wg": [
+          {
+            "t": "資料中心",
+            "en": "datacenter",
+            "ps": "N"
+          },
+          {
+            "t": "執行個體",
+            "en": "instances",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "然而，在一次區域性的局部中斷測試中，服務仍然發生了停機。",
+        "en": "However, during a regional partial outage test, the service still experienced downtime.",
+        "wg": [
+          {
+            "t": "局部中斷",
+            "en": "partial outage",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "最可能的原因是什麼？",
+        "en": "What is the most likely reason?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 您沒有設定 Traffic Manager 來導流。",
+        "en": "(A) You did not configure Traffic Manager to route traffic.",
+        "wg": []
+      },
+      {
+        "t": "(B) 單純增加執行個體數量並不會自動啟用「區域備援 (Zone Redundancy)」，您必須明確啟用它並使用支援的 Premium 方案。",
+        "en": "(B) Simply increasing the instance count does not automatically enable 'Zone Redundancy'; you must explicitly enable it and use a supported Premium plan.",
+        "wg": [
+          {
+            "t": "區域備援",
+            "en": "zone redundancy",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) App Service 不支援可用性區域 (Availability Zones)，必須改用 AKS。",
+        "en": "(C) App Service does not support Availability Zones; you must switch to AKS.",
+        "wg": []
+      },
+      {
+        "t": "(D) 您必須在三個不同的資源群組中分別建立 App Service。",
+        "en": "(D) You must create the App Service in three different resource groups separately.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "在 Azure App Service 中，預設的擴展 (Scale out) 僅是在叢集內增加實體，並不保證跨越不同的可用性區域 (AZ)。要實現區域級的高可用性，必須在建立時明確啟用 Zone Redundancy，且這通常需要 Premium v2 或 v3 以上的方案。",
+      "en": "In Azure App Service, default scaling (Scale out) only adds instances within the cluster and does not guarantee spreading across different Availability Zones (AZ). To achieve zone-level high availability, you must explicitly enable Zone Redundancy at creation, which typically requires a Premium v2 or v3 plan or higher.",
+      "wg": [
+        {
+          "t": "明確啟用",
+          "en": "explicitly enable",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "15",
+    "level": "advanced",
+    "keywords": "Traffic Manager, Front Door, DNS Caching, RTO, Global Load Balancing",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您正在設計一個全球性的 Web 應用程式，並使用 Azure Traffic Manager 進行跨區域的災難復原 (DR) 導流。",
+        "en": "You are designing a global web application and using Azure Traffic Manager for cross-region Disaster Recovery (DR) routing.",
+        "wg": [
+          {
+            "t": "導流",
+            "en": "routing",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "在演練中，當主要區域發生故障並切換至次要區域後，部分使用者在數分鐘內仍然連線到已故障的區域。",
+        "en": "During a drill, after the primary region failed and traffic was switched to the secondary region, some users continued to connect to the failed region for several minutes.",
+        "wg": []
+      },
+      {
+        "t": "為了將這段「不可用時間」降至最低，且不依賴用戶端的 DNS 行為，您應該改用哪項服務？",
+        "en": "To minimize this 'unavailable time' without relying on client DNS behavior, which service should you switch to?",
+        "wg": [
+          {
+            "t": "不可用時間",
+            "en": "unavailable time",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) **Azure Load Balancer**，因為它是 Layer 4 負載平衡器，速度最快。",
+        "en": "(A) **Azure Load Balancer**, because it is a Layer 4 load balancer and is the fastest.",
+        "wg": []
+      },
+      {
+        "t": "(B) **Azure Application Gateway**，因為它支援 Web 應用程式防火牆 (WAF)。",
+        "en": "(B) **Azure Application Gateway**, because it supports Web Application Firewall (WAF).",
+        "wg": []
+      },
+      {
+        "t": "(C) **Azure Front Door**，因為它使用 Anycast 協定接管流量，不受 DNS 快取 (TTL) 影響。",
+        "en": "(C) **Azure Front Door**, because it uses Anycast protocol to ingest traffic and is not affected by DNS caching (TTL).",
+        "wg": [
+          {
+            "t": "快取",
+            "en": "caching",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(D) **Azure CDN**，因為它可以快取靜態內容。",
+        "en": "(D) **Azure CDN**, because it can cache static content.",
+        "wg": []
+      }
+    ],
+    "answer": "C",
+    "why": {
+      "t": "Traffic Manager 是基於 DNS 的負載平衡，其容錯移轉速度受限於 DNS TTL 與用戶端/ISP 的 DNS 快取行為。Azure Front Door 使用 Anycast，用戶端連線到最近的邊緣節點，後端路由變更可近乎即時生效，不受 DNS 傳播延遲影響。",
+      "en": "Traffic Manager is DNS-based load balancing, and its failover speed is limited by DNS TTL and client/ISP DNS caching behavior. Azure Front Door uses Anycast, where clients connect to the nearest edge node, and backend routing changes take effect almost immediately, unaffected by DNS propagation delays.",
+      "wg": [
+        {
+          "t": "傳播延遲",
+          "en": "propagation delays",
+          "ps": "N"
+        },
+        {
+          "t": "邊緣節點",
+          "en": "edge node",
+          "ps": "N"
+        }
+      ]
+    }
+  }
+]

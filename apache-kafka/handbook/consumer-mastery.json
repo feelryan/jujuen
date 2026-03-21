@@ -1,0 +1,837 @@
+[
+  {
+    "no": "1",
+    "level": "Medium",
+    "keywords": "Rebalance, CooperativeStickyAssignor, Availability",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在 Kafka Consumer Group 的協調機制中，傳統的 Eager Rebalance 與現代的 Cooperative Rebalance 主要差異為何？",
+        "en": "In the coordination mechanism of Kafka Consumer Groups, what is the main difference between the traditional Eager Rebalance and the modern Cooperative Rebalance?",
+        "wg": [
+          {
+            "t": "協調機制",
+            "en": "coordination mechanism",
+            "ps": "noun"
+          },
+          {
+            "t": "差異",
+            "en": "difference",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) Eager Rebalance 允許消費者在重平衡期間繼續處理手上的分區，而 Cooperative Rebalance 則強制所有消費者暫停。",
+        "en": "(A) Eager Rebalance allows consumers to continue processing their partitions during rebalancing, while Cooperative Rebalance forces all consumers to stop.",
+        "wg": []
+      },
+      {
+        "t": "(B) Cooperative Rebalance 採用「漸進式轉移」，僅撤銷需要移動的分區，避免了「Stop the world」的停頓。",
+        "en": "(B) Cooperative Rebalance uses 'incremental transfer', revoking only the partitions that need to be moved, avoiding the 'Stop the world' pause.",
+        "wg": [
+          {
+            "t": "漸進式轉移",
+            "en": "incremental transfer",
+            "ps": "noun"
+          },
+          {
+            "t": "撤銷",
+            "en": "revoke",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "(C) Eager Rebalance 依賴 Zookeeper 進行協調，而 Cooperative Rebalance 完全在客戶端進行。",
+        "en": "(C) Eager Rebalance relies on Zookeeper for coordination, while Cooperative Rebalance is done entirely on the client side.",
+        "wg": []
+      },
+      {
+        "t": "(D) Cooperative Rebalance 會導致更高的 Consumer Lag，因為它需要更長的時間來達成最終狀態。",
+        "en": "(D) Cooperative Rebalance results in higher Consumer Lag because it takes longer to reach the final state.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "Eager Rebalance 會觸發 'Stop the world'，要求所有消費者放棄所有分區並重新分配；Cooperative Rebalance (如 CooperativeStickyAssignor) 則允許消費者保留未變動的分區，僅針對需轉移的分區進行處理，極大化了可用性。",
+      "en": "Eager Rebalance triggers a 'Stop the world' event, requiring all consumers to give up all partitions and reassign; Cooperative Rebalance (like CooperativeStickyAssignor) allows consumers to retain unchanged partitions, processing only those that need transfer, thus maximizing availability.",
+      "wg": [
+        {
+          "t": "可用性",
+          "en": "availability",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "2",
+    "level": "Hard",
+    "keywords": "Heartbeat, max.poll.interval.ms, session.timeout.ms, Troubleshooting",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你的 Consumer 程式正在處理一批非常耗時的資料。雖然 Java Process 仍在運行且網路連線正常，但 Consumer 卻被 Coordinator 踢出了群組，Log 顯示 'Member leaving group'。最可能的原因是什麼？",
+        "en": "Your Consumer application is processing a batch of very time-consuming data. Although the Java Process is still running and the network connection is fine, the Consumer is kicked out of the group by the Coordinator, with logs showing 'Member leaving group'. What is the most likely cause?",
+        "wg": [
+          {
+            "t": "耗時的",
+            "en": "time-consuming",
+            "ps": "adjective"
+          },
+          {
+            "t": "踢出",
+            "en": "kick out",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) `session.timeout.ms` 設定過短，導致心跳 (Heartbeat) 發送不及。",
+        "en": "(A) `session.timeout.ms` is set too short, causing heartbeats to not be sent in time.",
+        "wg": []
+      },
+      {
+        "t": "(B) 兩次 `poll()` 呼叫的間隔超過了 `max.poll.interval.ms`，系統判定邏輯卡死。",
+        "en": "(B) The interval between two `poll()` calls exceeded `max.poll.interval.ms`, causing the system to determine the logic is stuck.",
+        "wg": [
+          {
+            "t": "間隔",
+            "en": "interval",
+            "ps": "noun"
+          },
+          {
+            "t": "判定",
+            "en": "determine",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "(C) Consumer 沒有在規定時間內提交 Offset (Commit Offset)。",
+        "en": "(C) The Consumer did not commit offsets within the specified time.",
+        "wg": []
+      },
+      {
+        "t": "(D) Broker 端的 Group Coordinator 發生了故障轉移 (Failover)。",
+        "en": "(D) The Group Coordinator on the Broker side experienced a failover.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "Kafka Consumer 有兩條生命線：背景的心跳線程負責 `session.timeout.ms`，而主線程的處理邏輯負責 `max.poll.interval.ms`。即使心跳正常，若主線程處理太久未再次呼叫 `poll()`，Coordinator 會認為應用層邏輯卡死而將其踢除。",
+      "en": "Kafka Consumers have two lifelines: the background heartbeat thread handles `session.timeout.ms`, while the main processing thread handles `max.poll.interval.ms`. Even if heartbeats are normal, if the main thread takes too long to call `poll()` again, the Coordinator assumes the application logic is stuck and kicks it out.",
+      "wg": [
+        {
+          "t": "生命線",
+          "en": "lifeline",
+          "ps": "noun"
+        },
+        {
+          "t": "應用層",
+          "en": "application layer",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "3",
+    "level": "Hard",
+    "keywords": "Kubernetes, Static Membership, Rebalance, Rolling Update",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在 Kubernetes 環境中進行 Rolling Update 時，預設情況下每個 Pod 的重啟都會觸發兩次 Rebalance（離開一次、加入一次），造成巨大的效能波動。下列哪項配置能最有效解決此問題？",
+        "en": "When performing a Rolling Update in a Kubernetes environment, by default, each Pod restart triggers two Rebalances (one on leave, one on join), causing significant performance fluctuation. Which of the following configurations most effectively solves this problem?",
+        "wg": [
+          {
+            "t": "波動",
+            "en": "fluctuation",
+            "ps": "noun"
+          },
+          {
+            "t": "預設情況下",
+            "en": "by default",
+            "ps": "phrase"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) 將 `session.timeout.ms` 設為極短（例如 3秒），讓故障偵測更靈敏。",
+        "en": "(A) Set `session.timeout.ms` to be extremely short (e.g., 3 seconds) for more sensitive failure detection.",
+        "wg": []
+      },
+      {
+        "t": "(B) 使用 `group.instance.id` 啟用靜態成員資格 (Static Membership)，並配合適當的 Session Timeout。",
+        "en": "(B) Use `group.instance.id` to enable Static Membership, combined with an appropriate Session Timeout.",
+        "wg": [
+          {
+            "t": "靜態成員資格",
+            "en": "Static Membership",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "(C) 增加 `max.poll.records` 以提高單次處理量。",
+        "en": "(C) Increase `max.poll.records` to improve the processing volume per batch.",
+        "wg": []
+      },
+      {
+        "t": "(D) 禁用 `enable.auto.commit` 改為手動提交。",
+        "en": "(D) Disable `enable.auto.commit` and switch to manual commit.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "Static Membership 允許 Coordinator 識別「暫時離開」的成員。若 Pod 在 `session.timeout.ms` 內重啟並以相同的 `group.instance.id` 重新加入，Coordinator 不會觸發 Rebalance，而是讓該成員繼續處理原有的分區。",
+      "en": "Static Membership allows the Coordinator to identify 'transiently away' members. If a Pod restarts and rejoins with the same `group.instance.id` within `session.timeout.ms`, the Coordinator will not trigger a Rebalance and will let the member continue processing its original partitions.",
+      "wg": [
+        {
+          "t": "暫時離開",
+          "en": "transiently away",
+          "ps": "phrase"
+        }
+      ]
+    }
+  },
+  {
+    "no": "4",
+    "level": "Medium",
+    "keywords": "Anti-pattern, Data Loss, Auto Commit, Async Processing",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "enable.auto.commit = true",
+    "question": [
+      {
+        "t": "某工程師為了提升效能，將 `poll()` 下來的訊息丟入內部的 Thread Pool 進行異步處理，且 Consumer 設定維持 `enable.auto.commit = true`。這種設計模式存在什麼主要風險？",
+        "en": "To improve performance, an engineer pushes messages polled from `poll()` into an internal Thread Pool for asynchronous processing, while keeping the Consumer setting `enable.auto.commit = true`. What is the main risk of this design pattern?",
+        "wg": [
+          {
+            "t": "異步處理",
+            "en": "asynchronous processing",
+            "ps": "noun"
+          },
+          {
+            "t": "風險",
+            "en": "risk",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) 會導致 Consumer 無法發送心跳而觸發 Rebalance。",
+        "en": "(A) It will cause the Consumer to fail sending heartbeats, triggering a Rebalance.",
+        "wg": []
+      },
+      {
+        "t": "(B) 會導致重複消費 (Duplicate Processing)，因為 Offset 提交太慢。",
+        "en": "(B) It will cause Duplicate Processing because offset commits are too slow.",
+        "wg": []
+      },
+      {
+        "t": "(C) 可能導致資料遺失 (Data Loss)，因為 Offset 可能在異步任務完成前就被自動提交了。",
+        "en": "(C) It may lead to Data Loss, because offsets might be auto-committed before the asynchronous tasks are completed.",
+        "wg": [
+          {
+            "t": "資料遺失",
+            "en": "Data Loss",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "(D) Thread Pool 會阻塞主線程，導致 `max.poll.interval.ms` 超時。",
+        "en": "(D) The Thread Pool will block the main thread, causing `max.poll.interval.ms` to time out.",
+        "wg": []
+      }
+    ],
+    "answer": "C",
+    "why": {
+      "t": "`enable.auto.commit=true` 代表「讀取即提交」。若主線程繼續 `poll()` 下一批資料，Kafka Client 就會自動提交上一批的 Offset。如果此時 Thread Pool 中的任務尚未執行完畢就發生 Crash，重啟後這些已提交但未處理的訊息將被跳過，造成資料遺失。",
+      "en": "`enable.auto.commit=true` implies 'commit on read'. If the main thread continues to `poll()` the next batch, the Kafka Client automatically commits the offsets of the previous batch. If a crash occurs while tasks in the Thread Pool are still running, these committed but unprocessed messages will be skipped upon restart, causing data loss.",
+      "wg": [
+        {
+          "t": "跳過",
+          "en": "skip",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "5",
+    "level": "Medium",
+    "keywords": "Tuning, Infinite Loop, max.poll.records",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你的 Consumer 負責處理圖片 OCR，平均每張耗時 3 秒。預設配置下 (`max.poll.records=500`, `max.poll.interval.ms=300000` 即 5分鐘)，你會遇到什麼問題？應如何解決？",
+        "en": "Your Consumer handles image OCR, taking 3 seconds per image on average. Under default configuration (`max.poll.records=500`, `max.poll.interval.ms=300000` i.e., 5 minutes), what problem will you encounter and how should you fix it?",
+        "wg": [
+          {
+            "t": "預設配置",
+            "en": "default configuration",
+            "ps": "noun"
+          },
+          {
+            "t": "遇到",
+            "en": "encounter",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) 處理速度太慢導致 Lag 堆積。解決方案：增加 Consumer 數量。",
+        "en": "(A) Processing speed is too slow, causing Lag buildup. Solution: Increase the number of Consumers.",
+        "wg": []
+      },
+      {
+        "t": "(B) 總處理時間 (1500秒) 遠超 Interval (300秒)，導致無限 Rebalance 迴圈。解決方案：大幅調降 `max.poll.records`。",
+        "en": "(B) Total processing time (1500s) far exceeds Interval (300s), causing an infinite Rebalance loop. Solution: Significantly decrease `max.poll.records`.",
+        "wg": [
+          {
+            "t": "無限",
+            "en": "infinite",
+            "ps": "adjective"
+          },
+          {
+            "t": "大幅調降",
+            "en": "significantly decrease",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "(C) 記憶體溢出 (OOM)。解決方案：增加 JVM Heap Size。",
+        "en": "(C) Out of Memory (OOM). Solution: Increase JVM Heap Size.",
+        "wg": []
+      },
+      {
+        "t": "(D) 網路逾時。解決方案：增加 `session.timeout.ms`。",
+        "en": "(D) Network timeout. Solution: Increase `session.timeout.ms`.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "500 筆資料 * 3 秒 = 1500 秒，遠大於 `max.poll.interval.ms` 的 300 秒。這會導致 Consumer 在處理完該批次前就被踢出群組，且 Offset 提交失敗。重啟後又重新拉取同樣的 500 筆，陷入無窮迴圈。應減少單次拉取量 (如降至 20) 或延長 Interval。",
+      "en": "500 records * 3 seconds = 1500 seconds, which is far greater than `max.poll.interval.ms` (300 seconds). This causes the Consumer to be kicked out before finishing the batch, and offset commit fails. Upon restart, it pulls the same 500 records again, entering an infinite loop. You should reduce the batch size (e.g., to 20) or extend the Interval.",
+      "wg": [
+        {
+          "t": "批次",
+          "en": "batch",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "6",
+    "level": "Medium",
+    "keywords": "Session Timeout, Configuration, Stability",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "關於 `session.timeout.ms` 的設定，以下哪種做法是「反模式 (Anti-pattern)」？",
+        "en": "Regarding the setting of `session.timeout.ms`, which of the following practices is an 'Anti-pattern'?",
+        "wg": [
+          {
+            "t": "反模式",
+            "en": "Anti-pattern",
+            "ps": "noun"
+          },
+          {
+            "t": "做法",
+            "en": "practice",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) 將其設定為 45 秒，以容忍短暫的網路抖動或 GC Pause。",
+        "en": "(A) Set it to 45 seconds to tolerate brief network jitter or GC pauses.",
+        "wg": []
+      },
+      {
+        "t": "(B) 將其設定得極短（例如 3 秒），希望能在 Consumer 當機時立即發現並觸發 Rebalance。",
+        "en": "(B) Set it extremely short (e.g., 3 seconds), hoping to detect Consumer crashes immediately and trigger a Rebalance.",
+        "wg": [
+          {
+            "t": "當機",
+            "en": "crash",
+            "ps": "verb"
+          },
+          {
+            "t": "立即",
+            "en": "immediately",
+            "ps": "adverb"
+          }
+        ]
+      },
+      {
+        "t": "(C) 確保 `heartbeat.interval.ms` 設定為 `session.timeout.ms` 的 1/3。",
+        "en": "(C) Ensure `heartbeat.interval.ms` is set to 1/3 of `session.timeout.ms`.",
+        "wg": []
+      },
+      {
+        "t": "(D) 在 K8s 環境中配合 Static Membership 使用較長的 Timeout。",
+        "en": "(D) Use a longer Timeout in conjunction with Static Membership in a K8s environment.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "設定極短的 Session Timeout 是危險的。輕微的網路延遲或 Java GC 導致的 Stop-the-world 都可能導致心跳超時，進而引發不必要的「Rebalance 風暴」，嚴重影響系統穩定性。",
+      "en": "Setting an extremely short Session Timeout is dangerous. Slight network latency or a Stop-the-world event caused by Java GC can lead to heartbeat timeouts, triggering unnecessary 'Rebalance storms' that severely impact system stability.",
+      "wg": [
+        {
+          "t": "風暴",
+          "en": "storm",
+          "ps": "noun"
+        },
+        {
+          "t": "穩定性",
+          "en": "stability",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "7",
+    "level": "Hard",
+    "keywords": "Decoupling, Threading, Offset Management",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "當你決定將 Consumer 的「拉取 (Polling)」與「處理 (Processing)」解耦，使用內部 Queue 傳遞資料給 Worker Threads 時，下列哪項是實作上最棘手的挑戰？",
+        "en": "When you decide to decouple Consumer 'Polling' and 'Processing' by using an internal Queue to pass data to Worker Threads, which of the following is the most difficult implementation challenge?",
+        "wg": [
+          {
+            "t": "解耦",
+            "en": "decouple",
+            "ps": "verb"
+          },
+          {
+            "t": "棘手的",
+            "en": "difficult/thorny",
+            "ps": "adjective"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) 如何增加 Worker Threads 的數量。",
+        "en": "(A) How to increase the number of Worker Threads.",
+        "wg": []
+      },
+      {
+        "t": "(B) 如何確保 Offset 的提交順序與正確性（例如：Thread 2 失敗但 Thread 3 成功時，不能隨意提交 Thread 3 的 Offset）。",
+        "en": "(B) How to ensure the order and correctness of Offset commits (e.g., if Thread 2 fails but Thread 3 succeeds, you cannot arbitrarily commit Thread 3's offset).",
+        "wg": [
+          {
+            "t": "隨意",
+            "en": "arbitrarily",
+            "ps": "adverb"
+          }
+        ]
+      },
+      {
+        "t": "(C) 如何設定 `max.poll.records`。",
+        "en": "(C) How to set `max.poll.records`.",
+        "wg": []
+      },
+      {
+        "t": "(D) 如何避免 Queue 記憶體溢出。",
+        "en": "(D) How to prevent the Queue from running out of memory.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "Kafka 的 Offset 是「累積確認」的（Cumulative Acknowledgment）。提交 Offset N 代表 N 之前的所有訊息都已處理。在多執行緒並行處理下，若較早的訊息處理失敗或較慢，不能提交較晚訊息的 Offset，否則會導致失敗的訊息被標記為已處理（資料遺失）。這通常需要複雜的 `pause/resume` 或追蹤機制。",
+      "en": "Kafka Offsets are 'Cumulative Acknowledgments'. Committing Offset N implies all messages before N are processed. In multi-threaded parallel processing, if an earlier message fails or is slow, you cannot commit the offset of a later message, otherwise the failed message will be marked as processed (Data Loss). This usually requires complex `pause/resume` or tracking mechanisms.",
+      "wg": [
+        {
+          "t": "累積確認",
+          "en": "Cumulative Acknowledgment",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "8",
+    "level": "Medium",
+    "keywords": "Commit Strategy, Performance, Safety",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "為了在「處理效能」與「資料安全性」之間取得平衡，下列哪種 Commit 策略是最佳實務？",
+        "en": "To strike a balance between 'processing performance' and 'data safety', which of the following Commit strategies is a best practice?",
+        "wg": [
+          {
+            "t": "取得平衡",
+            "en": "strike a balance",
+            "ps": "verb"
+          },
+          {
+            "t": "最佳實務",
+            "en": "best practice",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) 總是使用 `commitSync()`，確保每一批都寫入 Broker。",
+        "en": "(A) Always use `commitSync()` to ensure every batch is written to the Broker.",
+        "wg": []
+      },
+      {
+        "t": "(B) 總是使用 `commitAsync()`，並忽略所有 callback 錯誤。",
+        "en": "(B) Always use `commitAsync()` and ignore all callback errors.",
+        "wg": []
+      },
+      {
+        "t": "(C) 平常迴圈中使用 `commitAsync()` 以避免阻塞，但在關閉 (Shutdown) 或 Commit 失敗的回調中配合 `commitSync()` 確保最終狀態。",
+        "en": "(C) Use `commitAsync()` in the normal loop to avoid blocking, but combine with `commitSync()` during shutdown or in commit failure callbacks to ensure final state.",
+        "wg": [
+          {
+            "t": "阻塞",
+            "en": "blocking",
+            "ps": "verb"
+          },
+          {
+            "t": "最終狀態",
+            "en": "final state",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "(D) 依賴 `enable.auto.commit=true` 即可，不需要手動呼叫任何 API。",
+        "en": "(D) Relying on `enable.auto.commit=true` is sufficient; no manual API calls are needed.",
+        "wg": []
+      }
+    ],
+    "answer": "C",
+    "why": {
+      "t": "`commitSync()` 會阻塞直到 Broker 回應，影響吞吐量；`commitAsync()` 效能好但不可靠（無法重試）。最佳做法是混合使用：平常跑 Async，但在關鍵時刻（如關閉前）用 Sync 確保最後的 Offset 被寫入。",
+      "en": "`commitSync()` blocks until the Broker responds, impacting throughput; `commitAsync()` has good performance but is unreliable (cannot retry). The best practice is a hybrid approach: run Async normally, but use Sync at critical moments (like before shutdown) to ensure the final Offset is written.",
+      "wg": [
+        {
+          "t": "吞吐量",
+          "en": "throughput",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "9",
+    "level": "Medium",
+    "keywords": "Configuration, Heartbeat, session.timeout.ms, Best Practice",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在配置 Kafka Consumer 的故障偵測機制時，若你將 `session.timeout.ms` 設定為 45 秒，根據最佳實務，`heartbeat.interval.ms` 建議設定為多少？",
+        "en": "When configuring the failure detection mechanism for a Kafka Consumer, if you set `session.timeout.ms` to 45 seconds, what is the recommended value for `heartbeat.interval.ms` according to best practices?",
+        "wg": [
+          {
+            "t": "故障偵測機制",
+            "en": "failure detection mechanism",
+            "ps": "noun phrase"
+          },
+          {
+            "t": "最佳實務",
+            "en": "best practices",
+            "ps": "noun phrase"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) 45 秒（與 session timeout 相同），以減少網路流量。",
+        "en": "(A) 45 seconds (same as session timeout), to reduce network traffic.",
+        "wg": []
+      },
+      {
+        "t": "(B) 15 秒（約 session timeout 的 1/3），以確保在超時前有足夠的機會發送心跳。",
+        "en": "(B) 15 seconds (about 1/3 of session timeout), to ensure enough opportunities to send heartbeats before timing out.",
+        "wg": []
+      },
+      {
+        "t": "(C) 3 秒（預設值），越短越好以求快速反應。",
+        "en": "(C) 3 seconds (default), the shorter the better for fast reaction.",
+        "wg": []
+      },
+      {
+        "t": "(D) 1 秒，以確保 Coordinator 能即時監控 Consumer 狀態。",
+        "en": "(D) 1 second, to ensure the Coordinator can monitor the Consumer status in real-time.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "根據手冊的檢查清單，`heartbeat.interval.ms` 應設為 `session.timeout.ms` 的 1/3（例如 45s vs 15s）。這樣可以容許偶發的網路延遲或輕微的 GC 暫停，避免因為單次心跳遺失就導致 Consumer 被誤判為死亡而觸發 Rebalance。",
+      "en": "According to the handbook checklist, `heartbeat.interval.ms` should be set to 1/3 of `session.timeout.ms` (e.g., 45s vs 15s). This allows for occasional network latency or minor GC pauses, preventing the Consumer from being falsely marked as dead and triggering a Rebalance due to a single missed heartbeat.",
+      "wg": [
+        {
+          "t": "偶發的",
+          "en": "occasional",
+          "ps": "adjective"
+        },
+        {
+          "t": "誤判",
+          "en": "falsely marked / misjudged",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "10",
+    "level": "Medium",
+    "keywords": "Rebalance, Trigger, Concept",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "Consumer Group 的 Rebalance（重平衡）是為了重新分配 Partition 的擁有權。以下哪種情況 **不會** 觸發 Rebalance？",
+        "en": "Consumer Group Rebalance is used to redistribute partition ownership. Which of the following scenarios will **NOT** trigger a Rebalance?",
+        "wg": [
+          {
+            "t": "擁有權",
+            "en": "ownership",
+            "ps": "noun"
+          },
+          {
+            "t": "觸發",
+            "en": "trigger",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) 一個新的 Consumer 加入了群組。",
+        "en": "(A) A new Consumer joins the group.",
+        "wg": []
+      },
+      {
+        "t": "(B) 現有的 Consumer 崩潰（Crash）或被強制終止。",
+        "en": "(B) An existing Consumer crashes or is forcibly terminated.",
+        "wg": []
+      },
+      {
+        "t": "(C) Topic 的 Partition 數量發生變化（例如新增了 Partition）。",
+        "en": "(C) The number of partitions in the Topic changes (e.g., new partitions are added).",
+        "wg": []
+      },
+      {
+        "t": "(D) Topic 湧入了大量新訊息，導致 Consumer Lag 增加。",
+        "en": "(D) A large volume of new messages floods the Topic, causing Consumer Lag to increase.",
+        "wg": []
+      }
+    ],
+    "answer": "D",
+    "why": {
+      "t": "Rebalance 僅在「成員名單變動」（加入/離開/崩潰）或「訂閱內容變動」（Partition 數量改變/Topic 正則表達式匹配改變）時發生。單純的訊息量增加或 Lag 變高並不會改變 Partition 的分配關係，因此不會觸發 Rebalance。",
+      "en": "Rebalance only occurs when there is a change in 'group membership' (join/leave/crash) or 'subscription' (partition count change/topic regex match change). An increase in message volume or Lag does not alter the partition assignment relationship, so it does not trigger a Rebalance.",
+      "wg": [
+        {
+          "t": "成員名單變動",
+          "en": "change in group membership",
+          "ps": "noun phrase"
+        },
+        {
+          "t": "訂閱內容變動",
+          "en": "change in subscription",
+          "ps": "noun phrase"
+        }
+      ]
+    }
+  },
+  {
+    "no": "11",
+    "level": "Hard",
+    "keywords": "Static Membership, Kubernetes, session.timeout.ms, Tuning",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你在 Kubernetes 上使用 Static Membership (`group.instance.id`) 來避免 Rolling Update 期間發生 Rebalance。然而，你發現當 Pod 重啟時，Rebalance 依然發生了。若已知 Pod 重啟平均耗時 30 秒，最可能的原因是什麼？",
+        "en": "You are using Static Membership (`group.instance.id`) on Kubernetes to avoid Rebalances during Rolling Updates. However, you notice that a Rebalance still occurs when a Pod restarts. Given that the Pod restart takes an average of 30 seconds, what is the most likely cause?",
+        "wg": [
+          {
+            "t": "重啟",
+            "en": "restart",
+            "ps": "verb/noun"
+          },
+          {
+            "t": "耗時",
+            "en": "takes (time) / duration",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) 你沒有啟用 `enable.auto.commit`，導致 Offset 遺失。",
+        "en": "(A) You did not enable `enable.auto.commit`, causing Offset loss.",
+        "wg": []
+      },
+      {
+        "t": "(B) 你的 `session.timeout.ms` 設定過短（例如小於 30 秒），導致 Coordinator 在 Pod 回來前就將其判定為離線。",
+        "en": "(B) Your `session.timeout.ms` is set too short (e.g., less than 30 seconds), causing the Coordinator to mark it as offline before the Pod returns.",
+        "wg": []
+      },
+      {
+        "t": "(C) 你使用的是 `CooperativeStickyAssignor`，它不支援 Static Membership。",
+        "en": "(C) You are using `CooperativeStickyAssignor`, which does not support Static Membership.",
+        "wg": []
+      },
+      {
+        "t": "(D) Static Membership 只能防止 Consumer 加入時的 Rebalance，無法防止離開時的 Rebalance。",
+        "en": "(D) Static Membership only prevents Rebalance when a Consumer joins, not when it leaves.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "Static Membership 的原理是讓 Coordinator 在 `session.timeout.ms` 內保留該成員的身份與 Partition 分配。如果 Pod 重啟時間（30s）超過了 `session.timeout.ms`，Coordinator 會認為該成員已永久失效並觸發 Rebalance。因此，必須將 `session.timeout.ms` 設定為大於重啟時間（例如 60s）。",
+      "en": "The principle of Static Membership is to let the Coordinator retain the member's identity and partition assignment within `session.timeout.ms`. If the Pod restart time (30s) exceeds `session.timeout.ms`, the Coordinator assumes the member has failed permanently and triggers a Rebalance. Therefore, `session.timeout.ms` must be set larger than the restart time (e.g., 60s).",
+      "wg": [
+        {
+          "t": "保留",
+          "en": "retain",
+          "ps": "verb"
+        },
+        {
+          "t": "永久失效",
+          "en": "failed permanently",
+          "ps": "verb phrase"
+        }
+      ]
+    }
+  },
+  {
+    "no": "12",
+    "level": "Medium",
+    "keywords": "Configuration, auto.offset.reset, Production, Data Loss",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在準備將新的 Consumer Group 部署到 Production 環境時，檢查清單建議將 `auto.offset.reset` 設定為 `earliest` 而非 `latest`。這主要是為了防範什麼風險？",
+        "en": "When preparing to deploy a new Consumer Group to a Production environment, the checklist recommends setting `auto.offset.reset` to `earliest` instead of `latest`. What risk is this primarily intended to prevent?",
+        "wg": [
+          {
+            "t": "檢查清單",
+            "en": "checklist",
+            "ps": "noun"
+          },
+          {
+            "t": "防範",
+            "en": "prevent / guard against",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) 防止 Consumer 在處理舊資料時發生記憶體溢出（OOM）。",
+        "en": "(A) To prevent the Consumer from running out of memory (OOM) when processing old data.",
+        "wg": []
+      },
+      {
+        "t": "(B) 防止在 Consumer 啟動期間（Deployment 過程）產生的新訊息被遺漏。",
+        "en": "(B) To prevent missing new messages generated during the Consumer startup period (Deployment process).",
+        "wg": []
+      },
+      {
+        "t": "(C) 防止 Consumer 重複消費已經處理過的訊息。",
+        "en": "(C) To prevent the Consumer from re-consuming messages that have already been processed.",
+        "wg": []
+      },
+      {
+        "t": "(D) 防止 Coordinator 因為找不到 Offset 而拒絕 Consumer 加入。",
+        "en": "(D) To prevent the Coordinator from rejecting the Consumer join request because no Offset is found.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "當新的 Consumer Group 首次啟動時，Broker 上還沒有它的 Offset 紀錄。若設為 `latest`，它只會讀取「啟動後」才進入 Topic 的訊息。這意味著在「部署開始」到「Consumer 成功連上並開始消費」這段時間內產生的資料將會被忽略（遺漏）。設為 `earliest` 可確保從現存最早的資料開始讀取，保證不漏接。",
+      "en": "When a new Consumer Group starts for the first time, there is no Offset record on the Broker. If set to `latest`, it will only read messages that enter the Topic 'after' startup. This means data generated between 'deployment start' and 'Consumer successfully connecting and consuming' will be ignored (missed). Setting it to `earliest` ensures reading starts from the earliest existing data, guaranteeing no data loss.",
+      "wg": [
+        {
+          "t": "首次啟動",
+          "en": "starts for the first time",
+          "ps": "verb phrase"
+        },
+        {
+          "t": "遺漏",
+          "en": "missed / ignored",
+          "ps": "verb"
+        }
+      ]
+    }
+  }
+]

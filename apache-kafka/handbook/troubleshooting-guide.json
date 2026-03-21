@@ -1,0 +1,840 @@
+[
+  {
+    "no": "1",
+    "level": "Hard",
+    "keywords": "Consumer Lag, Data Skew, Partitioning, Troubleshooting",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你正在排查一個電子商務系統的 Consumer Lag 問題。監控儀表板顯示，雖然 Consumer Group 整體運作正常，但唯獨 `partition-5` 的延遲 (Lag) 異常高，且負責該分區的 Consumer CPU 使用率居高不下。即使你嘗試增加更多 Consumer 實例 (Instance) 加入群組，情況也未改善。請問最可能的根因是什麼？",
+        "en": "You are investigating a Consumer Lag issue in an e-commerce system. The monitoring dashboard shows that while the Consumer Group is generally healthy, the lag on `partition-5` is exceptionally high, and the Consumer responsible for this partition has high CPU usage. Even after adding more Consumer instances to the group, the situation does not improve. What is the most likely root cause?",
+        "wg": [
+          {
+            "t": "資料傾斜",
+            "en": "Data Skew",
+            "ps": "noun"
+          },
+          {
+            "t": "熱點分區",
+            "en": "Hot Partition",
+            "ps": "noun"
+          },
+          {
+            "t": "根因",
+            "en": "Root Cause",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) Broker 的磁碟 I/O 效能不足，導致讀取變慢。",
+        "en": "(A) The Broker's disk I/O performance is insufficient, causing slow reads.",
+        "wg": []
+      },
+      {
+        "t": "(B) 發生了資料傾斜 (Data Skew)，特定 Key (如熱門商家 ID) 大量集中在該分區。",
+        "en": "(B) Data Skew has occurred, with a specific Key (e.g., a popular Merchant ID) heavily concentrated in that partition.",
+        "wg": []
+      },
+      {
+        "t": "(C) Consumer 的 `max.poll.records` 設定太小，導致吞吐量不足。",
+        "en": "(C) The Consumer's `max.poll.records` setting is too small, resulting in insufficient throughput.",
+        "wg": []
+      },
+      {
+        "t": "(D) 網路頻寬飽和，導致該分區的資料傳輸受阻。",
+        "en": "(D) Network bandwidth is saturated, blocking data transmission for that partition.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "當只有單一或少數分區 Lag 很高，且擴展 Consumer (增加並行度) 無效時，通常是因為資料傾斜 (Data Skew)。這意味著大量資料被發送到同一個 Partition (因為 Key 相同)，導致單一 Consumer 必須處理不成比例的負載，這是增加 Consumer 數量無法解決的。",
+      "en": "When lag is high only on a single or few partitions and scaling Consumers (increasing parallelism) is ineffective, it is usually due to Data Skew. This means a large amount of data is sent to the same Partition (due to identical Keys), causing a single Consumer to handle a disproportionate load, which cannot be solved by adding more Consumers.",
+      "wg": [
+        {
+          "t": "資料傾斜",
+          "en": "Data Skew",
+          "ps": "noun"
+        },
+        {
+          "t": "並行度",
+          "en": "Parallelism",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "2",
+    "level": "Medium",
+    "keywords": "Disk Full, Anti-pattern, Operations, Log Management",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "當 Kafka Broker 的磁碟空間達到 100% 滿載導致服務崩潰時，為了盡快恢復服務，維運人員可能會採取緊急措施。請問下列哪一項操作屬於嚴重的「反模式 (Anti-pattern)」，且極可能導致資料損壞或索引不一致？",
+        "en": "When a Kafka Broker's disk space reaches 100% full causing a service crash, operators might take emergency measures to restore service. Which of the following actions is a severe 'Anti-pattern' that is highly likely to cause data corruption or index inconsistencies?",
+        "wg": [
+          {
+            "t": "反模式",
+            "en": "Anti-pattern",
+            "ps": "noun"
+          },
+          {
+            "t": "資料損壞",
+            "en": "Data Corruption",
+            "ps": "noun"
+          },
+          {
+            "t": "索引不一致",
+            "en": "Index Inconsistency",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) 使用 `kafka-configs.sh` 動態縮短 Topic 的 `retention.ms`。",
+        "en": "(A) Dynamically shortening the Topic's `retention.ms` using `kafka-configs.sh`.",
+        "wg": []
+      },
+      {
+        "t": "(B) 直接進入檔案系統使用 `rm -rf` 手動刪除 Log 檔案。",
+        "en": "(B) Directly accessing the file system and manually deleting Log files using `rm -rf`.",
+        "wg": []
+      },
+      {
+        "t": "(C) 使用 `kafka-reassign-partitions.sh` 將分區遷移到其他 Broker。",
+        "en": "(C) Migrating partitions to other Brokers using `kafka-reassign-partitions.sh`.",
+        "wg": []
+      },
+      {
+        "t": "(D) 擴充雲端硬碟的 Volume 容量。",
+        "en": "(D) Expanding the Volume capacity of the cloud disk.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "直接在檔案系統層級刪除 Kafka 的 Log 檔案 (如 `.log` 或 `.index`) 會導致 Broker 的內部狀態與實際檔案不一致。Kafka 重啟時會檢測到這種不一致，可能導致崩潰或需要極長時間進行 Log Recovery。正確做法應是調整 Retention 策略讓 Kafka 自行刪除，或使用 Admin API。",
+      "en": "Deleting Kafka Log files (such as `.log` or `.index`) directly at the file system level causes inconsistency between the Broker's internal state and the actual files. Upon restart, Kafka will detect this inconsistency, potentially causing a crash or requiring a very long time for Log Recovery. The correct approach is to adjust Retention policies to let Kafka delete them, or use the Admin API.",
+      "wg": [
+        {
+          "t": "檔案系統",
+          "en": "File System",
+          "ps": "noun"
+        },
+        {
+          "t": "狀態不一致",
+          "en": "Inconsistency",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "3",
+    "level": "Medium",
+    "keywords": "Consumer, Rebalancing, Configuration, Performance",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你的 Consumer Group 遭遇了頻繁的重平衡 (Rebalancing Storm)，導致吞吐量大幅下降。經排查發現，這是因為單批次資料的處理時間 (Processing Time) 偶爾會超過 `max.poll.interval.ms` 的設定值 (預設 5 分鐘)。為了最快速且安全地解決此問題，你應該優先調整哪個參數？",
+        "en": "Your Consumer Group is experiencing a frequent Rebalancing Storm, causing a significant drop in throughput. Investigation reveals that the processing time for a single batch occasionally exceeds the `max.poll.interval.ms` setting (default 5 minutes). To resolve this issue most quickly and safely, which parameter should you prioritize adjusting?",
+        "wg": [
+          {
+            "t": "重平衡風暴",
+            "en": "Rebalancing Storm",
+            "ps": "noun"
+          },
+          {
+            "t": "處理時間",
+            "en": "Processing Time",
+            "ps": "noun"
+          },
+          {
+            "t": "吞吐量",
+            "en": "Throughput",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) 增加 `session.timeout.ms`。",
+        "en": "(A) Increase `session.timeout.ms`.",
+        "wg": []
+      },
+      {
+        "t": "(B) 減少 `max.poll.records`。",
+        "en": "(B) Decrease `max.poll.records`.",
+        "wg": []
+      },
+      {
+        "t": "(C) 增加 `heartbeat.interval.ms`。",
+        "en": "(C) Increase `heartbeat.interval.ms`.",
+        "wg": []
+      },
+      {
+        "t": "(D) 增加 Partition 的數量。",
+        "en": "(D) Increase the number of Partitions.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "當處理時間超時導致 Consumer 被踢出群組時，最直接的解法是減少 `max.poll.records`。這會減少單次 `poll()` 抓取的資料筆數，從而縮短處理該批次所需的總時間，確保能在 `max.poll.interval.ms` 內完成並發送下一次 poll 請求。雖然增加 `max.poll.interval.ms` 也是一種解法，但減少每批次處理量通常更能平滑負載。",
+      "en": "When processing time timeouts cause a Consumer to be kicked out of the group, the most direct solution is to decrease `max.poll.records`. This reduces the number of records fetched in a single `poll()`, thereby shortening the total time required to process that batch, ensuring it completes within `max.poll.interval.ms` to send the next poll request. While increasing `max.poll.interval.ms` is also a solution, reducing the batch size often smooths the load better.",
+      "wg": [
+        {
+          "t": "超時",
+          "en": "Timeout",
+          "ps": "verb/noun"
+        },
+        {
+          "t": "平滑負載",
+          "en": "Smooth the load",
+          "ps": "verb phrase"
+        }
+      ]
+    }
+  },
+  {
+    "no": "4",
+    "level": "Medium",
+    "keywords": "Poison Pill, Error Handling, Dead Letter Queue, Pattern",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在 Kafka 應用程式中，所謂的「毒丸訊息 (Poison Pill)」是指一條格式錯誤或惡意的訊息，導致 Consumer 在反序列化或處理時崩潰。由於 Offset 未提交，Consumer 重啟後會再次讀取同一條訊息並再次崩潰，形成無限迴圈。下列哪種模式是處理此問題的最佳實務？",
+        "en": "In a Kafka application, a 'Poison Pill' refers to a malformed or malicious message that causes the Consumer to crash during deserialization or processing. Since the Offset is not committed, the Consumer reads the same message again after restart and crashes again, forming an infinite loop. Which of the following patterns is the best practice for handling this issue?",
+        "wg": [
+          {
+            "t": "毒丸訊息",
+            "en": "Poison Pill",
+            "ps": "noun"
+          },
+          {
+            "t": "無限迴圈",
+            "en": "Infinite Loop",
+            "ps": "noun"
+          },
+          {
+            "t": "最佳實務",
+            "en": "Best Practice",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) 增加 Consumer 的 `request.timeout.ms` 以等待人工介入。",
+        "en": "(A) Increase the Consumer's `request.timeout.ms` to wait for manual intervention.",
+        "wg": []
+      },
+      {
+        "t": "(B) 實作 Dead Letter Queue (DLQ) 模式：捕獲異常，將問題訊息轉發到錯誤 Topic 並提交 Offset。",
+        "en": "(B) Implement the Dead Letter Queue (DLQ) pattern: catch the exception, forward the problematic message to an error Topic, and commit the Offset.",
+        "wg": []
+      },
+      {
+        "t": "(C) 設定 `enable.auto.commit=true`，讓 Consumer 無論成功與否都自動提交。",
+        "en": "(C) Set `enable.auto.commit=true` so the Consumer automatically commits regardless of success or failure.",
+        "wg": []
+      },
+      {
+        "t": "(D) 刪除該 Topic 並重新建立，以清除所有累積訊息。",
+        "en": "(D) Delete the Topic and recreate it to clear all accumulated messages.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "DLQ (Dead Letter Queue) 是標準解法。透過在 `try-catch` 區塊中捕獲不可恢復的錯誤，將該訊息發送到另一個專門的 Topic (DLQ) 供後續分析，並在原 Topic 提交 Offset，可以讓 Consumer 跳過壞訊息繼續處理後續資料，避免阻塞整個管道。",
+      "en": "DLQ (Dead Letter Queue) is the standard solution. By catching unrecoverable errors in a `try-catch` block, sending the message to another dedicated Topic (DLQ) for later analysis, and committing the Offset in the original Topic, the Consumer can skip the bad message and continue processing subsequent data, avoiding blocking the entire pipeline.",
+      "wg": [
+        {
+          "t": "不可恢復的錯誤",
+          "en": "Unrecoverable Error",
+          "ps": "noun"
+        },
+        {
+          "t": "阻塞",
+          "en": "Block",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "5",
+    "level": "Hard",
+    "keywords": "Disaster Recovery, MirrorMaker 2, Offset Translation, Architecture",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在設計 Kafka 的災難復原 (Disaster Recovery) 方案時，你使用了 MirrorMaker 2 (MM2) 將資料從 Primary Cluster 複製到 Secondary Cluster。當 Primary 發生災難需切換 Consumer 到 Secondary 時，為什麼不能直接使用 Primary 最後的 Offset 繼續消費？",
+        "en": "When designing a Disaster Recovery plan for Kafka, you use MirrorMaker 2 (MM2) to replicate data from a Primary Cluster to a Secondary Cluster. When a disaster occurs on the Primary and you need to switch Consumers to the Secondary, why can't you simply use the last Offset from the Primary to continue consuming?",
+        "wg": [
+          {
+            "t": "災難復原",
+            "en": "Disaster Recovery",
+            "ps": "noun"
+          },
+          {
+            "t": "偏移量",
+            "en": "Offset",
+            "ps": "noun"
+          },
+          {
+            "t": "切換",
+            "en": "Failover/Switch",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) Secondary Cluster 的 Topic 名稱通常會加上前綴，導致 Consumer 找不到。",
+        "en": "(A) The Topic names in the Secondary Cluster usually have a prefix, causing the Consumer to not find them.",
+        "wg": []
+      },
+      {
+        "t": "(B) 來源與目的地的 Offset 可能不一致，需依賴 Offset Translation 機制。",
+        "en": "(B) Offsets between source and destination may be inconsistent, requiring an Offset Translation mechanism.",
+        "wg": []
+      },
+      {
+        "t": "(C) Secondary Cluster 預設是唯讀的，Consumer 無法提交 Offset。",
+        "en": "(C) The Secondary Cluster is read-only by default, so Consumers cannot commit Offsets.",
+        "wg": []
+      },
+      {
+        "t": "(D) MirrorMaker 2 不會複製訊息的 Timestamp，導致無法定位。",
+        "en": "(D) MirrorMaker 2 does not replicate message Timestamps, making it impossible to locate positions.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "由於 MirrorMaker 2 可能會過濾訊息、或者因為重試發送等原因，導致來源叢集 (Source) 與目標叢集 (Target) 的 Log Offset 數值不完全相同。因此，直接使用 Source 的 Offset 在 Target 上可能會指向錯誤的訊息或不存在的位置。必須使用 MM2 提供的 `checkpoint` 機制進行 Offset 轉換 (Translation)。",
+      "en": "Because MirrorMaker 2 might filter messages or due to retries, the Log Offset numbers in the Source and Target clusters may not be exactly the same. Therefore, using the Source Offset directly on the Target might point to the wrong message or a non-existent position. You must use the `checkpoint` mechanism provided by MM2 for Offset Translation.",
+      "wg": [
+        {
+          "t": "過濾訊息",
+          "en": "Filter messages",
+          "ps": "verb phrase"
+        },
+        {
+          "t": "轉換",
+          "en": "Translation",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "6",
+    "level": "Hard",
+    "keywords": "ISR, Rolling Restart, Availability, Operations",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你正在對一個 Kafka 叢集進行滾動重啟 (Rolling Restart) 以進行升級。該叢集的 Topic 設定為 `replication.factor=3` 且 `min.insync.replicas=2`。在維護開始前，你發現其中一個 Broker 已經當機離線。如果你此時繼續重啟另一個正常的 Broker，會發生什麼後果？",
+        "en": "You are performing a Rolling Restart on a Kafka cluster for an upgrade. The cluster's Topics are configured with `replication.factor=3` and `min.insync.replicas=2`. Before maintenance begins, you notice that one Broker is already down and offline. If you proceed to restart another healthy Broker at this moment, what will be the consequence?",
+        "wg": [
+          {
+            "t": "滾動重啟",
+            "en": "Rolling Restart",
+            "ps": "noun"
+          },
+          {
+            "t": "最小同步副本數",
+            "en": "min.insync.replicas",
+            "ps": "noun"
+          },
+          {
+            "t": "當機",
+            "en": "Down/Crash",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) 叢集會自動降低 `min.insync.replicas` 為 1，以保持可用性。",
+        "en": "(A) The cluster will automatically lower `min.insync.replicas` to 1 to maintain availability.",
+        "wg": []
+      },
+      {
+        "t": "(B) Producer 的寫入請求會失敗，拋出 `NOT_ENOUGH_REPLICAS` 錯誤。",
+        "en": "(B) Producer write requests will fail, throwing a `NOT_ENOUGH_REPLICAS` error.",
+        "wg": []
+      },
+      {
+        "t": "(C) Consumer 仍然可以讀取資料，且 Producer 可以繼續寫入，只是資料只有一份副本。",
+        "en": "(C) Consumers can still read data, and Producers can continue to write, but the data will only have one replica.",
+        "wg": []
+      },
+      {
+        "t": "(D) 該 Partition 會觸發 Leader Election，並將離線的 Broker 選為 Leader。",
+        "en": "(D) The Partition will trigger a Leader Election and elect the offline Broker as Leader.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "當 `replication.factor=3` 且有一台 Broker 離線時，ISR (In-Sync Replicas) 數量最多為 2。若此時再重啟一台 Broker，ISR 將降為 1。由於設定了 `min.insync.replicas=2`，Producer 需要至少 2 個副本確認才能寫入成功，因此寫入會被拒絕並拋出 `NOT_ENOUGH_REPLICAS`，導致服務中斷。",
+      "en": "When `replication.factor=3` and one Broker is offline, the ISR (In-Sync Replicas) count is at most 2. If you restart another Broker at this time, the ISR will drop to 1. Since `min.insync.replicas=2` is set, the Producer requires acknowledgement from at least 2 replicas to write successfully. Therefore, writes will be rejected with `NOT_ENOUGH_REPLICAS`, causing a service outage.",
+      "wg": [
+        {
+          "t": "服務中斷",
+          "en": "Service Outage",
+          "ps": "noun"
+        },
+        {
+          "t": "副本確認",
+          "en": "Replica Acknowledgement",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "7",
+    "level": "Medium",
+    "keywords": "Anti-pattern, Partitions, Availability, Leader Election",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你的團隊遇到 Kafka 吞吐量瓶頸，有同事建議將 Topic 的 Partition 數量從目前的 50 個直接增加到 2000 個，認為這樣可以大幅提升並行處理能力。根據 Kafka 的運作機制，這種「盲目增加 Partition」的做法最可能帶來下列哪一種負面影響？",
+        "en": "Your team is facing a Kafka throughput bottleneck, and a colleague suggests increasing the number of partitions for a topic from 50 to 2000 immediately, believing this will significantly improve parallelism. According to Kafka's mechanisms, which of the following negative impacts is most likely caused by this 'blindly increasing partitions' approach?",
+        "wg": [
+          {
+            "t": "盲目增加 Partition",
+            "en": "Blindly Increasing Partitions",
+            "ps": "phrase"
+          },
+          {
+            "t": "並行處理能力",
+            "en": "parallelism",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) 會導致 Consumer Group 無法正確進行 Rebalance，造成部分 Partition 無人消費。",
+        "en": "(A) It will cause the Consumer Group to fail to rebalance correctly, leaving some partitions unconsumed.",
+        "wg": []
+      },
+      {
+        "t": "(B) 會顯著增加 Broker 宕機或重啟時的 Leader Election 時間，導致叢集可用性降低。",
+        "en": "(B) It will significantly increase the Leader Election time during Broker downtime or restarts, leading to reduced cluster availability.",
+        "wg": [
+          {
+            "t": "Leader 選舉",
+            "en": "Leader Election",
+            "ps": "noun"
+          },
+          {
+            "t": "可用性",
+            "en": "availability",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "(C) 會導致磁碟空間瞬間被填滿，因為每個 Partition 都會預先分配 1GB 的儲存空間。",
+        "en": "(C) It will cause disk space to fill up instantly because each partition pre-allocates 1GB of storage space.",
+        "wg": []
+      },
+      {
+        "t": "(D) 會強制所有現有的 Consumer 斷線並重新啟動，造成長時間的服務中斷。",
+        "en": "(D) It will force all existing Consumers to disconnect and restart, causing a prolonged service outage.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "雖然增加 Partition 可以提升 Consumer 的並行度，但過多的 Partition 會導致 Broker 需要維護大量的檔案控制代碼 (File Descriptors)。更嚴重的是，當 Broker 宕機需要進行 Failover 時，Controller 需要為大量的 Partition 重新選舉 Leader，這會導致該 Broker 上的 Partition 在較長時間內不可用 (Availability drop)。",
+      "en": "While increasing partitions improves consumer parallelism, too many partitions require the Broker to maintain a large number of File Descriptors. More critically, when a Broker fails and requires failover, the Controller must perform Leader Election for a large number of partitions, causing those partitions to be unavailable for a longer period (Availability drop).",
+      "wg": [
+        {
+          "t": "檔案控制代碼",
+          "en": "File Descriptors",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "8",
+    "level": "Medium",
+    "keywords": "Troubleshooting, Metrics, Capacity Planning, Consumer Lag",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你收到 Consumer Lag 激增的告警。在檢查監控儀表板時，你發現 Producer 的 `MessagesInPerSec` 指標在過去一小時內翻了一倍，而 Consumer 的單一訊息處理時間 (Processing Time) 保持穩定且很低。根據「分而治之 (Divide and Conquer)」的排查模式，這最可能屬於哪一類問題？",
+        "en": "You receive an alert for spiking Consumer Lag. Upon checking the dashboard, you notice that the Producer's `MessagesInPerSec` metric has doubled in the last hour, while the Consumer's processing time per message remains stable and low. According to the 'Divide and Conquer' investigation pattern, which category does this issue most likely fall into?",
+        "wg": [
+          {
+            "t": "分而治之",
+            "en": "Divide and Conquer",
+            "ps": "phrase"
+          },
+          {
+            "t": "處理時間",
+            "en": "Processing Time",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) 程式碼效能問題 (Performance Issue)：Consumer 的處理邏輯太慢，需要優化程式碼。",
+        "en": "(A) Performance Issue: The Consumer's processing logic is too slow and the code needs optimization.",
+        "wg": []
+      },
+      {
+        "t": "(B) 容量規劃問題 (Capacity Planning Issue)：正常的業務流量增長超過了現有 Consumer Group 的總吞吐能力。",
+        "en": "(B) Capacity Planning Issue: Normal business traffic growth has exceeded the total throughput capacity of the existing Consumer Group.",
+        "wg": [
+          {
+            "t": "容量規劃",
+            "en": "Capacity Planning",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "(C) 資料傾斜問題 (Data Skew Issue)：特定 Partition 的流量過大導致單點延遲。",
+        "en": "(C) Data Skew Issue: Excessive traffic on specific partitions is causing single-point latency.",
+        "wg": []
+      },
+      {
+        "t": "(D) 基礎設施問題 (Infrastructure Issue)：Broker 的磁碟 I/O 出現瓶頸。",
+        "en": "(D) Infrastructure Issue: There is a bottleneck in the Broker's disk I/O.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "既然 Consumer 的處理時間 (Processing Time) 穩定且低，代表程式碼效能沒有退化。問題出在輸入端 (Inflow) 的流量翻倍 (`MessagesInPerSec` doubled)，這顯示現有的 Consumer 數量不足以消化新的流量規模，屬於容量規劃問題，應透過擴展 Consumer 實例來解決。",
+      "en": "Since the Consumer's processing time is stable and low, code performance has not degraded. The issue lies in the Inflow doubling (`MessagesInPerSec` doubled), indicating that the existing number of Consumers is insufficient to handle the new traffic scale. This is a Capacity Planning issue and should be resolved by scaling out Consumer instances.",
+      "wg": []
+    }
+  },
+  {
+    "no": "9",
+    "level": "Hard",
+    "keywords": "Architecture, Tiered Storage, Cost Optimization, Retention",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你的公司規定所有交易相關的 Kafka Topic 必須保留 7 年的歷史資料以符合法規。然而，將所有資料保留在 Broker 的本地高效能磁碟 (Local Disk) 上成本過高且難以維護。為了在不犧牲讀取能力的前提下解決此問題，下列哪項架構方案是最佳的「長期解法」？",
+        "en": "Your company mandates that all transaction-related Kafka Topics must retain 7 years of historical data for compliance. However, keeping all data on the Broker's local high-performance disks is prohibitively expensive and hard to maintain. To solve this without sacrificing readability, which of the following architectural solutions is the best 'Long-term' approach?",
+        "wg": [
+          {
+            "t": "長期解法",
+            "en": "Long-term solution",
+            "ps": "phrase"
+          },
+          {
+            "t": "法規",
+            "en": "compliance",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) 啟用 Log Compaction，只保留每個 Key 的最新值，刪除舊版本。",
+        "en": "(A) Enable Log Compaction to keep only the latest value for each Key and delete old versions.",
+        "wg": [
+          {
+            "t": "日誌壓縮",
+            "en": "Log Compaction",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "(B) 使用 MirrorMaker 2 將資料同步到另一個使用便宜磁碟的 Kafka 叢集。",
+        "en": "(B) Use MirrorMaker 2 to sync data to another Kafka cluster that uses cheaper disks.",
+        "wg": []
+      },
+      {
+        "t": "(C) 啟用 Tiered Storage (分層儲存)，將冷數據 (Cold Data) 自動卸載到 S3 或 GCS 等物件儲存中。",
+        "en": "(C) Enable Tiered Storage to automatically offload Cold Data to object storage like S3 or GCS.",
+        "wg": [
+          {
+            "t": "分層儲存",
+            "en": "Tiered Storage",
+            "ps": "noun"
+          },
+          {
+            "t": "物件儲存",
+            "en": "Object Storage",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "(D) 撰寫一個定期排程腳本，將舊的 Log Segment 檔案移動到備份伺服器，需要時再手動複製回來。",
+        "en": "(D) Write a periodic script to move old Log Segment files to a backup server and manually copy them back when needed.",
+        "wg": []
+      }
+    ],
+    "answer": "C",
+    "why": {
+      "t": "Tiered Storage (分層儲存) 是 Kafka 解決海量資料保留的標準架構解法。它允許 Broker 僅在本地保留近期的熱數據 (Hot Data)，而將舊的冷數據 (Cold Data) 透明地卸載到廉價且無限擴展的物件儲存 (如 S3)。Consumer 讀取舊資料時，Broker 會自動從物件儲存拉取，對客戶端透明。",
+      "en": "Tiered Storage is the standard architectural solution for massive data retention in Kafka. It allows Brokers to keep only recent Hot Data locally while transparently offloading old Cold Data to cheap, infinitely scalable object storage (like S3). When Consumers read old data, the Broker automatically fetches it from object storage, making it transparent to the client.",
+      "wg": [
+        {
+          "t": "透明地",
+          "en": "transparently",
+          "ps": "adverb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "10",
+    "level": "Hard",
+    "keywords": "Operations, Disk Full, Configuration, Emergency",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "某個 Kafka Broker 的磁碟使用率已達 98%，即將導致服務崩潰。你確認某個 Topic 佔用了大部分空間，且業務允許暫時縮短該 Topic 的資料保留時間。為了「立即」釋放空間且不破壞 Broker 狀態，下列哪一個操作是正確且安全的？",
+        "en": "A Kafka Broker's disk usage has reached 98% and is about to cause a service crash. You identified that a specific Topic consumes most of the space, and the business allows temporarily shortening the data retention for that Topic. To 'immediately' free up space without corrupting the Broker state, which of the following operations is correct and safe?",
+        "wg": [
+          {
+            "t": "資料保留時間",
+            "en": "data retention time",
+            "ps": "noun"
+          },
+          {
+            "t": "破壞",
+            "en": "corrupting",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) 登入 Broker 機器，直接使用 `rm` 指令刪除該 Topic 最舊的 `.log` 檔案。",
+        "en": "(A) Log in to the Broker machine and directly use the `rm` command to delete the oldest `.log` files of that Topic.",
+        "wg": []
+      },
+      {
+        "t": "(B) 使用 `kafka-configs.sh` 動態修改該 Topic 的 `retention.ms` 設定 (例如改為 1 小時)，讓 Kafka 自動觸發清理。",
+        "en": "(B) Use `kafka-configs.sh` to dynamically modify the `retention.ms` setting for that Topic (e.g., to 1 hour), letting Kafka automatically trigger cleanup.",
+        "wg": [
+          {
+            "t": "動態修改",
+            "en": "dynamically modify",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "(C) 停止該 Broker，修改 `server.properties` 中的 `log.retention.hours`，然後重啟 Broker。",
+        "en": "(C) Stop the Broker, modify `log.retention.hours` in `server.properties`, and then restart the Broker.",
+        "wg": []
+      },
+      {
+        "t": "(D) 刪除該 Topic (`kafka-topics.sh --delete`)，然後重新建立一個同名的 Topic。",
+        "en": "(D) Delete the Topic (`kafka-topics.sh --delete`) and then recreate a Topic with the same name.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "選項 (A) 是嚴重的反模式，會導致資料索引損壞。選項 (C) 需要重啟 Broker，在磁碟已滿的情況下可能導致無法正常啟動或長時間復原。選項 (D) 會刪除所有資料，過於激進。選項 (B) 是標準做法，Kafka 會偵測到配置變更，並在下一次 Log Check 週期 (通常很短) 標記並刪除過期的 Segment，安全地釋放空間。",
+      "en": "Option (A) is a severe anti-pattern that corrupts data indexes. Option (C) requires a restart, which might fail or take a long time to recover when the disk is full. Option (D) deletes all data, which is too aggressive. Option (B) is the standard procedure; Kafka detects the config change and marks/deletes expired segments during the next Log Check cycle (usually very short), safely freeing up space.",
+      "wg": [
+        {
+          "t": "反模式",
+          "en": "anti-pattern",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "11",
+    "level": "Medium",
+    "keywords": "Disaster Recovery, RPO, MirrorMaker 2, Data Loss",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你使用 MirrorMaker 2 (MM2) 建立了一個 Active-Passive 的災難復原架構。當 Primary Cluster 所在的資料中心發生火災完全損毀，你必須切換到 Secondary Cluster。此時，決定「資料遺失量 (RPO)」的關鍵因素是什麼？",
+        "en": "You have set up an Active-Passive disaster recovery architecture using MirrorMaker 2 (MM2). When the data center hosting the Primary Cluster is completely destroyed by fire, you must failover to the Secondary Cluster. At this point, what is the key factor determining the 'Data Loss (RPO)'?",
+        "wg": [
+          {
+            "t": "資料遺失量",
+            "en": "Data Loss",
+            "ps": "noun"
+          },
+          {
+            "t": "復原點目標",
+            "en": "RPO (Recovery Point Objective)",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) Primary Cluster 的 `min.insync.replicas` 設定值。",
+        "en": "(A) The `min.insync.replicas` setting value of the Primary Cluster.",
+        "wg": []
+      },
+      {
+        "t": "(B) 事故發生當下，MM2 在 Secondary Cluster 上的 Consumer Lag (複製延遲)。",
+        "en": "(B) The Consumer Lag (replication lag) of MM2 on the Secondary Cluster at the moment of the incident.",
+        "wg": [
+          {
+            "t": "複製延遲",
+            "en": "replication lag",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "(C) Secondary Cluster 的磁碟寫入速度。",
+        "en": "(C) The disk write speed of the Secondary Cluster.",
+        "wg": []
+      },
+      {
+        "t": "(D) Consumer Group 在 Primary Cluster 上的 Commit Offset。",
+        "en": "(D) The Commit Offset of the Consumer Group on the Primary Cluster.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "MirrorMaker 2 是非同步 (Asynchronous) 複製工具。這意味著資料寫入 Primary 後，需要一點時間才會被 MM2 複製到 Secondary。如果 Primary 突然全毀，那些「已寫入 Primary 但尚未被 MM2 複製」的訊息就會永久遺失。因此，RPO (復原點目標) 取決於事故發生時 MM2 的複製延遲 (Lag)。",
+      "en": "MirrorMaker 2 is an asynchronous replication tool. This means after data is written to the Primary, it takes some time to be replicated to the Secondary by MM2. If the Primary is suddenly destroyed, messages that were 'written to Primary but not yet replicated by MM2' are permanently lost. Therefore, the RPO depends on MM2's replication lag at the time of the incident.",
+      "wg": [
+        {
+          "t": "非同步",
+          "en": "Asynchronous",
+          "ps": "adjective"
+        }
+      ]
+    }
+  },
+  {
+    "no": "12",
+    "level": "Medium",
+    "keywords": "Troubleshooting, Performance, External Dependencies, Consumer",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你正在排查一個 Consumer Group 整體處理緩慢的問題。監控顯示所有 Partition 都有延遲 (Lag)，且分佈均勻 (無 Data Skew)。檢查 Consumer 應用程式的資源使用率，發現 CPU 和記憶體使用率都很低，且沒有頻繁的 GC。請問下一步最應該檢查什麼？",
+        "en": "You are investigating a slow Consumer Group issue. Monitoring shows lag across all partitions, distributed evenly (no Data Skew). Checking the Consumer application's resources reveals low CPU and memory usage, and no frequent GC. What should be checked next?",
+        "wg": [
+          {
+            "t": "資源使用率",
+            "en": "resource usage",
+            "ps": "noun"
+          },
+          {
+            "t": "分佈均勻",
+            "en": "distributed evenly",
+            "ps": "adjective"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) 檢查 Broker 的磁碟空間是否已滿。",
+        "en": "(A) Check if the Broker's disk space is full.",
+        "wg": []
+      },
+      {
+        "t": "(B) 檢查 Consumer 處理邏輯中，呼叫外部服務 (如 Database 或 HTTP API) 的延遲與 Timeout 設定。",
+        "en": "(B) Check the latency and timeout settings of external service calls (like Database or HTTP API) within the Consumer processing logic.",
+        "wg": [
+          {
+            "t": "外部服務",
+            "en": "external service",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "(C) 檢查是否發生了 Rebalance Storm。",
+        "en": "(C) Check if a Rebalance Storm is occurring.",
+        "wg": []
+      },
+      {
+        "t": "(D) 檢查 Producer 是否發送了毒丸訊息 (Poison Pill)。",
+        "en": "(D) Check if the Producer sent a Poison Pill message.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "當 Consumer 處理慢且 CPU/Memory 使用率低時，通常意味著執行緒處於「等待 (Waiting/Blocked)」狀態。這最常見的原因是處理邏輯中依賴的外部資源 (如資料庫寫入、第三方 API 呼叫) 回應變慢，導致 Consumer 大部分時間都在等待 I/O 回應而非進行運算。",
+      "en": "When a Consumer is slow but CPU/Memory usage is low, it usually means threads are in a 'Waiting/Blocked' state. The most common cause is that external resources relied upon in the processing logic (like database writes, third-party API calls) have become slow, causing the Consumer to spend most of its time waiting for I/O responses rather than computing.",
+      "wg": [
+        {
+          "t": "等待狀態",
+          "en": "Waiting/Blocked state",
+          "ps": "noun"
+        }
+      ]
+    }
+  }
+]

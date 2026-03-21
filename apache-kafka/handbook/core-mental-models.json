@@ -1,0 +1,815 @@
+[
+  {
+    "no": "1",
+    "level": "Easy",
+    "keywords": "Mental Model,Log,Queue,Persistence",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "一位習慣使用 RabbitMQ 的開發者正在轉換到 Kafka。他感到困惑的是，當一個 Consumer Group 讀取完訊息後，這些訊息並沒有從 Broker 中消失，導致硬碟空間持續被佔用。作為資深工程師，你應如何解釋這個現象以導正他的心智模型？",
+        "en": "A developer accustomed to RabbitMQ is migrating to Kafka. They are confused because messages do not disappear from the broker after being consumed by a Consumer Group, causing disk usage to persist. As a senior engineer, how should you explain this to correct their mental model?",
+        "wg": [
+          {
+            "t": "心智模型",
+            "en": "mental model",
+            "ps": "noun"
+          },
+          {
+            "t": "持久化",
+            "en": "persisted",
+            "ps": "verb/adj"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) 這是設定錯誤，Kafka 預設應該在消費後立即刪除訊息。",
+        "en": "(A) This is a configuration error; Kafka should default to deleting messages immediately after consumption.",
+        "wg": []
+      },
+      {
+        "t": "(B) Kafka 是一個分散式提交日誌（Log），而非工作佇列（Queue）。訊息是被持久化記錄的，消費行為僅是移動讀取的指標（Offset），而非移除資料。",
+        "en": "(B) Kafka is a distributed commit log, not a work queue. Messages are persisted records, and consumption is merely moving the read pointer (Offset), not removing data.",
+        "wg": [
+          {
+            "t": "分散式提交日誌",
+            "en": "distributed commit log",
+            "ps": "noun"
+          },
+          {
+            "t": "指標",
+            "en": "offset",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "(C) 這是因為還有其他 Consumer Group 尚未讀取該訊息，Kafka 會等到所有可能的訂閱者都讀完才刪除。",
+        "en": "(C) This is because other Consumer Groups have not read the message yet; Kafka waits for all possible subscribers to finish before deleting.",
+        "wg": []
+      },
+      {
+        "t": "(D) Kafka 的訊息刪除依賴於 Consumer 主動發送 Delete 指令，而非僅僅是 Acknowledge。",
+        "en": "(D) Kafka message deletion depends on the Consumer actively sending a Delete command, not just an Acknowledge.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "Kafka 的核心設計是「日誌（Log）」，資料的生命週期由 Retention Policy（時間或大小）決定，與是否有被消費無關。這使得 Kafka 支援重播（Replay）與多重訂閱者模式。選項 (A) 與 (D) 是對 Kafka 機制的誤解；選項 (C) 雖然聽起來合理，但 Kafka 並不追蹤「所有可能的訂閱者」，它只根據 Retention Policy 清理資料。",
+      "en": "Kafka's core design is a 'Log', where data lifecycle is determined by Retention Policy (time or size), independent of consumption status. This enables Replay and Multi-subscriber patterns. Options (A) and (D) misunderstand Kafka's mechanism; Option (C) sounds plausible but Kafka does not track 'all possible subscribers', it simply cleans up data based on retention settings.",
+      "wg": [
+        {
+          "t": "留存策略",
+          "en": "retention policy",
+          "ps": "noun"
+        },
+        {
+          "t": "重播",
+          "en": "replay",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "2",
+    "level": "Medium",
+    "keywords": "Partitioning,Ordering,Key Strategy",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "producer.send(new ProducerRecord<>(\"user_events\", key, event));",
+    "question": [
+      {
+        "t": "你正在設計一個追蹤使用者行為的系統，同一個使用者的操作（如：登入 -> 瀏覽 -> 購買）必須嚴格按照發生順序被處理，否則會導致狀態機錯誤。請問在發送訊息時，你應該選擇什麼作為 Partition Key？",
+        "en": "You are designing a user behavior tracking system where operations from the same user (e.g., Login -> Browse -> Purchase) must be processed in strict chronological order to avoid state machine errors. What should you choose as the Partition Key when sending messages?",
+        "wg": [
+          {
+            "t": "分區鍵",
+            "en": "partition key",
+            "ps": "noun"
+          },
+          {
+            "t": "狀態機",
+            "en": "state machine",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) 使用 `null`（不指定 Key），讓 Kafka 平均分配負載。",
+        "en": "(A) Use `null` (no key) to let Kafka distribute the load evenly.",
+        "wg": []
+      },
+      {
+        "t": "(B) 使用 `event_id`（事件的唯一識別碼）。",
+        "en": "(B) Use `event_id` (unique identifier of the event).",
+        "wg": []
+      },
+      {
+        "t": "(C) 使用 `user_id`（使用者的唯一識別碼）。",
+        "en": "(C) Use `user_id` (unique identifier of the user).",
+        "wg": []
+      },
+      {
+        "t": "(D) 使用 `timestamp`（事件發生的時間戳）。",
+        "en": "(D) Use `timestamp` (the timestamp when the event occurred).",
+        "wg": []
+      }
+    ],
+    "answer": "C",
+    "why": {
+      "t": "Kafka 僅保證「分區內（Partition-level）」的順序。為了確保同一使用者的事件有序，必須確保它們進入同一個 Partition。使用 `user_id` 作為 Key 可以保證同一使用者的所有資料被雜湊（Hash）到同一個分區。選項 (A) 與 (D) 會導致同一使用者的資料散落在不同分區；選項 (B) `event_id` 通常是隨機或遞增的，無法將同一使用者的行為聚合在一起。",
+      "en": "Kafka only guarantees 'Partition-level' ordering. To ensure events for the same user are ordered, they must go to the same partition. Using `user_id` as the Key guarantees that all data for the same user is hashed to the same partition. Options (A) and (D) would scatter a user's data across partitions; Option (B) `event_id` is typically random or incremental and fails to group user behaviors together.",
+      "wg": [
+        {
+          "t": "分區內順序",
+          "en": "partition-level ordering",
+          "ps": "noun"
+        },
+        {
+          "t": "雜湊",
+          "en": "hash",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "3",
+    "level": "Medium",
+    "keywords": "Capacity Planning,Throughput,Sizing",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你的團隊正在規劃一個新的 Topic。預估未來的峰值寫入流量為 500 MB/s。經過壓測，單一 Consumer 處理該業務邏輯的極限速度為 10 MB/s。若不考慮 Broker 端的 I/O 瓶頸，請問這個 Topic 至少需要多少個 Partition 才能消化此流量？",
+        "en": "Your team is planning a new Topic. The estimated peak write traffic is 500 MB/s. Stress testing shows that a single Consumer can process the business logic at a maximum rate of 10 MB/s. Ignoring Broker-side I/O bottlenecks, what is the minimum number of Partitions required for this Topic to handle the traffic?",
+        "wg": [
+          {
+            "t": "峰值",
+            "en": "peak",
+            "ps": "adj"
+          },
+          {
+            "t": "壓測",
+            "en": "stress testing",
+            "ps": "noun"
+          },
+          {
+            "t": "瓶頸",
+            "en": "bottleneck",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) 10 個",
+        "en": "(A) 10",
+        "wg": []
+      },
+      {
+        "t": "(B) 25 個",
+        "en": "(B) 25",
+        "wg": []
+      },
+      {
+        "t": "(C) 50 個",
+        "en": "(C) 50",
+        "wg": []
+      },
+      {
+        "t": "(D) 500 個",
+        "en": "(D) 500",
+        "wg": []
+      }
+    ],
+    "answer": "C",
+    "why": {
+      "t": "根據並行度公式：Partition 數量決定了 Consumer Group 內的最大並行度。若目標吞吐量為 500 MB/s，單一 Consumer 處理能力為 10 MB/s，則至少需要 `500 / 10 = 50` 個 Consumer 並行工作，因此至少需要 50 個 Partition。少於 50 個會導致消費速度跟不上寫入速度（Consumer Lag）。",
+      "en": "According to the parallelism formula: the number of Partitions determines the maximum parallelism within a Consumer Group. If the target throughput is 500 MB/s and a single Consumer can handle 10 MB/s, you need at least `500 / 10 = 50` Consumers working in parallel, thus requiring at least 50 Partitions. Fewer than 50 would cause consumption to lag behind writes.",
+      "wg": [
+        {
+          "t": "並行度",
+          "en": "parallelism",
+          "ps": "noun"
+        },
+        {
+          "t": "消費延遲",
+          "en": "consumer lag",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "4",
+    "level": "Hard",
+    "keywords": "Anti-pattern,Data Skew,Troubleshooting",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你在監控儀表板上發現某個 Topic 的 Consumer Group 中，只有一個 Consumer 的 Lag 異常飆高，而其他 Consumer 幾乎處於閒置狀態。檢查後發現該 Topic 使用「國家代碼（如 US, TW, JP）」作為 Key，且大部分流量來自美國（US）。這是什麼現象？應如何解決？",
+        "en": "On your monitoring dashboard, you notice that in a Topic's Consumer Group, only one Consumer has abnormally high Lag, while others are nearly idle. Upon investigation, you find the Topic uses 'Country Code (e.g., US, TW, JP)' as the Key, and most traffic comes from the US. What is this phenomenon, and how should it be resolved?",
+        "wg": [
+          {
+            "t": "閒置",
+            "en": "idle",
+            "ps": "adj"
+          },
+          {
+            "t": "資料傾斜",
+            "en": "data skew",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) 這是「過度分區（Over-Partitioning）」。應減少 Partition 數量以集中流量。",
+        "en": "(A) This is 'Over-Partitioning'. You should reduce the number of Partitions to concentrate the traffic.",
+        "wg": []
+      },
+      {
+        "t": "(B) 這是「資料傾斜（Data Skew）」。應避免使用低基數（Low Cardinality）且分佈不均的欄位作為 Key，或在應用層對熱門 Key 進行加鹽（Salting）處理。",
+        "en": "(B) This is 'Data Skew'. You should avoid using low cardinality and unevenly distributed fields as Keys, or apply 'Salting' to hot keys at the application layer.",
+        "wg": [
+          {
+            "t": "低基數",
+            "en": "low cardinality",
+            "ps": "noun"
+          },
+          {
+            "t": "加鹽",
+            "en": "salting",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "(C) 這是 Consumer 硬體故障。應直接重啟該 Consumer 實例。",
+        "en": "(C) This is a Consumer hardware failure. You should simply restart that Consumer instance.",
+        "wg": []
+      },
+      {
+        "t": "(D) 這是 Kafka Broker 的 Leader Election 延遲。應增加 Broker 節點。",
+        "en": "(D) This is Kafka Broker Leader Election latency. You should add more Broker nodes.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "當 Key 的分佈極不均勻（如大部分資料集中在 'US'），會導致對應的 Partition 接收絕大多數流量，負責該 Partition 的 Consumer 就會過載，形成「熱點（Hot Partition）」。這就是典型的資料傾斜。解決方案是改用分佈更均勻的 Key（如 User ID），或針對熱門 Key 進行 Salting（如 US_1, US_2）將流量打散。",
+      "en": "When the Key distribution is highly uneven (e.g., most data is 'US'), the corresponding Partition receives the majority of traffic, overloading the Consumer responsible for it, creating a 'Hot Partition'. This is typical Data Skew. The solution is to use a more evenly distributed Key (like User ID) or apply Salting to hot keys (e.g., US_1, US_2) to scatter the traffic.",
+      "wg": [
+        {
+          "t": "熱點",
+          "en": "hot partition",
+          "ps": "noun"
+        },
+        {
+          "t": "分佈",
+          "en": "distribution",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "5",
+    "level": "Hard",
+    "keywords": "Anti-pattern,Performance,Availability",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "為了「未雨綢繆」，某團隊在建立一個流量不大的 Topic 時，預先開啟了 5,000 個 Partition。請問這種「過度分區（Over-Partitioning）」的做法主要會帶來什麼負面影響？",
+        "en": "To 'plan ahead', a team pre-allocated 5,000 Partitions for a low-traffic Topic. What are the primary negative impacts of this 'Over-Partitioning' approach?",
+        "wg": [
+          {
+            "t": "未雨綢繆",
+            "en": "plan ahead / rainy day preparation",
+            "ps": "idiom"
+          },
+          {
+            "t": "過度分區",
+            "en": "over-partitioning",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Multiple Choice",
+    "options": [
+      {
+        "t": "(A) 增加 Broker 端的檔案句柄（File Handles）開銷，可能導致作業系統資源耗盡。",
+        "en": "(A) Increases File Handle overhead on the Broker, potentially exhausting OS resources.",
+        "wg": [
+          {
+            "t": "檔案句柄",
+            "en": "file handles",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "(B) 當 Broker 當機時，大量的 Partition 會導致 Leader Election 時間變長，降低系統可用性。",
+        "en": "(B) When a Broker crashes, a large number of Partitions causes longer Leader Election times, reducing system availability.",
+        "wg": [
+          {
+            "t": "可用性",
+            "en": "availability",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "(C) 會導致 Consumer 無法正確讀取資料，因為 Consumer 數量必須等於 Partition 數量。",
+        "en": "(C) Causes Consumers to fail reading data because the number of Consumers must equal the number of Partitions.",
+        "wg": []
+      },
+      {
+        "t": "(D) 會大幅增加端到端的延遲（End-to-end Latency），因為 Replication 的負擔變重。",
+        "en": "(D) Significantly increases End-to-end Latency due to the heavier burden of Replication.",
+        "wg": []
+      }
+    ],
+    "answer": "A,B,D",
+    "why": {
+      "t": "過度分區是有代價的：(A) 每個 Partition 對應多個檔案（Index, Log 等），會消耗大量 File Handles；(B) Controller 需要管理所有 Partition 的狀態，大量 Partition 會讓故障恢復（Leader Election）變慢；(D) 更多的 Partition 意味著更多的 Metadata 與 Replication 動作，會增加延遲。選項 (C) 錯誤，因為 Consumer 數量可以少於 Partition 數量（一個 Consumer 處理多個 Partition）。",
+      "en": "Over-partitioning comes with costs: (A) Each Partition corresponds to multiple files (Index, Log, etc.), consuming many File Handles; (B) The Controller manages all Partition states, so many Partitions slow down failover (Leader Election); (D) More Partitions mean more Metadata and Replication activity, increasing latency. Option (C) is incorrect because the number of Consumers can be fewer than Partitions (one Consumer handles multiple Partitions).",
+      "wg": [
+        {
+          "t": "故障恢復",
+          "en": "failover",
+          "ps": "noun"
+        },
+        {
+          "t": "中繼資料",
+          "en": "metadata",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "6",
+    "level": "Medium",
+    "keywords": "Performance,Batching,Sticky Partitioning",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在不需要保證訊息順序的場景下（Key = null），現代 Kafka Producer 預設採用「黏性分區（Sticky Partitioning）」策略，而非簡單的輪詢（Round-robin）。請問這樣做的主要優勢是什麼？",
+        "en": "In scenarios where message ordering is not required (Key = null), modern Kafka Producers default to a 'Sticky Partitioning' strategy instead of simple Round-robin. What is the primary advantage of this approach?",
+        "wg": [
+          {
+            "t": "黏性分區",
+            "en": "sticky partitioning",
+            "ps": "noun"
+          },
+          {
+            "t": "輪詢",
+            "en": "round-robin",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) 確保同一類型的訊息永遠進入同一個 Partition。",
+        "en": "(A) Ensures that messages of the same type always enter the same Partition.",
+        "wg": []
+      },
+      {
+        "t": "(B) 讓 Consumer 可以只訂閱單一 Partition 以節省頻寬。",
+        "en": "(B) Allows Consumers to subscribe to only a single Partition to save bandwidth.",
+        "wg": []
+      },
+      {
+        "t": "(C) 提升批次處理（Batching）效率，減少請求次數並提高壓縮率，進而提升吞吐量並降低延遲。",
+        "en": "(C) Improves Batching efficiency, reducing request count and increasing compression ratio, thereby boosting throughput and lowering latency.",
+        "wg": [
+          {
+            "t": "批次處理",
+            "en": "batching",
+            "ps": "noun"
+          },
+          {
+            "t": "壓縮率",
+            "en": "compression ratio",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "(D) 避免 Broker 端發生資料傾斜（Data Skew）。",
+        "en": "(D) Prevents Data Skew on the Broker side.",
+        "wg": []
+      }
+    ],
+    "answer": "C",
+    "why": {
+      "t": "簡單的 Round-robin 會導致每個 Batch 中只有少量訊息就被送出（因為訊息被分散到所有 Partition），造成網路請求過多且壓縮效果差。Sticky Partitioning 會在短時間內將訊息「黏」在同一個 Partition 上，直到填滿 Batch 或超時，這樣能大幅提升 Batch 的大小與壓縮率。選項 (A) 是 Key 的功能而非 Sticky Partitioning；選項 (D) 雖然 Sticky 有助於負載均衡，但其核心優勢在於 Batching 帶來的效能提升。",
+      "en": "Simple Round-robin causes batches to be sent with very few messages (as messages are scattered across all partitions), resulting in excessive network requests and poor compression. Sticky Partitioning 'sticks' messages to the same Partition for a short time until the batch is full or times out, significantly improving batch size and compression. Option (A) is the function of a Key; Option (D) is a side effect, but the core advantage is the performance gain from Batching.",
+      "wg": [
+        {
+          "t": "負載均衡",
+          "en": "load balancing",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "7",
+    "level": "Medium",
+    "keywords": "Parallelism, Scaling, Consumer Group, Partition Count",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你的團隊維護著一個擁有 10 個 Partition 的 Topic，目前 Consumer Group 中有 10 個 Consumer 實例正在運行。由於業務量激增，Consumer Lag 開始堆積。為了加快處理速度，DevOps 工程師決定緊急擴容，將 Consumer 實例數量增加到 20 個。請問這個操作會發生什麼結果？",
+        "en": "Your team maintains a Topic with 10 Partitions, and the Consumer Group currently has 10 Consumer instances running. Due to a surge in traffic, Consumer Lag is accumulating. To speed up processing, a DevOps engineer decides to scale out by increasing the number of Consumer instances to 20. What will be the result of this operation?",
+        "wg": [
+          {
+            "t": "實例",
+            "en": "instance",
+            "ps": "noun"
+          },
+          {
+            "t": "擴容",
+            "en": "scale out",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) 處理速度會翻倍，因為有兩倍的 Consumer 在處理訊息。",
+        "en": "(A) Processing speed will double because there are twice as many Consumers processing messages.",
+        "wg": []
+      },
+      {
+        "t": "(B) 處理速度不會有顯著變化，新增的 10 個 Consumer 將處於閒置狀態。",
+        "en": "(B) Processing speed will not change significantly; the 10 new Consumers will remain idle.",
+        "wg": [
+          {
+            "t": "閒置",
+            "en": "idle",
+            "ps": "adjective"
+          }
+        ]
+      },
+      {
+        "t": "(C) Kafka 會自動將現有的 10 個 Partition 再切分為 20 個，以適應新的 Consumer 數量。",
+        "en": "(C) Kafka will automatically split the existing 10 Partitions into 20 to accommodate the new Consumers.",
+        "wg": []
+      },
+      {
+        "t": "(D) 系統會報錯，因為 Consumer 數量不能超過 Partition 數量。",
+        "en": "(D) The system will throw an error because the number of Consumers cannot exceed the number of Partitions.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "在 Kafka 的分區模型中，Partition 是並行處理的最小單位（Unit of Parallelism）。一個 Partition 在同一個 Consumer Group 內只能被一個 Consumer 消費。因此，若 Partition 只有 10 個，最多只能有 10 個 Consumer 同時工作。多出來的 Consumer 無法分配到 Partition，只能閒置。若要提升吞吐量，必須增加 Partition 數量或優化 Consumer 處理邏輯。",
+      "en": "In Kafka's partitioning model, the Partition is the unit of parallelism. A single Partition can only be consumed by one Consumer within the same Consumer Group. Therefore, with only 10 Partitions, at most 10 Consumers can work actively. Any additional Consumers will not be assigned a Partition and will remain idle. To increase throughput, you must either increase the number of Partitions or optimize the Consumer processing logic.",
+      "wg": []
+    }
+  },
+  {
+    "no": "8",
+    "level": "Medium",
+    "keywords": "Global Ordering, Architecture, Trade-off",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "一家金融機構正在設計一個稽核系統，要求所有交易事件必須嚴格按照「全域時間順序（Global Ordering）」進行處理，亦即系統中絕對不能出現「後發生的交易比先發生的交易早被處理」的情況。為了滿足此需求，該 Topic 的 Partition 數量應如何設定？",
+        "en": "A financial institution is designing an audit system that requires strict 'Global Ordering' for all transaction events. This means it is unacceptable for a later transaction to be processed before an earlier one anywhere in the system. To meet this requirement, how should the Partition count for the Topic be configured?",
+        "wg": [
+          {
+            "t": "全域時間順序",
+            "en": "Global Ordering",
+            "ps": "noun"
+          },
+          {
+            "t": "稽核系統",
+            "en": "audit system",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) 設定為 1 個 Partition。",
+        "en": "(A) Set to 1 Partition.",
+        "wg": []
+      },
+      {
+        "t": "(B) 設定為與 Broker 節點數量相同的 Partition 數。",
+        "en": "(B) Set the Partition count equal to the number of Broker nodes.",
+        "wg": []
+      },
+      {
+        "t": "(C) 可以設定任意數量的 Partition，但在 Producer 端設定 `acks=all`。",
+        "en": "(C) Set any number of Partitions, but configure `acks=all` on the Producer.",
+        "wg": []
+      },
+      {
+        "t": "(D) 可以設定任意數量的 Partition，但在 Consumer 端使用 `GlobalOrderStrategy`。",
+        "en": "(D) Set any number of Partitions, but use `GlobalOrderStrategy` on the Consumer.",
+        "wg": []
+      }
+    ],
+    "answer": "A",
+    "why": {
+      "t": "Kafka 僅保證「分區內（Partition-level）」的順序，不保證跨分區的順序。若業務需求強制要求「全域順序」，唯一的做法是將 Partition 數量設為 1，確保所有訊息都進入同一個佇列依序處理。這是一個強烈的 Trade-off，因為這會導致系統無法橫向擴展（Scale out），吞吐量將受限於單一 Consumer 的處理能力。",
+      "en": "Kafka only guarantees ordering within a Partition (Partition-level ordering), not across partitions. If the business requirement strictly demands 'Global Ordering', the only solution is to set the Partition count to 1, ensuring all messages enter a single queue and are processed sequentially. This is a significant trade-off, as it prevents the system from scaling out, limiting throughput to the capacity of a single Consumer.",
+      "wg": [
+        {
+          "t": "橫向擴展",
+          "en": "scale out",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "9",
+    "level": "Medium",
+    "keywords": "Log Compaction, Retention, State",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你正在使用 Kafka 儲存使用者的「個人資料變更（User Profile Updates）」。對於下游應用程式來說，只有使用者「最新」的地址和電話才是重要的，五年前的舊地址沒有保留價值。為了節省空間並優化讀取，你應該採用哪種 Topic 設定？",
+        "en": "You are using Kafka to store 'User Profile Updates'. For downstream applications, only the 'latest' address and phone number of a user matter; an old address from five years ago has no retention value. To save space and optimize reading, which Topic configuration should you use?",
+        "wg": [
+          {
+            "t": "個人資料變更",
+            "en": "User Profile Updates",
+            "ps": "noun"
+          },
+          {
+            "t": "保留價值",
+            "en": "retention value",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) 設定極短的 `retention.ms`（例如 1 小時）。",
+        "en": "(A) Set a very short `retention.ms` (e.g., 1 hour).",
+        "wg": []
+      },
+      {
+        "t": "(B) 啟用 Log Compaction (`cleanup.policy=compact`)。",
+        "en": "(B) Enable Log Compaction (`cleanup.policy=compact`).",
+        "wg": []
+      },
+      {
+        "t": "(C) 使用 `cleanup.policy=delete` 並配合 `retention.bytes`。",
+        "en": "(C) Use `cleanup.policy=delete` combined with `retention.bytes`.",
+        "wg": []
+      },
+      {
+        "t": "(D) 不設定 Key，讓 Kafka 自動刪除舊資料。",
+        "en": "(D) Do not set a Key, allowing Kafka to automatically delete old data.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "當資料性質屬於「狀態（State）」而非單純的「事件日誌（Log）」時，我們通常只關心每個 Key（如 UserID）的最新值。Log Compaction 機制會由 Kafka 背景執行，移除相同 Key 的舊版本訊息，只保留最新的那一筆。這既能節省空間，又能確保 Consumer 在從頭讀取時能重建最終狀態。",
+      "en": "When the data represents 'State' rather than just an 'Event Log', we usually only care about the latest value for each Key (e.g., UserID). Log Compaction is a mechanism where Kafka runs in the background to remove older versions of messages with the same Key, keeping only the latest one. This saves space and ensures Consumers can reconstruct the final state when reading from the beginning.",
+      "wg": [
+        {
+          "t": "狀態",
+          "en": "State",
+          "ps": "noun"
+        },
+        {
+          "t": "重建",
+          "en": "reconstruct",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "10",
+    "level": "Easy",
+    "keywords": "Consumer Group, Pub/Sub, Mental Model",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "公司內有兩個團隊：「帳務團隊」與「數據分析團隊」。他們都需要讀取 `orders` Topic 中的每一筆訂單資料來進行各自的業務處理（開立發票 vs 產生報表）。為了確保雙方都能完整讀到所有資料且互不干擾，他們應該如何設定 Consumer Group？",
+        "en": "There are two teams in the company: the 'Billing Team' and the 'Data Analytics Team'. Both need to read every single order record from the `orders` Topic for their respective processing (invoicing vs. report generation). To ensure both parties receive all data completely without interfering with each other, how should they configure their Consumer Groups?",
+        "wg": [
+          {
+            "t": "互不干擾",
+            "en": "without interfering",
+            "ps": "phrase"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) 兩個團隊必須加入同一個 Consumer Group (`group.id=company-orders`)。",
+        "en": "(A) Both teams must join the same Consumer Group (`group.id=company-orders`).",
+        "wg": []
+      },
+      {
+        "t": "(B) 兩個團隊應該分別使用不同的 Consumer Group ID（例如 `billing-group` 與 `analytics-group`）。",
+        "en": "(B) The two teams should use different Consumer Group IDs (e.g., `billing-group` and `analytics-group`).",
+        "wg": []
+      },
+      {
+        "t": "(C) 必須建立兩個不同的 Topic，分別複製資料給這兩個團隊。",
+        "en": "(C) Two different Topics must be created to duplicate data for these two teams.",
+        "wg": []
+      },
+      {
+        "t": "(D) 帳務團隊使用 Kafka，數據分析團隊應該直接讀取資料庫，避免 Kafka 負載過重。",
+        "en": "(D) The Billing Team should use Kafka, while the Analytics Team should read directly from the database to avoid overloading Kafka.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "這是 Kafka 作為「分散式日誌（Distributed Log）」的核心特性之一。不同的 Consumer Group 就像是不同的讀者閱讀同一本日記，彼此擁有獨立的 Offset（讀取進度）。若兩團隊使用同一個 Group，Kafka 會將訊息視為「任務」進行負載平衡（Load Balancing），導致每個團隊只能讀到一半的資料。",
+      "en": "This is a core feature of Kafka as a 'Distributed Log'. Different Consumer Groups act like different readers reading the same diary, each maintaining its own independent Offset (reading progress). If both teams used the same Group, Kafka would treat the messages as 'tasks' for load balancing, resulting in each team receiving only half of the data.",
+      "wg": [
+        {
+          "t": "負載平衡",
+          "en": "Load Balancing",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "11",
+    "level": "Hard",
+    "keywords": "Data Skew, Hot Key, Salting, Anti-pattern",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你正在處理一個資料傾斜（Data Skew）的問題。某個特定的 Key（例如 `Customer_ID=VIP_001`）產生了佔總流量 50% 的數據，導致負責該 Partition 的 Consumer 嚴重落後。為了在不放棄 Kafka 的情況下解決此問題，手冊中建議的「Salting」策略是指什麼？",
+        "en": "You are dealing with a Data Skew problem. A specific Key (e.g., `Customer_ID=VIP_001`) is generating 50% of the total traffic, causing the Consumer responsible for that Partition to lag significantly. To solve this without abandoning Kafka, what does the 'Salting' strategy mentioned in the handbook refer to?",
+        "wg": [
+          {
+            "t": "資料傾斜",
+            "en": "Data Skew",
+            "ps": "noun"
+          },
+          {
+            "t": "嚴重落後",
+            "en": "lag significantly",
+            "ps": "phrase"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) 在 Consumer 端增加緩存，忽略重複的 Key。",
+        "en": "(A) Add a cache on the Consumer side to ignore duplicate Keys.",
+        "wg": []
+      },
+      {
+        "t": "(B) 在 Producer 端將該 Hot Key 加上隨機後綴（如 `VIP_001_1`, `VIP_001_2`），使其分散到不同 Partition。",
+        "en": "(B) Append a random suffix to the Hot Key on the Producer side (e.g., `VIP_001_1`, `VIP_001_2`) to distribute it across different Partitions.",
+        "wg": []
+      },
+      {
+        "t": "(C) 增加該 Topic 的 Partition 總數到 10,000 以上。",
+        "en": "(C) Increase the total Partition count of the Topic to over 10,000.",
+        "wg": []
+      },
+      {
+        "t": "(D) 設定 `compression.type=gzip` 來壓縮該 Key 的數據。",
+        "en": "(D) Set `compression.type=gzip` to compress the data for that Key.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "Salting（加鹽）是一種應用層的技巧，用於解決 Hot Key 導致的單一 Partition 過載。透過將原本的 Key 加上隨機或輪詢的後綴，可以將原本集中在一個 Partition 的流量強行打散到多個 Partition，讓多個 Consumer 並行處理。缺點是這會破壞該 Key 的嚴格順序性，Consumer 端可能需要額外的邏輯來聚合數據。",
+      "en": "Salting is an application-layer technique used to solve single Partition overload caused by Hot Keys. By appending a random or round-robin suffix to the original Key, the traffic originally concentrated in one Partition is forced to scatter across multiple Partitions, allowing multiple Consumers to process it in parallel. The downside is that this breaks strict ordering for that Key, and the Consumer side may require additional logic to aggregate the data.",
+      "wg": [
+        {
+          "t": "加鹽",
+          "en": "Salting",
+          "ps": "noun"
+        },
+        {
+          "t": "聚合",
+          "en": "aggregate",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "12",
+    "level": "Medium",
+    "keywords": "Replay, Offset, Log Persistence, Mental Model",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "週五發布的新版 Consumer 程式碼含有 Bug，導致週末兩天的訂單資料寫入資料庫時金額計算錯誤。週一修復 Bug 後，團隊希望利用 Kafka 的特性來修正資料庫中的錯誤數據。請問下列哪項操作最符合 Kafka 「日誌（Log）」的心智模型？",
+        "en": "A new version of Consumer code released on Friday contained a bug, causing incorrect amount calculations when writing order data to the database over the weekend. After fixing the bug on Monday, the team wants to leverage Kafka's features to correct the erroneous data in the database. Which of the following operations best aligns with Kafka's 'Log' mental model?",
+        "wg": [
+          {
+            "t": "心智模型",
+            "en": "mental model",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) 要求 Producer 重新發送週末兩天的所有訂單訊息。",
+        "en": "(A) Request the Producer to resend all order messages from the weekend.",
+        "wg": []
+      },
+      {
+        "t": "(B) 重設 Consumer Group 的 Offset 到週五發布前的時間點，讓 Consumer 「重播（Replay）」並重新處理舊訊息。",
+        "en": "(B) Reset the Consumer Group's Offset to the timestamp before the Friday release, allowing the Consumer to 'Replay' and re-process the old messages.",
+        "wg": [
+          {
+            "t": "重播",
+            "en": "Replay",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "(C) 直接修改 Kafka Broker 上的日誌檔案，修正錯誤的訊息內容。",
+        "en": "(C) Directly modify the log files on the Kafka Broker to correct the erroneous message content.",
+        "wg": []
+      },
+      {
+        "t": "(D) Kafka 無法處理此情況，必須從資料庫備份還原。",
+        "en": "(D) Kafka cannot handle this situation; restoration must be done from database backups.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "Kafka 的日誌模型具有「持久化（Persistence）」特性，訊息被消費後不會立即刪除（取決於 Retention 設定）。因此，Kafka 支援「重播（Replay）」能力。只要資料還在 Retention 期限內，我們可以透過重設 Offset（Seek）到過去的某個時間點，讓修正後的 Consumer 重新讀取並處理歷史資料，這是 Kafka 相較於傳統 Queue 的一大優勢。",
+      "en": "Kafka's Log model features 'Persistence', meaning messages are not immediately deleted after consumption (depending on Retention settings). Therefore, Kafka supports 'Replay' capability. As long as the data is within the Retention period, we can reset the Offset (Seek) to a past timestamp, allowing the fixed Consumer to re-read and process historical data. This is a major advantage of Kafka over traditional Queues.",
+      "wg": [
+        {
+          "t": "持久化",
+          "en": "Persistence",
+          "ps": "noun"
+        }
+      ]
+    }
+  }
+]

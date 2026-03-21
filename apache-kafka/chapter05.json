@@ -1,0 +1,1236 @@
+[
+  {
+    "no": "1",
+    "level": "intermediate",
+    "keywords": "Sparse Indexing, Performance, Storage Engine",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "Kafka 的儲存引擎採用「稀疏索引 (Sparse Indexing)」來管理 `.index` 檔案。",
+        "en": "Kafka's storage engine uses \"Sparse Indexing\" to manage `.index` files.",
+        "wg": [
+          {
+            "t": "稀疏索引",
+            "en": "Sparse Indexing",
+            "ps": "NP"
+          },
+          {
+            "t": "儲存引擎",
+            "en": "storage engine",
+            "ps": "NP"
+          }
+        ]
+      },
+      {
+        "t": "關於此設計的權衡 (Trade-off) 與行為，下列敘述何者最為準確？",
+        "en": "Which of the following statements is most accurate regarding the trade-offs and behavior of this design?",
+        "wg": [
+          {
+            "t": "權衡",
+            "en": "trade-off",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 它為每一條訊息都建立索引，確保能以 O(1) 的時間複雜度直接定位訊息。",
+        "en": "(A) It creates an index for every message, ensuring O(1) time complexity to locate messages directly.",
+        "wg": []
+      },
+      {
+        "t": "(B) 它僅每隔一定位元組 (Bytes) 寫入一個索引項目，這大幅減少了索引大小並允許其常駐於記憶體，但查找時需在定位後進行小範圍的順序掃描。",
+        "en": "(B) It writes an index entry only every certain number of bytes, significantly reducing index size to fit in memory, but requires a small sequential scan after positioning during lookup.",
+        "wg": [
+          {
+            "t": "順序掃描",
+            "en": "sequential scan",
+            "ps": "NP"
+          },
+          {
+            "t": "常駐",
+            "en": "resident",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "(C) 它使用 B-Tree 結構來儲存索引，支援高併發的隨機寫入與讀取。",
+        "en": "(C) It uses a B-Tree structure to store indexes, supporting high-concurrency random writes and reads.",
+        "wg": []
+      },
+      {
+        "t": "(D) 稀疏索引僅在 `cleanup.policy=compact` 開啟時才會生效，否則預設使用雜湊索引 (Hash Index)。",
+        "en": "(D) Sparse indexing is only effective when `cleanup.policy=compact` is enabled; otherwise, Hash Index is used by default.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "Kafka 預設每 4KB 建立一個索引項目 (Sparse Index)。這使得索引檔非常小，能被 OS Page Cache 快取。查找時，系統先透過二分搜尋找到「小於等於目標 Offset」的最大位置，然後從該物理位置開始掃描 `.log` 檔，這是以少量的 CPU/IO 掃描換取記憶體空間的經典設計。",
+      "en": "Kafka creates an index entry every 4KB by default (Sparse Index). This keeps index files small enough to be cached by the OS Page Cache. For lookups, the system uses binary search to find the largest position \"less than or equal to the target Offset,\" then scans the `.log` file from that physical position. This is a classic design trading a small amount of CPU/IO scan for memory efficiency.",
+      "wg": [
+        {
+          "t": "二分搜尋",
+          "en": "binary search",
+          "ps": "NP"
+        },
+        {
+          "t": "快取",
+          "en": "cache",
+          "ps": "V"
+        }
+      ]
+    },
+    "verified": "2026-03-21T09:18:37"
+  },
+  {
+    "no": "2",
+    "level": "intermediate",
+    "keywords": "Zero-Copy, Page Cache, sendfile, I/O",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在 Consumer 讀取資料的過程中，Kafka 利用「零拷貝 (Zero-Copy)」技術來最大化吞吐量。",
+        "en": "During the process of Consumers reading data, Kafka utilizes \"Zero-Copy\" technology to maximize throughput.",
+        "wg": [
+          {
+            "t": "零拷貝",
+            "en": "Zero-Copy",
+            "ps": "NP"
+          },
+          {
+            "t": "吞吐量",
+            "en": "throughput",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "這項技術主要依賴作業系統的哪一個機制，以避免資料在 User Space 與 Kernel Space 之間不必要的複製？",
+        "en": "Which operating system mechanism does this technology primarily rely on to avoid unnecessary copying of data between User Space and Kernel Space?",
+        "wg": [
+          {
+            "t": "作業系統",
+            "en": "operating system",
+            "ps": "NP"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) Java NIO Heap Buffers。",
+        "en": "(A) Java NIO Heap Buffers.",
+        "wg": []
+      },
+      {
+        "t": "(B) `mmap` (Memory Mapped Files) 用於寫入路徑。",
+        "en": "(B) `mmap` (Memory Mapped Files) for the write path.",
+        "wg": []
+      },
+      {
+        "t": "(C) `sendfile` 系統呼叫，直接將資料從 Page Cache 傳輸到 NIC Buffer。",
+        "en": "(C) The `sendfile` system call, transferring data directly from Page Cache to the NIC Buffer.",
+        "wg": [
+          {
+            "t": "系統呼叫",
+            "en": "system call",
+            "ps": "NP"
+          }
+        ]
+      },
+      {
+        "t": "(D) Direct I/O，完全繞過作業系統的 Page Cache。",
+        "en": "(D) Direct I/O, completely bypassing the OS Page Cache.",
+        "wg": []
+      }
+    ],
+    "answer": "C",
+    "why": {
+      "t": "Kafka 在讀取路徑 (Read Path) 上使用 `sendfile` (Linux syscall)。這允許資料直接從 Kernel 的 Page Cache 複製到網路介面卡 (NIC) 的 Buffer，無需將資料拷貝到應用程式的 User Space，從而節省了 CPU 週期與 Context Switch。",
+      "en": "Kafka uses `sendfile` (Linux syscall) on the Read Path. This allows data to be copied directly from the Kernel's Page Cache to the Network Interface Controller (NIC) Buffer without copying data into the application's User Space, saving CPU cycles and Context Switches.",
+      "wg": [
+        {
+          "t": "讀取路徑",
+          "en": "Read Path",
+          "ps": "NP"
+        },
+        {
+          "t": "網路介面卡",
+          "en": "Network Interface Controller",
+          "ps": "NP"
+        }
+      ]
+    },
+    "verified": "2026-03-21T09:18:37"
+  },
+  {
+    "no": "3",
+    "level": "advanced",
+    "keywords": "Log Compaction, Active Segment, Deduplication",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您的 Topic 設定了 `cleanup.policy=compact`，目的是為每個 Key 僅保留最新值。",
+        "en": "Your Topic is configured with `cleanup.policy=compact` with the goal of retaining only the latest value for each Key.",
+        "wg": [
+          {
+            "t": "保留",
+            "en": "retain",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "然而，在消費該 Topic 的「最新寫入資料」時，您仍然觀察到相同的 Key 重複出現（尚未被去重）。",
+        "en": "However, when consuming the \"latest written data\" of that Topic, you still observe duplicate occurrences of the same Key (not yet deduplicated).",
+        "wg": [
+          {
+            "t": "去重",
+            "en": "deduplicate",
+            "ps": "V"
+          },
+          {
+            "t": "重複出現",
+            "en": "duplicate occurrences",
+            "ps": "NP"
+          }
+        ]
+      },
+      {
+        "t": "這是 Kafka 架構設計上的什麼特性造成的？",
+        "en": "What architectural feature of Kafka causes this?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) Cleaner Thread 發生崩潰，導致清理作業停止。",
+        "en": "(A) The Cleaner Thread has crashed, causing the cleanup process to stop.",
+        "wg": []
+      },
+      {
+        "t": "(B) Active Segment（當前寫入中的 Segment）永遠不會被 Compact，只有關閉後的 Segment 才會進入 Dirty 區域等待清理。",
+        "en": "(B) The Active Segment (currently being written to) is never compacted; only closed segments entering the Dirty section are eligible for cleaning.",
+        "wg": [
+          {
+            "t": "當前寫入中",
+            "en": "currently being written to",
+            "ps": "AdjP"
+          }
+        ]
+      },
+      {
+        "t": "(C) `min.cleanable.dirty.ratio` 設定過高，導致清理頻率不足。",
+        "en": "(C) `min.cleanable.dirty.ratio` is set too high, resulting in insufficient cleaning frequency.",
+        "wg": []
+      },
+      {
+        "t": "(D) Compaction 僅支援 String 類型的 Key，若使用 Avro 或 Protobuf 則無法生效。",
+        "en": "(D) Compaction only supports String keys; it does not work with Avro or Protobuf.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "Kafka 的 Log Compaction 機制為了保證寫入效能，絕對不會觸碰 Active Segment。只有當 Segment 寫滿並關閉 (Rolled) 後，它才會成為 Log Cleaner 的候選對象。因此，Consumer 在讀取最新的 Active Segment 資料時，必然會看到尚未去重的重複 Key。",
+      "en": "To ensure write performance, Kafka's Log Compaction mechanism never touches the Active Segment. Only after a Segment is full and closed (Rolled) does it become a candidate for the Log Cleaner. Therefore, Consumers reading data from the latest Active Segment will inevitably see duplicate Keys that have not yet been deduplicated.",
+      "wg": [
+        {
+          "t": "候選對象",
+          "en": "candidate",
+          "ps": "N"
+        },
+        {
+          "t": "必然",
+          "en": "inevitably",
+          "ps": "Adv"
+        }
+      ]
+    },
+    "verified": "2026-03-21T09:18:37"
+  },
+  {
+    "no": "4",
+    "level": "advanced",
+    "keywords": "File Descriptor, Capacity Planning, Troubleshooting",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您在單一 Broker 上託管了數千個 Topic，且每個 Topic 有多個 Partition。",
+        "en": "You are hosting thousands of Topics on a single Broker, with multiple Partitions per Topic.",
+        "wg": [
+          {
+            "t": "託管",
+            "en": "host",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "Broker 突然崩潰並顯示 `Too many open files` 錯誤。經檢查，這與儲存層的檔案數量有關。",
+        "en": "The Broker suddenly crashes with a `Too many open files` error. Upon inspection, this is related to the number of files in the storage layer.",
+        "wg": []
+      },
+      {
+        "t": "下列哪項分析與修正措施最能從根本解決此問題？",
+        "en": "Which of the following analyses and corrective actions best addresses the root cause of this problem?",
+        "wg": [
+          {
+            "t": "根本解決",
+            "en": "address the root cause",
+            "ps": "VP"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 這是因為 JVM Heap 過小，應增加 Heap Size 以容納更多檔案控制代碼。",
+        "en": "(A) This is because the JVM Heap is too small; increase the Heap Size to accommodate more file handles.",
+        "wg": [
+          {
+            "t": "檔案控制代碼",
+            "en": "file handle",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(B) 應大幅調降 `log.segment.bytes`，讓檔案更快輪替 (Rotate)，以減少同時開啟的檔案數。",
+        "en": "(B) Significantly decrease `log.segment.bytes` to rotate files faster, reducing the number of simultaneously open files.",
+        "wg": [
+          {
+            "t": "輪替",
+            "en": "rotate",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(C) 每個 Partition 至少佔用 3 個檔案 (.log, .index, .timeindex)。應檢查 OS 的 `ulimit -n` 設定，並評估是否過度切分 Partition 或 Segment 過小。",
+        "en": "(C) Each Partition occupies at least 3 files (.log, .index, .timeindex). Check the OS `ulimit -n` setting and evaluate if there is excessive Partitioning or if Segments are too small.",
+        "wg": [
+          {
+            "t": "過度切分",
+            "en": "excessive partitioning",
+            "ps": "NP"
+          }
+        ]
+      },
+      {
+        "t": "(D) 這是 Zookeeper 連線洩漏造成的，與 Kafka 儲存層無關。",
+        "en": "(D) This is caused by a Zookeeper connection leak and is unrelated to the Kafka storage layer.",
+        "wg": [
+          {
+            "t": "洩漏",
+            "en": "leak",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "answer": "C",
+    "why": {
+      "t": "Kafka 的每個 Segment 都包含多個實體檔案。若 Partition 數極多，且 Segment 設定過小導致檔案數量爆炸，極易耗盡 OS 的 File Descriptor (FD)。解決方案通常涉及提高 OS 層級的 FD 限制 (`ulimit`)，或重新規劃 Partition 數量與 Segment 大小。",
+      "en": "Each Kafka Segment consists of multiple physical files. If there are many Partitions and Segments are configured to be too small, the file count can explode, exhausting the OS File Descriptors (FD). Solutions typically involve increasing the OS-level FD limit (`ulimit`) or replanning Partition counts and Segment sizes.",
+      "wg": [
+        {
+          "t": "耗盡",
+          "en": "exhaust",
+          "ps": "V"
+        },
+        {
+          "t": "實體檔案",
+          "en": "physical file",
+          "ps": "NP"
+        }
+      ]
+    },
+    "verified": "2026-03-21T09:18:37"
+  },
+  {
+    "no": "5",
+    "level": "intermediate",
+    "keywords": "TimeIndex, Offset Index, Lookup Flow",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "當 Consumer 根據「時間戳記 (Timestamp)」請求回溯資料時，Kafka 儲存引擎內部的查找流程順序為何？",
+        "en": "When a Consumer requests to rewind data based on a \"Timestamp\", what is the internal lookup sequence in the Kafka storage engine?",
+        "wg": [
+          {
+            "t": "回溯",
+            "en": "rewind",
+            "ps": "V"
+          },
+          {
+            "t": "查找流程",
+            "en": "lookup sequence",
+            "ps": "NP"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 直接對 `.log` 檔案進行二分搜尋 (Binary Search)。",
+        "en": "(A) Perform a Binary Search directly on the `.log` file.",
+        "wg": []
+      },
+      {
+        "t": "(B) 查 `.index` 取得 Timestamp -> 查 `.timeindex` 取得 Position -> 讀取 `.log`。",
+        "en": "(B) Query `.index` to get Timestamp -> Query `.timeindex` to get Position -> Read `.log`.",
+        "wg": []
+      },
+      {
+        "t": "(C) 查 `.timeindex` 取得 Relative Offset -> 查 `.index` 取得 Physical Position -> 讀取 `.log`。",
+        "en": "(C) Query `.timeindex` to get Relative Offset -> Query `.index` to get Physical Position -> Read `.log`.",
+        "wg": [
+          {
+            "t": "相對偏移量",
+            "en": "Relative Offset",
+            "ps": "NP"
+          },
+          {
+            "t": "物理位置",
+            "en": "Physical Position",
+            "ps": "NP"
+          }
+        ]
+      },
+      {
+        "t": "(D) 掃描所有 Segment 的 `.log` 檔頭，直到找到符合的時間戳記。",
+        "en": "(D) Scan the `.log` file headers of all Segments until the matching timestamp is found.",
+        "wg": []
+      }
+    ],
+    "answer": "C",
+    "why": {
+      "t": "Kafka 的 `.timeindex` 映射 `Timestamp -> Relative Offset`，而 `.index` 映射 `Relative Offset -> Physical Position`。因此流程是：先用時間找 Offset，再用 Offset 找檔案物理位置，最後讀取 Log。",
+      "en": "Kafka's `.timeindex` maps `Timestamp -> Relative Offset`, and `.index` maps `Relative Offset -> Physical Position`. Therefore, the flow is: first use time to find the Offset, then use the Offset to find the file physical position, and finally read the Log.",
+      "wg": [
+        {
+          "t": "映射",
+          "en": "map",
+          "ps": "V"
+        }
+      ]
+    },
+    "verified": "2026-03-21T09:18:37"
+  },
+  {
+    "no": "6",
+    "level": "intermediate",
+    "keywords": "Cleanup Policy, CDC, Event Stream, System Design",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您正在設計兩個 Topic：`user-profile-updates`（來自資料庫的 CDC 變更日誌，需維護使用者最新狀態）與 `website-clicks`（使用者點擊流，需分析歷史行為）。",
+        "en": "You are designing two Topics: `user-profile-updates` (CDC change logs from a database, need to maintain latest user state) and `website-clicks` (user clickstreams, need to analyze historical behavior).",
+        "wg": [
+          {
+            "t": "變更日誌",
+            "en": "change log",
+            "ps": "NP"
+          },
+          {
+            "t": "點擊流",
+            "en": "clickstream",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "針對這兩個場景，應分別選擇哪種 `cleanup.policy`？",
+        "en": "Which `cleanup.policy` should be chosen for these two scenarios respectively?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 兩者皆使用 `delete`。",
+        "en": "(A) Both use `delete`.",
+        "wg": []
+      },
+      {
+        "t": "(B) `user-profile-updates` 使用 `compact`；`website-clicks` 使用 `delete`。",
+        "en": "(B) `user-profile-updates` uses `compact`; `website-clicks` uses `delete`.",
+        "wg": []
+      },
+      {
+        "t": "(C) `user-profile-updates` 使用 `delete`；`website-clicks` 使用 `compact`。",
+        "en": "(C) `user-profile-updates` uses `delete`; `website-clicks` uses `compact`.",
+        "wg": []
+      },
+      {
+        "t": "(D) 兩者皆使用 `compact`。",
+        "en": "(D) Both use `compact`.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "CDC (Change Data Capture) 資料通常關注 Key 的「最新狀態」，舊的變更可以丟棄，因此適合 `compact`。點擊流 (Clickstream) 則是事件紀錄，通常沒有唯一的 Key 或 Key 重複率低，且業務上需要完整的歷史軌跡，因此適合基於時間或大小的 `delete` 策略。",
+      "en": "CDC (Change Data Capture) data typically focuses on the \"latest state\" of a Key, so old changes can be discarded, making it suitable for `compact`. Clickstreams are event logs, usually lacking unique Keys or having low duplication, and business needs require the full historical trajectory, making them suitable for time or size-based `delete` policies.",
+      "wg": [
+        {
+          "t": "歷史軌跡",
+          "en": "historical trajectory",
+          "ps": "NP"
+        }
+      ]
+    },
+    "verified": "2026-03-21T09:18:37"
+  },
+  {
+    "no": "7",
+    "level": "intermediate",
+    "keywords": "JVM Heap, Page Cache, Garbage Collection, Architecture",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在 Kafka 的儲存架構設計中，為什麼選擇依賴作業系統的 Page Cache 來緩衝寫入與讀取，而不是在 JVM Heap 中維護自己的快取層？",
+        "en": "In Kafka's storage architecture design, why is the OS Page Cache chosen for buffering writes and reads instead of maintaining a custom cache layer within the JVM Heap?",
+        "wg": [
+          {
+            "t": "緩衝",
+            "en": "buffering",
+            "ps": "V"
+          },
+          {
+            "t": "快取層",
+            "en": "cache layer",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 因為 JVM Heap 的最大記憶體限制無法超過 32 GB，不足以應付大數據量。",
+        "en": "(A) Because the JVM Heap has a maximum memory limit of 32 GB, which is insufficient for large data volumes.",
+        "wg": []
+      },
+      {
+        "t": "(B) 為了避免 Java 物件的記憶體額外開銷 (Overhead) 與垃圾回收 (GC) 造成的延遲。",
+        "en": "(B) To avoid the memory overhead of Java objects and latency caused by Garbage Collection (GC).",
+        "wg": [
+          {
+            "t": "額外開銷",
+            "en": "overhead",
+            "ps": "N"
+          },
+          {
+            "t": "垃圾回收",
+            "en": "Garbage Collection",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) 因為只有作業系統的 Page Cache 支援零拷貝 (Zero-Copy) 的寫入操作。",
+        "en": "(C) Because only the OS Page Cache supports Zero-Copy write operations.",
+        "wg": []
+      },
+      {
+        "t": "(D) 因為 JVM 不支援對磁碟檔案進行順序寫入 (Sequential Write)。",
+        "en": "(D) Because the JVM does not support sequential writes to disk files.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "Kafka 避免使用 JVM Heap 快取的主要原因是 Java 物件有顯著的記憶體開銷（通常是實際資料的兩倍以上），且大記憶體的 Heap 會導致長時間的 GC 暫停。利用 Page Cache 可以讓資料緊湊儲存，並在 Process 重啟後快取依然存在（由 OS 管理）。",
+      "en": "The primary reason Kafka avoids JVM Heap caching is that Java objects have significant memory overhead (often double the actual data size), and large Heaps lead to long GC pauses. Using Page Cache allows for compact storage, and the cache remains available even after the process restarts (managed by the OS).",
+      "wg": [
+        {
+          "t": "緊湊儲存",
+          "en": "compact storage",
+          "ps": "N"
+        },
+        {
+          "t": "暫停",
+          "en": "pauses",
+          "ps": "N"
+        }
+      ]
+    },
+    "verified": "2026-03-21T09:18:37"
+  },
+  {
+    "no": "8",
+    "level": "advanced",
+    "keywords": "Troubleshooting, Recovery, Index Corruption, Unclean Shutdown",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您的 Kafka Broker 所在的伺服器發生了無預警斷電。",
+        "en": "The server hosting your Kafka Broker experienced an unexpected power failure.",
+        "wg": [
+          {
+            "t": "無預警斷電",
+            "en": "unexpected power failure",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "電力恢復後，您發現該 Broker 啟動非常緩慢，且磁碟 I/O 持續處於高負載狀態數十分鐘。",
+        "en": "After power is restored, you notice the Broker starts up very slowly, and disk I/O remains under high load for tens of minutes.",
+        "wg": [
+          {
+            "t": "高負載",
+            "en": "high load",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "請問此時 Broker 最可能正在執行什麼操作？",
+        "en": "What operation is the Broker most likely performing at this time?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 正在從其他副本 (Replicas) 同步斷電期間遺失的資料。",
+        "en": "(A) It is synchronizing data lost during the outage from other replicas.",
+        "wg": []
+      },
+      {
+        "t": "(B) 正在對所有 Topic 執行 Log Compaction 以釋放空間。",
+        "en": "(B) It is performing Log Compaction on all topics to free up space.",
+        "wg": []
+      },
+      {
+        "t": "(C) 正在驗證 Log 檔案並重建損壞的索引檔 (Index Recovery)。",
+        "en": "(C) It is verifying Log files and rebuilding corrupted index files (Index Recovery).",
+        "wg": [
+          {
+            "t": "重建",
+            "en": "rebuilding",
+            "ps": "V"
+          },
+          {
+            "t": "損壞的",
+            "en": "corrupted",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "(D) 正在重新分配 Page Cache 的記憶體區塊。",
+        "en": "(D) It is reallocating memory blocks for the Page Cache.",
+        "wg": []
+      }
+    ],
+    "answer": "C",
+    "why": {
+      "t": "非正常關機（Unclean Shutdown）會導致 `.index` 檔案與 `.log` 檔案不一致。Broker 重啟時會檢測到此狀況，並強制讀取 `.log` 檔案來重建索引，這是一個極度消耗 I/O 的操作。",
+      "en": "Unclean shutdown leads to inconsistencies between `.index` and `.log` files. Upon restart, the Broker detects this and forces a read of the `.log` file to rebuild the index, which is an extremely I/O-intensive operation.",
+      "wg": [
+        {
+          "t": "不一致",
+          "en": "inconsistencies",
+          "ps": "N"
+        },
+        {
+          "t": "強制",
+          "en": "forces",
+          "ps": "V"
+        }
+      ]
+    },
+    "verified": "2026-03-21T09:18:37"
+  },
+  {
+    "no": "9",
+    "level": "advanced",
+    "keywords": "Log Compaction, Throttling, Performance Tuning, Disk I/O",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您啟用 `cleanup.policy=compact` 的 Topic 在進行清理 (Cleaning) 時，導致 Broker 的磁碟 I/O 飆升，影響了正常的訊息寫入延遲。",
+        "en": "When your topic with `cleanup.policy=compact` enabled undergoes cleaning, it causes a spike in Broker disk I/O, affecting normal message write latency.",
+        "wg": [
+          {
+            "t": "飆升",
+            "en": "spike",
+            "ps": "V"
+          },
+          {
+            "t": "寫入延遲",
+            "en": "write latency",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "為了減輕此影響，您應該調整下列哪一個參數來限制 Cleaner Thread 的資源消耗？",
+        "en": "To mitigate this impact, which of the following parameters should you adjust to limit the resource consumption of the Cleaner Thread?",
+        "wg": [
+          {
+            "t": "減輕",
+            "en": "mitigate",
+            "ps": "V"
+          },
+          {
+            "t": "資源消耗",
+            "en": "resource consumption",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 減少 `log.segment.bytes` 的大小。",
+        "en": "(A) Decrease the size of `log.segment.bytes`.",
+        "wg": []
+      },
+      {
+        "t": "(B) 設定 `log.cleaner.io.max.bytes.per.second`。",
+        "en": "(B) Set `log.cleaner.io.max.bytes.per.second`.",
+        "wg": []
+      },
+      {
+        "t": "(C) 增加 `num.io.threads` 的數量。",
+        "en": "(C) Increase the number of `num.io.threads`.",
+        "wg": []
+      },
+      {
+        "t": "(D) 將 `log.cleaner.enable` 設定為 `false`。",
+        "en": "(D) Set `log.cleaner.enable` to `false`.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "`log.cleaner.io.max.bytes.per.second` 可以限制 Log Cleaner 背景執行緒的讀寫頻寬，避免其搶佔過多 I/O 資源而影響即時流量。",
+      "en": "`log.cleaner.io.max.bytes.per.second` limits the read/write bandwidth of the background Log Cleaner threads, preventing them from monopolizing I/O resources and affecting real-time traffic.",
+      "wg": [
+        {
+          "t": "頻寬",
+          "en": "bandwidth",
+          "ps": "N"
+        },
+        {
+          "t": "搶佔",
+          "en": "monopolizing",
+          "ps": "V"
+        }
+      ]
+    },
+    "verified": "2026-03-21T09:19:51"
+  },
+  {
+    "no": "10",
+    "level": "intermediate",
+    "keywords": "Segment Rolling, Index, Configuration, Storage Engine",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "假設您的 Broker 設定如下：`log.segment.bytes=1GB` 且 `log.index.size.max.bytes=10MB`。",
+        "en": "Suppose your Broker configuration is: `log.segment.bytes=1GB` and `log.index.size.max.bytes=10MB`.",
+        "wg": []
+      },
+      {
+        "t": "如果當前 Active Segment 的 `.index` 檔案已經寫滿 10MB，但 `.log` 檔案僅累積了 500MB 的資料，接下來會發生什麼事？",
+        "en": "If the `.index` file of the current Active Segment reaches 10MB, but the `.log` file has only accumulated 500MB of data, what happens next?",
+        "wg": [
+          {
+            "t": "累積",
+            "en": "accumulated",
+            "ps": "V"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 系統會動態擴充 `.index` 檔案的大小，直到 `.log` 檔案也寫滿為止。",
+        "en": "(A) The system dynamically expands the `.index` file size until the `.log` file is also full.",
+        "wg": [
+          {
+            "t": "動態擴充",
+            "en": "dynamically expands",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(B) 系統會觸發 Segment Rolling，關閉當前 Segment 並建立一個新的。",
+        "en": "(B) The system triggers Segment Rolling, closes the current Segment, and creates a new one.",
+        "wg": [
+          {
+            "t": "觸發",
+            "en": "triggers",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(C) 索引功能會暫時失效，後續訊息只寫入 `.log` 但不寫入索引。",
+        "en": "(C) Indexing is temporarily disabled; subsequent messages are written only to `.log` without indexing.",
+        "wg": []
+      },
+      {
+        "t": "(D) Broker 會拋出 `IndexFullException` 並停止接收新訊息。",
+        "en": "(D) The Broker throws an `IndexFullException` and stops accepting new messages.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "Segment Rolling 的觸發條件包含：Log 檔案大小達到上限、Index 檔案寫滿、或時間達到上限。只要滿足其中任何一個條件，Kafka 就會滾動產生新的 Segment。",
+      "en": "Segment Rolling triggers include: Log file size limit reached, Index file full, or time limit reached. If any one of these conditions is met, Kafka rolls over to a new Segment.",
+      "wg": [
+        {
+          "t": "滾動",
+          "en": "rolls over",
+          "ps": "V"
+        }
+      ]
+    },
+    "verified": "2026-03-21T09:19:51"
+  },
+  {
+    "no": "11",
+    "level": "intermediate",
+    "keywords": "File Structure, Base Offset, Segment",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在 Kafka 的 Partition 目錄中，您看到一個名為 `00000000000000000300.log` 的檔案。",
+        "en": "In a Kafka Partition directory, you see a file named `00000000000000000300.log`.",
+        "wg": []
+      },
+      {
+        "t": "請問檔名中的數字 `300` 代表什麼意義？",
+        "en": "What does the number `300` in the filename represent?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 該 Segment 檔案的大小為 300 bytes。",
+        "en": "(A) The size of the Segment file is 300 bytes.",
+        "wg": []
+      },
+      {
+        "t": "(B) 該 Segment 包含 300 條訊息。",
+        "en": "(B) The Segment contains 300 messages.",
+        "wg": []
+      },
+      {
+        "t": "(C) 該 Segment 中第一條訊息的 Offset 為 300。",
+        "en": "(C) The Offset of the first message in that Segment is 300.",
+        "wg": []
+      },
+      {
+        "t": "(D) 該 Segment 是 Partition 中的第 300 個檔案。",
+        "en": "(D) The Segment is the 300th file in the Partition.",
+        "wg": []
+      }
+    ],
+    "answer": "C",
+    "why": {
+      "t": "Kafka 的 Log Segment 檔案命名規則是使用該 Segment 中「第一條訊息的 Offset」（即 Base Offset）來命名，並補零至 20 位數。這有助於快速定位訊息所在的檔案。",
+      "en": "Kafka Log Segment files are named using the 'Offset of the first message' (Base Offset) in that Segment, padded with zeros to 20 digits. This facilitates quick location of the file containing a specific message.",
+      "wg": [
+        {
+          "t": "命名規則",
+          "en": "naming convention",
+          "ps": "N"
+        },
+        {
+          "t": "定位",
+          "en": "location",
+          "ps": "N"
+        }
+      ]
+    },
+    "verified": "2026-03-21T09:19:51"
+  },
+  {
+    "no": "chapter05-q12",
+    "level": "advanced",
+    "keywords": "Log Compaction, Memory, Performance Tuning, Deduplication",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在 Kafka 的 Log Compaction 運作機制中，Cleaner Thread 會經歷「Map Phase」來建立 Key 與最新 Offset 的對應關係。",
+        "en": "In the mechanism of Kafka Log Compaction, the Cleaner Thread goes through a 'Map Phase' to establish the mapping between Keys and their latest Offsets.",
+        "wg": [
+          {
+            "t": "運作機制",
+            "en": "mechanism",
+            "ps": "N"
+          },
+          {
+            "t": "對應關係",
+            "en": "mapping",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "如果設定參數 `log.cleaner.dedupe.buffer.size` 過小，不足以容納 Dirty Section 中所有的唯一 Key (Unique Keys)，系統會如何處理？",
+        "en": "If the configuration parameter `log.cleaner.dedupe.buffer.size` is too small to hold all the Unique Keys in the Dirty Section, how will the system handle it?",
+        "wg": [
+          {
+            "t": "不足以",
+            "en": "insufficient",
+            "ps": "Adj"
+          },
+          {
+            "t": "容納",
+            "en": "accommodate",
+            "ps": "V"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 拋出 `OutOfMemoryError` 並停止 Broker 運作。",
+        "en": "(A) Throw an `OutOfMemoryError` and stop the Broker operation.",
+        "wg": []
+      },
+      {
+        "t": "(B) 自動暫停 Compaction，直到有足夠的記憶體可用。",
+        "en": "(B) Automatically pause Compaction until sufficient memory is available.",
+        "wg": []
+      },
+      {
+        "t": "(C) 將 Dirty Section 切分為多個部分，分多次進行清理 (Multiple Passes)，這會增加磁碟 I/O 負載。",
+        "en": "(C) Split the Dirty Section into multiple parts and clean them in multiple passes, which increases disk I/O load.",
+        "wg": [
+          {
+            "t": "分多次",
+            "en": "multiple passes",
+            "ps": "N"
+          },
+          {
+            "t": "負載",
+            "en": "load",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(D) 放棄該次 Compaction，並將相關 Segment 標記為 `delete` 策略。",
+        "en": "(D) Abort the Compaction and mark the relevant Segments for the `delete` policy.",
+        "wg": []
+      }
+    ],
+    "answer": "C",
+    "why": {
+      "t": "當 Deduplication Buffer 不足以容納所有 Key 時，Kafka 不會崩潰，而是會將清理工作拆分為多次 Pass。每次 Pass 只處理一部分的 Log，這會導致重複讀取相同的 Log Segment，進而增加 I/O 開銷並降低清理效率。",
+      "en": "When the Deduplication Buffer is insufficient to hold all Keys, Kafka does not crash; instead, it splits the cleaning task into multiple passes. Each pass processes only a portion of the Log, leading to repeated reads of the same Log Segments, thereby increasing I/O overhead and reducing cleaning efficiency.",
+      "wg": [
+        {
+          "t": "崩潰",
+          "en": "crash",
+          "ps": "V"
+        },
+        {
+          "t": "開銷",
+          "en": "overhead",
+          "ps": "N"
+        }
+      ]
+    },
+    "verified": "2026-03-21T09:19:51"
+  },
+  {
+    "no": "chapter05-q13",
+    "level": "intermediate",
+    "keywords": "Durability, Page Cache, Throughput, Flush Policy",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "為了確保極高的資料耐久性 (Durability)，您考慮將 `log.flush.interval.messages` 設定為 1，強制每一條訊息都立即刷入磁碟。",
+        "en": "To ensure extremely high data durability, you are considering setting `log.flush.interval.messages` to 1, forcing every message to be flushed to disk immediately.",
+        "wg": [
+          {
+            "t": "耐久性",
+            "en": "durability",
+            "ps": "N"
+          },
+          {
+            "t": "刷入",
+            "en": "flush",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "根據 Kafka 的儲存引擎設計，這樣做會帶來什麼主要的負面影響？",
+        "en": "Based on Kafka's storage engine design, what would be the primary negative impact of doing this?",
+        "wg": [
+          {
+            "t": "負面影響",
+            "en": "negative impact",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 會導致 Page Cache 記憶體洩漏 (Memory Leak)。",
+        "en": "(A) It will cause a Page Cache memory leak.",
+        "wg": []
+      },
+      {
+        "t": "(B) 會將原本高效的循序寫入 (Sequential Write) 轉變為高延遲的同步 I/O，大幅降低吞吐量。",
+        "en": "(B) It will turn efficient Sequential Writes into high-latency synchronous I/O, drastically reducing throughput.",
+        "wg": [
+          {
+            "t": "循序寫入",
+            "en": "sequential write",
+            "ps": "N"
+          },
+          {
+            "t": "同步",
+            "en": "synchronous",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "(C) 會導致 Index 檔案與 Log 檔案的 Offset 不一致。",
+        "en": "(C) It will cause Offset inconsistencies between Index files and Log files.",
+        "wg": []
+      },
+      {
+        "t": "(D) 會觸發頻繁的 Log Compaction，消耗大量 CPU。",
+        "en": "(D) It will trigger frequent Log Compaction, consuming significant CPU.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "Kafka 的高效能依賴於將訊息寫入 Page Cache 並由 OS 背景非同步刷盤 (Asynchronous Flush)。強制每條訊息刷盤 (fsync) 會導致寫入操作被磁碟 I/O 阻塞，破壞了批次處理與循序寫入的優勢。",
+      "en": "Kafka's high performance relies on writing messages to the Page Cache and letting the OS flush them asynchronously in the background. Forcing a flush (fsync) for every message causes write operations to be blocked by disk I/O, destroying the benefits of batching and sequential writes.",
+      "wg": [
+        {
+          "t": "阻塞",
+          "en": "block",
+          "ps": "V"
+        },
+        {
+          "t": "批次處理",
+          "en": "batching",
+          "ps": "N"
+        }
+      ]
+    },
+    "verified": "2026-03-21T09:19:51"
+  },
+  {
+    "no": "chapter05-q14",
+    "level": "intermediate",
+    "keywords": "Index, Mmap, Architecture, OS Internals",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在觀察 Kafka 的資料目錄時，您發現每個新的 Log Segment 即使剛建立，其對應的 `.index` 檔案也會立即佔用預設的 10MB 大小。",
+        "en": "While observing the Kafka data directory, you notice that for every new Log Segment, the corresponding `.index` file immediately occupies the default size of 10MB, even if just created.",
+        "wg": [
+          {
+            "t": "佔用",
+            "en": "occupy",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "為什麼 Kafka 選擇「預先分配 (Pre-allocation)」固定大小的索引檔，而不是讓它隨資料動態增長？",
+        "en": "Why does Kafka choose to 'pre-allocate' fixed-size index files instead of letting them grow dynamically with the data?",
+        "wg": [
+          {
+            "t": "預先分配",
+            "en": "pre-allocate",
+            "ps": "V"
+          },
+          {
+            "t": "動態增長",
+            "en": "grow dynamically",
+            "ps": "V"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 為了確保索引檔永遠大於 Log 檔，以防止 Offset 溢位。",
+        "en": "(A) To ensure the index file is always larger than the Log file to prevent Offset overflow.",
+        "wg": []
+      },
+      {
+        "t": "(B) 為了利於作業系統進行記憶體映射 (mmap)，並避免檔案碎片化。",
+        "en": "(B) To facilitate memory mapping (mmap) by the OS and avoid file fragmentation.",
+        "wg": [
+          {
+            "t": "記憶體映射",
+            "en": "memory mapping",
+            "ps": "N"
+          },
+          {
+            "t": "碎片化",
+            "en": "fragmentation",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) 這是 Java NIO 的限制，無法建立可變大小的檔案。",
+        "en": "(C) This is a limitation of Java NIO, which cannot create variable-size files.",
+        "wg": []
+      },
+      {
+        "t": "(D) 為了在 Broker 啟動時能更快地載入所有 Topic 的 Metadata。",
+        "en": "(D) To allow faster loading of all Topic Metadata when the Broker starts.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "Kafka 使用 mmap (Memory Mapped Files) 來高效存取索引。預先分配固定大小的檔案可以讓 OS 鎖定一段連續的磁碟空間，避免因頻繁擴容 (Resizing) 導致的檔案碎片化與 OS 尋址開銷。",
+      "en": "Kafka uses mmap (Memory Mapped Files) for efficient index access. Pre-allocating fixed-size files allows the OS to lock a contiguous disk space, avoiding file fragmentation and OS addressing overhead caused by frequent resizing.",
+      "wg": [
+        {
+          "t": "連續的",
+          "en": "contiguous",
+          "ps": "Adj"
+        },
+        {
+          "t": "尋址",
+          "en": "addressing",
+          "ps": "N"
+        }
+      ]
+    },
+    "verified": "2026-03-21T09:19:51"
+  },
+  {
+    "no": "chapter05-q15",
+    "level": "intermediate",
+    "keywords": "Active Segment, Log Compaction, Write Path, Mechanics",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "針對設定了 `cleanup.policy=compact` 的 Topic，關於「Active Segment」的清理行為，下列敘述何者正確？",
+        "en": "Regarding the cleaning behavior of the 'Active Segment' for a Topic configured with `cleanup.policy=compact`, which of the following statements is correct?",
+        "wg": [
+          {
+            "t": "敘述",
+            "en": "statement",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) Active Segment 會即時進行 Compaction，以確保寫入的資料立即去重。",
+        "en": "(A) The Active Segment is compacted in real-time to ensure written data is immediately deduplicated.",
+        "wg": [
+          {
+            "t": "即時",
+            "en": "real-time",
+            "ps": "Adj"
+          },
+          {
+            "t": "去重",
+            "en": "deduplicated",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(B) Active Segment 屬於「Dirty Section」，但不會被 Compact，直到它被關閉 (Rolled) 成為舊的 Segment。",
+        "en": "(B) The Active Segment belongs to the 'Dirty Section' but will not be compacted until it is closed (Rolled) and becomes an old Segment.",
+        "wg": []
+      },
+      {
+        "t": "(C) Active Segment 屬於「Clean Section」，因為它包含最新的資料。",
+        "en": "(C) The Active Segment belongs to the 'Clean Section' because it contains the latest data.",
+        "wg": []
+      },
+      {
+        "t": "(D) Active Segment 只有在 Broker 記憶體不足時才會觸發 Compaction。",
+        "en": "(D) The Active Segment triggers Compaction only when the Broker runs out of memory.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "Log Compaction 僅針對已關閉的 Segments 進行。Active Segment 負責接收當前的循序寫入，若對其進行 Compaction 會破壞 Append-only 的寫入模式與效能。因此，它必須等到 Rolling 之後進入 Dirty Section，才有資格被 Cleaner Thread 處理。",
+      "en": "Log Compaction is performed only on closed Segments. The Active Segment is responsible for receiving current sequential writes; compacting it would disrupt the Append-only write pattern and performance. Therefore, it must wait until it rolls over and enters the Dirty Section before it qualifies for processing by the Cleaner Thread.",
+      "wg": [
+        {
+          "t": "已關閉的",
+          "en": "closed",
+          "ps": "Adj"
+        },
+        {
+          "t": "有資格",
+          "en": "qualify",
+          "ps": "V"
+        }
+      ]
+    },
+    "verified": "2026-03-21T09:19:51"
+  }
+]

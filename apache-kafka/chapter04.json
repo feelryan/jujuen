@@ -1,0 +1,1366 @@
+[
+  {
+    "no": "1",
+    "level": "intermediate",
+    "keywords": "High Watermark, LEO, Consumer, Visibility",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在 Apache Kafka 的副本機制中，Consumer 只能讀取到 High Watermark (HW) 之前的訊息，而無法讀取到 Log End Offset (LEO)。",
+        "en": "In Apache Kafka's replication mechanism, Consumers can only read messages up to the High Watermark (HW) and cannot access the Log End Offset (LEO).",
+        "wg": [
+          {
+            "t": "副本機制",
+            "en": "replication mechanism",
+            "ps": "N"
+          },
+          {
+            "t": "只能",
+            "en": "only",
+            "ps": "Adv"
+          }
+        ]
+      },
+      {
+        "t": "請問這種設計的主要目的是什麼？",
+        "en": "What is the primary purpose of this design?",
+        "wg": [
+          {
+            "t": "主要目的",
+            "en": "primary purpose",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 為了節省網路頻寬，避免 Consumer 讀取過多資料。",
+        "en": "(A) To save network bandwidth and prevent Consumers from reading too much data.",
+        "wg": [
+          {
+            "t": "網路頻寬",
+            "en": "network bandwidth",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(B) 確保資料一致性，防止 Consumer 讀取到尚未被 ISR 多數節點確認的「髒資料」。",
+        "en": "(B) To ensure data consistency and prevent Consumers from reading \"dirty data\" that has not been acknowledged by the majority of ISR nodes.",
+        "wg": [
+          {
+            "t": "資料一致性",
+            "en": "data consistency",
+            "ps": "N"
+          },
+          {
+            "t": "髒資料",
+            "en": "dirty data",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) 因為 LEO 僅用於儲存 Broker 的內部元數據，不包含實際訊息。",
+        "en": "(C) Because LEO is used only for storing Broker internal metadata and does not contain actual messages.",
+        "wg": [
+          {
+            "t": "內部元數據",
+            "en": "internal metadata",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(D) 為了讓 Leader 有時間對訊息進行壓縮與加密。",
+        "en": "(D) To allow the Leader time to compress and encrypt the messages.",
+        "wg": [
+          {
+            "t": "壓縮",
+            "en": "compress",
+            "ps": "V"
+          },
+          {
+            "t": "加密",
+            "en": "encrypt",
+            "ps": "V"
+          }
+        ]
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "HW 代表 ISR 中所有副本都已擁有的訊息位置（即已提交）。若允許 Consumer 讀取 LEO（Leader 剛寫入但尚未同步的資料），一旦 Leader 崩潰且該訊息未同步到新 Leader，Consumer 就會發生「讀取到隨後消失的訊息」的資料不一致現象。",
+      "en": "HW represents the message position possessed by all replicas in the ISR (i.e., committed). If Consumers were allowed to read up to the LEO (data just written by the Leader but not yet synced), and the Leader crashes before syncing, the Consumer would experience data inconsistency by reading a message that subsequently 'disappears' from the new Leader.",
+      "wg": [
+        {
+          "t": "已提交",
+          "en": "committed",
+          "ps": "Adj"
+        },
+        {
+          "t": "崩潰",
+          "en": "crash",
+          "ps": "V"
+        },
+        {
+          "t": "消失",
+          "en": "disappear",
+          "ps": "V"
+        }
+      ]
+    },
+    "verified": "2026-03-21T09:14:54"
+  },
+  {
+    "no": "2",
+    "level": "advanced",
+    "keywords": "acks=all, min.insync.replicas, Data Loss, Configuration",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "props.put(\"acks\", \"all\");\n// Broker config:\n// default.replication.factor = 3\n// min.insync.replicas = 1",
+    "question": [
+      {
+        "t": "某個生產環境的 Topic 設定了 `replication.factor=3`，且 Producer 端設定了 `acks=all` 以追求高耐久性。",
+        "en": "A production Topic is configured with `replication.factor=3`, and the Producer is set to `acks=all` to aim for high durability.",
+        "wg": [
+          {
+            "t": "高耐久性",
+            "en": "high durability",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "然而，在發生一次 Broker 故障後，團隊發現仍然有部分已確認（Acked）的資料遺失了。",
+        "en": "However, after a Broker failure occurred, the team discovered that some acknowledged (Acked) data was still lost.",
+        "wg": [
+          {
+            "t": "已確認",
+            "en": "acknowledged",
+            "ps": "Adj"
+          },
+          {
+            "t": "遺失",
+            "en": "lost",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "根據提供的設定片段，最可能導致此資料遺失的根本原因是什麼？",
+        "en": "Based on the provided configuration snippet, what is the most likely root cause of this data loss?",
+        "wg": [
+          {
+            "t": "根本原因",
+            "en": "root cause",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) `acks=all` 僅保證 Leader 寫入成功，並不等待 Follower。",
+        "en": "(A) `acks=all` only guarantees the Leader writes successfully and does not wait for Followers.",
+        "wg": []
+      },
+      {
+        "t": "(B) 因為 `min.insync.replicas` 預設為 1，當 ISR 縮減至僅剩 Leader 時，`acks=all` 退化為單節點寫入，Leader 故障即導致資料遺失。",
+        "en": "(B) Because `min.insync.replicas` defaults to 1, when the ISR shrinks to just the Leader, `acks=all` degrades to a single-node write, causing data loss if the Leader fails.",
+        "wg": [
+          {
+            "t": "退化",
+            "en": "degrade",
+            "ps": "V"
+          },
+          {
+            "t": "縮減",
+            "en": "shrink",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(C) Producer 沒有開啟冪等性（Idempotence），導致重複寫入覆蓋了舊資料。",
+        "en": "(C) The Producer did not enable idempotence, causing duplicate writes to overwrite old data.",
+        "wg": [
+          {
+            "t": "冪等性",
+            "en": "idempotence",
+            "ps": "N"
+          },
+          {
+            "t": "覆蓋",
+            "en": "overwrite",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(D) `replication.factor` 必須設定為偶數才能保證資料安全。",
+        "en": "(D) `replication.factor` must be set to an even number to guarantee data safety.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "單純設定 `acks=all` 並不保證多副本寫入，它只保證寫入「目前 ISR 中的所有副本」。若 `min.insync.replicas` 為 1 且 ISR 中只剩 Leader，系統仍會接受寫入並回傳 ACK。此時若 Leader 硬碟損壞，資料便會永久遺失。",
+      "en": "Simply setting `acks=all` does not guarantee multi-replica writes; it only guarantees writing to \"all replicas currently in the ISR.\" If `min.insync.replicas` is 1 and the ISR contains only the Leader, the system will still accept the write and return an ACK. If the Leader's disk fails at this point, the data is permanently lost.",
+      "wg": [
+        {
+          "t": "硬碟損壞",
+          "en": "disk failure",
+          "ps": "N"
+        },
+        {
+          "t": "永久",
+          "en": "permanently",
+          "ps": "Adv"
+        }
+      ]
+    },
+    "verified": "2026-03-21T09:14:54"
+  },
+  {
+    "no": "3",
+    "level": "intermediate",
+    "keywords": "Availability, Trade-off, min.insync.replicas",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在系統設計面試中，您正在規劃一個高可靠的 Kafka 叢集。",
+        "en": "In a system design interview, you are planning a highly reliable Kafka cluster.",
+        "wg": [
+          {
+            "t": "高可靠",
+            "en": "highly reliable",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "若 Topic 設定為 `replication.factor = 3` 且 `min.insync.replicas = 2`，請問針對「寫入操作（Producer Write）」而言，系統最多能容忍幾台 Broker 同時故障而不中斷服務？",
+        "en": "If a Topic is configured with `replication.factor = 3` and `min.insync.replicas = 2`, what is the maximum number of simultaneous Broker failures the system can tolerate for \"Producer Write\" operations without interrupting service?",
+        "wg": [
+          {
+            "t": "容忍",
+            "en": "tolerate",
+            "ps": "V"
+          },
+          {
+            "t": "中斷",
+            "en": "interrupt",
+            "ps": "V"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 0 台",
+        "en": "(A) 0 brokers",
+        "wg": []
+      },
+      {
+        "t": "(B) 1 台",
+        "en": "(B) 1 broker",
+        "wg": []
+      },
+      {
+        "t": "(C) 2 台",
+        "en": "(C) 2 brokers",
+        "wg": []
+      },
+      {
+        "t": "(D) 3 台",
+        "en": "(D) 3 brokers",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "計算公式為：`Replication Factor` - `min.insync.replicas` = 可容忍故障數。3 - 2 = 1。若故障 2 台，存活副本僅剩 1 台，小於 `min.insync.replicas` (2)，Producer 會收到 `NotEnoughReplicasException` 導致寫入服務中斷。",
+      "en": "The formula is: `Replication Factor` - `min.insync.replicas` = Tolerable Failures. 3 - 2 = 1. If 2 brokers fail, only 1 replica remains alive, which is less than `min.insync.replicas` (2). The Producer will receive a `NotEnoughReplicasException`, causing write service interruption.",
+      "wg": [
+        {
+          "t": "可容忍故障數",
+          "en": "tolerable failures",
+          "ps": "N"
+        },
+        {
+          "t": "存活副本",
+          "en": "alive replica",
+          "ps": "N"
+        }
+      ]
+    },
+    "verified": "2026-03-21T09:14:54"
+  },
+  {
+    "no": "4",
+    "level": "advanced",
+    "keywords": "Leader Epoch, Log Truncation, Consistency",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "Kafka 引入 Leader Epoch 機制主要是為了解決單純依賴 High Watermark (HW) 進行日誌截斷（Log Truncation）時可能發生的哪種問題？",
+        "en": "Kafka introduced the Leader Epoch mechanism primarily to solve which problem that can occur when relying solely on High Watermark (HW) for Log Truncation?",
+        "wg": [
+          {
+            "t": "日誌截斷",
+            "en": "log truncation",
+            "ps": "N"
+          },
+          {
+            "t": "單純依賴",
+            "en": "relying solely on",
+            "ps": "V"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 解決 Consumer Group Rebalance 過程過慢的問題。",
+        "en": "(A) To solve the issue of slow Consumer Group Rebalancing.",
+        "wg": [
+          {
+            "t": "過慢",
+            "en": "too slow",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "(B) 解決副本間資料不一致與潛在的資料遺失問題（例如：Follower 錯誤截斷了未該截斷的資料）。",
+        "en": "(B) To solve data inconsistency between replicas and potential data loss (e.g., a Follower incorrectly truncating data that should not be truncated).",
+        "wg": [
+          {
+            "t": "潛在的",
+            "en": "potential",
+            "ps": "Adj"
+          },
+          {
+            "t": "錯誤截斷",
+            "en": "incorrectly truncate",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(C) 為了支援跨叢集（Cross-Cluster）的鏡像複製。",
+        "en": "(C) To support Cross-Cluster mirroring replication.",
+        "wg": [
+          {
+            "t": "鏡像複製",
+            "en": "mirroring replication",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(D) 為了讓 Zookeeper 能更快速地選舉出新的 Leader。",
+        "en": "(D) To allow Zookeeper to elect a new Leader more quickly.",
+        "wg": [
+          {
+            "t": "選舉",
+            "en": "elect",
+            "ps": "V"
+          }
+        ]
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "HW 的更新是異步的，可能會有延遲。在舊版 Kafka 中，若 Follower 僅依賴 HW 判斷日誌有效性，當 Leader 切換時可能會發生「Follower 的 LEO 高於舊 HW 但低於實際 Leader LEO」的情況，導致錯誤截斷或資料分歧。Leader Epoch 透過 `(Epoch, StartOffset)` 提供精確的版本控制，確保截斷行為正確。",
+      "en": "HW updates are asynchronous and can lag. In older Kafka versions, if a Follower relied solely on HW to determine log validity, scenarios like 'Follower LEO is higher than old HW but lower than actual Leader LEO' during a Leader switch could cause incorrect truncation or data divergence. Leader Epoch provides precise versioning via `(Epoch, StartOffset)` to ensure correct truncation behavior.",
+      "wg": [
+        {
+          "t": "異步",
+          "en": "asynchronous",
+          "ps": "Adj"
+        },
+        {
+          "t": "分歧",
+          "en": "divergence",
+          "ps": "N"
+        },
+        {
+          "t": "版本控制",
+          "en": "versioning",
+          "ps": "N"
+        }
+      ]
+    },
+    "verified": "2026-03-21T09:14:54"
+  },
+  {
+    "no": "5",
+    "level": "intermediate",
+    "keywords": "ISR, replica.lag.time.max.ms, Leader Election",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "ISR (In-Sync Replicas) 是 Kafka 判定節點健康狀態與選舉資格的核心。",
+        "en": "ISR (In-Sync Replicas) is the core for Kafka to determine node health and election eligibility.",
+        "wg": [
+          {
+            "t": "選舉資格",
+            "en": "election eligibility",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "請問在現代版本的 Kafka 中，是什麼條件決定了一個 Follower 是否會被踢出 ISR？",
+        "en": "In modern versions of Kafka, what condition determines whether a Follower is kicked out of the ISR?",
+        "wg": [
+          {
+            "t": "踢出",
+            "en": "kick out",
+            "ps": "V"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) Follower 落後的訊息則數（Message Count）超過了 `replica.lag.max.messages`。",
+        "en": "(A) The number of messages the Follower is lagging behind exceeds `replica.lag.max.messages`.",
+        "wg": [
+          {
+            "t": "落後",
+            "en": "lagging",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(B) Follower 在 `replica.lag.time.max.ms` 時間內，沒有向 Leader 發送 Fetch 請求或無法追上 Leader 的 LEO。",
+        "en": "(B) The Follower has not sent a Fetch request to the Leader or has failed to catch up to the Leader's LEO within `replica.lag.time.max.ms`.",
+        "wg": [
+          {
+            "t": "追上",
+            "en": "catch up",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(C) Follower 的磁碟使用率超過了 90%。",
+        "en": "(C) The Follower's disk usage exceeds 90%.",
+        "wg": []
+      },
+      {
+        "t": "(D) Follower 與 Leader 位於不同的 Availability Zone (AZ)。",
+        "en": "(D) The Follower and Leader are located in different Availability Zones (AZ).",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "舊版 Kafka 曾使用訊息落後數量判定，但在高吞吐場景下容易導致 ISR 頻繁震盪。現代版本僅使用「時間」作為判定標準 (`replica.lag.time.max.ms`)，若 Follower 在該時間內無法跟上 Leader 的最新狀態（LEO），才會被移除。",
+      "en": "Older Kafka versions used message lag count, which caused frequent ISR flapping in high-throughput scenarios. Modern versions rely solely on 'time' (`replica.lag.time.max.ms`). If a Follower cannot catch up to the Leader's latest state (LEO) within this period, it is removed.",
+      "wg": [
+        {
+          "t": "頻繁震盪",
+          "en": "frequent flapping",
+          "ps": "N"
+        },
+        {
+          "t": "吞吐",
+          "en": "throughput",
+          "ps": "N"
+        }
+      ]
+    },
+    "verified": "2026-03-21T09:14:54"
+  },
+  {
+    "no": "chapter04-q06",
+    "level": "advanced",
+    "keywords": "Unclean Leader Election, Availability, Data Loss, Disaster Recovery",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您的 Kafka 叢集遭遇了嚴重的災難性故障，某個核心 Topic 的所有 ISR (In-Sync Replicas) 節點均已離線且無法立即恢復。",
+        "en": "Your Kafka cluster has suffered a catastrophic failure where all ISR (In-Sync Replicas) nodes for a core topic are offline and cannot be recovered immediately.",
+        "wg": [
+          {
+            "t": "災難性故障",
+            "en": "catastrophic failure",
+            "ps": "N"
+          },
+          {
+            "t": "核心",
+            "en": "core",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "目前僅存一個落後 Leader 許多的非 ISR 副本（Out-of-Sync Replica）仍然存活。",
+        "en": "Currently, only one Out-of-Sync Replica, which lags significantly behind the Leader, is still alive.",
+        "wg": [
+          {
+            "t": "落後",
+            "en": "lag",
+            "ps": "V"
+          },
+          {
+            "t": "存活",
+            "en": "alive",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "業務方要求必須立即恢復系統的「寫入可用性」，並願意為此承擔部分資料遺失的風險。",
+        "en": "The business requires immediate restoration of system \"write availability\" and is willing to accept the risk of some data loss.",
+        "wg": [
+          {
+            "t": "寫入可用性",
+            "en": "write availability",
+            "ps": "N"
+          },
+          {
+            "t": "承擔",
+            "en": "accept/bear",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "作為資深工程師，您應該採取哪項操作？",
+        "en": "As a senior engineer, which action should you take?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 將 `min.insync.replicas` 設定為 1，並重啟 Producer。",
+        "en": "(A) Set `min.insync.replicas` to 1 and restart the Producer.",
+        "wg": []
+      },
+      {
+        "t": "(B) 臨時將 `unclean.leader.election.enable` 設定為 `true`，觸發該副本成為新 Leader。",
+        "en": "(B) Temporarily set `unclean.leader.election.enable` to `true` to trigger that replica to become the new Leader.",
+        "wg": [
+          {
+            "t": "觸發",
+            "en": "trigger",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(C) 將 Producer 的 `acks` 設定改為 `0` 以強制寫入。",
+        "en": "(C) Change the Producer's `acks` setting to `0` to force writes.",
+        "wg": []
+      },
+      {
+        "t": "(D) 增加 `replica.lag.time.max.ms` 的數值，等待該副本自動加入 ISR。",
+        "en": "(D) Increase the value of `replica.lag.time.max.ms` and wait for the replica to automatically join the ISR.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "當所有 ISR 節點都失效時，Kafka 預設不會選舉非 ISR 節點為 Leader 以保護資料一致性。若要優先恢復可用性（犧牲資料耐久性），必須啟用 Unclean Leader Election，這允許落後的副本成為 Leader，但會導致舊 Leader 未同步的資料永久遺失。",
+      "en": "When all ISR nodes fail, Kafka by default does not elect non-ISR nodes as Leader to protect data consistency. To prioritize availability (sacrificing data durability), you must enable Unclean Leader Election, which allows a lagging replica to become Leader but results in permanent loss of unsynced data from the old Leader.",
+      "wg": [
+        {
+          "t": "犧牲",
+          "en": "sacrifice",
+          "ps": "V"
+        },
+        {
+          "t": "永久遺失",
+          "en": "permanent loss",
+          "ps": "N"
+        }
+      ]
+    },
+    "verified": "2026-03-21T09:14:54"
+  },
+  {
+    "no": "chapter04-q07",
+    "level": "intermediate",
+    "keywords": "Rack Awareness, Multi-AZ, Availability, Configuration",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您正在雲端環境（如 AWS/GCP）部署 Kafka 叢集，目標是即使整個可用區域（Availability Zone, AZ）發生故障，系統仍能持續運作且不遺失資料。",
+        "en": "You are deploying a Kafka cluster in a cloud environment (e.g., AWS/GCP) with the goal that the system continues to operate without data loss even if an entire Availability Zone (AZ) fails.",
+        "wg": [
+          {
+            "t": "可用區域",
+            "en": "Availability Zone",
+            "ps": "N"
+          },
+          {
+            "t": "故障",
+            "en": "failure/outage",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "除了設定適當的 `replication.factor` 外，您還需要在 Broker 端配置哪一個關鍵參數來確保副本能正確分散在不同機房？",
+        "en": "Besides setting an appropriate `replication.factor`, which key parameter must you configure on the Broker side to ensure replicas are correctly distributed across different data centers?",
+        "wg": [
+          {
+            "t": "分散",
+            "en": "distribute",
+            "ps": "V"
+          },
+          {
+            "t": "機房",
+            "en": "data center/rack",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) `broker.rack`",
+        "en": "(A) `broker.rack`",
+        "wg": []
+      },
+      {
+        "t": "(B) `zookeeper.connect`",
+        "en": "(B) `zookeeper.connect`",
+        "wg": []
+      },
+      {
+        "t": "(C) `num.partitions`",
+        "en": "(C) `num.partitions`",
+        "wg": []
+      },
+      {
+        "t": "(D) `log.dirs`",
+        "en": "(D) `log.dirs`",
+        "wg": []
+      }
+    ],
+    "answer": "A",
+    "why": {
+      "t": "Kafka 的 Rack Awareness 機制依賴 `broker.rack` 參數。透過將此參數設定為該 Broker 所在的 AZ ID（例如 `us-east-1a`），Kafka 會盡量將同一個 Partition 的副本分配到具有不同 rack 標籤的 Broker 上，從而實現跨 AZ 的容災能力。",
+      "en": "Kafka's Rack Awareness mechanism relies on the `broker.rack` parameter. By setting this parameter to the AZ ID where the Broker resides (e.g., `us-east-1a`), Kafka attempts to distribute replicas of the same partition to Brokers with different rack labels, achieving cross-AZ disaster recovery capabilities.",
+      "wg": [
+        {
+          "t": "容災能力",
+          "en": "disaster recovery capability",
+          "ps": "N"
+        },
+        {
+          "t": "標籤",
+          "en": "label",
+          "ps": "N"
+        }
+      ]
+    },
+    "verified": "2026-03-21T09:14:54"
+  },
+  {
+    "no": "chapter04-q08",
+    "level": "intermediate",
+    "keywords": "Idempotence, Producer, Retries, Duplicates",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "props.put(\"enable.idempotence\", \"true\");\nprops.put(\"retries\", Integer.MAX_VALUE);\nprops.put(\"acks\", \"all\");",
+    "question": [
+      {
+        "t": "在追求資料高耐久性的配置中（如上方程式碼片段），我們啟用了 `enable.idempotence=true`。",
+        "en": "In a configuration aiming for high data durability (as in the code snippet above), we have enabled `enable.idempotence=true`.",
+        "wg": [
+          {
+            "t": "高耐久性",
+            "en": "high durability",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "請問此設定在「副本機制」與「重試」的情境下，主要解決了什麼問題？",
+        "en": "What specific problem does this setting solve in the context of \"replication\" and \"retries\"?",
+        "wg": [
+          {
+            "t": "情境",
+            "en": "context/scenario",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 確保 Consumer 只能讀取到已提交的事務 (Committed Transactions)。",
+        "en": "(A) Ensures Consumers can only read committed transactions.",
+        "wg": []
+      },
+      {
+        "t": "(B) 防止因網路瞬斷導致 Producer 重送 ACK 遺失的訊息時，在 Log 中產生重複資料。",
+        "en": "(B) Prevents duplicate data in the Log when the Producer resends messages due to lost ACKs caused by network blips.",
+        "wg": [
+          {
+            "t": "網路瞬斷",
+            "en": "network blip/transient failure",
+            "ps": "N"
+          },
+          {
+            "t": "重複資料",
+            "en": "duplicate data",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) 強制所有 ISR 副本都寫入成功後才回傳 ACK，增加資料安全性。",
+        "en": "(C) Forces ACKs to be returned only after all ISR replicas have successfully written, increasing data safety.",
+        "wg": []
+      },
+      {
+        "t": "(D) 加速 Leader Election 的過程，減少不可用時間。",
+        "en": "(D) Accelerates the Leader Election process, reducing downtime.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "冪等性 Producer (Idempotent Producer) 會為每條訊息分配序列號 (Sequence Number)。當 Producer 因未收到 ACK 而重試發送時，Broker 能透過序列號識別並去重 (De-duplicate)，確保同一 Partition 內的訊息 Exactly-Once 寫入，避免重複。",
+      "en": "The Idempotent Producer assigns a sequence number to each message. When the Producer retries sending due to a missing ACK, the Broker can identify and de-duplicate using the sequence number, ensuring Exactly-Once writes within the same partition and preventing duplicates.",
+      "wg": [
+        {
+          "t": "序列號",
+          "en": "sequence number",
+          "ps": "N"
+        },
+        {
+          "t": "去重",
+          "en": "de-duplicate",
+          "ps": "V"
+        }
+      ]
+    },
+    "verified": "2026-03-21T09:14:54"
+  },
+  {
+    "no": "chapter04-q09",
+    "level": "intermediate",
+    "keywords": "Consumer, Isolation Level, Transactions, Pitfall",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您的團隊正在使用 Kafka 的 Transaction 功能來確保跨多個 Topic 寫入的原子性。",
+        "en": "Your team is using Kafka's Transaction feature to ensure atomicity of writes across multiple topics.",
+        "wg": [
+          {
+            "t": "原子性",
+            "en": "atomicity",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "然而，下游的 Consumer 應用程式回報它們讀取到了部分最終被「中止 (Aborted)」的事務訊息，導致數據計算錯誤。",
+        "en": "However, downstream Consumer applications report reading some messages from transactions that were eventually \"Aborted,\" leading to calculation errors.",
+        "wg": [
+          {
+            "t": "中止",
+            "en": "aborted",
+            "ps": "Adj"
+          },
+          {
+            "t": "下游",
+            "en": "downstream",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "最可能的原因是 Consumer 端遺漏了什麼設定？",
+        "en": "What is the most likely configuration missing on the Consumer side?",
+        "wg": [
+          {
+            "t": "遺漏",
+            "en": "missing/omitted",
+            "ps": "V"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) `enable.auto.commit = false`",
+        "en": "(A) `enable.auto.commit = false`",
+        "wg": []
+      },
+      {
+        "t": "(B) `isolation.level = read_committed`",
+        "en": "(B) `isolation.level = read_committed`",
+        "wg": []
+      },
+      {
+        "t": "(C) `auto.offset.reset = earliest`",
+        "en": "(C) `auto.offset.reset = earliest`",
+        "wg": []
+      },
+      {
+        "t": "(D) `group.instance.id`",
+        "en": "(D) `group.instance.id`",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "Consumer 預設的隔離層級是 `read_uncommitted`，這意味著它可以讀取到所有寫入 Log 的訊息，包括那些尚未 Commit 或已 Abort 的事務。若要避免讀到髒數據，必須明確設定 `isolation.level = read_committed`，此時 Consumer 只會讀取到 LSO (Last Stable Offset) 之前的訊息。",
+      "en": "The default isolation level for Consumers is `read_uncommitted`, meaning it can read all messages written to the Log, including those not yet committed or aborted. To avoid reading dirty data, you must explicitly set `isolation.level = read_committed`, causing the Consumer to only read messages up to the LSO (Last Stable Offset).",
+      "wg": [
+        {
+          "t": "隔離層級",
+          "en": "isolation level",
+          "ps": "N"
+        },
+        {
+          "t": "髒數據",
+          "en": "dirty data",
+          "ps": "N"
+        }
+      ]
+    },
+    "verified": "2026-03-21T09:16:34"
+  },
+  {
+    "no": "chapter04-q10",
+    "level": "advanced",
+    "keywords": "High Watermark, LEO, Calculation, Mental Model",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "假設某個 Partition 的 ISR 包含三個節點：Leader、Follower A 與 Follower B。",
+        "en": "Assume a partition's ISR consists of three nodes: Leader, Follower A, and Follower B.",
+        "wg": []
+      },
+      {
+        "t": "目前的日誌狀態如下（LEO 代表下一條訊息寫入的位置）：",
+        "en": "The current log state is as follows (LEO represents the position where the next message will be written):",
+        "wg": []
+      },
+      {
+        "t": "Leader LEO = 10 (擁有 Offset 0-9 的訊息)\nFollower A LEO = 10 (擁有 Offset 0-9 的訊息)\nFollower B LEO = 8 (擁有 Offset 0-7 的訊息)",
+        "en": "Leader LEO = 10 (Has messages at Offset 0-9)\nFollower A LEO = 10 (Has messages at Offset 0-9)\nFollower B LEO = 8 (Has messages at Offset 0-7)",
+        "wg": []
+      },
+      {
+        "t": "請問此時該 Partition 的 High Watermark (HW) 數值應為多少？且 Consumer 最多能讀取到哪個 Offset 的訊息？",
+        "en": "What should be the High Watermark (HW) value for this partition at this moment? And up to which Offset can a Consumer read?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) HW = 10，Consumer 可讀到 Offset 9。",
+        "en": "(A) HW = 10, Consumer can read up to Offset 9.",
+        "wg": []
+      },
+      {
+        "t": "(B) HW = 8，Consumer 可讀到 Offset 7。",
+        "en": "(B) HW = 8, Consumer can read up to Offset 7.",
+        "wg": []
+      },
+      {
+        "t": "(C) HW = 10，Consumer 可讀到 Offset 7。",
+        "en": "(C) HW = 10, Consumer can read up to Offset 7.",
+        "wg": []
+      },
+      {
+        "t": "(D) HW = 9，Consumer 可讀到 Offset 8。",
+        "en": "(D) HW = 9, Consumer can read up to Offset 8.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "HW 的定義是 ISR 中所有副本 LEO 的最小值。在此例中，min(10, 10, 8) = 8。因此 HW 為 8。Consumer 只能讀取 HW 之前的訊息（即小於 HW 的 Offset），所以可讀取的最大 Offset 是 7 (訊息 0-7)。Offset 8 和 9 雖然在 Leader 上，但尚未被 Follower B 複製，因此被視為未提交。",
+      "en": "HW is defined as the minimum LEO among all replicas in the ISR. In this example, min(10, 10, 8) = 8. Therefore, HW is 8. Consumers can only read messages before the HW (i.e., offsets less than HW), so the maximum readable Offset is 7 (messages 0-7). Offsets 8 and 9, while present on the Leader, have not yet been replicated by Follower B and are thus considered uncommitted.",
+      "wg": [
+        {
+          "t": "最小值",
+          "en": "minimum value",
+          "ps": "N"
+        },
+        {
+          "t": "未提交",
+          "en": "uncommitted",
+          "ps": "Adj"
+        }
+      ]
+    },
+    "verified": "2026-03-21T09:16:34"
+  },
+  {
+    "no": "chapter04-q11",
+    "level": "intermediate",
+    "keywords": "Latency, Performance, Trade-off, acks=all",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在系統優化會議中，團隊決定將 Producer 的設定從 `acks=1` 改為 `acks=all` 以提升資料耐久性。",
+        "en": "In a system optimization meeting, the team decided to change the Producer setting from `acks=1` to `acks=all` to improve data durability.",
+        "wg": [
+          {
+            "t": "系統優化",
+            "en": "system optimization",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "請問這個變更最直接的負面效能影響是什麼？",
+        "en": "What is the most direct negative performance impact of this change?",
+        "wg": [
+          {
+            "t": "負面",
+            "en": "negative",
+            "ps": "Adj"
+          },
+          {
+            "t": "效能影響",
+            "en": "performance impact",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) Consumer 的讀取吞吐量會大幅下降。",
+        "en": "(A) Consumer read throughput will drop significantly.",
+        "wg": []
+      },
+      {
+        "t": "(B) Broker 的 CPU 使用率會因為解壓縮而暴增。",
+        "en": "(B) Broker CPU usage will spike due to decompression.",
+        "wg": []
+      },
+      {
+        "t": "(C) Producer 的寫入延遲 (Latency) 會增加。",
+        "en": "(C) Producer write latency will increase.",
+        "wg": []
+      },
+      {
+        "t": "(D) 每個 Partition 的磁碟佔用空間會加倍。",
+        "en": "(D) Disk usage per partition will double.",
+        "wg": []
+      }
+    ],
+    "answer": "C",
+    "why": {
+      "t": "當設定 `acks=all` 時，Leader 必須等待 ISR 中所有同步副本都成功寫入並確認後，才能向 Producer 回傳 ACK。這意味著寫入請求的響應時間（Latency）將受限於 ISR 中最慢的那個節點，導致延遲增加。",
+      "en": "When `acks=all` is set, the Leader must wait for all in-sync replicas in the ISR to successfully write and acknowledge before sending an ACK to the Producer. This means the response time (Latency) for write requests will be limited by the slowest node in the ISR, leading to increased latency.",
+      "wg": [
+        {
+          "t": "響應時間",
+          "en": "response time",
+          "ps": "N"
+        },
+        {
+          "t": "受限於",
+          "en": "limited by/constrained by",
+          "ps": "V"
+        }
+      ]
+    },
+    "verified": "2026-03-21T09:16:34"
+  },
+  {
+    "no": "chapter04-q12",
+    "level": "advanced",
+    "keywords": "High Watermark, Fetch Request, Replication Protocol, Piggyback",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在 Kafka 的副本同步機制中，Leader 維護了 High Watermark (HW) 來標記已提交的訊息範圍。",
+        "en": "In Kafka's replication mechanism, the Leader maintains the High Watermark (HW) to mark the range of committed messages.",
+        "wg": [
+          {
+            "t": "副本同步機制",
+            "en": "replication mechanism",
+            "ps": "N"
+          },
+          {
+            "t": "已提交",
+            "en": "committed",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "然而，Follower 也需要知道 HW 的位置以便服務 Consumer 或進行日誌截斷。",
+        "en": "However, Followers also need to know the HW position to serve Consumers or perform log truncation.",
+        "wg": [
+          {
+            "t": "日誌截斷",
+            "en": "log truncation",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "請問 Follower 是透過什麼機制來更新其本地的 HW 數值？",
+        "en": "By what mechanism does a Follower update its local HW value?",
+        "wg": [
+          {
+            "t": "機制",
+            "en": "mechanism",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) Leader 會主動發送獨立的 `UpdateMetadata` 請求給所有 Follower。",
+        "en": "(A) The Leader actively sends a separate `UpdateMetadata` request to all Followers.",
+        "wg": []
+      },
+      {
+        "t": "(B) Follower 透過 ZooKeeper 的 Watcher 機制監聽 HW 的變更。",
+        "en": "(B) Followers listen for HW changes via ZooKeeper's Watcher mechanism.",
+        "wg": []
+      },
+      {
+        "t": "(C) Leader 在回覆 Follower 的 `Fetch Response` 中夾帶最新的 HW 資訊。",
+        "en": "(C) The Leader piggybacks the latest HW information in the `Fetch Response` returned to the Follower.",
+        "wg": [
+          {
+            "t": "夾帶",
+            "en": "piggyback",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(D) Follower 根據自己寫入磁碟的速度自行計算 HW。",
+        "en": "(D) Followers calculate the HW themselves based on their own disk write speed.",
+        "wg": []
+      }
+    ],
+    "answer": "C",
+    "why": {
+      "t": "Kafka 為了效能最佳化，並不會為 HW 更新發送額外的網路請求。Follower 在向 Leader 發送 Fetch Request 拉取訊息時，Leader 會在 Fetch Response 中告知目前的 HW。這意味著 Follower 的 HW 更新總是會稍微落後於 Leader。",
+      "en": "For performance optimization, Kafka does not send extra network requests for HW updates. When a Follower sends a Fetch Request to the Leader to pull messages, the Leader informs it of the current HW in the Fetch Response. This means the Follower's HW update always lags slightly behind the Leader.",
+      "wg": [
+        {
+          "t": "效能最佳化",
+          "en": "performance optimization",
+          "ps": "N"
+        },
+        {
+          "t": "落後",
+          "en": "lag",
+          "ps": "V"
+        }
+      ]
+    },
+    "verified": "2026-03-21T09:16:34"
+  },
+  {
+    "no": "chapter04-q13",
+    "level": "intermediate",
+    "keywords": "Latency, acks=all, Performance, Bottleneck",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您正在排查一個設定為 `acks=all` 的 Kafka Topic 寫入延遲飆升的問題。",
+        "en": "You are troubleshooting a spike in write latency for a Kafka Topic configured with `acks=all`.",
+        "wg": [
+          {
+            "t": "排查",
+            "en": "troubleshoot",
+            "ps": "V"
+          },
+          {
+            "t": "飆升",
+            "en": "spike",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "監控顯示 Leader 節點的資源使用率正常，但 ISR 列表中的其中一個 Follower 正經歷磁碟 I/O 效能退化。",
+        "en": "Monitoring shows that the Leader node's resource usage is normal, but one Follower in the ISR list is experiencing disk I/O degradation.",
+        "wg": [
+          {
+            "t": "效能退化",
+            "en": "degradation",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "為什麼這個單一 Follower 的變慢會直接影響 Producer 的寫入延遲？",
+        "en": "Why does the slowness of this single Follower directly affect the Producer's write latency?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 因為 Leader 必須等待 ISR 中「所有」副本都成功寫入並確認後，才能回覆 Producer。",
+        "en": "(A) Because the Leader must wait for \"all\" replicas in the ISR to successfully write and acknowledge before responding to the Producer.",
+        "wg": [
+          {
+            "t": "確認",
+            "en": "acknowledge",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(B) 因為 Kafka 的 Leader 會自動將寫入請求轉發給最慢的節點處理以平衡負載。",
+        "en": "(B) Because the Kafka Leader automatically forwards write requests to the slowest node to balance the load.",
+        "wg": []
+      },
+      {
+        "t": "(C) 因為 Producer 會同時連線到所有副本進行寫入，必須等待最慢的回應。",
+        "en": "(C) Because the Producer connects to all replicas simultaneously for writing and must wait for the slowest response.",
+        "wg": []
+      },
+      {
+        "t": "(D) 這是不正常的現象，通常 Follower 的速度不應影響 Leader 的寫入回應。",
+        "en": "(D) This is abnormal behavior; typically, a Follower's speed should not affect the Leader's write response.",
+        "wg": []
+      }
+    ],
+    "answer": "A",
+    "why": {
+      "t": "當設定 `acks=all` 時，寫入延遲取決於 ISR 中「最慢」的那個副本。Leader 必須收到 ISR 中所有成員的確認（ACK）後，才會推進 HW 並向 Producer 確認寫入成功。這是在耐久性（Durability）與延遲（Latency）之間的權衡。",
+      "en": "When `acks=all` is set, write latency is determined by the \"slowest\" replica in the ISR. The Leader must receive acknowledgments (ACKs) from all members in the ISR before advancing the HW and acknowledging the write to the Producer. This is the trade-off between Durability and Latency.",
+      "wg": [
+        {
+          "t": "取決於",
+          "en": "determined by",
+          "ps": "V"
+        },
+        {
+          "t": "權衡",
+          "en": "trade-off",
+          "ps": "N"
+        }
+      ]
+    },
+    "verified": "2026-03-21T09:16:34"
+  },
+  {
+    "no": "chapter04-q14",
+    "level": "advanced",
+    "keywords": "Configuration, Pitfall, min.insync.replicas, acks",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "replication.factor=3\nmin.insync.replicas=2\n\n// Producer Config\nacks=1",
+    "question": [
+      {
+        "t": "一位工程師為了確保資料安全，在 Broker 端設定了 `min.insync.replicas=2`，但 Producer 端卻錯誤地保留了預設值 `acks=1`。",
+        "en": "To ensure data safety, an engineer configured `min.insync.replicas=2` on the Broker side, but mistakenly left the Producer configuration at the default `acks=1`.",
+        "wg": [
+          {
+            "t": "保留",
+            "en": "leave / retain",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "假設此時叢集發生故障，該 Topic 的 ISR 數量降至僅剩 1 個（只有 Leader）。",
+        "en": "Assume a cluster failure occurs, and the ISR count for this Topic drops to just 1 (Leader only).",
+        "wg": []
+      },
+      {
+        "t": "請問 Producer 的寫入請求會發生什麼事？",
+        "en": "What will happen to the Producer's write requests?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 寫入失敗，Producer 收到 `NotEnoughReplicasException`。",
+        "en": "(A) The write fails, and the Producer receives a `NotEnoughReplicasException`.",
+        "wg": []
+      },
+      {
+        "t": "(B) 寫入成功，因為 `min.insync.replicas` 只有在 `acks=all` 時才會強制執行。",
+        "en": "(B) The write succeeds, because `min.insync.replicas` is only enforced when `acks=all`.",
+        "wg": [
+          {
+            "t": "強制執行",
+            "en": "enforce",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(C) 寫入被 Broker 暫存，直到 ISR 數量恢復為 2 才提交。",
+        "en": "(C) The write is buffered by the Broker and committed only when the ISR count returns to 2.",
+        "wg": [
+          {
+            "t": "暫存",
+            "en": "buffer",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(D) Leader 會立即觸發 Unclean Leader Election。",
+        "en": "(D) The Leader will immediately trigger an Unclean Leader Election.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "這是一個常見的配置陷阱。`min.insync.replicas` 的檢查邏輯是綁定在 `acks=all` (或 -1) 的請求處理流程中。如果 Producer 設定 `acks=1`，Leader 只要自己寫入成功就會回傳 ACK，完全忽略 ISR 數量是否滿足最小要求，這可能導致預期外的資料遺失風險。",
+      "en": "This is a common configuration pitfall. The check for `min.insync.replicas` is tied to the request processing flow for `acks=all` (or -1). If the Producer sets `acks=1`, the Leader sends an ACK as soon as it writes successfully, completely ignoring whether the ISR count meets the minimum requirement, which can lead to unexpected data loss risks.",
+      "wg": [
+        {
+          "t": "配置陷阱",
+          "en": "configuration pitfall",
+          "ps": "N"
+        },
+        {
+          "t": "綁定",
+          "en": "tie to / bind",
+          "ps": "V"
+        }
+      ]
+    },
+    "verified": "2026-03-21T09:16:34"
+  },
+  {
+    "no": "chapter04-q15",
+    "level": "intermediate",
+    "keywords": "Follower, Recovery, Log Truncation, HW",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "當一個 Follower 節點崩潰並重啟後，它磁碟上的日誌（Log）可能包含一些尚未被 Leader 確認提交的資料（即 LEO > HW）。",
+        "en": "When a Follower node crashes and restarts, its on-disk log may contain some data that has not yet been acknowledged as committed by the Leader (i.e., LEO > HW).",
+        "wg": [
+          {
+            "t": "崩潰",
+            "en": "crash",
+            "ps": "V"
+          },
+          {
+            "t": "尚未被確認",
+            "en": "unacknowledged",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "為了確保與目前的 Leader 保持一致並重新加入 ISR，該 Follower 必須執行什麼操作？",
+        "en": "To ensure consistency with the current Leader and rejoin the ISR, what operation must the Follower perform?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 將本地日誌截斷（Truncate）到 High Watermark (HW) 或 Leader Epoch 指定的位置。",
+        "en": "(A) Truncate the local log to the High Watermark (HW) or the position specified by the Leader Epoch.",
+        "wg": [
+          {
+            "t": "截斷",
+            "en": "truncate",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(B) 保留所有資料，並要求 Leader 下載這些多出的訊息。",
+        "en": "(B) Keep all data and request the Leader to download these extra messages.",
+        "wg": []
+      },
+      {
+        "t": "(C) 進入唯讀模式，直到人工介入修復資料差異。",
+        "en": "(C) Enter read-only mode until manual intervention fixes the data discrepancy.",
+        "wg": [
+          {
+            "t": "唯讀模式",
+            "en": "read-only mode",
+            "ps": "N"
+          },
+          {
+            "t": "人工介入",
+            "en": "manual intervention",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(D) 自動刪除該 Partition 的所有資料並從頭開始同步（Full Sync）。",
+        "en": "(D) Automatically delete all data for that Partition and start a full sync from scratch.",
+        "wg": []
+      }
+    ],
+    "answer": "A",
+    "why": {
+      "t": "Follower 重啟後，其 LEO 可能高於 HW，但高於 HW 的部分被視為「未提交」且不安全的。為了與 Leader 同步，Follower 必須將日誌截斷到 HW（舊版機制）或利用 Leader Epoch 協商出的 Offset，然後重新開始從 Leader 拉取資料。",
+      "en": "After a Follower restarts, its LEO might be higher than the HW, but the part above the HW is considered \"uncommitted\" and unsafe. To sync with the Leader, the Follower must truncate its log to the HW (legacy mechanism) or the Offset negotiated via Leader Epoch, and then resume fetching data from the Leader.",
+      "wg": [
+        {
+          "t": "協商",
+          "en": "negotiate",
+          "ps": "V"
+        },
+        {
+          "t": "拉取",
+          "en": "fetch",
+          "ps": "V"
+        }
+      ]
+    },
+    "verified": "2026-03-21T09:16:34"
+  }
+]

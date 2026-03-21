@@ -1,0 +1,786 @@
+[
+  {
+    "no": "1",
+    "level": "Easy",
+    "keywords": "ClickOps, Drift, IaC, Mental Model",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "某工程師為了緊急修復問題，直接在 Azure Portal 上手動修改了防火牆規則（ClickOps），但沒有更新 IaC 程式碼。當下一次 CI/CD Pipeline 執行部署（Apply）時，根據「宣告式終局狀態」原則，預期會發生什麼事？",
+        "en": "An engineer manually modified a firewall rule in the Azure Portal (ClickOps) to fix an urgent issue but did not update the IaC code. When the next CI/CD pipeline runs the deployment (Apply), based on the 'Declarative End-State' principle, what is expected to happen?",
+        "wg": [
+          {
+            "t": "宣告式終局狀態",
+            "en": "Declarative End-State",
+            "ps": "noun"
+          },
+          {
+            "t": "配置漂移",
+            "en": "Configuration Drift",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) Pipeline 會自動偵測 Portal 上的變更，並將其反向更新回 Git 程式碼中。",
+        "en": "(A) The pipeline will automatically detect changes in the Portal and update the Git code to match.",
+        "wg": []
+      },
+      {
+        "t": "(B) Pipeline 會忽略 Portal 上的變更，僅部署程式碼中有新增的資源。",
+        "en": "(B) The pipeline will ignore changes in the Portal and only deploy new resources defined in the code.",
+        "wg": []
+      },
+      {
+        "t": "(C) Pipeline 會將環境狀態覆蓋回程式碼所定義的樣子，導致手動修改被還原（故障可能重現）。",
+        "en": "(C) The pipeline will overwrite the environment state to match the code definition, causing the manual modification to be reverted (the failure may recur).",
+        "wg": []
+      },
+      {
+        "t": "(D) Pipeline 會因為偵測到衝突而自動刪除整個 Resource Group。",
+        "en": "(D) The pipeline will automatically delete the entire Resource Group due to detected conflicts.",
+        "wg": []
+      }
+    ],
+    "answer": "C",
+    "why": {
+      "t": "IaC 的核心精神是宣告式（Declarative），程式碼定義了資源的「唯一真實來源（Single Source of Truth）」。若手動修改導致環境與程式碼不一致（Drift），IaC 工具（如 Terraform 或 Bicep）在執行 Apply 時會強制將環境恢復成程式碼描述的狀態，這意味著手動修改會被覆蓋。",
+      "en": "The core philosophy of IaC is Declarative, where the code defines the 'Single Source of Truth' for resources. If manual changes cause a discrepancy (Drift) between the environment and the code, IaC tools (like Terraform or Bicep) will enforce the state described in the code during an Apply, meaning manual changes will be overwritten.",
+      "wg": [
+        {
+          "t": "唯一真實來源",
+          "en": "Single Source of Truth",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "2",
+    "level": "Medium",
+    "keywords": "Bicep, Terraform, State Management, Stateless",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在選擇 Azure IaC 工具時，Bicep 與 Terraform 在「狀態管理（State Management）」上有顯著差異。以下哪項敘述正確描述了兩者的不同？",
+        "en": "When choosing an Azure IaC tool, there is a significant difference in 'State Management' between Bicep and Terraform. Which of the following statements correctly describes this difference?",
+        "wg": [
+          {
+            "t": "狀態管理",
+            "en": "State Management",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) Bicep 是 Stateful 的，需維護狀態檔案；Terraform 是 Stateless 的，直接查詢 Azure。",
+        "en": "(A) Bicep is Stateful and requires maintaining a state file; Terraform is Stateless and queries Azure directly.",
+        "wg": []
+      },
+      {
+        "t": "(B) Bicep 是 Stateless 的，狀態存在 Azure 平台本身；Terraform 是 Stateful 的，需自行維護 `tfstate` 檔案。",
+        "en": "(B) Bicep is Stateless, with state residing in the Azure platform itself; Terraform is Stateful and requires self-maintenance of a `tfstate` file.",
+        "wg": []
+      },
+      {
+        "t": "(C) 兩者皆為 Stateless，每次部署都會重新建立所有資源。",
+        "en": "(C) Both are Stateless and recreate all resources with every deployment.",
+        "wg": []
+      },
+      {
+        "t": "(D) 兩者皆為 Stateful，且都強制要求使用 Azure Storage 來存放狀態。",
+        "en": "(D) Both are Stateful and mandate the use of Azure Storage to store state.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "Bicep 是 Azure 原生工具，它直接轉換為 ARM Template 並透過 Azure Resource Manager 運作，因此不需要本地狀態檔（Stateless）。Terraform 則是跨雲工具，依賴自己的 `tfstate` 檔案來追蹤資源與屬性的對應關係（Stateful）。",
+      "en": "Bicep is an Azure-native tool that transpiles to ARM Templates and operates via Azure Resource Manager, so it does not require a local state file (Stateless). Terraform is a multi-cloud tool that relies on its own `tfstate` file to track the mapping between resources and attributes (Stateful).",
+      "wg": []
+    }
+  },
+  {
+    "no": "3",
+    "level": "Medium",
+    "keywords": "Terraform, State Locking, Azure Storage, Backend",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "當團隊使用 Terraform 協作時，為了防止多人同時執行 `terraform apply` 導致狀態檔案（State File）損毀，必須在 Azure Storage Backend 設定哪項機制？",
+        "en": "When a team collaborates using Terraform, what mechanism must be configured in the Azure Storage Backend to prevent state file corruption caused by multiple people running `terraform apply` simultaneously?",
+        "wg": [
+          {
+            "t": "狀態鎖定",
+            "en": "State Locking",
+            "ps": "noun"
+          },
+          {
+            "t": "損毀",
+            "en": "Corruption",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) 啟用 Soft Delete (軟刪除)",
+        "en": "(A) Enable Soft Delete",
+        "wg": []
+      },
+      {
+        "t": "(B) 設定 Blob Versioning (版本控制)",
+        "en": "(B) Configure Blob Versioning",
+        "wg": []
+      },
+      {
+        "t": "(C) 使用 Blob Lease 機制進行 State Locking (狀態鎖定)",
+        "en": "(C) Use the Blob Lease mechanism for State Locking",
+        "wg": []
+      },
+      {
+        "t": "(D) 設定 CDN (內容傳遞網路) 加速存取",
+        "en": "(D) Configure CDN (Content Delivery Network) for accelerated access",
+        "wg": []
+      }
+    ],
+    "answer": "C",
+    "why": {
+      "t": "雖然 Soft Delete 與 Versioning 對於備份很重要，但防止並行寫入衝突（Race Condition）的關鍵機制是 State Locking。在 Azure Backend 中，這是透過 Blob Lease 來實現的，確保同一時間只有一個 Process 能寫入狀態檔。",
+      "en": "While Soft Delete and Versioning are important for backups, the key mechanism to prevent concurrent write conflicts (Race Conditions) is State Locking. In the Azure Backend, this is implemented via Blob Lease, ensuring only one process can write to the state file at a time.",
+      "wg": [
+        {
+          "t": "並行寫入衝突",
+          "en": "Race Condition",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "4",
+    "level": "Hard",
+    "keywords": "Security, OIDC, Workload Identity Federation, CI/CD",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在設定 GitHub Actions 或 Azure DevOps 連線至 Azure 時，為何推薦使用「Workload Identity Federation (OIDC)」而非傳統的「Service Principal Client Secrets」？",
+        "en": "When configuring GitHub Actions or Azure DevOps to connect to Azure, why is 'Workload Identity Federation (OIDC)' recommended over traditional 'Service Principal Client Secrets'?",
+        "wg": [
+          {
+            "t": "工作負載身分識別同盟",
+            "en": "Workload Identity Federation",
+            "ps": "noun"
+          },
+          {
+            "t": "輪替",
+            "en": "Rotation",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) OIDC 允許使用永久有效的憑證，減少設定次數。",
+        "en": "(A) OIDC allows the use of permanent credentials, reducing configuration frequency.",
+        "wg": []
+      },
+      {
+        "t": "(B) OIDC 不需要輪替密碼 (Secret rotation)，且避免了將長效憑證儲存在 CI/CD 變數中的風險。",
+        "en": "(B) OIDC eliminates the need for secret rotation and avoids the risk of storing long-lived credentials in CI/CD variables.",
+        "wg": []
+      },
+      {
+        "t": "(C) OIDC 是唯一支援 Terraform 的驗證方式。",
+        "en": "(C) OIDC is the only authentication method supported by Terraform.",
+        "wg": []
+      },
+      {
+        "t": "(D) OIDC 可以繞過 Azure RBAC 權限檢查，部署更快速。",
+        "en": "(D) OIDC can bypass Azure RBAC permission checks for faster deployment.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "使用 Client Secrets 需要定期輪替（Rotation）且容易因洩漏導致資安風險。OIDC 透過 Federated Credentials 建立信任，讓 CI/CD 平台在執行時動態交換短效 Token，無需儲存任何靜態密碼（Secret-less），大幅提升安全性。",
+      "en": "Using Client Secrets requires regular rotation and poses security risks if leaked. OIDC establishes trust via Federated Credentials, allowing the CI/CD platform to dynamically exchange short-lived tokens at runtime without storing any static secrets (Secret-less), significantly improving security.",
+      "wg": [
+        {
+          "t": "短效",
+          "en": "Short-lived",
+          "ps": "adj"
+        }
+      ]
+    }
+  },
+  {
+    "no": "5",
+    "level": "Medium",
+    "keywords": "Anti-pattern, Monolithic Template, Lifecycle",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你接手了一個包含 VNet、Database 與 App Service 所有定義的 3000 行 `main.bicep` 檔案，發現每次執行 `what-if` 或部署都非常緩慢且難以閱讀。這是屬於哪種 Anti-pattern，且最佳解法為何？",
+        "en": "You inherited a 3000-line `main.bicep` file containing definitions for VNet, Database, and App Service. You find that running `what-if` or deployments is very slow and the code is hard to read. Which Anti-pattern is this, and what is the best solution?",
+        "wg": [
+          {
+            "t": "巨型樣板",
+            "en": "Monolithic Template",
+            "ps": "noun"
+          },
+          {
+            "t": "生命週期",
+            "en": "Lifecycle",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) 這是 ClickOps 反模式；應改用 Azure Portal 手動建立。",
+        "en": "(A) This is the ClickOps anti-pattern; you should switch to manually creating resources in the Azure Portal.",
+        "wg": []
+      },
+      {
+        "t": "(B) 這是 Hardcoding Resource IDs 反模式；應使用變數取代 ID。",
+        "en": "(B) This is the Hardcoding Resource IDs anti-pattern; you should replace IDs with variables.",
+        "wg": []
+      },
+      {
+        "t": "(C) 這是 Monolithic Template 反模式；應依據資源生命週期（Lifecycle）拆分檔案。",
+        "en": "(C) This is the Monolithic Template anti-pattern; you should split the file based on resource lifecycles.",
+        "wg": []
+      },
+      {
+        "t": "(D) 這是 State Locking 反模式；應停用鎖定以加快速度。",
+        "en": "(D) This is the State Locking anti-pattern; you should disable locking to speed it up.",
+        "wg": []
+      }
+    ],
+    "answer": "C",
+    "why": {
+      "t": "將所有資源塞在同一個檔案（Monolithic Template）會導致維護困難與效能低落。最佳實務是依據「生命週期」拆分：變更頻率低的核心基礎設施（如 VNet）與變更頻率高的應用層（如 App Service）應分開管理與部署。",
+      "en": "Stuffing all resources into a single file (Monolithic Template) leads to maintenance difficulties and poor performance. The best practice is to split based on 'Lifecycle': core infrastructure with low change frequency (like VNet) and application layers with high change frequency (like App Service) should be managed and deployed separately.",
+      "wg": []
+    }
+  },
+  {
+    "no": "6",
+    "level": "Medium",
+    "keywords": "Security, Terraform, Git, Secrets",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "資安團隊掃描你的 Git Repo 後發出高風險警告，指出你將 `terraform.tfstate` 檔案推送到儲存庫中。為什麼這被視為嚴重漏洞？",
+        "en": "The security team scanned your Git Repo and issued a high-risk warning indicating that you committed the `terraform.tfstate` file. Why is this considered a serious vulnerability?",
+        "wg": [
+          {
+            "t": "明文",
+            "en": "Plain text",
+            "ps": "noun"
+          },
+          {
+            "t": "漏洞",
+            "en": "Vulnerability",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) State 檔案太大，會佔用過多 Git 儲存空間。",
+        "en": "(A) The state file is too large and will consume too much Git storage space.",
+        "wg": []
+      },
+      {
+        "t": "(B) State 檔案包含所有資源的屬性資訊，其中可能包含明文的機密資料（如 DB 密碼）。",
+        "en": "(B) The state file contains attribute information for all resources, which may include secrets in plain text (such as DB passwords).",
+        "wg": []
+      },
+      {
+        "t": "(C) Git 無法正確版控 JSON 格式的檔案。",
+        "en": "(C) Git cannot correctly version control JSON formatted files.",
+        "wg": []
+      },
+      {
+        "t": "(D) 這會導致 Terraform 無法在本地執行 Plan。",
+        "en": "(D) This will prevent Terraform from running Plan locally.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "Terraform State 檔案設計上會儲存資源的所有屬性以進行比對，這通常包含由 Terraform 建立或讀取的敏感資訊（如 Database 密碼、Access Keys），且預設是以明文儲存。因此，絕對不能將 State 檔案 commit 到版本控制系統，應存放在加密的 Remote Backend。",
+      "en": "The Terraform State file is designed to store all resource attributes for comparison, which often includes sensitive information created or read by Terraform (such as Database passwords, Access Keys), stored in plain text by default. Therefore, the State file must never be committed to version control and should be stored in an encrypted Remote Backend.",
+      "wg": []
+    }
+  },
+  {
+    "no": "7",
+    "level": "Medium",
+    "keywords": "Anti-pattern, Hardcoding, Resource ID, Bicep, Terraform",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "resource \"azurerm_resource_group\" \"example\" {\n  id = \"/subscriptions/12345678-1234-1234-1234-123456789012/resourceGroups/my-rg\"\n  ...\n}",
+    "question": [
+      {
+        "t": "你的團隊正嘗試將開發環境（Dev）的基礎設施程式碼部署到生產環境（Prod），但部署失敗並出現「資源 ID 不存在」或「權限不足」的錯誤。經檢查程式碼後發現如上方的寫法。請問這犯了哪種反模式（Anti-pattern），以及應如何修正？",
+        "en": "Your team is attempting to deploy infrastructure code from the Development (Dev) environment to Production (Prod), but the deployment fails with 'Resource ID not found' or 'Insufficient permissions' errors. Upon inspecting the code snippet above, which anti-pattern is identified, and how should it be fixed?",
+        "wg": [
+          {
+            "t": "反模式",
+            "en": "Anti-pattern",
+            "ps": "noun"
+          },
+          {
+            "t": "寫死",
+            "en": "Hardcoding",
+            "ps": "verb"
+          },
+          {
+            "t": "資源 ID",
+            "en": "Resource ID",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) 這是「巨型樣板（Monolithic Template）」反模式；應將檔案拆分為多個模組。",
+        "en": "(A) This is the 'Monolithic Template' anti-pattern; the file should be split into multiple modules.",
+        "wg": []
+      },
+      {
+        "t": "(B) 這是「寫死資源 ID（Hardcoding Resource IDs）」反模式；應使用動態參照（如 `resourceId` 或 Data Sources）來獲取當前環境的 Subscription ID。",
+        "en": "(B) This is the 'Hardcoding Resource IDs' anti-pattern; dynamic references (like `resourceId` or Data Sources) should be used to obtain the current environment's Subscription ID.",
+        "wg": [
+          {
+            "t": "動態參照",
+            "en": "dynamic references",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "(C) 這是「機密提交（Committing Secrets）」反模式；應將 ID 放入 Key Vault。",
+        "en": "(C) This is the 'Committing Secrets' anti-pattern; the ID should be placed in Key Vault.",
+        "wg": []
+      },
+      {
+        "t": "(D) 這是「點擊維運（ClickOps）」反模式；應手動在 Portal 上建立該資源。",
+        "en": "(D) This is the 'ClickOps' anti-pattern; the resource should be created manually in the Portal.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "在 IaC 中直接寫死（Hardcoding）包含 Subscription ID 的完整 Resource ID 會導致程式碼無法在不同環境（Subscription）間重用。正確做法是使用 Bicep 的 `resourceId()` 函數或 Terraform 的 `data` sources 來動態建構 ID。",
+      "en": "Hardcoding full Resource IDs containing Subscription IDs in IaC prevents the code from being reusable across different environments (Subscriptions). The correct approach is to use Bicep's `resourceId()` function or Terraform's `data` sources to construct IDs dynamically.",
+      "wg": [
+        {
+          "t": "重用",
+          "en": "reusable",
+          "ps": "adjective"
+        }
+      ]
+    }
+  },
+  {
+    "no": "8",
+    "level": "Easy",
+    "keywords": "Deployment Preview, What-If, Terraform Plan, CI/CD",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "為了避免在執行 CI/CD Pipeline 時意外刪除關鍵資源，在實際執行「Apply」步驟之前，應該先執行哪一個步驟來預覽將會發生的變更？",
+        "en": "To avoid accidentally deleting critical resources during a CI/CD Pipeline run, which step should be executed to preview the changes before the actual 'Apply' step?",
+        "wg": [
+          {
+            "t": "預覽",
+            "en": "preview",
+            "ps": "verb"
+          },
+          {
+            "t": "變更",
+            "en": "changes",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) 執行 `az group delete` 或 `terraform destroy`。",
+        "en": "(A) Execute `az group delete` or `terraform destroy`.",
+        "wg": []
+      },
+      {
+        "t": "(B) 執行 Linter（如 `bicep build` 或 `terraform validate`）。",
+        "en": "(B) Execute a Linter (such as `bicep build` or `terraform validate`).",
+        "wg": []
+      },
+      {
+        "t": "(C) 執行部署預覽（如 Bicep 的 `what-if` 或 Terraform 的 `plan`）。",
+        "en": "(C) Execute a deployment preview (such as Bicep's `what-if` or Terraform's `plan`).",
+        "wg": [
+          {
+            "t": "部署預覽",
+            "en": "deployment preview",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "(D) 執行單元測試（Unit Test）。",
+        "en": "(D) Execute Unit Tests.",
+        "wg": []
+      }
+    ],
+    "answer": "C",
+    "why": {
+      "t": "Linter 僅檢查語法錯誤，無法預測對現有資源的影響。`what-if` (Bicep) 與 `plan` (Terraform) 能夠比對程式碼與實際環境的差異，列出將被新增、修改或刪除的資源，是防止意外破壞的關鍵步驟。",
+      "en": "Linters only check for syntax errors and cannot predict the impact on existing resources. `what-if` (Bicep) and `plan` (Terraform) compare the code against the actual environment, listing resources to be added, modified, or deleted, which is a critical step to prevent accidental damage.",
+      "wg": [
+        {
+          "t": "語法錯誤",
+          "en": "syntax errors",
+          "ps": "noun"
+        },
+        {
+          "t": "意外破壞",
+          "en": "accidental damage",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "9",
+    "level": "Medium",
+    "keywords": "Modular Architecture, Best Practices, Security, DRY",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "公司的資安團隊要求所有新建立的 Azure Storage Account 必須強制啟用「TLS 1.2」並「停用公網存取」。為了確保所有開發團隊都能輕鬆遵守此規範且不需重複設定，身為平台工程師，你應採用哪種 IaC 模式？",
+        "en": "The company's security team requires that all newly created Azure Storage Accounts must enforce 'TLS 1.2' and 'Disable Public Access'. As a platform engineer, which IaC pattern should you adopt to ensure all development teams can easily comply with this standard without repetitive configuration?",
+        "wg": [
+          {
+            "t": "強制啟用",
+            "en": "enforce",
+            "ps": "verb"
+          },
+          {
+            "t": "重複設定",
+            "en": "repetitive configuration",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) 撰寫一份詳細的文件，要求開發者在每次定義資源時手動加入這些屬性。",
+        "en": "(A) Write a detailed document requiring developers to manually add these properties every time they define a resource.",
+        "wg": []
+      },
+      {
+        "t": "(B) 建立一個標準化的模組（Module），在模組內部將這些資安屬性設為預設值或強制值，並要求團隊引用此模組。",
+        "en": "(B) Create a standardized Module where these security properties are set as default or mandatory values internally, and require teams to reference this module.",
+        "wg": [
+          {
+            "t": "標準化的模組",
+            "en": "standardized Module",
+            "ps": "noun"
+          },
+          {
+            "t": "引用",
+            "en": "reference",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "(C) 使用巨型樣板（Monolithic Template），將公司所有資源都寫在同一個檔案中統一管理。",
+        "en": "(C) Use a Monolithic Template, putting all company resources into a single file for unified management.",
+        "wg": []
+      },
+      {
+        "t": "(D) 依賴 Azure Portal 的預設值，因為 Azure 預設就會符合所有企業資安規範。",
+        "en": "(D) Rely on Azure Portal defaults, as Azure defaults automatically meet all enterprise security standards.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "這是「模組化架構（Modular Architecture）」的核心價值之一。透過建立封裝了最佳實踐（Best Practices）的模組，可以隱藏複雜度並強制執行資安規範（如 TLS 版本），避免開發者在各自的專案中重複造輪子或遺漏設定。",
+      "en": "This is one of the core values of 'Modular Architecture'. By creating modules that encapsulate Best Practices, you can hide complexity and enforce security standards (like TLS versions), preventing developers from reinventing the wheel or missing configurations in their individual projects.",
+      "wg": [
+        {
+          "t": "封裝",
+          "en": "encapsulate",
+          "ps": "verb"
+        },
+        {
+          "t": "重複造輪子",
+          "en": "reinventing the wheel",
+          "ps": "idiom"
+        }
+      ]
+    }
+  },
+  {
+    "no": "10",
+    "level": "Medium",
+    "keywords": "Mental Model, Pipeline as Gatekeeper, RBAC, Security",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "為了貫徹「管線即守門員（Pipeline as the Gatekeeper）」的心智模型，確保所有生產環境的變更都經過程式碼審查（Code Review）與自動化測試，開發人員在 Azure Portal 上對「生產環境（Production）」資源群組應具備何種權限最為恰當？",
+        "en": "To fully implement the 'Pipeline as the Gatekeeper' mental model and ensure all production changes undergo Code Review and automated testing, what is the most appropriate permission level for developers on 'Production' resource groups in the Azure Portal?",
+        "wg": [
+          {
+            "t": "管線即守門員",
+            "en": "Pipeline as the Gatekeeper",
+            "ps": "phrase"
+          },
+          {
+            "t": "程式碼審查",
+            "en": "Code Review",
+            "ps": "noun"
+          },
+          {
+            "t": "權限",
+            "en": "permission",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) Owner（擁有者）：以便在緊急時可以隨時修改權限與資源。",
+        "en": "(A) Owner: To allow modifying permissions and resources at any time during emergencies.",
+        "wg": []
+      },
+      {
+        "t": "(B) Contributor（參與者）：允許建立與刪除資源，但不能修改權限。",
+        "en": "(B) Contributor: Allows creating and deleting resources, but not modifying permissions.",
+        "wg": []
+      },
+      {
+        "t": "(C) Reader（讀取者）：僅允許檢視資源狀態，禁止任何手動寫入或修改。",
+        "en": "(C) Reader: Only allows viewing resource status, prohibiting any manual writes or modifications.",
+        "wg": [
+          {
+            "t": "檢視",
+            "en": "viewing",
+            "ps": "verb"
+          },
+          {
+            "t": "禁止",
+            "en": "prohibiting",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "(D) User Access Administrator（使用者存取管理員）：專注於管理使用者權限。",
+        "en": "(D) User Access Administrator: Focuses on managing user permissions.",
+        "wg": []
+      }
+    ],
+    "answer": "C",
+    "why": {
+      "t": "若開發人員擁有寫入權限（Owner/Contributor），就可能繞過 CI/CD Pipeline 直接進行 ClickOps，導致配置漂移（Drift）與審計紀錄缺失。給予 Reader 權限可強制所有變更必須透過 Pipeline 進行，落實「基礎設施即程式碼」。",
+      "en": "If developers have write permissions (Owner/Contributor), they might bypass the CI/CD Pipeline and perform ClickOps, leading to Configuration Drift and missing audit logs. Granting Reader permission forces all changes to go through the Pipeline, enforcing 'Infrastructure as Code'.",
+      "wg": [
+        {
+          "t": "繞過",
+          "en": "bypass",
+          "ps": "verb"
+        },
+        {
+          "t": "配置漂移",
+          "en": "Configuration Drift",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "11",
+    "level": "Hard",
+    "keywords": "Terraform, Security, Storage Account, Network Rules",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在使用 Azure Storage Account 作為 Terraform Remote Backend 時，除了啟用「加密（Encryption）」與「狀態鎖定（State Locking）」外，為了防止外部惡意存取包含敏感資訊的 State 檔案，還應實施哪項關鍵的網路安全措施？",
+        "en": "When using an Azure Storage Account as a Terraform Remote Backend, in addition to enabling 'Encryption' and 'State Locking', what critical network security measure should be implemented to prevent external malicious access to the State file containing sensitive information?",
+        "wg": [
+          {
+            "t": "惡意存取",
+            "en": "malicious access",
+            "ps": "noun"
+          },
+          {
+            "t": "敏感資訊",
+            "en": "sensitive information",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) 啟用靜態網站託管（Static Website Hosting）功能。",
+        "en": "(A) Enable the Static Website Hosting feature.",
+        "wg": []
+      },
+      {
+        "t": "(B) 限制網路存取（Network Rules），僅允許 CI/CD Runner 的 IP 或特定虛擬網路存取。",
+        "en": "(B) Restrict network access (Network Rules), allowing only the IPs of CI/CD Runners or specific Virtual Networks.",
+        "wg": [
+          {
+            "t": "限制網路存取",
+            "en": "Restrict network access",
+            "ps": "verb phrase"
+          }
+        ]
+      },
+      {
+        "t": "(C) 將 Storage Account 的存取層級設為 Archive（封存）。",
+        "en": "(C) Set the Storage Account access tier to Archive.",
+        "wg": []
+      },
+      {
+        "t": "(D) 停用 Soft Delete（軟刪除）以節省空間。",
+        "en": "(D) Disable Soft Delete to save space.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "Terraform State 檔案通常包含明文的敏感資料（如資料庫密碼）。即使有加密，若網路層面未設防，仍可能因憑證洩漏而被下載。限制網路來源（Firewall）是縱深防禦（Defense in Depth）的重要一環。",
+      "en": "Terraform State files often contain sensitive data in plain text (e.g., database passwords). Even with encryption, if the network layer is unprotected, the file could still be downloaded if credentials leak. Restricting network sources (Firewall) is a crucial part of Defense in Depth.",
+      "wg": [
+        {
+          "t": "縱深防禦",
+          "en": "Defense in Depth",
+          "ps": "noun"
+        },
+        {
+          "t": "憑證洩漏",
+          "en": "credentials leak",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "12",
+    "level": "Easy",
+    "keywords": "Bicep, Terraform, Day 0 Support, Tool Selection",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你的團隊需要使用 Azure 昨天剛發布的一項全新預覽功能（Preview Feature），且專案時程緊迫，無法等待第三方工具更新。在這種情況下，哪種 IaC 工具通常能提供「Day 0 Support」而成為首選？",
+        "en": "Your team needs to use a brand new Azure Preview Feature released yesterday, and the project timeline is tight, allowing no time to wait for third-party tool updates. In this scenario, which IaC tool is typically the preferred choice for providing 'Day 0 Support'?",
+        "wg": [
+          {
+            "t": "預覽功能",
+            "en": "Preview Feature",
+            "ps": "noun"
+          },
+          {
+            "t": "時程緊迫",
+            "en": "timeline is tight",
+            "ps": "phrase"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) Terraform",
+        "en": "(A) Terraform",
+        "wg": []
+      },
+      {
+        "t": "(B) Azure Bicep",
+        "en": "(B) Azure Bicep",
+        "wg": []
+      },
+      {
+        "t": "(C) Ansible",
+        "en": "(C) Ansible",
+        "wg": []
+      },
+      {
+        "t": "(D) Chef",
+        "en": "(D) Chef",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "Azure Bicep 是 Azure 的原生工具，直接對應 ARM（Azure Resource Manager）API，因此只要 Azure 釋出新功能，Bicep 通常能立即支援（Day 0 Support）。Terraform 則需等待 Provider 開發者更新後才能使用新資源。",
+      "en": "Azure Bicep is Azure's native tool that maps directly to ARM (Azure Resource Manager) APIs, so when Azure releases a new feature, Bicep typically supports it immediately (Day 0 Support). Terraform requires waiting for the Provider developers to update before new resources can be used.",
+      "wg": [
+        {
+          "t": "原生工具",
+          "en": "native tool",
+          "ps": "noun"
+        },
+        {
+          "t": "釋出",
+          "en": "releases",
+          "ps": "verb"
+        }
+      ]
+    }
+  }
+]
