@@ -1,0 +1,827 @@
+[
+  {
+    "no": "1",
+    "level": "Easy",
+    "keywords": "Concurrency,Parallelism,Context Switching,Mental Model",
+    "parentNo": null,
+    "images": "",
+    "codeSnippet": "",
+    "question": [
+      {
+        "t": "假設你的應用程式運行在一個「單核心 (Single-core)」的 CPU 環境中。",
+        "en": "Suppose your application is running in a 'Single-core' CPU environment.",
+        "wg": [
+          {
+            "t": "單核心",
+            "en": "Single-core",
+            "ps": "adj."
+          }
+        ]
+      },
+      {
+        "t": "在此限制下，關於「併發 (Concurrency)」與「平行 (Parallelism)」的敘述，下列何者最為正確？",
+        "en": "Under this limitation, which of the following statements about 'Concurrency' and 'Parallelism' is most accurate?",
+        "wg": [
+          {
+            "t": "併發",
+            "en": "Concurrency",
+            "ps": "n."
+          },
+          {
+            "t": "平行",
+            "en": "Parallelism",
+            "ps": "n."
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) 兩者皆無法達成，因為只有一個核心。",
+        "en": "(A) Neither is possible because there is only one core.",
+        "wg": []
+      },
+      {
+        "t": "(B) 平行 (Parallelism) 是可能的，但併發 (Concurrency) 無法達成。",
+        "en": "(B) Parallelism is possible, but Concurrency is not.",
+        "wg": []
+      },
+      {
+        "t": "(C) 併發 (Concurrency) 可透過上下文切換 (Context Switching) 達成，但物理上的平行 (Parallelism) 無法達成。",
+        "en": "(C) Concurrency is possible via Context Switching, but physical Parallelism is not achievable.",
+        "wg": [
+          {
+            "t": "上下文切換",
+            "en": "Context Switching",
+            "ps": "n."
+          }
+        ]
+      },
+      {
+        "t": "(D) 只要使用非同步語法，軟體就能模擬出多核心的平行效果。",
+        "en": "(D) As long as asynchronous syntax is used, software can simulate multi-core parallelism.",
+        "wg": []
+      }
+    ],
+    "answer": "C",
+    "why": {
+      "t": "併發 (Concurrency) 是一個邏輯概念，指多個任務在重疊的時間段內啟動與執行（透過快速切換），單核即可達成；平行 (Parallelism) 則是物理概念，指多個任務在「同一瞬間」同時執行，必須有多核心硬體支援。",
+      "en": "Concurrency is a logical concept where multiple tasks make progress in overlapping time periods (via switching), achievable on a single core. Parallelism is a physical concept requiring multiple tasks to run at the exact same instant, which necessitates multi-core hardware.",
+      "wg": []
+    }
+  },
+  {
+    "no": "2",
+    "level": "Medium",
+    "keywords": "Anti-pattern,Blocking,Async,Thread Starvation",
+    "parentNo": null,
+    "images": "",
+    "codeSnippet": "async function handleRequest(req, res) {\n  // Bad Practice: Blocking operation in async context\n  Thread.sleep(5000); \n  // or synchronous DB call\n  return db.querySync('SELECT * ...');\n}",
+    "question": [
+      {
+        "t": "在非同步（Asynchronous）的執行環境中（如 Node.js Event Loop 或 Java CompletableFuture），若開發者在處理請求時插入了阻塞式操作（如 `Thread.sleep` 或同步資料庫查詢），會發生什麼主要後果？",
+        "en": "In an asynchronous execution environment (like Node.js Event Loop or Java CompletableFuture), what is the primary consequence if a developer inserts a blocking operation (such as `Thread.sleep` or a synchronous DB query) while handling a request?",
+        "wg": [
+          {
+            "t": "阻塞式操作",
+            "en": "blocking operation",
+            "ps": "n."
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) 系統會自動開啟新的執行緒來處理該阻塞操作，不影響效能。",
+        "en": "(A) The system will automatically spawn a new thread to handle the blocking operation without affecting performance.",
+        "wg": []
+      },
+      {
+        "t": "(B) 該執行緒被卡死，導致「執行緒飢餓 (Thread Starvation)」，整個應用程式無法回應其他請求。",
+        "en": "(B) The thread gets blocked, causing 'Thread Starvation', rendering the entire application unresponsive to other requests.",
+        "wg": [
+          {
+            "t": "執行緒飢餓",
+            "en": "Thread Starvation",
+            "ps": "n."
+          }
+        ]
+      },
+      {
+        "t": "(C) 該操作會立即拋出 RuntimeException。",
+        "en": "(C) The operation will immediately throw a RuntimeException.",
+        "wg": []
+      },
+      {
+        "t": "(D) 資料一致性會提高，因為此時沒有其他程式碼在執行。",
+        "en": "(D) Data consistency improves because no other code is running at that moment.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "在非同步模型中，通常依賴少量的執行緒來處理大量併發。一旦這些關鍵執行緒被阻塞（Block），它們就無法處理佇列中的其他任務，導致系統吞吐量崩跌甚至完全停擺。",
+      "en": "In asynchronous models, a small number of threads typically handle high concurrency. Once these critical threads are blocked, they cannot process other tasks in the queue, causing system throughput to plummet or halt completely.",
+      "wg": []
+    }
+  },
+  {
+    "no": "3",
+    "level": "Hard",
+    "keywords": "Thread Pool,Bulkheading,Isolation,Architecture",
+    "parentNo": null,
+    "images": "",
+    "codeSnippet": "",
+    "question": [
+      {
+        "t": "你的系統同時處理「圖片壓縮（CPU 密集型）」與「發送通知（IO 密集型）」兩種任務，目前兩者共用同一個 Thread Pool。",
+        "en": "Your system handles both 'Image Compression' (CPU-intensive) and 'Sending Notifications' (IO-intensive) tasks, currently sharing the same Thread Pool.",
+        "wg": [
+          {
+            "t": "CPU 密集型",
+            "en": "CPU-intensive",
+            "ps": "adj."
+          },
+          {
+            "t": "IO 密集型",
+            "en": "IO-intensive",
+            "ps": "adj."
+          }
+        ]
+      },
+      {
+        "t": "當大量圖片上傳導致 CPU 任務暴增時，使用者發現連簡單的通知都收不到了。請問應採用哪種模式來解決此資源競爭問題？",
+        "en": "When a surge in image uploads spikes CPU tasks, users find that even simple notifications are not being received. Which pattern should be adopted to resolve this resource contention?",
+        "wg": [
+          {
+            "t": "資源競爭",
+            "en": "resource contention",
+            "ps": "n."
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) Singleton Pattern：確保全域只有一個執行緒管理者。",
+        "en": "(A) Singleton Pattern: Ensure there is only one thread manager globally.",
+        "wg": []
+      },
+      {
+        "t": "(B) Bulkheading (Isolation)：為不同性質的任務配置獨立的 Thread Pool。",
+        "en": "(B) Bulkheading (Isolation): Configure separate Thread Pools for tasks of different natures.",
+        "wg": [
+          {
+            "t": "艙壁模式/隔離",
+            "en": "Bulkheading",
+            "ps": "n."
+          }
+        ]
+      },
+      {
+        "t": "(C) Retry Pattern：通知發送失敗時不斷重試。",
+        "en": "(C) Retry Pattern: Keep retrying when notification sending fails.",
+        "wg": []
+      },
+      {
+        "t": "(D) 將 Thread Pool 大小設定為無限大。",
+        "en": "(D) Set the Thread Pool size to infinite.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "Bulkheading（艙壁模式）透過隔離資源（如將 CPU 密集與 IO 密集任務分開到不同 Pool），防止某一部分的故障或高負載拖垮整個系統。",
+      "en": "Bulkheading isolates resources (e.g., separating CPU-intensive and IO-intensive tasks into different pools) to prevent a failure or high load in one part from bringing down the entire system.",
+      "wg": []
+    }
+  },
+  {
+    "no": "4",
+    "level": "Medium",
+    "keywords": "Producer-Consumer,Backpressure,OOM,Queue",
+    "parentNo": null,
+    "images": "",
+    "codeSnippet": "",
+    "question": [
+      {
+        "t": "在生產者-消費者（Producer-Consumer）模式中，若生產者的速度持續快於消費者的處理速度，且使用的 Queue 沒有設定容量上限（Unbounded），最終最可能導致什麼嚴重後果？",
+        "en": "In the Producer-Consumer pattern, if the producer consistently outpaces the consumer and the Queue used has no capacity limit (Unbounded), what is the most likely severe consequence?",
+        "wg": [
+          {
+            "t": "無上限",
+            "en": "Unbounded",
+            "ps": "adj."
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) 死鎖 (Deadlock)。",
+        "en": "(A) Deadlock.",
+        "wg": []
+      },
+      {
+        "t": "(B) 記憶體溢出 (OutOfMemoryError)，導致系統崩潰。",
+        "en": "(B) OutOfMemoryError, causing the system to crash.",
+        "wg": [
+          {
+            "t": "記憶體溢出",
+            "en": "OutOfMemoryError",
+            "ps": "n."
+          }
+        ]
+      },
+      {
+        "t": "(C) 消費者會自動提升處理速度以匹配生產者。",
+        "en": "(C) The consumer will automatically increase processing speed to match the producer.",
+        "wg": []
+      },
+      {
+        "t": "(D) 生產者會自動感知並降低發送頻率。",
+        "en": "(D) The producer will automatically detect this and lower its sending frequency.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "若沒有實作背壓（Backpressure）或限制 Queue 大小，積壓的任務會無限消耗記憶體，最終導致 OOM。正確做法是設定 Queue 上限並定義拒絕或阻塞策略。",
+      "en": "Without implementing Backpressure or limiting Queue size, accumulated tasks will consume memory indefinitely, eventually leading to OOM. The correct approach is to set a Queue limit and define a rejection or blocking strategy.",
+      "wg": [
+        {
+          "t": "背壓",
+          "en": "Backpressure",
+          "ps": "n."
+        }
+      ]
+    }
+  },
+  {
+    "no": "5",
+    "level": "Easy",
+    "keywords": "Immutable Object,Thread Safety,Race Condition",
+    "parentNo": null,
+    "images": "",
+    "codeSnippet": "",
+    "question": [
+      {
+        "t": "為什麼「不可變物件 (Immutable Object)」被視為解決併發問題的最佳實務之一？",
+        "en": "Why is the 'Immutable Object' considered one of the best practices for solving concurrency problems?",
+        "wg": [
+          {
+            "t": "不可變物件",
+            "en": "Immutable Object",
+            "ps": "n."
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) 因為它們佔用的記憶體空間最少。",
+        "en": "(A) Because they occupy the least amount of memory space.",
+        "wg": []
+      },
+      {
+        "t": "(B) 因為它們建立後狀態無法改變，多個執行緒同時讀取時不需要加鎖，完全消除了 Race Condition。",
+        "en": "(B) Because their state cannot change after creation, multiple threads can read them simultaneously without locking, completely eliminating Race Conditions.",
+        "wg": [
+          {
+            "t": "競爭條件",
+            "en": "Race Condition",
+            "ps": "n."
+          }
+        ]
+      },
+      {
+        "t": "(C) 因為它們會自動將所有寫入操作序列化。",
+        "en": "(C) Because they automatically serialize all write operations.",
+        "wg": []
+      },
+      {
+        "t": "(D) 因為它們只能被單一執行緒存取。",
+        "en": "(D) Because they can only be accessed by a single thread.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "不可變物件的特性保證了其狀態的恆定性，因此在多執行緒環境下共用時，不需要擔心資料被意外修改，從而省去了複雜的同步（Synchronization）開銷。",
+      "en": "The nature of immutable objects guarantees state constancy, so when shared in a multi-threaded environment, there is no need to worry about accidental data modification, thus saving complex synchronization overhead.",
+      "wg": []
+    }
+  },
+  {
+    "no": "6",
+    "level": "Medium",
+    "keywords": "Scatter-Gather,Promise.all,Latency,Performance",
+    "parentNo": null,
+    "images": "",
+    "codeSnippet": "",
+    "question": [
+      {
+        "t": "你需要從三個獨立的微服務獲取資料來組裝頁面，API 延遲分別為 100ms、200ms 與 150ms。",
+        "en": "You need to fetch data from three independent microservices to assemble a page, with API latencies of 100ms, 200ms, and 150ms respectively.",
+        "wg": []
+      },
+      {
+        "t": "若比較「依序呼叫 (Sequential)」與「平行聚合 (Scatter-Gather / Promise.all)」兩種方式，理論上的最小總耗時分別為何？",
+        "en": "Comparing 'Sequential Call' vs 'Parallel Aggregation (Scatter-Gather / Promise.all)', what are the theoretical minimum total times for each?",
+        "wg": [
+          {
+            "t": "依序呼叫",
+            "en": "Sequential Call",
+            "ps": "n."
+          },
+          {
+            "t": "平行聚合",
+            "en": "Parallel Aggregation",
+            "ps": "n."
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) 依序：450ms；平行：200ms。",
+        "en": "(A) Sequential: 450ms; Parallel: 200ms.",
+        "wg": []
+      },
+      {
+        "t": "(B) 依序：200ms；平行：450ms。",
+        "en": "(B) Sequential: 200ms; Parallel: 450ms.",
+        "wg": []
+      },
+      {
+        "t": "(C) 兩者皆為 450ms。",
+        "en": "(C) Both are 450ms.",
+        "wg": []
+      },
+      {
+        "t": "(D) 兩者皆為 200ms。",
+        "en": "(D) Both are 200ms.",
+        "wg": []
+      }
+    ],
+    "answer": "A",
+    "why": {
+      "t": "依序呼叫的總耗時為各任務之和 (100+200+150 = 450ms)；平行聚合（Scatter-Gather）的總耗時取決於最慢的那個任務 (Max(100, 200, 150) = 200ms)。",
+      "en": "The total time for sequential calls is the sum of tasks (100+200+150 = 450ms); Parallel Aggregation (Scatter-Gather) depends on the slowest task (Max(100, 200, 150) = 200ms).",
+      "wg": []
+    }
+  },
+  {
+    "no": "7",
+    "level": "Hard",
+    "keywords": "Deadlock,Lock Ordering,Resource Contention,Circular Wait",
+    "parentNo": null,
+    "images": "",
+    "codeSnippet": "Thread A:\n  lock(Resource_1)\n  lock(Resource_2)\n  doWork()\n\nThread B:\n  lock(Resource_2)\n  lock(Resource_1)\n  doWork()",
+    "question": [
+      {
+        "t": "觀察上方的虛擬碼，當 Thread A 與 Thread B 同時執行時，系統可能會遭遇什麼問題？又該如何最有效地解決？",
+        "en": "Observing the pseudo-code above, what problem might the system encounter when Thread A and Thread B execute simultaneously, and what is the most effective solution?",
+        "wg": [
+          {
+            "t": "虛擬碼",
+            "en": "pseudo-code",
+            "ps": "noun"
+          },
+          {
+            "t": "遭遇",
+            "en": "encounter",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) 會發生 Race Condition，應將鎖改為 ReentrantLock。",
+        "en": "(A) A Race Condition will occur; change the locks to ReentrantLock.",
+        "wg": []
+      },
+      {
+        "t": "(B) 會發生 Deadlock，應確保所有執行緒以相同的順序（例如先 1 後 2）獲取鎖。",
+        "en": "(B) A Deadlock will occur; ensure all threads acquire locks in the same order (e.g., 1 then 2).",
+        "wg": [
+          {
+            "t": "死鎖",
+            "en": "Deadlock",
+            "ps": "noun"
+          },
+          {
+            "t": "順序",
+            "en": "order",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "(C) 會發生 Thread Starvation，應增加 Thread Pool 的大小。",
+        "en": "(C) Thread Starvation will occur; increase the size of the Thread Pool.",
+        "wg": []
+      },
+      {
+        "t": "(D) 會發生 Memory Leak，應在使用後手動釋放資源。",
+        "en": "(D) A Memory Leak will occur; manually release resources after use.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "這是典型的「循環等待 (Circular Wait)」導致的死鎖 (Deadlock)。Thread A 持有 R1 等 R2，同時 Thread B 持有 R2 等 R1，互不相讓。解決方案是打破循環等待，強制規定所有執行緒必須依照一致的順序（Global Ordering）來獲取鎖。",
+      "en": "This is a classic Deadlock caused by 'Circular Wait'. Thread A holds R1 waiting for R2, while Thread B holds R2 waiting for R1. The solution is to break the circular dependency by enforcing a consistent Global Ordering for lock acquisition across all threads.",
+      "wg": [
+        {
+          "t": "循環等待",
+          "en": "Circular Wait",
+          "ps": "noun"
+        },
+        {
+          "t": "互不相讓",
+          "en": "refusing to yield",
+          "ps": "phrase"
+        }
+      ]
+    }
+  },
+  {
+    "no": "8",
+    "level": "Medium",
+    "keywords": "Anti-pattern,Fire and Forget,Error Handling,Observability",
+    "parentNo": null,
+    "images": "",
+    "codeSnippet": "function registerUser(user) {\n  saveToDB(user);\n  // Fire and forget notification\n  sendWelcomeEmail(user); \n  return \"Success\";\n}",
+    "question": [
+      {
+        "t": "在上述程式碼中，開發者採用了「射後不理 (Fire and Forget)」的方式呼叫 `sendWelcomeEmail`（即沒有 `await` 也沒有 `catch`）。這種做法最大的風險是什麼？",
+        "en": "In the code above, the developer uses a 'Fire and Forget' approach to call `sendWelcomeEmail` (no `await`, no `catch`). What is the biggest risk of this practice?",
+        "wg": [
+          {
+            "t": "射後不理",
+            "en": "Fire and Forget",
+            "ps": "phrase"
+          },
+          {
+            "t": "風險",
+            "en": "risk",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) 會導致主執行緒阻塞 (Blocking)，降低系統吞吐量。",
+        "en": "(A) It will cause the main thread to block, reducing system throughput.",
+        "wg": []
+      },
+      {
+        "t": "(B) 若發送郵件失敗，系統將發生靜默失敗 (Silent Failure)，日誌中無錯誤紀錄且無法重試。",
+        "en": "(B) If sending the email fails, the system will experience Silent Failure, with no error logs and no ability to retry.",
+        "wg": [
+          {
+            "t": "靜默失敗",
+            "en": "Silent Failure",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "(C) 會導致資料庫連線數耗盡 (Connection Pool Exhaustion)。",
+        "en": "(C) It will cause database connection pool exhaustion.",
+        "wg": []
+      },
+      {
+        "t": "(D) 會立即拋出 Exception 並中斷 `registerUser` 的執行。",
+        "en": "(D) It will immediately throw an Exception and interrupt the execution of `registerUser`.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "未被等待 (await) 或捕捉 (catch) 的非同步 Promise 若發生錯誤，異常會被吞沒 (Swallowed)，導致開發者無法察覺功能異常。這被稱為「靜默失敗」。雖然它不會阻塞主流程，但缺乏可觀測性是生產環境的大忌。",
+      "en": "If an asynchronous Promise is neither awaited nor caught, any errors occurring within it will be swallowed, making it impossible for developers to detect malfunctions. This is known as 'Silent Failure'. While it doesn't block the main flow, the lack of observability is a major issue in production.",
+      "wg": [
+        {
+          "t": "吞沒",
+          "en": "swallowed",
+          "ps": "verb"
+        },
+        {
+          "t": "可觀測性",
+          "en": "observability",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "9",
+    "level": "Medium",
+    "keywords": "Critical Section,Performance,Locking,Serialization",
+    "parentNo": null,
+    "images": "",
+    "codeSnippet": "synchronized void processData() {\n  // 1. Update shared counter (Fast)\n  sharedCounter++;\n  // 2. Call external API (Slow, 200ms)\n  callExternalService();\n}",
+    "question": [
+      {
+        "t": "一位工程師為了確保 `sharedCounter` 的執行緒安全，將整個 `processData` 方法加上了 `synchronized` 鎖。這造成了「過大的臨界區 (Oversized Critical Section)」。請問這會對系統效能產生什麼具體影響？",
+        "en": "To ensure thread safety for `sharedCounter`, an engineer added a `synchronized` lock to the entire `processData` method. This created an 'Oversized Critical Section'. What specific impact will this have on system performance?",
+        "wg": [
+          {
+            "t": "臨界區",
+            "en": "Critical Section",
+            "ps": "noun"
+          },
+          {
+            "t": "執行緒安全",
+            "en": "thread safety",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) 系統會因為 Context Switch 過於頻繁而崩潰。",
+        "en": "(A) The system will crash due to excessive Context Switching.",
+        "wg": []
+      },
+      {
+        "t": "(B) 外部 API 的回應時間會因此變長。",
+        "en": "(B) The response time of the external API will increase.",
+        "wg": []
+      },
+      {
+        "t": "(C) 併發處理退化為序列化執行 (Serialization)，吞吐量大幅下降。",
+        "en": "(C) Concurrency degrades into Serialization, significantly dropping throughput.",
+        "wg": [
+          {
+            "t": "序列化執行",
+            "en": "Serialization",
+            "ps": "noun"
+          },
+          {
+            "t": "吞吐量",
+            "en": "throughput",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "(D) 會導致 Deadlock，因為鎖的時間太長。",
+        "en": "(D) It will cause a Deadlock because the lock is held for too long.",
+        "wg": []
+      }
+    ],
+    "answer": "C",
+    "why": {
+      "t": "將耗時的 IO 操作（如 API 呼叫）包含在鎖的範圍內，會導致其他執行緒必須等待該 IO 完成才能獲得鎖。這使得原本可以併發執行的請求變成了排隊執行（序列化），完全喪失了多執行緒的優勢。",
+      "en": "Including time-consuming IO operations (like API calls) within the lock scope forces other threads to wait for the IO to complete before acquiring the lock. This turns what could be concurrent requests into a queue (serialization), completely negating the benefits of multithreading.",
+      "wg": [
+        {
+          "t": "排隊執行",
+          "en": "queued execution",
+          "ps": "phrase"
+        },
+        {
+          "t": "喪失",
+          "en": "negate / lose",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "10",
+    "level": "Medium",
+    "keywords": "Thread Pool,Sizing,IO-bound,Latency",
+    "parentNo": null,
+    "images": "",
+    "codeSnippet": "",
+    "question": [
+      {
+        "t": "假設你有一個主要處理「IO 密集型 (IO-bound)」任務的服務（例如大部分時間在等待資料庫或 HTTP 回應），且伺服器配備 4 核心 CPU。在設定 Thread Pool 大小時，下列哪個策略最合理？",
+        "en": "Suppose you have a service primarily handling 'IO-bound' tasks (e.g., spending most time waiting for DB or HTTP responses), and the server has a 4-core CPU. Which strategy is most reasonable when setting the Thread Pool size?",
+        "wg": [
+          {
+            "t": "IO 密集型",
+            "en": "IO-bound",
+            "ps": "adjective"
+          },
+          {
+            "t": "配備",
+            "en": "equipped with",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) 設定為 4 或 5（接近 CPU 核心數），以避免 Context Switching。",
+        "en": "(A) Set to 4 or 5 (close to CPU core count) to avoid Context Switching.",
+        "wg": []
+      },
+      {
+        "t": "(B) 設定為 1，使用單執行緒模式以確保安全。",
+        "en": "(B) Set to 1, using single-threaded mode to ensure safety.",
+        "wg": []
+      },
+      {
+        "t": "(C) 設定為遠大於核心數的值（例如 50 或 100），以填補 IO 等待時間的 CPU 空閒。",
+        "en": "(C) Set to a value much larger than the core count (e.g., 50 or 100) to fill CPU idle time during IO waits.",
+        "wg": [
+          {
+            "t": "填補",
+            "en": "fill / utilize",
+            "ps": "verb"
+          },
+          {
+            "t": "空閒",
+            "en": "idle",
+            "ps": "adjective"
+          }
+        ]
+      },
+      {
+        "t": "(D) 設定為 0，讓系統自動決定。",
+        "en": "(D) Set to 0, letting the system decide automatically.",
+        "wg": []
+      }
+    ],
+    "answer": "C",
+    "why": {
+      "t": "對於 IO 密集型任務，執行緒大部分時間處於阻塞 (Blocked) 狀態，不消耗 CPU。為了最大化 CPU 利用率，應該配置比核心數多得多的執行緒，讓某個執行緒等待 IO 時，其他執行緒可以使用 CPU 處理邏輯。公式通常與 `Wait Time / Compute Time` 的比例有關。",
+      "en": "For IO-bound tasks, threads spend most of their time in a Blocked state, not consuming CPU. To maximize CPU utilization, you should configure many more threads than cores, so that while some threads wait for IO, others can use the CPU for processing. The formula is often related to the ratio of `Wait Time / Compute Time`.",
+      "wg": [
+        {
+          "t": "阻塞",
+          "en": "Blocked",
+          "ps": "adjective"
+        },
+        {
+          "t": "利用率",
+          "en": "utilization",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "11",
+    "level": "Easy",
+    "keywords": "Race Condition,Atomicity,Read-Modify-Write,Thread Safety",
+    "parentNo": null,
+    "images": "",
+    "codeSnippet": "int count = 0;\n// Thread A & B both run:\ncount++;",
+    "question": [
+      {
+        "t": "為什麼簡單的 `count++` 操作在多執行緒環境下是不安全的（Thread-safe）？",
+        "en": "Why is a simple `count++` operation not thread-safe in a multi-threaded environment?",
+        "wg": [
+          {
+            "t": "不安全的",
+            "en": "not thread-safe",
+            "ps": "adjective"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) 因為變數沒有宣告為 final。",
+        "en": "(A) Because the variable is not declared as final.",
+        "wg": []
+      },
+      {
+        "t": "(B) 因為 `count++` 實際上包含「讀取-修改-寫入」三個步驟，並非原子操作 (Atomic Operation)。",
+        "en": "(B) Because `count++` actually consists of three steps: 'Read-Modify-Write', and is not an Atomic Operation.",
+        "wg": [
+          {
+            "t": "原子操作",
+            "en": "Atomic Operation",
+            "ps": "noun"
+          },
+          {
+            "t": "讀取-修改-寫入",
+            "en": "Read-Modify-Write",
+            "ps": "phrase"
+          }
+        ]
+      },
+      {
+        "t": "(C) 因為 CPU 快取 (Cache) 無法儲存整數型別。",
+        "en": "(C) Because CPU Cache cannot store integer types.",
+        "wg": []
+      },
+      {
+        "t": "(D) 因為編譯器會自動忽略多執行緒的指令。",
+        "en": "(D) Because the compiler automatically ignores multi-threading instructions.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "Race Condition 的根源在於操作不具備原子性 (Atomicity)。`count++` 需先從記憶體讀值，加一，再寫回。若兩個執行緒同時讀到相同的值（例如 0），它們都會寫回 1，導致其中一次更新遺失 (Lost Update)。",
+      "en": "The root cause of a Race Condition is the lack of Atomicity. `count++` requires reading from memory, incrementing, and writing back. If two threads read the same value (e.g., 0) simultaneously, they both write back 1, resulting in a Lost Update.",
+      "wg": [
+        {
+          "t": "原子性",
+          "en": "Atomicity",
+          "ps": "noun"
+        },
+        {
+          "t": "更新遺失",
+          "en": "Lost Update",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "12",
+    "level": "Medium",
+    "keywords": "Graceful Shutdown,Thread Pool,Operations,Best Practice",
+    "parentNo": null,
+    "images": "",
+    "codeSnippet": "",
+    "question": [
+      {
+        "t": "當應用程式收到關閉訊號（如 SIGTERM）準備重啟時，對於正在 Thread Pool 中執行的任務，下列哪項是最佳處置方式？",
+        "en": "When an application receives a shutdown signal (like SIGTERM) and prepares to restart, what is the best practice for tasks currently running in the Thread Pool?",
+        "wg": [
+          {
+            "t": "關閉訊號",
+            "en": "shutdown signal",
+            "ps": "noun"
+          },
+          {
+            "t": "處置方式",
+            "en": "handling method",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) 立即呼叫 `System.exit()` 強制結束，以加快部署速度。",
+        "en": "(A) Immediately call `System.exit()` to force termination and speed up deployment.",
+        "wg": []
+      },
+      {
+        "t": "(B) 執行 Graceful Shutdown：停止接收新任務，並等待現有任務執行完畢或超時。",
+        "en": "(B) Perform Graceful Shutdown: stop accepting new tasks, and wait for existing tasks to complete or timeout.",
+        "wg": [
+          {
+            "t": "優雅關閉",
+            "en": "Graceful Shutdown",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "(C) 將所有未完成的任務寫入硬碟暫存，下次啟動再讀取。",
+        "en": "(C) Write all unfinished tasks to disk cache and reload them on next startup.",
+        "wg": []
+      },
+      {
+        "t": "(D) 忽略關閉訊號，直到所有任務自然執行完畢。",
+        "en": "(D) Ignore the shutdown signal until all tasks naturally complete.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "直接強制殺死 Process 會導致正在處理中的資料損壞或狀態不一致。最佳實務是攔截關閉訊號，對 Thread Pool 發出 shutdown 指令，並使用 `awaitTermination` 給予一段緩衝時間（例如 30秒）讓任務收尾，確保資料完整性。",
+      "en": "Forcefully killing the process can lead to data corruption or inconsistent states for tasks in progress. The best practice is to intercept the shutdown signal, issue a shutdown command to the Thread Pool, and use `awaitTermination` to allow a buffer period (e.g., 30 seconds) for tasks to wrap up, ensuring data integrity.",
+      "wg": [
+        {
+          "t": "攔截",
+          "en": "intercept",
+          "ps": "verb"
+        },
+        {
+          "t": "收尾",
+          "en": "wrap up / finish",
+          "ps": "verb"
+        }
+      ]
+    }
+  }
+]

@@ -1,0 +1,749 @@
+[
+  {
+    "no": "1",
+    "level": "Intermediate",
+    "keywords": "Retry, Jitter, Thundering Herd, Stability Patterns",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在實作「指數退避重試」（Exponential Backoff Retry）機制時，為什麼通常建議加入隨機的「抖動」（Jitter）？",
+        "en": "When implementing an 'Exponential Backoff Retry' mechanism, why is it recommended to add random 'Jitter'?",
+        "wg": [
+          {
+            "t": "指數退避",
+            "en": "Exponential Backoff",
+            "ps": "noun"
+          },
+          {
+            "t": "抖動",
+            "en": "Jitter",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) 為了增加重試的總次數，確保請求最終能成功。",
+        "en": "(A) To increase the total number of retries, ensuring the request eventually succeeds.",
+        "wg": []
+      },
+      {
+        "t": "(B) 為了防止「驚群效應」（Thundering Herd），避免大量客戶端在同一時刻發起重試再次打垮服務。",
+        "en": "(B) To prevent the 'Thundering Herd' problem, avoiding a situation where many clients retry at the exact same moment and overwhelm the service again.",
+        "wg": [
+          {
+            "t": "驚群效應",
+            "en": "Thundering Herd",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "(C) 為了讓重試的時間間隔保持固定，方便日誌追蹤。",
+        "en": "(C) To keep the retry interval fixed for easier log tracking.",
+        "wg": []
+      },
+      {
+        "t": "(D) 為了加密請求內容，增加安全性。",
+        "en": "(D) To encrypt the request content and increase security.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "若沒有加入隨機抖動（Jitter），當服務短暫中斷後恢復，所有等待重試的客戶端會依照相同的退避公式計算出完全相同的重試時間點，導致瞬間流量高峰（驚群效應），可能再次將剛恢復的服務打掛。",
+      "en": "Without random Jitter, if a service recovers after a brief outage, all clients waiting to retry will calculate the exact same retry timestamp based on the same backoff formula. This causes a sudden traffic spike (Thundering Herd), which can overwhelm and crash the recovering service again.",
+      "wg": []
+    }
+  },
+  {
+    "no": "2",
+    "level": "Intermediate",
+    "keywords": "Circuit Breaker, Latency, Fail Fast",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你的微服務 A 依賴於服務 B。最近服務 B 的回應時間偶爾會飆升至 30 秒以上，導致服務 A 的執行緒池（Thread Pool）被耗盡並失去回應。",
+        "en": "Your microservice A depends on service B. Recently, service B's response time occasionally spikes to over 30 seconds, causing service A's thread pool to be exhausted and become unresponsive.",
+        "wg": [
+          {
+            "t": "執行緒池",
+            "en": "Thread Pool",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "下列哪一種模式最適合用來解決此問題，防止服務 A 被拖垮？",
+        "en": "Which of the following patterns is most suitable to solve this problem and prevent service A from being dragged down?",
+        "wg": []
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) 增加服務 A 的執行緒池大小 (Increase Thread Pool Size)",
+        "en": "(A) Increase the thread pool size of service A",
+        "wg": []
+      },
+      {
+        "t": "(B) 實作無限重試機制 (Infinite Retries)",
+        "en": "(B) Implement an infinite retry mechanism",
+        "wg": []
+      },
+      {
+        "t": "(C) 引入斷路器模式 (Circuit Breaker Pattern)",
+        "en": "(C) Introduce the Circuit Breaker Pattern",
+        "wg": [
+          {
+            "t": "斷路器模式",
+            "en": "Circuit Breaker Pattern",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "(D) 改用強一致性交易 (Strong Consistency Transaction)",
+        "en": "(D) Switch to Strong Consistency Transaction",
+        "wg": []
+      }
+    ],
+    "answer": "C",
+    "why": {
+      "t": "斷路器（Circuit Breaker）能監控延遲或錯誤率。當偵測到下游服務 B 異常（如回應過慢）時，斷路器會「跳開」（Open），直接拒絕後續請求並快速失敗（Fail Fast），從而釋放服務 A 的執行緒資源，防止連鎖故障。單純增加執行緒池只是延後崩潰時間。",
+      "en": "A Circuit Breaker monitors latency or error rates. When it detects that downstream service B is abnormal (e.g., too slow), it 'trips' (Opens) and immediately rejects subsequent requests (Fail Fast). This frees up service A's thread resources and prevents cascading failures. Simply increasing the thread pool size only delays the inevitable crash.",
+      "wg": [
+        {
+          "t": "連鎖故障",
+          "en": "Cascading Failures",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "3",
+    "level": "Advanced",
+    "keywords": "Saga Pattern, Distributed Transaction, Compensating Transaction",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在 Saga 模式中，如果一個跨服務的長事務執行到第 3 步驟失敗了，系統應該如何處理已經成功的第 1 與第 2 步驟？",
+        "en": "In the Saga pattern, if a cross-service long-running transaction fails at step 3, how should the system handle the already successful steps 1 and 2?",
+        "wg": [
+          {
+            "t": "長事務",
+            "en": "Long-running transaction",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) 直接刪除相關的資料庫紀錄 (Hard Delete)。",
+        "en": "(A) Directly hard delete the related database records.",
+        "wg": []
+      },
+      {
+        "t": "(B) 執行定義好的「補償交易」（Compensating Transaction）來邏輯性地撤銷操作。",
+        "en": "(B) Execute defined 'Compensating Transactions' to logically undo the operations.",
+        "wg": [
+          {
+            "t": "補償交易",
+            "en": "Compensating Transaction",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "(C) 鎖定資料庫直到人工介入修復。",
+        "en": "(C) Lock the database until manual intervention fixes it.",
+        "wg": []
+      },
+      {
+        "t": "(D) 忽略失敗，依賴最終一致性自動修復。",
+        "en": "(D) Ignore the failure and rely on eventual consistency to auto-repair.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "Saga 模式不使用全域鎖（Global Lock），因此無法像 ACID 事務那樣自動 Rollback。必須針對每個步驟定義對應的「補償交易」（如：扣款的補償是退款），當後續步驟失敗時，依序執行前面步驟的補償邏輯來回復狀態。",
+      "en": "The Saga pattern does not use global locks, so it cannot automatically rollback like ACID transactions. You must define a corresponding 'Compensating Transaction' for each step (e.g., the compensation for a charge is a refund). When a subsequent step fails, the compensation logic for previous steps is executed in reverse order to restore the state.",
+      "wg": []
+    }
+  },
+  {
+    "no": "4",
+    "level": "Intermediate",
+    "keywords": "Bulkhead, Resource Isolation, Stability Patterns",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "某個電商系統中，「圖片上傳」功能因為處理極慢，耗盡了所有的 DB 連線，導致完全無關的「文字搜尋」功能也無法使用。",
+        "en": "In an e-commerce system, the 'Image Upload' feature consumed all DB connections due to slow processing, causing the completely unrelated 'Text Search' feature to become unavailable.",
+        "wg": []
+      },
+      {
+        "t": "這顯示系統缺乏哪種韌性設計模式？",
+        "en": "This indicates that the system lacks which resilience design pattern?",
+        "wg": [
+          {
+            "t": "韌性",
+            "en": "Resilience",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) Retry Pattern (重試模式)",
+        "en": "(A) Retry Pattern",
+        "wg": []
+      },
+      {
+        "t": "(B) Bulkhead Pattern (艙壁模式)",
+        "en": "(B) Bulkhead Pattern",
+        "wg": [
+          {
+            "t": "艙壁模式",
+            "en": "Bulkhead Pattern",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "(C) Saga Pattern (Saga 事務)",
+        "en": "(C) Saga Pattern",
+        "wg": []
+      },
+      {
+        "t": "(D) Sidecar Pattern (邊車模式)",
+        "en": "(D) Sidecar Pattern",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "艙壁模式（Bulkhead Pattern）的核心概念是「資源隔離」。就像船艙設計一樣，將不同功能的資源池（如 Thread Pool, Connection Pool）分開，確保單一功能的故障或資源耗盡不會波及到其他無關的功能。",
+      "en": "The core concept of the Bulkhead Pattern is 'Resource Isolation'. Like the design of a ship's bulkhead, it separates resource pools (such as Thread Pools, Connection Pools) for different functions, ensuring that a failure or resource exhaustion in one function does not affect other unrelated functions.",
+      "wg": [
+        {
+          "t": "資源隔離",
+          "en": "Resource Isolation",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "5",
+    "level": "Intermediate",
+    "keywords": "Idempotency, Side-effect, API Design",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在設計具備「自動重試」機制的支付 API 時，為了避免使用者被重複扣款，必須強制要求客戶端提供什麼資訊？",
+        "en": "When designing a payment API with an 'automatic retry' mechanism, what information must be mandatorily required from the client to avoid double charging the user?",
+        "wg": [
+          {
+            "t": "重複扣款",
+            "en": "Double Charging",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) User ID (使用者 ID)",
+        "en": "(A) User ID",
+        "wg": []
+      },
+      {
+        "t": "(B) Timestamp (時間戳記)",
+        "en": "(B) Timestamp",
+        "wg": []
+      },
+      {
+        "t": "(C) Idempotency Key (冪等鍵)",
+        "en": "(C) Idempotency Key",
+        "wg": [
+          {
+            "t": "冪等鍵",
+            "en": "Idempotency Key",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "(D) Session Token (連線憑證)",
+        "en": "(D) Session Token",
+        "wg": []
+      }
+    ],
+    "answer": "C",
+    "why": {
+      "t": "冪等鍵（Idempotency Key）是用來識別「同一個操作請求」的唯一標識。當伺服器收到重試請求時，若發現該 Key 已經處理過，則直接回傳之前的結果而不執行扣款，這是確保副作用（Side-effect）操作安全性的關鍵。",
+      "en": "An Idempotency Key is a unique identifier used to recognize 'the same operation request'. When the server receives a retry request, if it finds that the Key has already been processed, it directly returns the previous result without executing the charge again. This is key to ensuring the safety of side-effect operations.",
+      "wg": [
+        {
+          "t": "副作用",
+          "en": "Side-effect",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "6",
+    "level": "Advanced",
+    "keywords": "Distributed Monolith, Availability, Architecture",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "關於「分散式單體」（Distributed Monolith）的反模式，下列敘述何者正確？",
+        "en": "Regarding the 'Distributed Monolith' anti-pattern, which of the following statements is correct?",
+        "wg": [
+          {
+            "t": "分散式單體",
+            "en": "Distributed Monolith",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) 透過將單體應用拆分成微服務，系統的整體可用性（Availability）總是會自動提升。",
+        "en": "(A) By splitting a monolith into microservices, the overall system availability will always automatically improve.",
+        "wg": []
+      },
+      {
+        "t": "(B) 若服務 A 同步呼叫服務 B，服務 B 又同步呼叫服務 C，則整體可用性是各服務可用性的乘積，導致系統比單體更不穩定。",
+        "en": "(B) If Service A synchronously calls Service B, and Service B synchronously calls Service C, the overall availability is the product of each service's availability, making the system less stable than a monolith.",
+        "wg": [
+          {
+            "t": "同步呼叫",
+            "en": "Synchronously Call",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "(C) 分散式單體的主要特徵是所有服務共用一個資料庫。",
+        "en": "(C) The main characteristic of a Distributed Monolith is that all services share a single database.",
+        "wg": []
+      },
+      {
+        "t": "(D) 這是指將單體應用部署在多個分散的資料中心。",
+        "en": "(D) This refers to deploying a monolithic application across multiple distributed data centers.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "分散式單體常見症狀是深度的同步呼叫鏈（Sync Call Chain）。根據機率學，串聯系統的總可用性是各組件可用性的乘積（例如 0.99 * 0.99 * 0.99 = 0.97），這意味著依賴越多，系統越容易失敗，這正是分散式單體脆弱的原因。",
+      "en": "A common symptom of a Distributed Monolith is a deep synchronous call chain. According to probability theory, the total availability of a serial system is the product of the availability of its components (e.g., 0.99 * 0.99 * 0.99 = 0.97). This means the more dependencies there are, the more likely the system is to fail, which is exactly why Distributed Monoliths are fragile.",
+      "wg": []
+    }
+  },
+  {
+    "no": "7",
+    "level": "Intermediate",
+    "keywords": "CQRS, Read/Write Separation, Architecture",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你的系統寫入邏輯非常複雜（需嚴格驗證），但讀取需求量巨大且查詢格式多樣（如全文檢索）。為了優化效能與維護性，應考慮採用哪種模式？",
+        "en": "Your system has very complex write logic (requiring strict validation), but the read demand is huge and the query formats are diverse (e.g., full-text search). To optimize performance and maintainability, which pattern should be considered?",
+        "wg": [
+          {
+            "t": "全文檢索",
+            "en": "Full-text Search",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) CQRS (Command Query Responsibility Segregation)",
+        "en": "(A) CQRS (Command Query Responsibility Segregation)",
+        "wg": []
+      },
+      {
+        "t": "(B) Two-Phase Commit (2PC)",
+        "en": "(B) Two-Phase Commit (2PC)",
+        "wg": []
+      },
+      {
+        "t": "(C) Singleton Pattern (單例模式)",
+        "en": "(C) Singleton Pattern",
+        "wg": []
+      },
+      {
+        "t": "(D) Circuit Breaker (斷路器)",
+        "en": "(D) Circuit Breaker",
+        "wg": []
+      }
+    ],
+    "answer": "A",
+    "why": {
+      "t": "CQRS 模式將「寫入模型（Command）」與「讀取模型（Query）」分離。寫入端可以專注於複雜的業務邏輯與正規化資料庫，而讀取端可以透過非同步事件同步到適合查詢的儲存介質（如 Elasticsearch 或 Redis），分別優化。",
+      "en": "The CQRS pattern separates the 'Write Model (Command)' from the 'Read Model (Query)'. The write side can focus on complex business logic and normalized databases, while the read side can be synchronized via asynchronous events to storage media suitable for querying (such as Elasticsearch or Redis), optimizing them separately.",
+      "wg": []
+    }
+  },
+  {
+    "no": "8",
+    "level": "Intermediate",
+    "keywords": "Sidecar Pattern, Infrastructure, Polyglot",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在一個擁有多種程式語言（Polyglot）的微服務架構中，為了避免在每個服務重複實作 Retry、Circuit Breaker 與監控邏輯，最佳的基礎設施模式是？",
+        "en": "In a microservices architecture with multiple programming languages (Polyglot), to avoid re-implementing Retry, Circuit Breaker, and monitoring logic in every service, what is the best infrastructure pattern?",
+        "wg": [
+          {
+            "t": "多種程式語言",
+            "en": "Polyglot",
+            "ps": "adjective"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) API Gateway Pattern (API 閘道器模式)",
+        "en": "(A) API Gateway Pattern",
+        "wg": []
+      },
+      {
+        "t": "(B) Sidecar Pattern (邊車模式)",
+        "en": "(B) Sidecar Pattern",
+        "wg": [
+          {
+            "t": "邊車模式",
+            "en": "Sidecar Pattern",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "(C) Leader Election Pattern (領袖選舉模式)",
+        "en": "(C) Leader Election Pattern",
+        "wg": []
+      },
+      {
+        "t": "(D) Pipes and Filters Pattern (管線與過濾器模式)",
+        "en": "(D) Pipes and Filters Pattern",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "Sidecar 模式將通訊、監控、斷路器等基礎設施邏輯從應用程式代碼中剝離，放入一個與主程式共生的獨立 Container（如 Envoy）。這樣業務工程師只需專注於業務邏輯，且無需為每種語言維護一套基礎設施庫。",
+      "en": "The Sidecar pattern decouples infrastructure logic such as communication, monitoring, and circuit breakers from the application code, placing it in an independent Container (like Envoy) that lives alongside the main application. This allows business engineers to focus only on business logic without maintaining a set of infrastructure libraries for every language.",
+      "wg": []
+    }
+  },
+  {
+    "no": "9",
+    "level": "Intermediate",
+    "keywords": "Retry Storms, Anti-pattern, Cascading Failures, Microservices",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在微服務架構中，若呼叫鏈（Call Chain）很深（例如 A → B → C → D），且每一層服務都設定了獨立的自動重試機制（例如失敗時重試 3 次），當最底層的服務 D 發生故障時，最可能引發什麼後果？",
+        "en": "In a microservices architecture with a deep call chain (e.g., A -> B -> C -> D), if every layer has an independent automatic retry mechanism (e.g., retry 3 times on failure), what is the most likely consequence when the bottom-level service D fails?",
+        "wg": [
+          {
+            "t": "呼叫鏈",
+            "en": "Call Chain",
+            "ps": "noun"
+          },
+          {
+            "t": "重試風暴",
+            "en": "Retry Storm",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) 服務 A 會立即收到錯誤回應，系統運作不受影響。",
+        "en": "(A) Service A will receive an error response immediately, and the system operation will not be affected.",
+        "wg": []
+      },
+      {
+        "t": "(B) 觸發「重試風暴」（Retry Storm），導致請求量呈指數級放大，進一步癱瘓系統。",
+        "en": "(B) Trigger a 'Retry Storm', causing the request volume to amplify exponentially and further paralyzing the system.",
+        "wg": [
+          {
+            "t": "指數級放大",
+            "en": "amplify exponentially",
+            "ps": "verb phrase"
+          }
+        ]
+      },
+      {
+        "t": "(C) 斷路器（Circuit Breaker）會自動協調各層，只在服務 A 進行一次重試。",
+        "en": "(C) The Circuit Breaker will automatically coordinate all layers to perform only one retry at Service A.",
+        "wg": []
+      },
+      {
+        "t": "(D) 服務 D 會自動重啟以修復故障。",
+        "en": "(D) Service D will automatically restart to fix the failure.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "當每一層都獨立進行重試時，請求數量會發生乘數效應（例如每一層重試 3 次，3 層就會產生 $3^3=27$ 倍的流量），這被稱為「重試風暴」。這會對已經故障或不穩定的底層服務發動類似 DDoS 的攻擊，使其更難恢復。解決方案通常包括實作「重試預算」（Retry Budget）或僅在最上層進行重試。",
+      "en": "When every layer retries independently, the number of requests undergoes a multiplier effect (e.g., 3 retries at each of 3 layers results in $3^3=27$ times the traffic), known as a 'Retry Storm'. This acts like a DDoS attack on the already failing or unstable bottom-level service, making recovery harder. Solutions typically include implementing a 'Retry Budget' or retrying only at the top layer.",
+      "wg": [
+        {
+          "t": "重試預算",
+          "en": "Retry Budget",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "10",
+    "level": "Intermediate",
+    "keywords": "Distributed Locks, Anti-pattern, Performance, Scalability",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "為了確保資料的強一致性，某團隊決定在所有微服務的資源存取操作中，都使用 Redis 實作的「分散式鎖」（Distributed Lock）。這種設計最主要的潛在風險是什麼？",
+        "en": "To ensure strong data consistency, a team decides to use a 'Distributed Lock' implemented via Redis for all resource access operations across microservices. What is the primary potential risk of this design?",
+        "wg": [
+          {
+            "t": "分散式鎖",
+            "en": "Distributed Lock",
+            "ps": "noun"
+          },
+          {
+            "t": "強一致性",
+            "en": "Strong Consistency",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) 會導致資料庫產生重複的 Primary Key。",
+        "en": "(A) It will cause duplicate Primary Keys in the database.",
+        "wg": []
+      },
+      {
+        "t": "(B) 容易造成效能瓶頸與死鎖（Deadlock），且降低系統的可擴展性。",
+        "en": "(B) It is prone to performance bottlenecks and deadlocks, and reduces system scalability.",
+        "wg": [
+          {
+            "t": "死鎖",
+            "en": "Deadlock",
+            "ps": "noun"
+          },
+          {
+            "t": "效能瓶頸",
+            "en": "performance bottlenecks",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "(C) 無法保證操作的原子性（Atomicity）。",
+        "en": "(C) It cannot guarantee the atomicity of operations.",
+        "wg": []
+      },
+      {
+        "t": "(D) 會強制系統轉變為「最終一致性」模型。",
+        "en": "(D) It will force the system to switch to an 'Eventual Consistency' model.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "濫用分散式鎖是常見的反模式。雖然它能保證互斥，但會將並行處理變成序列處理，嚴重影響吞吐量。此外，若持有鎖的服務崩潰且未釋放鎖（或鎖服務本身不穩定），極易導致死鎖或整個系統停擺。建議優先考慮樂觀鎖（Optimistic Locking）或透過資料分區（Partitioning）來避免競爭。",
+      "en": "Overusing distributed locks is a common anti-pattern. While it guarantees mutual exclusion, it turns parallel processing into serial processing, severely impacting throughput. Additionally, if the service holding the lock crashes without releasing it (or the lock service itself is unstable), it can easily lead to deadlocks or system-wide halts. It is recommended to prioritize Optimistic Locking or avoid contention through Partitioning.",
+      "wg": [
+        {
+          "t": "樂觀鎖",
+          "en": "Optimistic Locking",
+          "ps": "noun"
+        },
+        {
+          "t": "序列處理",
+          "en": "serial processing",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "11",
+    "level": "Intermediate",
+    "keywords": "Timeouts, Resilience Checklist, Network, Configuration",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在進行韌性檢核（Resilience Checklist）時，發現某個服務在呼叫外部 API 時偶爾會「無限期卡住」（Hang indefinitely），導致執行緒無法釋放。經查該服務未拋出任何錯誤。這通常是因為缺少了哪項設定？",
+        "en": "During a Resilience Checklist review, it was found that a service occasionally 'hangs indefinitely' when calling an external API, causing threads to be stuck. No errors were thrown. What configuration is most likely missing?",
+        "wg": [
+          {
+            "t": "無限期卡住",
+            "en": "Hang indefinitely",
+            "ps": "verb phrase"
+          },
+          {
+            "t": "韌性檢核",
+            "en": "Resilience Checklist",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) Retry Policy（重試策略）",
+        "en": "(A) Retry Policy",
+        "wg": []
+      },
+      {
+        "t": "(B) Connect Timeout 與 Read Timeout（連線與讀取逾時）",
+        "en": "(B) Connect Timeout and Read Timeout",
+        "wg": [
+          {
+            "t": "逾時",
+            "en": "Timeout",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "(C) Idempotency Key（冪等鍵）",
+        "en": "(C) Idempotency Key",
+        "wg": []
+      },
+      {
+        "t": "(D) Service Mesh（服務網格）",
+        "en": "(D) Service Mesh",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "許多 HTTP Client 的預設 Timeout 值是「無限大」。如果網路封包被防火牆靜默丟棄（Silently Dropped）或伺服器端死鎖，客戶端會一直等待回應而不會報錯，最終耗盡執行緒資源。明確設定 Connect Timeout 與 Read Timeout 是防禦性設計的基礎。",
+      "en": "The default timeout value for many HTTP Clients is 'infinite'. If network packets are silently dropped by a firewall or the server side deadlocks, the client will wait indefinitely for a response without throwing an error, eventually exhausting thread resources. Explicitly setting Connect Timeout and Read Timeout is fundamental to defensive design.",
+      "wg": [
+        {
+          "t": "靜默丟棄",
+          "en": "Silently Dropped",
+          "ps": "verb phrase"
+        }
+      ]
+    }
+  },
+  {
+    "no": "12",
+    "level": "Advanced",
+    "keywords": "Saga Pattern, Orchestration, Choreography, Architecture",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你正在設計一個複雜的「旅遊訂單系統」，需要依序預訂機票、飯店與租車。業務需求要求必須有一個中心化的位置能即時監控每個步驟的狀態，並在發生錯誤時統一處理複雜的補償邏輯。應選擇哪種 Saga 實作方式？",
+        "en": "You are designing a complex 'Travel Booking System' that needs to sequentially book flights, hotels, and car rentals. The business requires a centralized place to monitor the status of each step in real-time and handle complex compensation logic uniformly upon failure. Which Saga implementation style should be chosen?",
+        "wg": [
+          {
+            "t": "指揮式",
+            "en": "Orchestration",
+            "ps": "noun"
+          },
+          {
+            "t": "編排式",
+            "en": "Choreography",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) Choreography（編排式 / 事件驅動）",
+        "en": "(A) Choreography (Event-Driven)",
+        "wg": []
+      },
+      {
+        "t": "(B) Orchestration（指揮式 / 中央協調）",
+        "en": "(B) Orchestration (Central Coordinator)",
+        "wg": []
+      },
+      {
+        "t": "(C) Two-Phase Commit (2PC)",
+        "en": "(C) Two-Phase Commit (2PC)",
+        "wg": []
+      },
+      {
+        "t": "(D) Write-Ahead Logging (WAL)",
+        "en": "(D) Write-Ahead Logging (WAL)",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "對於流程複雜、參與者眾多且需要集中監控與狀態管理的場景，**Orchestration（指揮式）** 是較佳選擇。它由一個協調者（Orchestrator）明確發送命令給各服務，邏輯清晰且易於除錯。相比之下，Choreography 適合簡單流程，但在複雜場景下容易導致流程難以追蹤（分散在各服務的事件監聽中）。",
+      "en": "For scenarios with complex workflows, many participants, and a need for centralized monitoring and state management, **Orchestration** is the better choice. It uses a coordinator (Orchestrator) to explicitly send commands to services, making the logic clear and easier to debug. In contrast, Choreography is suitable for simple flows but can make tracking difficult in complex scenarios (logic scattered across event listeners).",
+      "wg": [
+        {
+          "t": "協調者",
+          "en": "Orchestrator",
+          "ps": "noun"
+        }
+      ]
+    }
+  }
+]

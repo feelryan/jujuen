@@ -1,0 +1,1380 @@
+[
+  {
+    "no": "1",
+    "level": "intermediate",
+    "keywords": "Retry, Thundering Herd, Backoff, Jitter",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "int maxRetries = 3;\nfor (int i = 0; i < maxRetries; i++) {\n    try {\n        return inventoryService.deduct(itemId);\n    } catch (ServiceUnavailableException e) {\n        if (i == maxRetries - 1) throw e;\n        // Immediately loop again\n    }\n}",
+    "question": [
+      {
+        "t": "請檢視上方的程式碼片段，該實作在處理下游服務暫時性故障時採用了立即重試的策略。",
+        "en": "Please review the code snippet above, which implements an immediate retry strategy when handling transient failures from a downstream service.",
+        "wg": [
+          {
+            "t": "暫時性故障",
+            "en": "transient failures",
+            "ps": "N"
+          },
+          {
+            "t": "立即重試",
+            "en": "immediate retry",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "在高併發場景下，若下游服務已經過載，這種實作方式最可能導致什麼嚴重的後果？",
+        "en": "In a high-concurrency scenario, if the downstream service is already overloaded, what severe consequence is this implementation most likely to cause?",
+        "wg": [
+          {
+            "t": "高併發",
+            "en": "high-concurrency",
+            "ps": "N"
+          },
+          {
+            "t": "過載",
+            "en": "overloaded",
+            "ps": "Adj"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 記憶體洩漏 (Memory Leak)，因為例外物件未被正確清除。",
+        "en": "(A) Memory Leak, because exception objects are not properly cleared.",
+        "wg": []
+      },
+      {
+        "t": "(B) 驚群效應 (Thundering Herd)，加劇下游負載導致服務崩潰。",
+        "en": "(B) Thundering Herd, exacerbating downstream load and causing service crash.",
+        "wg": [
+          {
+            "t": "驚群效應",
+            "en": "Thundering Herd",
+            "ps": "N"
+          },
+          {
+            "t": "加劇",
+            "en": "exacerbating",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(C) 資料不一致 (Data Inconsistency)，因為重試次數過少。",
+        "en": "(C) Data Inconsistency, because the number of retries is too low.",
+        "wg": []
+      },
+      {
+        "t": "(D) 死鎖 (Deadlock)，因為執行緒在迴圈中被無限期阻塞。",
+        "en": "(D) Deadlock, because threads are blocked indefinitely in the loop.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "立即重試且沒有退避 (Backoff) 與抖動 (Jitter) 機制，會導致所有客戶端在同一時間對已過載的服務發起大量請求，形成驚群效應 (Thundering Herd)，使下游服務更難恢復。",
+      "en": "Immediate retries without Backoff and Jitter mechanisms cause all clients to send a massive number of requests to an already overloaded service at the same time, creating a Thundering Herd effect that makes it harder for the downstream service to recover.",
+      "wg": [
+        {
+          "t": "退避",
+          "en": "Backoff",
+          "ps": "N"
+        },
+        {
+          "t": "抖動",
+          "en": "Jitter",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "2",
+    "level": "advanced",
+    "keywords": "Circuit Breaker, Half-Open, State Transition",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在斷路器 (Circuit Breaker) 模式中，當斷路器處於「開啟 (Open)」狀態一段時間後，冷卻時間 (Cooldown/Reset Timeout) 結束。",
+        "en": "In the Circuit Breaker pattern, after the circuit breaker has been in the 'Open' state for a while, the cooldown period (Reset Timeout) expires.",
+        "wg": [
+          {
+            "t": "斷路器",
+            "en": "Circuit Breaker",
+            "ps": "N"
+          },
+          {
+            "t": "冷卻時間",
+            "en": "cooldown period",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "此時斷路器通常會轉換到哪一個狀態，以及其行為特徵為何？",
+        "en": "Which state does the circuit breaker typically transition to at this point, and what is its behavioral characteristic?",
+        "wg": [
+          {
+            "t": "轉換",
+            "en": "transition",
+            "ps": "V"
+          },
+          {
+            "t": "行為特徵",
+            "en": "behavioral characteristic",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 關閉 (Closed) 狀態：立即恢復所有流量的通行。",
+        "en": "(A) Closed state: Immediately resumes passing all traffic.",
+        "wg": []
+      },
+      {
+        "t": "(B) 半開啟 (Half-Open) 狀態：允許有限數量的請求通過，以測試下游服務是否已恢復。",
+        "en": "(B) Half-Open state: Allows a limited number of requests to pass to test if the downstream service has recovered.",
+        "wg": [
+          {
+            "t": "半開啟",
+            "en": "Half-Open",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) 封鎖 (Blocked) 狀態：需要人工介入重置後才能繼續運作。",
+        "en": "(C) Blocked state: Requires manual intervention to reset before continuing operation.",
+        "wg": []
+      },
+      {
+        "t": "(D) 限流 (Throttling) 狀態：永久降低通過的請求速率。",
+        "en": "(D) Throttling state: Permanently reduces the rate of passing requests.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "當冷卻時間結束，斷路器會進入「半開啟 (Half-Open)」狀態，放行少量請求作為探針。若這些請求成功，則重置為「關閉 (Closed)」；若失敗，則再次回到「開啟 (Open)」狀態。",
+      "en": "When the cooldown period ends, the circuit breaker enters the 'Half-Open' state, allowing a few requests as probes. If these requests succeed, it resets to 'Closed'; if they fail, it returns to the 'Open' state.",
+      "wg": [
+        {
+          "t": "探針",
+          "en": "probes",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "3",
+    "level": "intermediate",
+    "keywords": "Bulkhead, Resource Isolation, Thread Pool",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您正在維護一個單體應用程式，其中包含「核心登入」與「報表生成」兩個功能。",
+        "en": "You are maintaining a monolithic application that includes two functions: 'Core Login' and 'Report Generation'.",
+        "wg": [
+          {
+            "t": "單體應用程式",
+            "en": "monolithic application",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "最近發現當報表生成功能因為資料庫回應緩慢而卡住時，會耗盡所有的執行緒 (Threads)，導致使用者無法登入。",
+        "en": "Recently, it was discovered that when the report generation function gets stuck due to slow database responses, it exhausts all threads, preventing users from logging in.",
+        "wg": [
+          {
+            "t": "耗盡",
+            "en": "exhausts",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "下列哪一種設計模式最適合用來解決此資源競爭問題？",
+        "en": "Which of the following design patterns is best suited to solve this resource contention problem?",
+        "wg": [
+          {
+            "t": "資源競爭",
+            "en": "resource contention",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 斷路器 (Circuit Breaker)",
+        "en": "(A) Circuit Breaker",
+        "wg": []
+      },
+      {
+        "t": "(B) 艙壁 (Bulkhead)",
+        "en": "(B) Bulkhead",
+        "wg": [
+          {
+            "t": "艙壁",
+            "en": "Bulkhead",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) 指數退避 (Exponential Backoff)",
+        "en": "(C) Exponential Backoff",
+        "wg": []
+      },
+      {
+        "t": "(D) 領袖選舉 (Leader Election)",
+        "en": "(D) Leader Election",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "艙壁 (Bulkhead) 模式的核心概念是資源隔離 (Resource Isolation)。透過為不同的業務功能分配獨立的執行緒池 (Thread Pools)，可確保單一功能的故障不會拖垮整個系統。",
+      "en": "The core concept of the Bulkhead pattern is Resource Isolation. By allocating independent Thread Pools for different business functions, it ensures that a failure in one function does not drag down the entire system.",
+      "wg": [
+        {
+          "t": "資源隔離",
+          "en": "Resource Isolation",
+          "ps": "N"
+        },
+        {
+          "t": "執行緒池",
+          "en": "Thread Pools",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "4",
+    "level": "advanced",
+    "keywords": "Leader Election, TTL, Deadlock, Distributed Systems",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在實作分散式系統的領袖選舉 (Leader Election) 時，若僅使用資料庫的一個欄位 `status=LOCKED` 來標記領袖，卻沒有設定 TTL (Time To Live) 或租約機制。",
+        "en": "When implementing Leader Election in a distributed system, if you only use a database field `status=LOCKED` to mark the leader without setting a TTL (Time To Live) or lease mechanism.",
+        "wg": [
+          {
+            "t": "領袖選舉",
+            "en": "Leader Election",
+            "ps": "N"
+          },
+          {
+            "t": "租約機制",
+            "en": "lease mechanism",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "當目前的領袖實例 (Instance) 意外崩潰 (Crash) 且無法執行解鎖操作時，系統會發生什麼狀況？",
+        "en": "What happens to the system when the current leader instance crashes unexpectedly and fails to perform the unlock operation?",
+        "wg": [
+          {
+            "t": "崩潰",
+            "en": "crashes",
+            "ps": "V"
+          },
+          {
+            "t": "解鎖操作",
+            "en": "unlock operation",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 系統會自動將鎖轉移給下一個可用的實例。",
+        "en": "(A) The system will automatically transfer the lock to the next available instance.",
+        "wg": []
+      },
+      {
+        "t": "(B) 系統將陷入死鎖 (Deadlock)，永遠沒有新的領袖產生。",
+        "en": "(B) The system will enter a Deadlock, and no new leader will ever be elected.",
+        "wg": [
+          {
+            "t": "死鎖",
+            "en": "Deadlock",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) 資料庫會自動偵測連線中斷並釋放鎖。",
+        "en": "(C) The database will automatically detect the connection drop and release the lock.",
+        "wg": []
+      },
+      {
+        "t": "(D) 所有實例會同時成為領袖，導致腦裂 (Split Brain)。",
+        "en": "(D) All instances will become leaders simultaneously, causing Split Brain.",
+        "wg": [
+          {
+            "t": "腦裂",
+            "en": "Split Brain",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "若沒有 TTL 或租約過期機制，崩潰的領袖無法釋放鎖，其他實例會認為鎖仍被佔用，導致系統永遠無法選出新領袖，形成死鎖。",
+      "en": "Without a TTL or lease expiration mechanism, the crashed leader cannot release the lock, and other instances will perceive the lock as still held, causing the system to never elect a new leader, resulting in a deadlock.",
+      "wg": []
+    }
+  },
+  {
+    "no": "5",
+    "level": "intermediate",
+    "keywords": "Retry Storm, Anti-pattern, Microservices",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "考慮一個微服務呼叫鏈：Service A -> Service B -> Service C。若 A 和 B 都設定了「失敗時重試 3 次」的預設策略。",
+        "en": "Consider a microservice call chain: Service A -> Service B -> Service C. If both A and B are configured with a default strategy of 'Retry 3 times on failure'.",
+        "wg": [
+          {
+            "t": "呼叫鏈",
+            "en": "call chain",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "當 Service C 完全無法服務時，Service C 接收到的請求量會呈現幾何級數增長。這種反模式 (Anti-pattern) 被稱為什麼？",
+        "en": "When Service C is completely unavailable, the volume of requests received by Service C will increase geometrically. What is this anti-pattern called?",
+        "wg": [
+          {
+            "t": "幾何級數",
+            "en": "geometrically",
+            "ps": "Adv"
+          },
+          {
+            "t": "反模式",
+            "en": "Anti-pattern",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 服務網格 (Service Mesh)",
+        "en": "(A) Service Mesh",
+        "wg": []
+      },
+      {
+        "t": "(B) 重試風暴 (Retry Storm)",
+        "en": "(B) Retry Storm",
+        "wg": [
+          {
+            "t": "重試風暴",
+            "en": "Retry Storm",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) 快速失敗 (Fail Fast)",
+        "en": "(C) Fail Fast",
+        "wg": []
+      },
+      {
+        "t": "(D) 資源餓死 (Resource Starvation)",
+        "en": "(D) Resource Starvation",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "當呼叫鏈中的每一層都獨立進行重試時，底層服務的故障會導致上層服務多次重試，進而產生乘數效應，導致請求量爆炸，稱為重試風暴 (Retry Storm)。",
+      "en": "When every layer in the call chain retries independently, a failure in a bottom-layer service causes upper-layer services to retry multiple times, creating a multiplier effect that leads to an explosion in request volume, known as a Retry Storm.",
+      "wg": [
+        {
+          "t": "乘數效應",
+          "en": "multiplier effect",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "6",
+    "level": "intermediate",
+    "keywords": "Idempotency, Retry, Distributed Systems, Consistency",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您正在設計一個負責處理付款交易的微服務，該服務需透過網路呼叫上游的銀行 API。",
+        "en": "You are designing a microservice responsible for processing payment transactions, which needs to call an upstream Bank API over the network.",
+        "wg": [
+          {
+            "t": "付款交易",
+            "en": "payment transactions",
+            "ps": "N"
+          },
+          {
+            "t": "上游",
+            "en": "upstream",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "為了提高系統的可用性，您決定在網路請求超時（Timeout）時實作重試機制。",
+        "en": "To improve system availability, you decide to implement a retry mechanism when network requests timeout.",
+        "wg": [
+          {
+            "t": "可用性",
+            "en": "availability",
+            "ps": "N"
+          },
+          {
+            "t": "重試機制",
+            "en": "retry mechanism",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "為了確保資料一致性並避免重複扣款，下列哪項機制是實作重試時必須同時具備的關鍵依賴？",
+        "en": "To ensure data consistency and avoid double charging, which of the following mechanisms is a critical dependency that must be implemented alongside retries?",
+        "wg": [
+          {
+            "t": "資料一致性",
+            "en": "data consistency",
+            "ps": "N"
+          },
+          {
+            "t": "重複扣款",
+            "en": "double charging",
+            "ps": "N"
+          },
+          {
+            "t": "關鍵依賴",
+            "en": "critical dependency",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 斷路器 (Circuit Breaker)",
+        "en": "(A) Circuit Breaker",
+        "wg": []
+      },
+      {
+        "t": "(B) 冪等性 (Idempotency)",
+        "en": "(B) Idempotency",
+        "wg": [
+          {
+            "t": "冪等性",
+            "en": "Idempotency",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) 負載平衡 (Load Balancing)",
+        "en": "(C) Load Balancing",
+        "wg": []
+      },
+      {
+        "t": "(D) 服務網格 (Service Mesh)",
+        "en": "(D) Service Mesh",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "在分散式系統中，網路超時並不代表請求失敗，伺服器可能已經處理了請求但回應丟失。若沒有冪等性（Idempotency Key），重試會導致重複操作（如重複扣款）。教材中明確指出「Idempotency is mandatory for Retry」。",
+      "en": "In distributed systems, a network timeout does not imply request failure; the server might have processed the request but the response was lost. Without idempotency (Idempotency Key), retries will cause duplicate operations (e.g., double charging). The material explicitly states that 'Idempotency is mandatory for Retry'.",
+      "wg": [
+        {
+          "t": "回應丟失",
+          "en": "response lost",
+          "ps": "Phrase"
+        },
+        {
+          "t": "強制性的",
+          "en": "mandatory",
+          "ps": "Adj"
+        }
+      ]
+    }
+  },
+  {
+    "no": "7",
+    "level": "intermediate",
+    "keywords": "Service Mesh, Sidecar, Resilience, Architecture",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您的團隊正考慮將重試（Retry）與斷路器（Circuit Breaker）邏輯從應用程式碼遷移至 Service Mesh（如 Istio/Envoy）層級。",
+        "en": "Your team is considering migrating Retry and Circuit Breaker logic from the application code to the Service Mesh (e.g., Istio/Envoy) layer.",
+        "wg": [
+          {
+            "t": "遷移",
+            "en": "migrating",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "相較於在客戶端（Client-side Library）實作這些模式，使用 Service Mesh 的主要缺點或限制是什麼？",
+        "en": "Compared to implementing these patterns in a Client-side Library, what is the main disadvantage or limitation of using a Service Mesh?",
+        "wg": [
+          {
+            "t": "客戶端",
+            "en": "Client-side",
+            "ps": "Adj"
+          },
+          {
+            "t": "限制",
+            "en": "limitation",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) Service Mesh 無法支援多語言（Polyglot）環境。",
+        "en": "(A) Service Mesh cannot support polyglot environments.",
+        "wg": [
+          {
+            "t": "多語言",
+            "en": "polyglot",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "(B) Service Mesh 對業務邏輯缺乏感知，難以判斷特定錯誤是否適合重試。",
+        "en": "(B) Service Mesh lacks awareness of business logic, making it difficult to determine if a specific error is suitable for retry.",
+        "wg": [
+          {
+            "t": "業務邏輯",
+            "en": "business logic",
+            "ps": "N"
+          },
+          {
+            "t": "感知",
+            "en": "awareness",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) Service Mesh 會導致應用程式碼變得更加複雜。",
+        "en": "(C) Service Mesh makes application code more complex.",
+        "wg": []
+      },
+      {
+        "t": "(D) Service Mesh 無法實作斷路器模式。",
+        "en": "(D) Service Mesh cannot implement the Circuit Breaker pattern.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "Service Mesh 位於基礎設施層，雖然能處理通用的網路錯誤，但它不知道某個 HTTP 500 錯誤在業務上是否允許重試（例如非冪等的寫入操作）。這是將韌性邏輯下沉到基礎設施層的主要權衡（Trade-off）。",
+      "en": "Service Mesh resides at the infrastructure layer. While it handles generic network errors, it does not know if a specific HTTP 500 error is business-permissible for retry (e.g., non-idempotent write operations). This is the main trade-off of offloading resilience logic to the infrastructure.",
+      "wg": [
+        {
+          "t": "基礎設施層",
+          "en": "infrastructure layer",
+          "ps": "N"
+        },
+        {
+          "t": "權衡",
+          "en": "trade-off",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "8",
+    "level": "advanced",
+    "keywords": "Bulkhead, Thread Pool, Context Switch, Performance",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您正在使用 Bulkhead 模式來隔離依賴服務，並為每個依賴配置了獨立的執行緒池（Thread Pool）。",
+        "en": "You are using the Bulkhead pattern to isolate dependent services and have configured independent Thread Pools for each dependency.",
+        "wg": [
+          {
+            "t": "隔離",
+            "en": "isolate",
+            "ps": "V"
+          },
+          {
+            "t": "執行緒池",
+            "en": "Thread Pool",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "然而，當其中一個依賴服務回應變慢時，您發現整個應用程式的 CPU 使用率飆升，且吞吐量下降，即使其他依賴服務運作正常。",
+        "en": "However, when one dependency slows down, you notice the application's CPU usage spikes and throughput drops, even though other dependencies are healthy.",
+        "wg": [
+          {
+            "t": "吞吐量",
+            "en": "throughput",
+            "ps": "N"
+          },
+          {
+            "t": "飆升",
+            "en": "spikes",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "經檢查發現該依賴的執行緒池設定過大（例如 1000 個執行緒）。請問造成此現象最可能的原因是什麼？",
+        "en": "Inspection reveals that the Thread Pool for that dependency is set too large (e.g., 1000 threads). What is the most likely cause of this phenomenon?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 執行緒池過大導致記憶體洩漏 (Memory Leak)。",
+        "en": "(A) The excessively large thread pool caused a Memory Leak.",
+        "wg": []
+      },
+      {
+        "t": "(B) 過多的執行緒導致頻繁的上下文切換 (Context Switching)，消耗了大量 CPU 資源。",
+        "en": "(B) Too many threads caused frequent Context Switching, consuming excessive CPU resources.",
+        "wg": [
+          {
+            "t": "上下文切換",
+            "en": "Context Switching",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) 斷路器未能及時開啟，導致請求堆積。",
+        "en": "(C) The Circuit Breaker failed to open in time, causing request backlog.",
+        "wg": []
+      },
+      {
+        "t": "(D) 資料庫連線數不足。",
+        "en": "(D) Insufficient database connections.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "這是 Bulkhead 配置常見的反模式。當執行緒池過大且執行緒因等待 I/O 而阻塞（Blocked）或頻繁切換時，OS 需花費大量 CPU 週期在 Context Switching 上，反而拖垮了整台機器，失去了隔離保護的意義。",
+      "en": "This is a common anti-pattern in Bulkhead configuration. When the thread pool is too large and threads are blocked waiting for I/O or switching frequently, the OS spends excessive CPU cycles on Context Switching, dragging down the entire machine and defeating the purpose of isolation.",
+      "wg": [
+        {
+          "t": "反模式",
+          "en": "anti-pattern",
+          "ps": "N"
+        },
+        {
+          "t": "阻塞",
+          "en": "blocked",
+          "ps": "Adj"
+        }
+      ]
+    }
+  },
+  {
+    "no": "9",
+    "level": "advanced",
+    "keywords": "Rate Limiting, Redis, Lua, Race Condition, Atomicity",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在設計分散式限流器（Distributed Rate Limiter）時，您選擇使用 Redis 來儲存計數器。",
+        "en": "When designing a Distributed Rate Limiter, you choose to use Redis to store counters.",
+        "wg": [
+          {
+            "t": "分散式限流器",
+            "en": "Distributed Rate Limiter",
+            "ps": "N"
+          },
+          {
+            "t": "計數器",
+            "en": "counters",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "為了確保在高併發環境下計數的準確性，避免「讀取-修改-寫入（Read-Modify-Write）」造成的競爭危害（Race Condition），最佳實作方式為何？",
+        "en": "To ensure counting accuracy in a high-concurrency environment and avoid Race Conditions caused by 'Read-Modify-Write', what is the best implementation practice?",
+        "wg": [
+          {
+            "t": "高併發",
+            "en": "high-concurrency",
+            "ps": "Adj"
+          },
+          {
+            "t": "競爭危害",
+            "en": "Race Condition",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 在應用程式端使用 Mutex 鎖定。",
+        "en": "(A) Use Mutex locks on the application side.",
+        "wg": [
+          {
+            "t": "互斥鎖",
+            "en": "Mutex",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(B) 使用 Redis 的 Lua Script 來確保操作的原子性（Atomicity）。",
+        "en": "(B) Use Redis Lua Scripts to ensure operation Atomicity.",
+        "wg": [
+          {
+            "t": "原子性",
+            "en": "Atomicity",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) 增加 Redis 的 Replica 節點數量。",
+        "en": "(C) Increase the number of Redis Replica nodes.",
+        "wg": []
+      },
+      {
+        "t": "(D) 改用關聯式資料庫的 Transaction。",
+        "en": "(D) Switch to Relational Database Transactions.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "在分散式環境中，應用程式端的鎖無法跨機器運作。Redis 的 Lua Script 可以將讀取與寫入邏輯打包成單一原子操作執行，有效解決併發下的 Race Condition 問題，且效能優於傳統資料庫交易。",
+      "en": "In a distributed environment, application-side locks cannot work across machines. Redis Lua Scripts can package read and write logic into a single atomic operation, effectively solving Race Conditions under concurrency, with better performance than traditional database transactions.",
+      "wg": [
+        {
+          "t": "跨機器",
+          "en": "across machines",
+          "ps": "Adv"
+        },
+        {
+          "t": "打包",
+          "en": "package",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "10",
+    "level": "intermediate",
+    "keywords": "Retry, Error Handling, Best Practices, HTTP Status",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在實作重試（Retry）策略時，辨識哪些錯誤值得重試至關重要。",
+        "en": "When implementing a Retry strategy, identifying which errors are worth retrying is crucial.",
+        "wg": [
+          {
+            "t": "辨識",
+            "en": "identifying",
+            "ps": "V"
+          },
+          {
+            "t": "至關重要",
+            "en": "crucial",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "下列哪一種 HTTP 回應狀態碼通常代表「客戶端錯誤」或「請求無效」，因此**不應該**進行自動重試？",
+        "en": "Which of the following HTTP response status codes typically indicates a 'Client Error' or 'Invalid Request' and therefore should **NOT** be automatically retried?",
+        "wg": [
+          {
+            "t": "狀態碼",
+            "en": "status codes",
+            "ps": "N"
+          },
+          {
+            "t": "自動重試",
+            "en": "automatically retried",
+            "ps": "V"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 503 Service Unavailable",
+        "en": "(A) 503 Service Unavailable",
+        "wg": []
+      },
+      {
+        "t": "(B) 429 Too Many Requests",
+        "en": "(B) 429 Too Many Requests",
+        "wg": []
+      },
+      {
+        "t": "(C) 400 Bad Request",
+        "en": "(C) 400 Bad Request",
+        "wg": []
+      },
+      {
+        "t": "(D) 502 Bad Gateway",
+        "en": "(D) 502 Bad Gateway",
+        "wg": []
+      }
+    ],
+    "answer": "C",
+    "why": {
+      "t": "400 Bad Request 代表請求本身有語法錯誤或參數問題，無論重試幾次結果都會一樣（非暫時性故障），因此不應重試。503、502 與 429（配合 Backoff）通常是暫時性問題，適合重試。",
+      "en": "400 Bad Request indicates a syntax error or parameter issue with the request itself. The result will be the same regardless of retries (non-transient failure), so it should not be retried. 503, 502, and 429 (with Backoff) are typically transient issues suitable for retries.",
+      "wg": [
+        {
+          "t": "語法錯誤",
+          "en": "syntax error",
+          "ps": "N"
+        },
+        {
+          "t": "暫時性故障",
+          "en": "transient failure",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "11",
+    "level": "intermediate",
+    "keywords": "Circuit Breaker, Latency, Fail Fast, User Experience",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "斷路器（Circuit Breaker）模式除了保護下游服務不被壓垮外，對於客戶端（Client）的「非功能性需求」有何顯著益處？",
+        "en": "Besides protecting downstream services from being overwhelmed, what is a significant benefit of the Circuit Breaker pattern for the Client's 'Non-Functional Requirements'?",
+        "wg": [
+          {
+            "t": "非功能性需求",
+            "en": "Non-Functional Requirements",
+            "ps": "N"
+          },
+          {
+            "t": "顯著益處",
+            "en": "significant benefit",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 確保資料的強一致性 (Strong Consistency)。",
+        "en": "(A) Ensures Strong Consistency of data.",
+        "wg": []
+      },
+      {
+        "t": "(B) 透過快速失敗 (Fail Fast) 控制延遲 (Latency)，避免客戶端長時間等待超時。",
+        "en": "(B) Controls Latency via Fail Fast, preventing clients from waiting for timeouts for extended periods.",
+        "wg": [
+          {
+            "t": "快速失敗",
+            "en": "Fail Fast",
+            "ps": "N"
+          },
+          {
+            "t": "延遲",
+            "en": "Latency",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) 自動修復錯誤的請求參數。",
+        "en": "(C) Automatically fixes incorrect request parameters.",
+        "wg": []
+      },
+      {
+        "t": "(D) 增加系統的吞吐量 (Throughput) 至無限大。",
+        "en": "(D) Increases system Throughput to infinity.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "當下游服務故障時，若沒有斷路器，客戶端需等待直到 Timeout（可能長達數秒）。斷路器開啟後會立即回傳錯誤（Fail Fast），大幅降低平均響應時間，改善使用者體驗。",
+      "en": "When a downstream service fails, without a Circuit Breaker, the client must wait until Timeout (potentially seconds). Once the Circuit Breaker is open, it returns an error immediately (Fail Fast), significantly reducing average response time and improving user experience.",
+      "wg": [
+        {
+          "t": "響應時間",
+          "en": "response time",
+          "ps": "N"
+        },
+        {
+          "t": "使用者體驗",
+          "en": "user experience",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "12",
+    "level": "intermediate",
+    "keywords": "Leader Election, Distributed Systems, Scheduled Jobs, Race Condition",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在微服務架構中，您部署了多個實例（Instances）來處理 HTTP 流量。但系統中有一個排程任務（Scheduled Job）負責每天產生報表。",
+        "en": "In a microservices architecture, you have deployed multiple instances to handle HTTP traffic. However, there is a Scheduled Job in the system responsible for generating reports daily.",
+        "wg": [
+          {
+            "t": "實例",
+            "en": "instances",
+            "ps": "N"
+          },
+          {
+            "t": "排程任務",
+            "en": "Scheduled Job",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "為了避免多個實例同時執行該任務導致資源浪費或資料錯誤，您應該採用哪種設計模式？",
+        "en": "To prevent multiple instances from executing the task simultaneously, causing resource waste or data errors, which design pattern should you adopt?",
+        "wg": [
+          {
+            "t": "資源浪費",
+            "en": "resource waste",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 斷路器 (Circuit Breaker)",
+        "en": "(A) Circuit Breaker",
+        "wg": []
+      },
+      {
+        "t": "(B) 領袖選舉 (Leader Election)",
+        "en": "(B) Leader Election",
+        "wg": [
+          {
+            "t": "領袖選舉",
+            "en": "Leader Election",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) 負載平衡 (Load Balancing)",
+        "en": "(C) Load Balancing",
+        "wg": []
+      },
+      {
+        "t": "(D) 服務發現 (Service Discovery)",
+        "en": "(D) Service Discovery",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "領袖選舉模式的核心目的，就是確保在分散式環境中，同一時間只有一個實例（Leader）執行特定任務（如排程 Job、寫入共享資源），以避免 Race Condition。",
+      "en": "The core purpose of the Leader Election pattern is to ensure that only one instance (the Leader) performs a specific task (e.g., scheduled jobs, writing to shared resources) at a time in a distributed environment, thereby avoiding Race Conditions.",
+      "wg": [
+        {
+          "t": "特定任務",
+          "en": "specific task",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "13",
+    "level": "intermediate",
+    "keywords": "Rate Limiting, Algorithms, Token Bucket, Traffic Shaping",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在面試中，您被要求設計一個 Rate Limiter。系統需求允許短時間的突發流量（Bursts），但長期平均速率必須限制在固定值。",
+        "en": "In an interview, you are asked to design a Rate Limiter. The system requirements allow for short-term traffic Bursts, but the long-term average rate must be limited to a fixed value.",
+        "wg": [
+          {
+            "t": "突發流量",
+            "en": "traffic Bursts",
+            "ps": "N"
+          },
+          {
+            "t": "平均速率",
+            "en": "average rate",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "下列哪種演算法最適合此需求？",
+        "en": "Which of the following algorithms is best suited for this requirement?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 令牌桶 (Token Bucket)",
+        "en": "(A) Token Bucket",
+        "wg": [
+          {
+            "t": "令牌桶",
+            "en": "Token Bucket",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(B) 漏桶 (Leaky Bucket)",
+        "en": "(B) Leaky Bucket",
+        "wg": [
+          {
+            "t": "漏桶",
+            "en": "Leaky Bucket",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) 固定窗口計數器 (Fixed Window Counter)",
+        "en": "(C) Fixed Window Counter",
+        "wg": []
+      },
+      {
+        "t": "(D) 輪詢 (Round Robin)",
+        "en": "(D) Round Robin",
+        "wg": []
+      }
+    ],
+    "answer": "A",
+    "why": {
+      "t": "Token Bucket 演算法允許累積令牌，因此可以處理短時間的突發流量（只要桶內有足夠令牌）。相比之下，Leaky Bucket 通常強制以恆定速率處理請求（Smoothing），較不適合允許突發的場景。",
+      "en": "The Token Bucket algorithm allows tokens to accumulate, thus enabling handling of short-term traffic bursts (as long as there are enough tokens in the bucket). In contrast, Leaky Bucket typically enforces a constant processing rate (Smoothing) and is less suitable for scenarios allowing bursts.",
+      "wg": [
+        {
+          "t": "累積",
+          "en": "accumulate",
+          "ps": "V"
+        },
+        {
+          "t": "恆定速率",
+          "en": "constant rate",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "14",
+    "level": "advanced",
+    "keywords": "Rate Limiting, Architecture, Trade-off, Latency, Distributed Systems",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您正在設計一個部署於 50 個容器實例上的高流量 API Gateway。",
+        "en": "You are designing a high-traffic API Gateway deployed across 50 container instances.",
+        "wg": [
+          {
+            "t": "容器實例",
+            "en": "container instances",
+            "ps": "N"
+          },
+          {
+            "t": "高流量",
+            "en": "high-traffic",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "需求是將流向下游服務的總流量限制在約 10,000 RPS (每秒請求數)。",
+        "en": "The requirement is to limit the total traffic to a downstream service to approximately 10,000 RPS (Requests Per Second).",
+        "wg": [
+          {
+            "t": "下游服務",
+            "en": "downstream service",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "然而，該 Gateway 本身必須維持極低的延遲（額外開銷需小於 5ms），且對限流精確度的要求低於對系統效能的要求。",
+        "en": "However, the Gateway itself must maintain extremely low latency (overhead < 5ms), and strict precision on the rate limit is less important than system performance.",
+        "wg": [
+          {
+            "t": "極低的延遲",
+            "en": "extremely low latency",
+            "ps": "NP"
+          },
+          {
+            "t": "精確度",
+            "en": "precision",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "請問下列哪種策略最適合此場景？",
+        "en": "Which of the following strategies is most appropriate for this scenario?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 使用集中式 Redis 叢集來儲存權杖桶 (Token Bucket)，確保所有節點的總限流精確為 10,000 RPS。",
+        "en": "(A) Use a centralized Redis cluster to store the token bucket, ensuring the limit is exactly 10,000 RPS across all nodes.",
+        "wg": [
+          {
+            "t": "集中式",
+            "en": "centralized",
+            "ps": "Adj"
+          },
+          {
+            "t": "權杖桶",
+            "en": "token bucket",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(B) 在記憶體中實作本地限流 (Local Rate Limiting，例如每實例 200 RPS)，以避免外部網路呼叫。",
+        "en": "(B) Implement Local Rate Limiting (e.g., 200 RPS per instance) in memory, avoiding external network calls.",
+        "wg": [
+          {
+            "t": "本地限流",
+            "en": "Local Rate Limiting",
+            "ps": "N"
+          },
+          {
+            "t": "外部網路呼叫",
+            "en": "external network calls",
+            "ps": "NP"
+          }
+        ]
+      },
+      {
+        "t": "(C) 使用資料庫的行鎖 (Row Lock) 來原子性地協調請求計數。",
+        "en": "(C) Use a database row lock to coordinate the request count atomically.",
+        "wg": [
+          {
+            "t": "行鎖",
+            "en": "row lock",
+            "ps": "N"
+          },
+          {
+            "t": "原子性地",
+            "en": "atomically",
+            "ps": "Adv"
+          }
+        ]
+      },
+      {
+        "t": "(D) 依賴下游服務自身的限流器來拒絕過量流量，不在 Gateway 層實作任何保護。",
+        "en": "(D) Rely on the downstream service's own rate limiter to reject excess traffic, implementing no protection at the Gateway.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "在對延遲極度敏感且允許一定程度誤差的場景下，本地限流 (Local Rate Limiting) 是最佳選擇。雖然它假設負載平衡均勻（總限流 = 單機限流 × 實例數），但它消除了存取 Redis 或 DB 的網路開銷 (Network Hop) 與序列化成本。選項 (A) 和 (C) 會引入顯著的延遲與單點競爭；選項 (D) 違反了保護下游的初衷。",
+      "en": "In scenarios sensitive to latency where some imprecision is tolerable, Local Rate Limiting is the best choice. Although it assumes even load balancing (Total Limit = Per-Instance Limit × Instance Count), it eliminates the network overhead (Network Hop) and serialization costs of accessing Redis or a DB. Options (A) and (C) introduce significant latency and contention; Option (D) violates the goal of protecting the downstream service.",
+      "wg": [
+        {
+          "t": "網路開銷",
+          "en": "network overhead",
+          "ps": "N"
+        },
+        {
+          "t": "序列化成本",
+          "en": "serialization costs",
+          "ps": "N"
+        },
+        {
+          "t": "競爭",
+          "en": "contention",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "15",
+    "level": "intermediate",
+    "keywords": "Design for Failure, Fallback, Circuit Breaker, User Experience, Graceful Degradation",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "基於「為失敗而設計 (Design for Failure)」的心智模型，",
+        "en": "Based on the 'Design for Failure' mental model,",
+        "wg": [
+          {
+            "t": "心智模型",
+            "en": "mental model",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "當一個聚合服務 (Aggregator) 發現其非關鍵依賴（例如「推薦商品」小工具）觸發了斷路器並處於開啟 (Open) 狀態時，該如何處理？",
+        "en": "how should an aggregator service handle a situation where a non-critical dependency (e.g., a 'Recommended Products' widget) has triggered its Circuit Breaker and is in the Open state?",
+        "wg": [
+          {
+            "t": "聚合服務",
+            "en": "aggregator service",
+            "ps": "N"
+          },
+          {
+            "t": "非關鍵依賴",
+            "en": "non-critical dependency",
+            "ps": "NP"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 應立即回傳 HTTP 500 錯誤給客戶端，以明確告知系統發生部分故障。",
+        "en": "(A) It should immediately return an HTTP 500 error to the client to explicitly indicate a partial system failure.",
+        "wg": [
+          {
+            "t": "部分故障",
+            "en": "partial failure",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(B) 應回傳來自健康服務的資料，並針對故障的依賴使用降級策略 (Fallback)，如回傳空列表或快取資料。",
+        "en": "(B) It should return data from healthy services and use a Fallback strategy (e.g., empty list or cached data) for the failed dependency.",
+        "wg": [
+          {
+            "t": "降級策略",
+            "en": "Fallback strategy",
+            "ps": "N"
+          },
+          {
+            "t": "快取資料",
+            "en": "cached data",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) 應阻塞請求執行緒，直到斷路器轉換為半開啟 (Half-Open) 狀態並重試成功。",
+        "en": "(C) It should block the request thread until the Circuit Breaker transitions to the Half-Open state and retries successfully.",
+        "wg": [
+          {
+            "t": "阻塞",
+            "en": "block",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(D) 應忽略斷路器狀態，強制對故障的依賴進行三次立即重試，以確保資料完整性。",
+        "en": "(D) It should ignore the Circuit Breaker state and force three immediate retries on the failed dependency to ensure data completeness.",
+        "wg": [
+          {
+            "t": "資料完整性",
+            "en": "data completeness",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "「為失敗而設計」的核心在於優雅降級 (Graceful Degradation)。當非關鍵組件故障時，系統應盡可能提供剩餘可用的功能，而非直接崩潰或報錯。選項 (A) 導致使用者體驗完全中斷；選項 (C) 會導致上游資源耗盡 (Cascading Failure)；選項 (D) 則違反了斷路器保護下游的機制。",
+      "en": "The core of 'Design for Failure' is Graceful Degradation. When a non-critical component fails, the system should provide as much available functionality as possible rather than crashing or returning an error. Option (A) causes a complete disruption of user experience; Option (C) leads to resource exhaustion (Cascading Failure); Option (D) violates the mechanism of the Circuit Breaker protecting the downstream.",
+      "wg": [
+        {
+          "t": "優雅降級",
+          "en": "Graceful Degradation",
+          "ps": "N"
+        },
+        {
+          "t": "非關鍵組件",
+          "en": "non-critical component",
+          "ps": "NP"
+        }
+      ]
+    }
+  }
+]
