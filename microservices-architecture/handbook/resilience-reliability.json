@@ -1,0 +1,736 @@
+[
+  {
+    "no": "1",
+    "level": "Medium",
+    "keywords": "Timeouts, Latency, Configuration",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在微服務架構中設定 Timeout（超時）時，關於上游服務（Upstream）與下游服務（Downstream）的時間設定，以下哪項原則是正確的？",
+        "en": "When configuring Timeouts in a microservices architecture, which of the following principles regarding Upstream and Downstream service timing is correct?",
+        "wg": [
+          {
+            "t": "上游服務",
+            "en": "Upstream Service",
+            "ps": "noun"
+          },
+          {
+            "t": "下游服務",
+            "en": "Downstream Service",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) 上游服務的 Timeout 應設定得比下游服務短，以實現快速失敗 (Fail Fast)。",
+        "en": "(A) The Upstream timeout should be shorter than the Downstream timeout to achieve Fail Fast.",
+        "wg": []
+      },
+      {
+        "t": "(B) 上游服務的 Timeout 必須大於下游服務的 Timeout 總和，以避免過早斷開連線。",
+        "en": "(B) The Upstream timeout must be greater than the sum of Downstream timeouts to avoid premature disconnection.",
+        "wg": []
+      },
+      {
+        "t": "(C) 上下游服務的 Timeout 應設定為相同數值，以保持一致性。",
+        "en": "(C) Upstream and Downstream timeouts should be set to the same value to maintain consistency.",
+        "wg": []
+      },
+      {
+        "t": "(D) 應依賴 HTTP Client 的預設 Timeout 設定，通常預設值已最佳化。",
+        "en": "(D) Rely on the default HTTP Client timeout settings, as they are usually optimized.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "根據「經驗法則 (Rule of Thumb)」，上游服務的 Timeout 必須大於下游服務的 Timeout 總和（包含網路延遲與重試時間）。如果上游設定得比下游短，當下游還在處理或重試時，上游就已經放棄並斷開連線，這會導致資源浪費與不一致的狀態。",
+      "en": "According to the 'Rule of Thumb', the Upstream timeout must be greater than the sum of the Downstream timeouts (including network latency and retries). If the upstream is shorter than the downstream, the upstream will give up and disconnect while the downstream is still processing or retrying, leading to wasted resources and inconsistent states.",
+      "wg": [
+        {
+          "t": "經驗法則",
+          "en": "Rule of Thumb",
+          "ps": "phrase"
+        },
+        {
+          "t": "資源浪費",
+          "en": "Resource Wasted",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "2",
+    "level": "Medium",
+    "keywords": "Retries, Jitter, Thundering Herd",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在實作重試機制 (Retry) 時，為什麼建議加入「隨機抖動 (Jitter)」而不僅僅是使用固定的指數退避 (Exponential Backoff)？",
+        "en": "When implementing a Retry mechanism, why is it recommended to add 'Jitter' instead of just using fixed Exponential Backoff?",
+        "wg": [
+          {
+            "t": "隨機抖動",
+            "en": "Jitter",
+            "ps": "noun"
+          },
+          {
+            "t": "指數退避",
+            "en": "Exponential Backoff",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) 為了增加重試的總次數，確保請求最終能成功。",
+        "en": "(A) To increase the total number of retries, ensuring the request eventually succeeds.",
+        "wg": []
+      },
+      {
+        "t": "(B) 為了縮短客戶端的平均等待時間。",
+        "en": "(B) To reduce the average waiting time for clients.",
+        "wg": []
+      },
+      {
+        "t": "(C) 為了避免所有客戶端在同一時間點發起重試，造成「驚群效應 (Thundering Herd)」。",
+        "en": "(C) To prevent all clients from retrying at the exact same moment, causing a 'Thundering Herd' problem.",
+        "wg": [
+          {
+            "t": "驚群效應",
+            "en": "Thundering Herd",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "(D) 為了讓重試邏輯能支援非冪等 (Non-idempotent) 的操作。",
+        "en": "(D) To allow the retry logic to support non-idempotent operations.",
+        "wg": []
+      }
+    ],
+    "answer": "C",
+    "why": {
+      "t": "如果僅使用固定的指數退避（例如所有人都等待 100ms, 200ms, 400ms），當服務恢復的瞬間，累積的大量請求會同時（同步）打擊伺服器，可能再次將服務打垮。加入 Jitter 可以分散這些請求的時間點。",
+      "en": "If only fixed exponential backoff is used (e.g., everyone waits 100ms, 200ms, 400ms), massive accumulated requests will hit the server simultaneously (synchronized) the moment it recovers, potentially crashing the service again. Adding Jitter helps disperse the timing of these requests.",
+      "wg": []
+    }
+  },
+  {
+    "no": "3",
+    "level": "Hard",
+    "keywords": "Circuit Breaker, Anti-pattern, Error Handling",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "關於斷路器 (Circuit Breaker) 的使用，以下哪一種情境屬於「反模式 (Anti-pattern)」，應極力避免？",
+        "en": "Regarding the use of Circuit Breakers, which of the following scenarios is considered an 'Anti-pattern' and should be avoided?",
+        "wg": [
+          {
+            "t": "反模式",
+            "en": "Anti-pattern",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) 當下游服務回應 503 Service Unavailable 時，增加錯誤計數。",
+        "en": "(A) Incrementing the error count when the downstream service responds with 503 Service Unavailable.",
+        "wg": []
+      },
+      {
+        "t": "(B) 當發生 Network Timeout 時，視為失敗並可能觸發斷路器開啟。",
+        "en": "(B) Treating Network Timeouts as failures that may trigger the circuit breaker to open.",
+        "wg": []
+      },
+      {
+        "t": "(C) 將業務邏輯錯誤（如 400 Bad Request 或 404 Not Found）視為失敗，導致斷路器開啟。",
+        "en": "(C) Treating business logic errors (like 400 Bad Request or 404 Not Found) as failures, causing the circuit breaker to open.",
+        "wg": []
+      },
+      {
+        "t": "(D) 在半開 (Half-Open) 狀態下，允許少量請求通過以測試下游健康狀況。",
+        "en": "(D) Allowing a small number of requests to pass through in the Half-Open state to test downstream health.",
+        "wg": []
+      }
+    ],
+    "answer": "C",
+    "why": {
+      "t": "斷路器的目的是保護系統免受「可用性故障（如下游掛掉、網路中斷）」的影響。400 或 404 屬於客戶端參數錯誤或業務邏輯正常回應，並非系統故障。若因此觸發斷路器，會導致其他正常的請求也被錯誤地攔截。",
+      "en": "The purpose of a Circuit Breaker is to protect the system from 'availability failures' (e.g., downstream downtime, network issues). 400 or 404 are client parameter errors or normal business responses, not system faults. Triggering the breaker for these reasons would incorrectly block other valid requests.",
+      "wg": [
+        {
+          "t": "可用性故障",
+          "en": "Availability Failures",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "4",
+    "level": "Medium",
+    "keywords": "Bulkhead, Thread Pool, Isolation",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "假設服務 A 同時依賴服務 B（回應極慢）與服務 C（回應正常）。若沒有實作艙壁模式 (Bulkhead Pattern)，最可能發生什麼後果？",
+        "en": "Suppose Service A depends on both Service B (extremely slow) and Service C (normal). If the Bulkhead Pattern is not implemented, what is the most likely consequence?",
+        "wg": [
+          {
+            "t": "艙壁模式",
+            "en": "Bulkhead Pattern",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) 服務 A 會自動將請求轉發給備用的服務 D。",
+        "en": "(A) Service A will automatically forward requests to a backup Service D.",
+        "wg": []
+      },
+      {
+        "t": "(B) 服務 A 的所有 Thread 都會卡在等待服務 B，導致服務 A 的 Thread Pool 耗盡，進而無法呼叫健康的服務 C。",
+        "en": "(B) All threads in Service A will get stuck waiting for Service B, exhausting Service A's Thread Pool, rendering it unable to call the healthy Service C.",
+        "wg": [
+          {
+            "t": "耗盡",
+            "en": "Exhausted",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "(C) 服務 B 的慢速回應會觸發服務 C 的自動擴展 (Auto-scaling)。",
+        "en": "(C) The slow response from Service B will trigger auto-scaling for Service C.",
+        "wg": []
+      },
+      {
+        "t": "(D) 服務 A 會收到 404 錯誤，但不影響整體運作。",
+        "en": "(D) Service A will receive a 404 error, but overall operations will remain unaffected.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "這正是 Bulkhead 模式要解決的核心問題。若共用同一個 Thread Pool，慢速服務 B 會佔用所有可用執行緒 (Threads)，導致即使是呼叫健康的服務 C 也分配不到資源，造成級聯故障 (Cascading Failure)。",
+      "en": "This is the core problem the Bulkhead pattern solves. If sharing the same Thread Pool, the slow Service B will occupy all available threads, causing calls to the healthy Service C to fail due to lack of resources, leading to a Cascading Failure.",
+      "wg": [
+        {
+          "t": "級聯故障",
+          "en": "Cascading Failure",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "5",
+    "level": "Medium",
+    "keywords": "Fallback, Graceful Degradation, Scenario",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在「電子商務結帳」的情境中，若非關鍵路徑的「積分服務 (Loyalty Service)」發生故障，根據優雅降級 (Graceful Degradation) 的原則，最佳的 Fallback 策略是什麼？",
+        "en": "In an 'E-commerce Checkout' scenario, if the non-critical 'Loyalty Service' fails, what is the best Fallback strategy according to the principle of Graceful Degradation?",
+        "wg": [
+          {
+            "t": "非關鍵路徑",
+            "en": "Non-critical path",
+            "ps": "noun"
+          },
+          {
+            "t": "優雅降級",
+            "en": "Graceful Degradation",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) 直接回傳 HTTP 500 錯誤給使用者，請他們稍後再試。",
+        "en": "(A) Return an HTTP 500 error to the user and ask them to try again later.",
+        "wg": []
+      },
+      {
+        "t": "(B) 無限重試直到積分服務恢復，確保資料一致性。",
+        "en": "(B) Retry infinitely until the Loyalty Service recovers to ensure data consistency.",
+        "wg": []
+      },
+      {
+        "t": "(C) 暫時略過積分計算，記錄交易事件，稍後透過非同步方式補算積分，讓使用者先完成結帳。",
+        "en": "(C) Temporarily skip point calculation, log the transaction event, and calculate points asynchronously later, allowing the user to complete checkout first.",
+        "wg": [
+          {
+            "t": "非同步",
+            "en": "Asynchronous",
+            "ps": "adjective"
+          }
+        ]
+      },
+      {
+        "t": "(D) 使用斷路器阻斷所有結帳請求，直到積分服務修復。",
+        "en": "(D) Use a circuit breaker to block all checkout requests until the Loyalty Service is fixed.",
+        "wg": []
+      }
+    ],
+    "answer": "C",
+    "why": {
+      "t": "對於非關鍵功能（如積分），不應阻擋核心業務（結帳收款）。最佳做法是「優雅降級」：先讓主流程成功，並透過 Stubbed Data（回傳 0 分）或非同步補償機制（Async Reconciliation）來處理副作用。",
+      "en": "For non-critical functions (like loyalty points), the core business (checkout/payment) should not be blocked. The best practice is 'Graceful Degradation': allow the main flow to succeed and handle side effects via Stubbed Data (returning 0 points) or Async Reconciliation.",
+      "wg": []
+    }
+  },
+  {
+    "no": "6",
+    "level": "Medium",
+    "keywords": "Retry Storm, Anti-pattern, Blast Radius",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "什麼是「重試風暴 (Retry Storm)」，以及它通常是如何發生的？",
+        "en": "What is a 'Retry Storm', and how does it typically occur?",
+        "wg": [
+          {
+            "t": "重試風暴",
+            "en": "Retry Storm",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) 當服務設定了過短的 Timeout，導致請求還沒處理完就被取消。",
+        "en": "(A) When a service has a timeout set too short, causing requests to be cancelled before completion.",
+        "wg": []
+      },
+      {
+        "t": "(B) 當呼叫鏈中的每一層服務都設定了重試機制（例如 A 重試 3 次，B 重試 3 次），導致底層服務收到的請求量呈幾何級數爆炸。",
+        "en": "(B) When every layer in the call chain has retries configured (e.g., A retries 3 times, B retries 3 times), causing the request volume at the bottom layer to explode geometrically.",
+        "wg": [
+          {
+            "t": "幾何級數",
+            "en": "Geometrically",
+            "ps": "adverb"
+          }
+        ]
+      },
+      {
+        "t": "(C) 當斷路器進入半開 (Half-Open) 狀態時，大量請求瞬間湧入。",
+        "en": "(C) When a circuit breaker enters the Half-Open state, a massive influx of requests floods in.",
+        "wg": []
+      },
+      {
+        "t": "(D) 當使用非冪等 (Non-idempotent) 的 POST 請求進行重試時，導致資料庫產生重複資料。",
+        "en": "(D) When retrying non-idempotent POST requests, causing duplicate data in the database.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "重試風暴是典型的 Anti-pattern。若 A->B->C，且 A 和 B 都配置了獨立的重試邏輯，當 C 故障時，A 的每一次重試都會觸發 B 的多次重試，導致 C 面臨巨大的流量壓力 (DDoS 自身系統)。",
+      "en": "Retry Storm is a typical Anti-pattern. If A->B->C, and both A and B have independent retry logic, when C fails, each retry from A triggers multiple retries from B, causing immense traffic pressure on C (DDoS-ing your own system).",
+      "wg": []
+    }
+  },
+  {
+    "no": "7",
+    "level": "Hard",
+    "keywords": "Circuit Breaker, Half-Open, State Machine",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在斷路器 (Circuit Breaker) 模式的狀態機轉換中，當斷路器處於「半開啟 (Half-Open)」狀態時，系統的行為特徵為何？",
+        "en": "In the state machine transition of the Circuit Breaker pattern, what is the behavioral characteristic of the system when the circuit breaker is in the 'Half-Open' state?",
+        "wg": [
+          {
+            "t": "斷路器",
+            "en": "Circuit Breaker",
+            "ps": "noun"
+          },
+          {
+            "t": "半開啟",
+            "en": "Half-Open",
+            "ps": "adjective"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) 攔截所有請求並直接回傳錯誤，直到手動重置為止。",
+        "en": "(A) Blocks all requests and returns an error immediately until manually reset.",
+        "wg": []
+      },
+      {
+        "t": "(B) 允許所有請求通過，但在背景非同步檢查下游服務的健康狀況。",
+        "en": "(B) Allows all requests to pass through but checks the downstream service health asynchronously in the background.",
+        "wg": []
+      },
+      {
+        "t": "(C) 允許有限數量的請求通過，若這些請求成功，則切換回「關閉 (Closed)」狀態；若失敗，則重回「開啟 (Open)」狀態。",
+        "en": "(C) Allows a limited number of requests to pass; if these succeed, it switches back to 'Closed'; if they fail, it returns to 'Open'.",
+        "wg": [
+          {
+            "t": "有限數量",
+            "en": "limited number",
+            "ps": "phrase"
+          }
+        ]
+      },
+      {
+        "t": "(D) 將所有請求導流至備援服務 (Fallback Service)，完全不嘗試呼叫原始服務。",
+        "en": "(D) Routes all requests to a fallback service and makes no attempt to call the original service.",
+        "wg": []
+      }
+    ],
+    "answer": "C",
+    "why": {
+      "t": "半開啟 (Half-Open) 狀態是用來「試探」下游服務是否已恢復的過渡狀態。它允許少量流量通過以驗證修復情況，而非全開或全關。",
+      "en": "The Half-Open state is a transitional state used to 'probe' if the downstream service has recovered. It allows a small amount of traffic to pass to verify the fix, rather than being fully open or fully closed.",
+      "wg": []
+    }
+  },
+  {
+    "no": "8",
+    "level": "Medium",
+    "keywords": "Retries, Idempotency, HTTP Methods",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "根據重試機制 (Retry) 的設計原則，以下哪一種 HTTP 操作最**不適合**配置自動重試，否則可能導致資料重複或副作用？",
+        "en": "According to the design principles of Retry mechanisms, which of the following HTTP operations is LEAST suitable for automatic retries, as it may lead to data duplication or side effects?",
+        "wg": [
+          {
+            "t": "副作用",
+            "en": "side effects",
+            "ps": "noun"
+          },
+          {
+            "t": "資料重複",
+            "en": "data duplication",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) `GET /products/123` (讀取商品詳情)",
+        "en": "(A) `GET /products/123` (Read product details)",
+        "wg": []
+      },
+      {
+        "t": "(B) `PUT /users/456` (更新使用者資料，包含完整資源內容)",
+        "en": "(B) `PUT /users/456` (Update user data with full resource content)",
+        "wg": []
+      },
+      {
+        "t": "(C) `DELETE /orders/789` (刪除特定訂單)",
+        "en": "(C) `DELETE /orders/789` (Delete a specific order)",
+        "wg": []
+      },
+      {
+        "t": "(D) `POST /payments` (建立一筆新付款，且請求中未包含客戶端生成的唯一 Idempotency Key)",
+        "en": "(D) `POST /payments` (Create a new payment, without a client-generated unique Idempotency Key in the request)",
+        "wg": [
+          {
+            "t": "唯一",
+            "en": "unique",
+            "ps": "adjective"
+          }
+        ]
+      }
+    ],
+    "answer": "D",
+    "why": {
+      "t": "重試的前提是操作必須具備「冪等性 (Idempotency)」。不帶唯一 ID 的 POST 請求通常是非冪等的，重試可能導致重複扣款或重複建立資源。",
+      "en": "The prerequisite for retries is that the operation must be 'Idempotent'. A POST request without a unique ID is typically non-idempotent, and retrying it may lead to duplicate charges or duplicate resource creation.",
+      "wg": [
+        {
+          "t": "冪等性",
+          "en": "Idempotency",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "9",
+    "level": "Medium",
+    "keywords": "Fallback, Monitoring, Anti-pattern",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "關於「降級策略 (Fallback Strategies)」，為什麼「實作了完美的 Fallback 但缺乏監控 (Catch-All Fallbacks without Monitoring)」被視為一種危險的反模式？",
+        "en": "Regarding 'Fallback Strategies', why is 'Catch-All Fallbacks without Monitoring' considered a dangerous anti-pattern?",
+        "wg": [
+          {
+            "t": "反模式",
+            "en": "anti-pattern",
+            "ps": "noun"
+          },
+          {
+            "t": "缺乏監控",
+            "en": "without monitoring",
+            "ps": "phrase"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) 因為 Fallback 會導致回應速度變慢，影響使用者體驗。",
+        "en": "(A) Because Fallback causes slower response times, affecting user experience.",
+        "wg": []
+      },
+      {
+        "t": "(B) 因為系統表面上運作正常 (回傳 200 OK)，但實際上底層服務可能已長期故障，導致維運人員無法及時察覺。",
+        "en": "(B) Because the system appears to be working normally (returning 200 OK), but the underlying service may have been down for a long time, preventing operators from noticing it in time.",
+        "wg": [
+          {
+            "t": "維運人員",
+            "en": "operators",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "(C) 因為 Fallback 只能回傳靜態資料，無法處理動態邏輯。",
+        "en": "(C) Because Fallback can only return static data and cannot handle dynamic logic.",
+        "wg": []
+      },
+      {
+        "t": "(D) 因為 Fallback 機制會消耗過多的 CPU 資源來計算預設值。",
+        "en": "(D) Because the Fallback mechanism consumes excessive CPU resources to calculate default values.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "如果 Fallback 成功掩蓋了錯誤卻沒有發出警報 (Alert)，這就是「靜默失敗 (Silent Failure)」。業務資料可能是空的或過期的，直到用戶投訴才被發現。",
+      "en": "If a Fallback successfully masks an error without sending an alert, it becomes a 'Silent Failure'. Business data might be empty or stale, and it won't be discovered until users complain.",
+      "wg": [
+        {
+          "t": "靜默失敗",
+          "en": "Silent Failure",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "10",
+    "level": "Hard",
+    "keywords": "Bulkhead, Semaphore, Thread Pool, Isolation",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在實作艙壁模式 (Bulkhead Pattern) 時，相較於「執行緒池隔離 (Thread Pool Isolation)」，使用「信號量隔離 (Semaphore Isolation)」的主要優勢為何？",
+        "en": "When implementing the Bulkhead Pattern, what is the primary advantage of using 'Semaphore Isolation' compared to 'Thread Pool Isolation'?",
+        "wg": [
+          {
+            "t": "信號量隔離",
+            "en": "Semaphore Isolation",
+            "ps": "noun"
+          },
+          {
+            "t": "執行緒池隔離",
+            "en": "Thread Pool Isolation",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) 能夠完全避免死鎖 (Deadlock) 的發生。",
+        "en": "(A) It can completely avoid the occurrence of Deadlocks.",
+        "wg": []
+      },
+      {
+        "t": "(B) 允許非同步執行任務，適合處理極度耗時的運算。",
+        "en": "(B) It allows asynchronous task execution, suitable for extremely time-consuming computations.",
+        "wg": []
+      },
+      {
+        "t": "(C) 資源開銷較低 (Lightweight)，因為它僅限制併發數，不需要額外建立與管理執行緒池及上下文切換 (Context Switching)。",
+        "en": "(C) It has lower resource overhead (Lightweight) because it only limits concurrency without the need to create and manage extra thread pools and context switching.",
+        "wg": [
+          {
+            "t": "資源開銷",
+            "en": "resource overhead",
+            "ps": "noun"
+          },
+          {
+            "t": "上下文切換",
+            "en": "Context Switching",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "(D) 當依賴服務超時的時候，可以自動中斷 (Interrupt) 執行中的執行緒。",
+        "en": "(D) It can automatically interrupt the running thread when the dependent service times out.",
+        "wg": []
+      }
+    ],
+    "answer": "C",
+    "why": {
+      "t": "Thread Pool 隔離提供了最強的隔離性（包含非同步與超時中斷），但開銷大。Semaphore 隔離則非常輕量，僅透過計數器限制併發請求量，適合高吞吐量且不需要非同步處理的場景。",
+      "en": "Thread Pool isolation offers the strongest isolation (including async and timeout interruption) but has high overhead. Semaphore isolation is lightweight, limiting concurrency via counters, suitable for high-throughput scenarios that don't require async processing.",
+      "wg": []
+    }
+  },
+  {
+    "no": "11",
+    "level": "Medium",
+    "keywords": "Timeouts, Connection Timeout, Configuration",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在設定 HTTP Client 的超時參數時，為何通常建議將 `Connection Timeout` 設定得非常短（例如 1-2 秒），而 `Read Timeout` 則依據業務邏輯設定較長的時間？",
+        "en": "When configuring HTTP Client timeout parameters, why is it generally recommended to set the `Connection Timeout` very short (e.g., 1-2 seconds), while the `Read Timeout` is set longer based on business logic?",
+        "wg": [
+          {
+            "t": "超時參數",
+            "en": "timeout parameters",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) 因為 TCP 連線建立失敗通常代表網路不通或目標主機掛點，等待更久通常不會成功，應儘快失敗 (Fail Fast)。",
+        "en": "(A) Because a failure to establish a TCP connection usually indicates network unreachable or host down; waiting longer rarely succeeds, so it should Fail Fast.",
+        "wg": [
+          {
+            "t": "儘快失敗",
+            "en": "Fail Fast",
+            "ps": "phrase"
+          }
+        ]
+      },
+      {
+        "t": "(B) 因為 Connection Timeout 太長會導致資料庫連線池耗盡。",
+        "en": "(B) Because a long Connection Timeout will cause the database connection pool to be exhausted.",
+        "wg": []
+      },
+      {
+        "t": "(C) 因為 Read Timeout 包含了 Connection Timeout 的時間，所以前者必須比後者短。",
+        "en": "(C) Because Read Timeout includes the time for Connection Timeout, so the former must be shorter than the latter.",
+        "wg": []
+      },
+      {
+        "t": "(D) 這是 HTTP 協定的硬性規定，無法更改。",
+        "en": "(D) This is a hard requirement of the HTTP protocol and cannot be changed.",
+        "wg": []
+      }
+    ],
+    "answer": "A",
+    "why": {
+      "t": "Connection Timeout 指的是完成 TCP Handshake 的時間。如果幾秒內連不上，通常意味著網路問題或對方服務未啟動，等待更久毫無意義，應立即報錯。",
+      "en": "Connection Timeout refers to the time to complete the TCP Handshake. If it doesn't connect within a few seconds, it usually implies a network issue or the service is down. Waiting longer is pointless and it should error out immediately.",
+      "wg": []
+    }
+  },
+  {
+    "no": "12",
+    "level": "Medium",
+    "keywords": "Retries, Decision Workflow, Error Handling",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "根據「是否該重試 (Should I Retry?)」的決策流程，當微服務收到下游回傳的哪一種 HTTP 狀態碼時，應判定為**非暫時性錯誤 (Non-transient Error)** 並**立即失敗**，而不進行重試？",
+        "en": "According to the 'Should I Retry?' decision workflow, upon receiving which of the following HTTP status codes from a downstream service, should a microservice determine it as a **Non-transient Error** and **fail immediately** without retrying?",
+        "wg": [
+          {
+            "t": "非暫時性錯誤",
+            "en": "Non-transient Error",
+            "ps": "noun"
+          },
+          {
+            "t": "立即失敗",
+            "en": "fail immediately",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) `503 Service Unavailable`",
+        "en": "(A) `503 Service Unavailable`",
+        "wg": []
+      },
+      {
+        "t": "(B) `408 Request Timeout`",
+        "en": "(B) `408 Request Timeout`",
+        "wg": []
+      },
+      {
+        "t": "(C) `403 Forbidden`",
+        "en": "(C) `403 Forbidden`",
+        "wg": []
+      },
+      {
+        "t": "(D) `502 Bad Gateway`",
+        "en": "(D) `502 Bad Gateway`",
+        "wg": []
+      }
+    ],
+    "answer": "C",
+    "why": {
+      "t": "403 Forbidden 代表權限不足或被拒絕，這屬於業務邏輯或配置錯誤，並非「稍後重試就會好」的暫時性故障。502, 503, 408 則通常暗示網路或服務暫時不穩，適合進行重試。",
+      "en": "403 Forbidden indicates insufficient permissions or refusal, which is a business logic or configuration error, not a transient fault that will resolve itself upon retry. 502, 503, and 408 usually imply temporary network or service instability, making them suitable for retries.",
+      "wg": []
+    }
+  }
+]

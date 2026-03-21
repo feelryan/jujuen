@@ -1,0 +1,849 @@
+[
+  {
+    "no": "1",
+    "level": "Middle",
+    "keywords": "Dual Write, Anti-pattern, Data Consistency",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "async function createOrder(order) {\n  // Step 1: Write to Database\n  await db.orders.save(order);\n  \n  // Step 2: Publish Event\n  await messageBroker.publish('order-created', order);\n}",
+    "question": [
+      {
+        "t": "請檢視上方的程式碼片段。這是一個常見的「雙寫（Dual Write）」實作方式，請問這種寫法在分散式系統中最大的風險是什麼？",
+        "en": "Please review the code snippet above. This represents a common 'Dual Write' implementation. What is the major risk of this approach in a distributed system?",
+        "wg": [
+          {
+            "t": "雙寫",
+            "en": "Dual Write",
+            "ps": "noun"
+          },
+          {
+            "t": "分散式系統",
+            "en": "Distributed System",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) 效能問題：寫入資料庫後立即發送訊息會導致回應時間過長。",
+        "en": "(A) Performance issue: Sending a message immediately after DB write causes high latency.",
+        "wg": []
+      },
+      {
+        "t": "(B) 資料不一致：如果 Step 1 成功但 Step 2 失敗（例如 Broker 當機），資料庫會有訂單紀錄，但下游服務永遠收不到事件。",
+        "en": "(B) Data Inconsistency: If Step 1 succeeds but Step 2 fails (e.g., Broker down), the database has the order, but downstream services never receive the event.",
+        "wg": []
+      },
+      {
+        "t": "(C) 死鎖風險：資料庫交易會鎖住 Table，直到訊息發送完成。",
+        "en": "(C) Deadlock risk: The database transaction will lock the table until the message is sent.",
+        "wg": []
+      },
+      {
+        "t": "(D) 訊息重複：如果 Step 1 失敗，Step 2 仍可能發送訊息。",
+        "en": "(D) Duplicate Messages: If Step 1 fails, Step 2 might still send the message.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "這是典型的「雙寫陷阱」。因為資料庫寫入與訊息發送並不在同一個原子交易（Atomic Transaction）內。若程式在 Step 1 之後、Step 2 之前崩潰，或者 Message Broker 無法連線，系統就會處於「本地有資料，但外部系統不知情」的不一致狀態。解決方案是使用 Transactional Outbox 模式。",
+      "en": "This is the classic 'Dual Write' trap. The database write and message publishing are not in the same atomic transaction. If the process crashes after Step 1 but before Step 2, or if the Message Broker is unreachable, the system enters an inconsistent state where local data exists but external systems are unaware. The solution is the Transactional Outbox pattern.",
+      "wg": [
+        {
+          "t": "原子交易",
+          "en": "Atomic Transaction",
+          "ps": "noun"
+        },
+        {
+          "t": "崩潰",
+          "en": "Crash",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "2",
+    "level": "Hard",
+    "keywords": "Saga Pattern, Orchestration, Choreography, System Design",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你正在設計一個涉及 8 個微服務的複雜業務流程，該流程包含多個條件分支與補償步驟。業務團隊要求必須能清楚監控每個訂單目前的狀態與步驟。根據手冊建議，下列哪種模式最適合此場景？",
+        "en": "You are designing a complex business workflow involving 8 microservices, which includes multiple conditional branches and compensation steps. The business team requires clear visibility into the current state and step of each order. Based on the handbook, which pattern is best suited for this scenario?",
+        "wg": [
+          {
+            "t": "條件分支",
+            "en": "Conditional branches",
+            "ps": "noun"
+          },
+          {
+            "t": "補償步驟",
+            "en": "Compensation steps",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) Choreography-based Saga（協作式 Saga）：因為它去中心化，服務間耦合度最低。",
+        "en": "(A) Choreography-based Saga: Because it is decentralized and has the lowest coupling between services.",
+        "wg": []
+      },
+      {
+        "t": "(B) Two-Phase Commit (2PC)：因為它能保證強一致性，避免複雜的狀態管理。",
+        "en": "(B) Two-Phase Commit (2PC): Because it guarantees strong consistency and avoids complex state management.",
+        "wg": []
+      },
+      {
+        "t": "(C) Orchestration-based Saga（編排式 Saga）：因為它集中管理流程邏輯與狀態，易於監控與處理複雜錯誤。",
+        "en": "(C) Orchestration-based Saga: Because it centralizes flow logic and state, making it easier to monitor and handle complex errors.",
+        "wg": []
+      },
+      {
+        "t": "(D) Synchronous HTTP Chain（同步 HTTP 鏈）：因為實作最簡單，且容易除錯。",
+        "en": "(D) Synchronous HTTP Chain: Because it is the simplest to implement and easy to debug.",
+        "wg": []
+      }
+    ],
+    "answer": "C",
+    "why": {
+      "t": "當流程複雜（超過 4 個步驟）、參與者眾多且需要高可視化（Visibility）時，Orchestration 是最佳選擇。Choreography 在此場景下會導致流程邏輯分散，難以追蹤（'Who listens to what?' hell）。2PC 在微服務中是反模式（效能與可用性問題）。",
+      "en": "When the workflow is complex (more than 4 steps), involves many participants, and requires high visibility, Orchestration is the best choice. Choreography in this scenario would scatter the flow logic, making it hard to track ('Who listens to what?' hell). 2PC is an anti-pattern in microservices due to performance and availability issues.",
+      "wg": [
+        {
+          "t": "可視化",
+          "en": "Visibility",
+          "ps": "noun"
+        },
+        {
+          "t": "反模式",
+          "en": "Anti-pattern",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "3",
+    "level": "Middle",
+    "keywords": "Transactional Outbox, Implementation, Atomicity",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在實作 Transactional Outbox Pattern 時，為了確保「至少傳送一次（At-Least-Once）」的保證，下列關於資料庫操作的敘述何者正確？",
+        "en": "When implementing the Transactional Outbox Pattern, to ensure 'At-Least-Once' delivery guarantee, which of the following statements regarding database operations is correct?",
+        "wg": [
+          {
+            "t": "至少傳送一次",
+            "en": "At-Least-Once",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) 業務資料（Business Data）與 Outbox 紀錄必須在同一個資料庫交易（Transaction）中寫入並 Commit。",
+        "en": "(A) Business Data and Outbox records must be written and committed within the same database transaction.",
+        "wg": []
+      },
+      {
+        "t": "(B) 應該先寫入業務資料並 Commit，然後再開啟一個新交易寫入 Outbox，以避免鎖定時間過長。",
+        "en": "(B) Business Data should be written and committed first, then open a new transaction to write to the Outbox to avoid long lock times.",
+        "wg": []
+      },
+      {
+        "t": "(C) Outbox 表格應該建立在 Redis 或其他高速 Cache 中，以提升寫入效能。",
+        "en": "(C) The Outbox table should be created in Redis or another high-speed cache to improve write performance.",
+        "wg": []
+      },
+      {
+        "t": "(D) 只有當 Message Broker 回傳 ACK 後，才將資料寫入 Outbox 表格。",
+        "en": "(D) Data should be written to the Outbox table only after the Message Broker returns an ACK.",
+        "wg": []
+      }
+    ],
+    "answer": "A",
+    "why": {
+      "t": "Transactional Outbox 的核心原理就是利用本地資料庫的 ACID 特性。只有將「業務資料變更」與「Outbox 事件插入」放在同一個 Transaction 中，才能確保兩者「要嘛同時成功，要嘛同時失敗」，進而解決雙寫問題。",
+      "en": "The core principle of Transactional Outbox relies on the ACID properties of the local database. Only by placing 'business data changes' and 'Outbox event insertion' in the same Transaction can we ensure that both 'either succeed together or fail together', thereby solving the dual write problem.",
+      "wg": [
+        {
+          "t": "業務資料變更",
+          "en": "Business data changes",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "4",
+    "level": "Middle",
+    "keywords": "Saga, Compensation, Failure Handling",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在一個電商下單的 Orchestration Saga 流程中，順序為：建立訂單 -> 鎖定庫存 -> 扣款。假設「鎖定庫存」成功，但「扣款」失敗了，Orchestrator 接下來應該執行什麼操作？",
+        "en": "In an e-commerce Orchestration Saga flow, the sequence is: Create Order -> Reserve Stock -> Process Payment. Assuming 'Reserve Stock' succeeds but 'Process Payment' fails, what action should the Orchestrator take next?",
+        "wg": [
+          {
+            "t": "鎖定庫存",
+            "en": "Reserve Stock",
+            "ps": "verb"
+          },
+          {
+            "t": "扣款",
+            "en": "Process Payment",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) 僅將訂單狀態標記為失敗，不需通知庫存服務。",
+        "en": "(A) Only mark the order status as failed; no need to notify the inventory service.",
+        "wg": []
+      },
+      {
+        "t": "(B) 觸發資料庫 Rollback 指令，試圖回滾跨服務的所有交易。",
+        "en": "(B) Trigger a database Rollback command to attempt rolling back all transactions across services.",
+        "wg": []
+      },
+      {
+        "t": "(C) 發送補償命令（Compensating Transaction）給庫存服務以釋放庫存，然後取消訂單。",
+        "en": "(C) Send a Compensating Transaction command to the inventory service to release the stock, then cancel the order.",
+        "wg": []
+      },
+      {
+        "t": "(D) 無限重試扣款服務，直到成功為止。",
+        "en": "(D) Retry the payment service indefinitely until it succeeds.",
+        "wg": []
+      }
+    ],
+    "answer": "C",
+    "why": {
+      "t": "在 Saga 模式中，無法進行跨服務的自動 Rollback。必須明確執行「補償交易（Compensating Transaction）」來抵銷先前成功的步驟。既然庫存已被鎖定但交易無法完成，必須呼叫庫存服務的「釋放庫存（Release Stock）」邏輯，確保數據最終一致。",
+      "en": "In the Saga pattern, automatic cross-service Rollback is not possible. You must explicitly execute a 'Compensating Transaction' to undo the previously successful steps. Since stock was reserved but the transaction cannot complete, the 'Release Stock' logic of the inventory service must be called to ensure eventual data consistency.",
+      "wg": [
+        {
+          "t": "補償交易",
+          "en": "Compensating Transaction",
+          "ps": "noun"
+        },
+        {
+          "t": "抵銷",
+          "en": "Undo / Offset",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "5",
+    "level": "Easy",
+    "keywords": "Idempotency, Consumer, Best Practice",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "由於網路不穩定或重試機制，消費者（Consumer）可能會收到重複的訊息（例如兩次「扣款請求」）。為了避免重複扣款，消費者必須具備什麼特性？",
+        "en": "Due to network instability or retry mechanisms, a Consumer might receive duplicate messages (e.g., two 'Charge Payment' requests). To avoid double charging, what property must the Consumer possess?",
+        "wg": [
+          {
+            "t": "重試機制",
+            "en": "Retry mechanisms",
+            "ps": "noun"
+          },
+          {
+            "t": "重複扣款",
+            "en": "Double charging",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) Atomicity（原子性）",
+        "en": "(A) Atomicity",
+        "wg": []
+      },
+      {
+        "t": "(B) Idempotency（冪等性）",
+        "en": "(B) Idempotency",
+        "wg": []
+      },
+      {
+        "t": "(C) Isolation（隔離性）",
+        "en": "(C) Isolation",
+        "wg": []
+      },
+      {
+        "t": "(D) Availability（可用性）",
+        "en": "(D) Availability",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "冪等性（Idempotency）是指操作執行一次與執行多次的結果相同（f(f(x)) = f(x)）。在分散式訊息系統中，這是處理重複訊息（Duplicate Messages）的標準做法，通常透過檢查 Message ID 或 Correlation ID 是否已處理來實現。",
+      "en": "Idempotency means that the result of performing an operation once is the same as performing it multiple times (f(f(x)) = f(x)). In distributed messaging systems, this is the standard practice for handling duplicate messages, usually implemented by checking if a Message ID or Correlation ID has already been processed.",
+      "wg": [
+        {
+          "t": "冪等性",
+          "en": "Idempotency",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "6",
+    "level": "Middle",
+    "keywords": "Anti-pattern, Synchronous Calls, Availability",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "手冊中提到「Synchronous HTTP Chains for Writes」是一個反模式（Anti-pattern）。若 Service A 同步呼叫 Service B，Service B 又同步呼叫 Service C，下列哪項描述是此架構的主要缺點？",
+        "en": "The handbook mentions that 'Synchronous HTTP Chains for Writes' is an anti-pattern. If Service A synchronously calls Service B, and Service B synchronously calls Service C, which of the following describes the main drawback of this architecture?",
+        "wg": [
+          {
+            "t": "同步呼叫",
+            "en": "Synchronous calls",
+            "ps": "noun"
+          },
+          {
+            "t": "反模式",
+            "en": "Anti-pattern",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) 系統的整體可用性（Availability）會大幅降低，因為可用性是各服務可用性的乘積（A * B * C）。",
+        "en": "(A) The overall system availability will decrease significantly because availability is the product of each service's availability (A * B * C).",
+        "wg": []
+      },
+      {
+        "t": "(B) 這種架構會導致資料庫產生過多的 Deadlock。",
+        "en": "(B) This architecture will cause excessive Deadlocks in the database.",
+        "wg": []
+      },
+      {
+        "t": "(C) 無法保證資料的強一致性（Strong Consistency）。",
+        "en": "(C) It cannot guarantee Strong Consistency of data.",
+        "wg": []
+      },
+      {
+        "t": "(D) 這種方式無法使用 Load Balancer。",
+        "en": "(D) This approach cannot use a Load Balancer.",
+        "wg": []
+      }
+    ],
+    "answer": "A",
+    "why": {
+      "t": "同步鏈式呼叫會導致延遲疊加（Latency Accumulation）與可用性降低。若每個服務的可用性為 99%，三個串聯後的可用性僅剩 0.99 * 0.99 * 0.99 ≈ 97%。此外，任何一個下游服務失敗都會導致最上游請求失敗，這使得系統極其脆弱。",
+      "en": "Synchronous chained calls lead to latency accumulation and reduced availability. If each service has 99% availability, the availability of three chained services drops to 0.99 * 0.99 * 0.99 ≈ 97%. Furthermore, failure in any downstream service causes the upstream request to fail, making the system extremely fragile.",
+      "wg": [
+        {
+          "t": "延遲疊加",
+          "en": "Latency Accumulation",
+          "ps": "noun"
+        },
+        {
+          "t": "脆弱",
+          "en": "Fragile",
+          "ps": "adj"
+        }
+      ]
+    }
+  },
+  {
+    "no": "7",
+    "level": "Middle",
+    "keywords": "CQRS, Read Model, Join, Architecture",
+    "parentNo": null,
+    "images": "",
+    "codeSnippet": "",
+    "question": [
+      {
+        "t": "在微服務架構中，當我們將單體系統拆分後，經常會遇到「跨服務 Join（Cross-service Join）」的查詢難題（例如：需要同時顯示訂單詳情與該用戶的詳細資料，但兩者位於不同資料庫）。",
+        "en": "In a microservices architecture, after splitting a monolith, we often face the challenge of 'Cross-service Joins' (e.g., needing to display order details along with the user's profile, but they reside in different databases).",
+        "wg": [
+          {
+            "t": "跨服務 Join",
+            "en": "Cross-service Join",
+            "ps": "noun"
+          },
+          {
+            "t": "拆分",
+            "en": "split",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "根據手冊中的「常見模式」，下列哪一種模式最適合用來解決此類複雜查詢需求，並將讀取負載與寫入邏輯分離？",
+        "en": "According to the 'Common Patterns' in the handbook, which of the following patterns is best suited to solve such complex query requirements and separate the read load from the write logic?",
+        "wg": [
+          {
+            "t": "讀取負載",
+            "en": "read load",
+            "ps": "noun"
+          },
+          {
+            "t": "寫入邏輯",
+            "en": "write logic",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) Two-Phase Commit (2PC)",
+        "en": "(A) Two-Phase Commit (2PC)",
+        "wg": []
+      },
+      {
+        "t": "(B) Transactional Outbox Pattern",
+        "en": "(B) Transactional Outbox Pattern",
+        "wg": []
+      },
+      {
+        "t": "(C) CQRS (Command Query Responsibility Segregation)",
+        "en": "(C) CQRS (Command Query Responsibility Segregation)",
+        "wg": []
+      },
+      {
+        "t": "(D) Synchronous HTTP Chaining",
+        "en": "(D) Synchronous HTTP Chaining",
+        "wg": []
+      }
+    ],
+    "answer": "C",
+    "why": {
+      "t": "CQRS 模式的核心即是將「寫入模型（Write Model）」與「讀取模型（Read Model）」分離。針對跨服務查詢困難的問題，CQRS 建議建立專門優化過的 Read Model（例如透過訂閱事件將資料聚合到 NoSQL 或 ElasticSearch），以解決 Join 效能問題。",
+      "en": "The core of the CQRS pattern is separating the 'Write Model' from the 'Read Model'. To address the difficulty of cross-service queries, CQRS suggests building a specialized Read Model (e.g., by aggregating data into NoSQL or ElasticSearch via event subscription) to solve Join performance issues.",
+      "wg": [
+        {
+          "t": "聚合",
+          "en": "aggregate",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "8",
+    "level": "Middle",
+    "keywords": "Choreography, Saga, Complexity, Debugging",
+    "parentNo": null,
+    "images": "",
+    "codeSnippet": "",
+    "question": [
+      {
+        "t": "關於 Saga 模式中的「協作式（Choreography-based）」實作，手冊提到它適合簡單的流程。",
+        "en": "Regarding the 'Choreography-based' implementation in the Saga pattern, the handbook mentions it is suitable for simple flows.",
+        "wg": [
+          {
+            "t": "協作式",
+            "en": "Choreography-based",
+            "ps": "adjective"
+          }
+        ]
+      },
+      {
+        "t": "然而，當業務流程變得非常複雜（涉及多個步驟與參與者）時，Choreography 模式的主要缺點是什麼？",
+        "en": "However, when the business process becomes very complex (involving multiple steps and participants), what is the primary disadvantage of the Choreography pattern?",
+        "wg": [
+          {
+            "t": "缺點",
+            "en": "disadvantage",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) 會造成單點故障（Single Point of Failure），因為所有邏輯都集中在一個服務。",
+        "en": "(A) It creates a Single Point of Failure because all logic is centralized in one service.",
+        "wg": [
+          {
+            "t": "單點故障",
+            "en": "Single Point of Failure",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "(B) 流程邏輯分散在各個服務中，難以追蹤完整的業務狀態與除錯。",
+        "en": "(B) The flow logic is scattered across various services, making it difficult to track the complete business state and debug.",
+        "wg": [
+          {
+            "t": "分散",
+            "en": "scattered",
+            "ps": "adjective"
+          },
+          {
+            "t": "除錯",
+            "en": "debug",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "(C) 需要引入額外的基礎設施（如 State Machine）來管理狀態。",
+        "en": "(C) It requires introducing additional infrastructure (like a State Machine) to manage state.",
+        "wg": []
+      },
+      {
+        "t": "(D) 無法支援「最終一致性」，必須使用強一致性。",
+        "en": "(D) It cannot support 'Eventual Consistency' and must use strong consistency.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "Choreography 的特點是去中心化，服務間透過事件觸發。當流程變複雜時，邏輯會散落在各處，導致「難以追蹤完整業務狀態（'Who listens to what?' hell）」，這正是其主要缺點。選項 (A) 與 (C) 是 Orchestration 模式的特徵。",
+      "en": "Choreography is characterized by decentralization, where services trigger each other via events. When the flow becomes complex, logic gets scattered, leading to difficulty in tracking the full business state ('Who listens to what?' hell), which is its main disadvantage. Options (A) and (C) are characteristics of the Orchestration pattern.",
+      "wg": [
+        {
+          "t": "去中心化",
+          "en": "decentralization",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "9",
+    "level": "Easy",
+    "keywords": "Distributed Transactions, 2PC, Anti-pattern, Performance",
+    "parentNo": null,
+    "images": "",
+    "codeSnippet": "",
+    "question": [
+      {
+        "t": "手冊中將「Distributed Transactions (2PC / XA)」列為反模式（Anti-pattern）。",
+        "en": "The handbook lists 'Distributed Transactions (2PC / XA)' as an Anti-pattern.",
+        "wg": [
+          {
+            "t": "反模式",
+            "en": "Anti-pattern",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "除非是銀行核心轉帳等極端場景，否則應避免使用的主要原因為何？",
+        "en": "Unless it is an extreme scenario like core banking transfers, what is the main reason to avoid using it?",
+        "wg": []
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) 2PC 無法保證資料的原子性（Atomicity）。",
+        "en": "(A) 2PC cannot guarantee data atomicity.",
+        "wg": [
+          {
+            "t": "原子性",
+            "en": "Atomicity",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "(B) 2PC 會導致極高的鎖定成本（Locking）與效能低落，且單點故障可能導致系統停擺。",
+        "en": "(B) 2PC leads to extremely high locking costs and poor performance, and a single point of failure can halt the system.",
+        "wg": [
+          {
+            "t": "鎖定成本",
+            "en": "locking costs",
+            "ps": "noun"
+          },
+          {
+            "t": "停擺",
+            "en": "halt",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "(C) 目前主流的關聯式資料庫（RDBMS）皆不支援 XA 協議。",
+        "en": "(C) Current mainstream Relational Databases (RDBMS) do not support the XA protocol.",
+        "wg": []
+      },
+      {
+        "t": "(D) 2PC 只能用於 NoSQL 資料庫，無法用於 SQL 資料庫。",
+        "en": "(D) 2PC can only be used for NoSQL databases and cannot be used for SQL databases.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "手冊明確指出，2PC 在分散式環境下是「效能殺手與可用性惡夢」，主要因為它需要跨服務鎖定資源（Locking），且協調者若故障會導致參與者阻塞。選項 (A) 錯誤，因為 2PC 的目的就是保證原子性；選項 (C) 錯誤，大多數 RDBMS 支援 XA。",
+      "en": "The handbook explicitly states that 2PC is a 'performance killer and availability nightmare' in distributed environments, mainly because it requires cross-service resource locking, and coordinator failure can cause participants to block. Option (A) is incorrect because 2PC aims to guarantee atomicity; Option (C) is incorrect as most RDBMS support XA.",
+      "wg": [
+        {
+          "t": "阻塞",
+          "en": "block",
+          "ps": "verb"
+        }
+      ]
+    }
+  },
+  {
+    "no": "10",
+    "level": "Easy",
+    "keywords": "Dead Letter Queue, DLQ, Reliability, Checklist",
+    "parentNo": null,
+    "images": "",
+    "codeSnippet": "",
+    "question": [
+      {
+        "t": "在實作事件驅動架構時，若某個事件經過多次重試後仍然處理失敗（例如：Payload 格式錯誤導致程式崩潰）。",
+        "en": "In implementing an event-driven architecture, if an event fails to process even after multiple retries (e.g., malformed payload causes a crash).",
+        "wg": [
+          {
+            "t": "重試",
+            "en": "retries",
+            "ps": "noun"
+          },
+          {
+            "t": "崩潰",
+            "en": "crash",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "根據手冊的「Implementation Checklist」，系統應具備什麼機制來處理這些無法被消化的訊息，以避免資料遺失並提供後續排查？",
+        "en": "According to the 'Implementation Checklist' in the handbook, what mechanism should the system have to handle these indigestible messages to prevent data loss and allow for subsequent investigation?",
+        "wg": [
+          {
+            "t": "無法被消化",
+            "en": "indigestible",
+            "ps": "adjective"
+          },
+          {
+            "t": "排查",
+            "en": "investigation",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) Circuit Breaker (斷路器)",
+        "en": "(A) Circuit Breaker",
+        "wg": []
+      },
+      {
+        "t": "(B) Dead Letter Queue (DLQ)",
+        "en": "(B) Dead Letter Queue (DLQ)",
+        "wg": []
+      },
+      {
+        "t": "(C) Two-Phase Commit (2PC)",
+        "en": "(C) Two-Phase Commit (2PC)",
+        "wg": []
+      },
+      {
+        "t": "(D) Semantic Locking",
+        "en": "(D) Semantic Locking",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "DLQ（死信佇列）是用來存放那些「重試耗盡仍失敗」的訊息，讓開發者可以後續手動檢查或修復，而不會阻塞正常的訊息處理流或直接遺失資料。這是 Checklist 中強調的必備機制。",
+      "en": "DLQ (Dead Letter Queue) is used to store messages that 'fail after retries are exhausted', allowing developers to manually inspect or fix them later without blocking the normal message processing flow or losing data. This is a mandatory mechanism emphasized in the Checklist.",
+      "wg": [
+        {
+          "t": "死信佇列",
+          "en": "Dead Letter Queue",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "11",
+    "level": "Middle",
+    "keywords": "Mental Model, Eventual Consistency, Business Logic",
+    "parentNo": null,
+    "images": "",
+    "codeSnippet": "",
+    "question": [
+      {
+        "t": "你的產品經理要求：「當使用者點擊商品時，推薦系統的用戶標籤（User Tags）必須『立刻、毫秒不差』地更新到所有相關服務，以確保一致性。」",
+        "en": "Your Product Manager demands: 'When a user clicks a product, the User Tags in the recommendation system must be updated 'instantly, without millisecond delay' across all related services to ensure consistency.'",
+        "wg": [
+          {
+            "t": "毫秒不差",
+            "en": "without millisecond delay",
+            "ps": "adjective phrase"
+          }
+        ]
+      },
+      {
+        "t": "根據手冊中的「心智模型（Mental Model）」與核心思維，身為架構師你應如何回應？",
+        "en": "Based on the 'Mental Model' and key mindset shifts in the handbook, how should you respond as an architect?",
+        "wg": [
+          {
+            "t": "心智模型",
+            "en": "Mental Model",
+            "ps": "noun"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) 同意需求，並使用 2PC 分散式交易來確保所有服務同時更新。",
+        "en": "(A) Agree to the requirement and use 2PC distributed transactions to ensure all services update simultaneously.",
+        "wg": []
+      },
+      {
+        "t": "(B) 拒絕使用微服務，建議改回單體架構（Monolith）以達成強一致性。",
+        "en": "(B) Refuse to use microservices and suggest reverting to a Monolith architecture to achieve strong consistency.",
+        "wg": []
+      },
+      {
+        "t": "(C) 評估業務邏輯，說明推薦標籤通常可容忍數分鐘延遲，建議採用「最終一致性」以換取更好的效能與可用性。",
+        "en": "(C) Evaluate the business logic, explain that recommendation tags can usually tolerate minutes of delay, and suggest adopting 'Eventual Consistency' for better performance and availability.",
+        "wg": [
+          {
+            "t": "容忍",
+            "en": "tolerate",
+            "ps": "verb"
+          },
+          {
+            "t": "最終一致性",
+            "en": "Eventual Consistency",
+            "ps": "noun"
+          }
+        ]
+      },
+      {
+        "t": "(D) 使用同步 HTTP 呼叫鏈（Synchronous HTTP Chains）來串聯所有更新操作。",
+        "en": "(D) Use Synchronous HTTP Chains to link all update operations.",
+        "wg": []
+      }
+    ],
+    "answer": "C",
+    "why": {
+      "t": "手冊強調「業務邏輯決定一致性需求（Business Logic Dictates Consistency）」。並非所有數據都需要強一致性，像推薦標籤這類非關鍵資金數據，通常可以容忍延遲（Embrace the Lag）。強求即時一致性會帶來不必要的效能與可用性犧牲。",
+      "en": "The handbook emphasizes that 'Business Logic Dictates Consistency'. Not all data requires strong consistency. Data like recommendation tags (non-financial) can usually tolerate lag. Forcing immediate consistency brings unnecessary sacrifices in performance and availability.",
+      "wg": [
+        {
+          "t": "犧牲",
+          "en": "sacrifice",
+          "ps": "noun"
+        }
+      ]
+    }
+  },
+  {
+    "no": "12",
+    "level": "Easy",
+    "keywords": "Observability, Trace ID, Saga, Debugging",
+    "parentNo": null,
+    "images": "",
+    "codeSnippet": "",
+    "question": [
+      {
+        "t": "在一個跨越 4 個微服務的 Saga 交易流程中，若發生錯誤需要排查問題。",
+        "en": "In a Saga transaction flow spanning 4 microservices, if an error occurs and needs troubleshooting.",
+        "wg": [
+          {
+            "t": "排查",
+            "en": "troubleshooting",
+            "ps": "verb"
+          }
+        ]
+      },
+      {
+        "t": "根據手冊的「可觀測性（Observability）」建議，下列哪項機制是將分散在不同服務的 Log 串聯起來的關鍵？",
+        "en": "According to the 'Observability' recommendations in the handbook, which mechanism is key to linking logs scattered across different services?",
+        "wg": [
+          {
+            "t": "串聯",
+            "en": "link/correlate",
+            "ps": "verb"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) Timestamp (時間戳記)",
+        "en": "(A) Timestamp",
+        "wg": []
+      },
+      {
+        "t": "(B) Trace ID / Correlation ID",
+        "en": "(B) Trace ID / Correlation ID",
+        "wg": []
+      },
+      {
+        "t": "(C) User ID",
+        "en": "(C) User ID",
+        "wg": []
+      },
+      {
+        "t": "(D) Error Code",
+        "en": "(D) Error Code",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "在分散式系統中，單靠時間戳記或 User ID 很難精確定位某一次特定的請求路徑。Trace ID（或 Correlation ID）能貫穿整個 Saga 流程，是將不同服務的 Log 關聯起來以還原交易路徑的唯一可靠方式。",
+      "en": "In distributed systems, relying solely on timestamps or User IDs makes it hard to pinpoint a specific request path. A Trace ID (or Correlation ID) permeates the entire Saga flow and is the only reliable way to correlate logs from different services to reconstruct the transaction path.",
+      "wg": [
+        {
+          "t": "貫穿",
+          "en": "permeate/pass through",
+          "ps": "verb"
+        },
+        {
+          "t": "還原",
+          "en": "reconstruct",
+          "ps": "verb"
+        }
+      ]
+    }
+  }
+]

@@ -1,0 +1,1125 @@
+[
+  {
+    "no": "1",
+    "level": "intermediate",
+    "keywords": "Dual Write Problem, Data Consistency, Transactional",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "@Transactional\npublic void createOrder(OrderRequest request) {\n    Order order = orderRepository.save(new Order(request));\n    kafkaTemplate.send(\"orders\", new OrderCreatedEvent(order));\n}",
+    "question": [
+      {
+        "t": "請分析上述程式碼片段。在分散式系統中，這種「先寫入資料庫，再發送訊息」的實作方式存在什麼主要風險？",
+        "en": "Analyze the code snippet above. In a distributed system, what is the primary risk of this 'write to DB then send message' implementation?",
+        "wg": [
+          {
+            "t": "分散式系統",
+            "en": "distributed system",
+            "ps": "N"
+          },
+          {
+            "t": "實作方式",
+            "en": "implementation",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 效能問題：同步發送 Kafka 訊息會導致資料庫交易鎖定時間過長。",
+        "en": "(A) Performance issue: Synchronous Kafka sending causes the database transaction lock to be held for too long.",
+        "wg": []
+      },
+      {
+        "t": "(B) 雙寫問題（Dual Write Problem）：缺乏原子性，可能發生資料庫寫入成功但訊息發送失敗（或反之），導致系統狀態不一致。",
+        "en": "(B) Dual Write Problem: Lack of atomicity; the database write might succeed while the message sending fails (or vice versa), leading to inconsistent system states.",
+        "wg": [
+          {
+            "t": "原子性",
+            "en": "atomicity",
+            "ps": "N"
+          },
+          {
+            "t": "不一致",
+            "en": "inconsistent",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "(C) 編譯錯誤：Spring 的 @Transactional 不支援在交易內呼叫外部服務。",
+        "en": "(C) Compilation error: Spring's @Transactional does not support calling external services within a transaction.",
+        "wg": []
+      },
+      {
+        "t": "(D) 重複消費：Kafka 預設會發送兩次訊息以確保傳遞。",
+        "en": "(D) Duplicate consumption: Kafka defaults to sending messages twice to ensure delivery.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "這是經典的雙寫問題。若 DB 提交成功後應用程式崩潰或網路中斷導致 Kafka 發送失敗，下游服務將永遠無法得知該訂單已建立；反之若訊息先發送成功但 DB 提交失敗，下游將處理不存在的訂單。單純的 @Transactional 無法跨越 DB 與 Message Broker 兩者保證原子性。",
+      "en": "This is the classic Dual Write Problem. If the DB commit succeeds but the app crashes or network fails before the Kafka send completes, downstream services will never know the order was created. Conversely, if the message is sent but the DB commit fails, downstream processes a non-existent order. A simple @Transactional cannot guarantee atomicity across both the DB and the Message Broker.",
+      "wg": [
+        {
+          "t": "崩潰",
+          "en": "crash",
+          "ps": "V"
+        },
+        {
+          "t": "下游服務",
+          "en": "downstream services",
+          "ps": "N"
+        }
+      ]
+    },
+    "verified": "2026-03-18T17:14:16"
+  },
+  {
+    "no": "2",
+    "level": "advanced",
+    "keywords": "Transactional Outbox Pattern, Microservices, Reliability",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您正在設計一個需要高可靠性的微服務，必須確保「業務資料寫入」與「領域事件發布」兩者同時成功或同時失敗。",
+        "en": "You are designing a high-reliability microservice that must ensure both 'business data write' and 'domain event publication' succeed or fail together.",
+        "wg": [
+          {
+            "t": "領域事件",
+            "en": "domain event",
+            "ps": "N"
+          },
+          {
+            "t": "高可靠性",
+            "en": "high-reliability",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "若不希望引入複雜的 2PC/XA 分散式交易，下列哪種模式是業界標準解決方案？",
+        "en": "If you want to avoid introducing complex 2PC/XA distributed transactions, which pattern is the industry standard solution?",
+        "wg": [
+          {
+            "t": "業界標準",
+            "en": "industry standard",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) Saga Choreography Pattern",
+        "en": "(A) Saga Choreography Pattern",
+        "wg": []
+      },
+      {
+        "t": "(B) Transactional Outbox Pattern",
+        "en": "(B) Transactional Outbox Pattern",
+        "wg": []
+      },
+      {
+        "t": "(C) Circuit Breaker Pattern",
+        "en": "(C) Circuit Breaker Pattern",
+        "wg": []
+      },
+      {
+        "t": "(D) Retry Pattern with Exponential Backoff",
+        "en": "(D) Retry Pattern with Exponential Backoff",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "Transactional Outbox Pattern 透過將「發送訊息」轉變為「寫入同一個資料庫的 Outbox Table」，利用本地資料庫交易（Local Transaction）保證業務資料與事件紀錄的原子性，隨後再由獨立的 Relay 機制（如 Polling 或 CDC）將訊息異步推送到 Broker。",
+      "en": "The Transactional Outbox Pattern transforms 'sending a message' into 'writing to an Outbox Table in the same database', leveraging Local Transactions to guarantee atomicity of business data and event records. An independent Relay mechanism (like Polling or CDC) then asynchronously pushes messages to the Broker.",
+      "wg": [
+        {
+          "t": "本地資料庫交易",
+          "en": "Local Transaction",
+          "ps": "N"
+        },
+        {
+          "t": "異步",
+          "en": "asynchronously",
+          "ps": "Adv"
+        }
+      ]
+    },
+    "verified": "2026-03-18T17:14:16"
+  },
+  {
+    "no": "3",
+    "level": "intermediate",
+    "keywords": "Kafka, RabbitMQ, System Design, Routing",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在系統設計會議中，團隊正在評估使用 Kafka 或 RabbitMQ。",
+        "en": "In a system design meeting, the team is evaluating whether to use Kafka or RabbitMQ.",
+        "wg": [
+          {
+            "t": "評估",
+            "en": "evaluate",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "如果您的應用場景需要「極高的吞吐量（百萬級/秒）」且主要用於「事件溯源（Event Sourcing）」與「日誌聚合」，應選擇哪種技術？",
+        "en": "If your use case requires 'extremely high throughput (millions/sec)' and is primarily used for 'Event Sourcing' and 'Log Aggregation', which technology should you choose?",
+        "wg": [
+          {
+            "t": "吞吐量",
+            "en": "throughput",
+            "ps": "N"
+          },
+          {
+            "t": "事件溯源",
+            "en": "Event Sourcing",
+            "ps": "N"
+          },
+          {
+            "t": "日誌聚合",
+            "en": "Log Aggregation",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) RabbitMQ，因為它支援 AMQP 協定。",
+        "en": "(A) RabbitMQ, because it supports the AMQP protocol.",
+        "wg": []
+      },
+      {
+        "t": "(B) Kafka，因為它是基於日誌（Log-based）的架構，支援事件持久化與重播。",
+        "en": "(B) Kafka, because it is a Log-based architecture that supports event persistence and replay.",
+        "wg": [
+          {
+            "t": "持久化",
+            "en": "persistence",
+            "ps": "N"
+          },
+          {
+            "t": "重播",
+            "en": "replay",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) RabbitMQ，因為它有豐富的路由（Routing）功能。",
+        "en": "(C) RabbitMQ, because it has rich Routing capabilities.",
+        "wg": []
+      },
+      {
+        "t": "(D) 兩者皆可，效能差異不大。",
+        "en": "(D) Both are suitable; the performance difference is negligible.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "Kafka 專為高吞吐量與串流處理設計，其 Log-based 架構允許事件持久化保存並支援重播（Replay），這是 Event Sourcing 的核心需求。RabbitMQ 則更適合複雜路由與低延遲的任務分發。",
+      "en": "Kafka is designed for high throughput and stream processing. Its Log-based architecture allows events to be persisted and supports replay, which is a core requirement for Event Sourcing. RabbitMQ is better suited for complex routing and low-latency task distribution.",
+      "wg": [
+        {
+          "t": "串流處理",
+          "en": "stream processing",
+          "ps": "N"
+        }
+      ]
+    },
+    "verified": "2026-03-18T17:14:16"
+  },
+  {
+    "no": "4",
+    "level": "advanced",
+    "keywords": "Saga Pattern, Orchestration, Choreography, Distributed Transactions",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "關於分散式交易中的 Saga Pattern，當業務流程非常複雜（超過 10 個步驟）且需要集中監控與處理逾時（Timeout）時，下列哪種實作方式最為合適？",
+        "en": "Regarding the Saga Pattern in distributed transactions, when the business process is very complex (over 10 steps) and requires centralized monitoring and timeout handling, which implementation approach is most suitable?",
+        "wg": [
+          {
+            "t": "集中監控",
+            "en": "centralized monitoring",
+            "ps": "N"
+          },
+          {
+            "t": "逾時",
+            "en": "timeout",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) Choreography (編舞模式)，因為它去中心化且耦合度低。",
+        "en": "(A) Choreography, because it is decentralized and has low coupling.",
+        "wg": [
+          {
+            "t": "去中心化",
+            "en": "decentralized",
+            "ps": "Adj"
+          },
+          {
+            "t": "耦合度",
+            "en": "coupling",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(B) Orchestration (編排模式)，因為它透過中心化的協調者來指揮流程與狀態。",
+        "en": "(B) Orchestration, because it directs the flow and state through a centralized coordinator.",
+        "wg": [
+          {
+            "t": "協調者",
+            "en": "coordinator",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) Two-Phase Commit (2PC)，因為它保證強一致性。",
+        "en": "(C) Two-Phase Commit (2PC), because it guarantees strong consistency.",
+        "wg": []
+      },
+      {
+        "t": "(D) 使用單體式架構（Monolith）重寫該功能。",
+        "en": "(D) Rewrite the feature using a Monolithic architecture.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "雖然 Choreography 適合簡單流程，但在複雜流程中會導致服務間依賴關係難以追蹤。Orchestration 模式透過一個中心化的 Orchestrator（如 State Machine）來管理流程狀態、錯誤補償與逾時，提供了更好的可視性與控制力。",
+      "en": "While Choreography suits simple flows, it makes dependencies hard to track in complex processes. The Orchestration pattern manages flow state, error compensation, and timeouts through a centralized Orchestrator (like a State Machine), providing better visibility and control.",
+      "wg": [
+        {
+          "t": "可視性",
+          "en": "visibility",
+          "ps": "N"
+        },
+        {
+          "t": "補償",
+          "en": "compensation",
+          "ps": "N"
+        }
+      ]
+    },
+    "verified": "2026-03-18T17:14:16"
+  },
+  {
+    "no": "5",
+    "level": "intermediate",
+    "keywords": "Message Ordering, Kafka, Partition Key",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在電子商務系統中，訂單狀態變更事件（Created -> Paid -> Shipped）必須嚴格按照順序處理。",
+        "en": "In an e-commerce system, order status change events (Created -> Paid -> Shipped) must be processed in strict order.",
+        "wg": [
+          {
+            "t": "嚴格",
+            "en": "strict",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "若 Consumer 偶爾先收到 Shipped 事件再收到 Created 事件，最可能的原因是什麼？",
+        "en": "If the Consumer occasionally receives the 'Shipped' event before the 'Created' event, what is the most likely cause?",
+        "wg": [
+          {
+            "t": "偶爾",
+            "en": "occasionally",
+            "ps": "Adv"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) Producer 發送訊息時使用了隨機或空的 Key，導致同一訂單的事件被分發到不同的 Partition。",
+        "en": "(A) The Producer sent messages using a random or empty Key, causing events for the same order to be distributed to different Partitions.",
+        "wg": [
+          {
+            "t": "分發",
+            "en": "distributed",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(B) Consumer 的處理速度太慢，導致訊息堆積。",
+        "en": "(B) The Consumer's processing speed is too slow, causing message backlog.",
+        "wg": []
+      },
+      {
+        "t": "(C) Kafka Broker 的硬碟發生故障。",
+        "en": "(C) The Kafka Broker's hard disk malfunctioned.",
+        "wg": []
+      },
+      {
+        "t": "(D) 網路延遲導致封包順序錯亂。",
+        "en": "(D) Network latency caused packet disorder.",
+        "wg": []
+      }
+    ],
+    "answer": "A",
+    "why": {
+      "t": "Kafka 僅保證單一 Partition 內的訊息順序。若未指定 Key 或使用隨機 Key，同一訂單的事件可能進入不同 Partition，進而被不同的 Consumer 執行個體併發處理，導致順序無法保證。解決方案是使用 Order ID 作為 Partition Key。",
+      "en": "Kafka only guarantees message order within a single Partition. If no Key or a random Key is used, events for the same order may enter different Partitions and be processed concurrently by different Consumer instances, breaking the order guarantee. The solution is to use the Order ID as the Partition Key.",
+      "wg": [
+        {
+          "t": "併發處理",
+          "en": "processed concurrently",
+          "ps": "V"
+        }
+      ]
+    },
+    "verified": "2026-03-18T17:14:16"
+  },
+  {
+    "no": "6",
+    "level": "advanced",
+    "keywords": "Idempotency, Consumer, Best Practices",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "關於 Consumer 端的「冪等性（Idempotency）」設計，下列敘述何者正確？",
+        "en": "Regarding 'Idempotency' design on the Consumer side, which of the following statements is correct?",
+        "wg": [
+          {
+            "t": "冪等性",
+            "en": "Idempotency",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 只要 Kafka 開啟 `enable.idempotence=true`，Consumer 端就不需要額外處理重複訊息。",
+        "en": "(A) As long as Kafka has `enable.idempotence=true` enabled, the Consumer side does not need to handle duplicate messages.",
+        "wg": []
+      },
+      {
+        "t": "(B) 應始終假設訊息可能重複傳遞（At-Least-Once），並在業務邏輯執行前或執行中透過 Unique Key 或狀態檢查來過濾重複請求。",
+        "en": "(B) Always assume messages may be delivered more than once (At-Least-Once), and filter duplicate requests using a Unique Key or state check before or during business logic execution.",
+        "wg": [
+          {
+            "t": "過濾",
+            "en": "filter",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(C) 冪等性只對金融交易重要，一般日誌或通知系統不需要考慮。",
+        "en": "(C) Idempotency is only important for financial transactions; general logging or notification systems do not need to consider it.",
+        "wg": []
+      },
+      {
+        "t": "(D) 使用 `acks=0` 可以避免重複訊息。",
+        "en": "(D) Using `acks=0` can prevent duplicate messages.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "Kafka 的 `enable.idempotence` 僅保證 Producer 到 Broker 的不重複，無法防止 Consumer 因網路問題或重試而收到重複訊息。因此，Consumer 必須在應用層實作冪等性（如檢查 Message ID 是否已處理），以符合 At-Least-Once 的傳遞特性。",
+      "en": "Kafka's `enable.idempotence` only guarantees non-duplication from Producer to Broker; it cannot prevent the Consumer from receiving duplicates due to network issues or retries. Therefore, the Consumer must implement idempotency at the application layer (e.g., checking if Message ID is processed) to align with At-Least-Once delivery semantics.",
+      "wg": [
+        {
+          "t": "應用層",
+          "en": "application layer",
+          "ps": "N"
+        },
+        {
+          "t": "語意",
+          "en": "semantics",
+          "ps": "N"
+        }
+      ]
+    },
+    "verified": "2026-03-18T17:14:16"
+  },
+  {
+    "no": "7",
+    "level": "intermediate",
+    "keywords": "Error Handling, Poison Pill, Dead Letter Queue",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "當 Consumer 遇到無法解析的惡意訊息（Poison Pill）導致持續拋出例外時，為了避免 Partition 阻塞（Head-of-Line Blocking），最佳實務是什麼？",
+        "en": "When a Consumer encounters an unparsable malicious message (Poison Pill) causing continuous exceptions, what is the best practice to avoid Partition blocking (Head-of-Line Blocking)?",
+        "wg": [
+          {
+            "t": "惡意訊息",
+            "en": "malicious message",
+            "ps": "N"
+          },
+          {
+            "t": "阻塞",
+            "en": "blocking",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 無限重試，直到訊息被成功處理。",
+        "en": "(A) Retry infinitely until the message is successfully processed.",
+        "wg": []
+      },
+      {
+        "t": "(B) 立即關閉 Consumer 應用程式以保護資料。",
+        "en": "(B) Immediately shut down the Consumer application to protect data.",
+        "wg": []
+      },
+      {
+        "t": "(C) 設定重試次數上限，若仍失敗則將訊息移至 Dead Letter Queue (DLQ) 並提交 Offset，繼續處理下一條訊息。",
+        "en": "(C) Set a retry limit. If it still fails, move the message to a Dead Letter Queue (DLQ), commit the Offset, and proceed to the next message.",
+        "wg": [
+          {
+            "t": "上限",
+            "en": "limit",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(D) 在 catch 區塊中直接吞掉例外（swallow exception），不作任何紀錄。",
+        "en": "(D) Swallow the exception directly in the catch block without logging.",
+        "wg": [
+          {
+            "t": "吞掉",
+            "en": "swallow",
+            "ps": "V"
+          }
+        ]
+      }
+    ],
+    "answer": "C",
+    "why": {
+      "t": "無限重試會導致該 Partition 的後續訊息無法被處理（阻塞）。最佳做法是設定有限的重試策略，失敗後將問題訊息移至 DLQ 供後續人工分析或修復，並讓 Consumer 繼續處理正常的訊息。",
+      "en": "Infinite retries prevent subsequent messages in the partition from being processed (blocking). The best practice is to set a limited retry strategy, move the problematic message to a DLQ for later manual analysis or repair upon failure, and allow the Consumer to continue processing normal messages.",
+      "wg": [
+        {
+          "t": "人工分析",
+          "en": "manual analysis",
+          "ps": "N"
+        }
+      ]
+    },
+    "verified": "2026-03-18T17:14:16"
+  },
+  {
+    "no": "8",
+    "level": "advanced",
+    "keywords": "Retry Pattern, Non-blocking, Error Handling, Kafka",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在 Spring Boot 中使用 Kafka Consumer 處理訊息時，若業務邏輯涉及呼叫不穩定的第三方 API，使用預設的 Blocking Retry（例如 Spring Retry）可能會導致什麼問題？",
+        "en": "When processing messages with a Kafka Consumer in Spring Boot, if the business logic involves calling an unstable third-party API, what problem might arise from using the default Blocking Retry (e.g., Spring Retry)?",
+        "wg": [
+          {
+            "t": "不穩定的",
+            "en": "unstable",
+            "ps": "Adj"
+          },
+          {
+            "t": "第三方 API",
+            "en": "third-party API",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "請選擇最準確的描述。",
+        "en": "Please select the most accurate description.",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 會導致 Consumer Group 重新平衡（Rebalance），但不會影響訊息處理速度。",
+        "en": "(A) It will cause a Consumer Group rebalance but will not affect message processing speed.",
+        "wg": [
+          {
+            "t": "重新平衡",
+            "en": "rebalance",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(B) 會導致「隊頭阻塞」（Head-of-Line Blocking），該 Partition 後續的所有訊息都會被卡住，直到重試成功或放棄。",
+        "en": "(B) It will cause \"Head-of-Line Blocking\", where all subsequent messages in that Partition are stuck until the retry succeeds or is abandoned.",
+        "wg": [
+          {
+            "t": "隊頭阻塞",
+            "en": "Head-of-Line Blocking",
+            "ps": "N"
+          },
+          {
+            "t": "卡住",
+            "en": "stuck",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(C) 會導致訊息遺失，因為 Kafka Broker 會認為該訊息已過期。",
+        "en": "(C) It will cause message loss because the Kafka Broker will consider the message expired.",
+        "wg": []
+      },
+      {
+        "t": "(D) 會導致重複消費，因為 Blocking Retry 不會提交 Offset。",
+        "en": "(D) It will cause duplicate consumption because Blocking Retry does not commit the Offset.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "Blocking Retry 會佔用 Consumer 執行緒，使其無法處理同一個 Partition 中的後續訊息（Kafka 保證 Partition 內順序性）。若重試時間過長，不僅造成延遲，還可能導致 `max.poll.interval.ms` 超時而觸發 Rebalance。解決方案通常是採用 Non-Blocking Retry（如 Retry Topics）。",
+      "en": "Blocking Retry occupies the Consumer thread, preventing it from processing subsequent messages in the same Partition (Kafka guarantees order within a Partition). If the retry takes too long, it not only causes latency but may also exceed `max.poll.interval.ms`, triggering a Rebalance. The solution is typically to use Non-Blocking Retry (e.g., Retry Topics).",
+      "wg": [
+        {
+          "t": "佔用",
+          "en": "occupy",
+          "ps": "V"
+        },
+        {
+          "t": "超時",
+          "en": "timeout",
+          "ps": "V"
+        }
+      ]
+    },
+    "verified": "2026-03-18T20:34:58"
+  },
+  {
+    "no": "9",
+    "level": "intermediate",
+    "keywords": "Kafka, Scalability, Consumer Group, Partition",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "假設一個 Kafka Topic 擁有 10 個 Partitions，而您的 Consumer Group 目前部署了 15 個應用程式實例（Instances）。",
+        "en": "Suppose a Kafka Topic has 10 Partitions, and your Consumer Group currently has 15 application instances deployed.",
+        "wg": [
+          {
+            "t": "實例",
+            "en": "instances",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "請問在正常運作下，這些實例的狀態為何？",
+        "en": "What is the status of these instances under normal operation?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 所有 15 個實例都會平均分攤流量，每個實例處理部分訊息。",
+        "en": "(A) All 15 instances will share the traffic equally, with each instance processing a portion of the messages.",
+        "wg": []
+      },
+      {
+        "t": "(B) Kafka 會自動將 Topic 擴展為 15 個 Partitions 以匹配實例數量。",
+        "en": "(B) Kafka will automatically expand the Topic to 15 Partitions to match the number of instances.",
+        "wg": []
+      },
+      {
+        "t": "(C) 只有 10 個實例會被分配到 Partition 進行消費，其餘 5 個實例將處於閒置狀態（Idle）。",
+        "en": "(C) Only 10 instances will be assigned a Partition for consumption, and the remaining 5 instances will be in an idle state.",
+        "wg": [
+          {
+            "t": "閒置狀態",
+            "en": "idle state",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(D) 會有 5 個實例處理重複的訊息以增加可靠性。",
+        "en": "(D) 5 instances will process duplicate messages to increase reliability.",
+        "wg": []
+      }
+    ],
+    "answer": "C",
+    "why": {
+      "t": "在 Kafka 的 Consumer Group 機制中，一個 Partition 在同一時間只能被同一個 Group 內的一個 Consumer 實例消費。因此，若實例數（15）大於 Partition 數（10），多出的 5 個實例將分配不到任何 Partition 而閒置。",
+      "en": "In Kafka's Consumer Group mechanism, a Partition can only be consumed by one Consumer instance within the same Group at a time. Therefore, if the number of instances (15) exceeds the number of Partitions (10), the extra 5 instances will not be assigned any Partition and will remain idle.",
+      "wg": [
+        {
+          "t": "分配",
+          "en": "assign",
+          "ps": "V"
+        }
+      ]
+    },
+    "verified": "2026-03-18T20:34:58"
+  },
+  {
+    "no": "10",
+    "level": "intermediate",
+    "keywords": "Event Sourcing, Audit, System Design",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您的銀行系統需要具備完整的審計能力（Auditability），並且能夠在程式邏輯修復後「重播」過去的所有交易來修正帳戶餘額。",
+        "en": "Your banking system requires complete auditability and the ability to \"replay\" all past transactions to correct account balances after a logic fix.",
+        "wg": [
+          {
+            "t": "審計能力",
+            "en": "auditability",
+            "ps": "N"
+          },
+          {
+            "t": "重播",
+            "en": "replay",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "下列哪種架構模式最適合此需求？",
+        "en": "Which architectural pattern is best suited for this requirement?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) Event Sourcing (事件溯源)",
+        "en": "(A) Event Sourcing",
+        "wg": []
+      },
+      {
+        "t": "(B) Saga Pattern (傳奇模式)",
+        "en": "(B) Saga Pattern",
+        "wg": []
+      },
+      {
+        "t": "(C) CQRS (命令查詢職責分離)",
+        "en": "(C) CQRS (Command Query Responsibility Segregation)",
+        "wg": []
+      },
+      {
+        "t": "(D) Two-Phase Commit (2PC)",
+        "en": "(D) Two-Phase Commit (2PC)",
+        "wg": []
+      }
+    ],
+    "answer": "A",
+    "why": {
+      "t": "Event Sourcing 將狀態變更的「歷史事件」作為系統的 Source of Truth，而非僅儲存當前狀態。這允許系統透過重新執行事件日誌來重建狀態或進行時光回溯分析，完全符合重播與審計的需求。",
+      "en": "Event Sourcing treats the \"history of events\" (state changes) as the system's Source of Truth, rather than just storing the current state. This allows the system to reconstruct state or perform time-travel analysis by replaying the event log, perfectly matching the replay and audit requirements.",
+      "wg": [
+        {
+          "t": "時光回溯",
+          "en": "time-travel",
+          "ps": "Adj"
+        }
+      ]
+    },
+    "verified": "2026-03-18T20:34:58"
+  },
+  {
+    "no": "11",
+    "level": "advanced",
+    "keywords": "CDC, Debezium, Outbox Pattern, Performance",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在實作 Transactional Outbox Pattern 時，若使用「定期輪詢（Polling）」資料庫的方式來讀取待發送事件，可能會造成資料庫負載過高與延遲。",
+        "en": "When implementing the Transactional Outbox Pattern, using \"Periodic Polling\" of the database to read pending events can cause high database load and latency.",
+        "wg": [
+          {
+            "t": "定期輪詢",
+            "en": "periodic polling",
+            "ps": "N"
+          },
+          {
+            "t": "負載",
+            "en": "load",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "為了優化效能與即時性，下列哪種技術是最佳替代方案？",
+        "en": "To optimize performance and real-time capabilities, which of the following technologies is the best alternative?",
+        "wg": [
+          {
+            "t": "即時性",
+            "en": "real-time capabilities",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 在應用程式中使用 JPA `@PostPersist` 事件監聽器。",
+        "en": "(A) Use JPA `@PostPersist` event listeners in the application.",
+        "wg": []
+      },
+      {
+        "t": "(B) 使用 Log-based Change Data Capture (CDC) 工具（如 Debezium）。",
+        "en": "(B) Use Log-based Change Data Capture (CDC) tools (e.g., Debezium).",
+        "wg": []
+      },
+      {
+        "t": "(C) 將輪詢頻率縮短至 1 毫秒。",
+        "en": "(C) Shorten the polling frequency to 1 millisecond.",
+        "wg": []
+      },
+      {
+        "t": "(D) 改用 Redis 作為 Outbox 的儲存介質。",
+        "en": "(D) Switch to Redis as the storage medium for the Outbox.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "Log-based CDC（如 Debezium）直接讀取資料庫的 Transaction Log（如 MySQL Binlog），能以極低延遲捕捉變更並推送到 Kafka，完全避免了應用程式頻繁 Query 資料庫造成的效能損耗。",
+      "en": "Log-based CDC (e.g., Debezium) reads the database Transaction Log (e.g., MySQL Binlog) directly, capturing changes with extremely low latency and pushing them to Kafka, completely avoiding the performance overhead caused by frequent application queries to the database.",
+      "wg": [
+        {
+          "t": "效能損耗",
+          "en": "performance overhead",
+          "ps": "N"
+        }
+      ]
+    },
+    "verified": "2026-03-18T20:34:58"
+  },
+  {
+    "no": "12",
+    "level": "intermediate",
+    "keywords": "Observability, Distributed Tracing, Microservices",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "當您在除錯一個跨越多個微服務（Order -> Inventory -> Payment）的非同步流程時，發現 Log 分散且難以串聯。",
+        "en": "When debugging an asynchronous flow across multiple microservices (Order -> Inventory -> Payment), you find the logs are scattered and hard to correlate.",
+        "wg": [
+          {
+            "t": "串聯",
+            "en": "correlate",
+            "ps": "V"
+          },
+          {
+            "t": "分散",
+            "en": "scattered",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "為了有效追蹤單一請求的完整路徑，最關鍵的基礎建設是什麼？",
+        "en": "What is the most critical infrastructure for effectively tracking the complete path of a single request?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 集中式日誌管理 (Centralized Logging, e.g., ELK)。",
+        "en": "(A) Centralized Logging (e.g., ELK).",
+        "wg": []
+      },
+      {
+        "t": "(B) 分散式追蹤 (Distributed Tracing) 與 Trace ID 的傳遞。",
+        "en": "(B) Distributed Tracing and the propagation of Trace IDs.",
+        "wg": [
+          {
+            "t": "傳遞",
+            "en": "propagation",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) 服務網格 (Service Mesh)。",
+        "en": "(C) Service Mesh.",
+        "wg": []
+      },
+      {
+        "t": "(D) 嚴格的時間同步 (NTP)。",
+        "en": "(D) Strict time synchronization (NTP).",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "雖然集中式日誌很重要，但若沒有唯一的 **Trace ID** 在服務與訊息佇列間傳遞（Propagation），我們無法將分散在不同服務的 Log 聚合屬於同一個業務請求。Distributed Tracing 工具（如 Zipkin/Jaeger）正是為此設計。",
+      "en": "While centralized logging is important, without a unique **Trace ID** propagated across services and message queues, we cannot aggregate logs scattered across different services that belong to the same business request. Distributed Tracing tools (e.g., Zipkin/Jaeger) are designed exactly for this.",
+      "wg": [
+        {
+          "t": "聚合",
+          "en": "aggregate",
+          "ps": "V"
+        }
+      ]
+    },
+    "verified": "2026-03-18T20:34:58"
+  },
+  {
+    "no": "13",
+    "level": "intermediate",
+    "keywords": "Spring Boot, Kafka, Concurrency, Configuration",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您的一個 Spring Boot 應用程式實例（Instance）正在訂閱一個擁有 30 個 Partitions 的 Kafka Topic。",
+        "en": "A single instance of your Spring Boot application is subscribing to a Kafka Topic with 30 Partitions.",
+        "wg": []
+      },
+      {
+        "t": "目前的處理邏輯較慢，且您發現該實例只使用了一個執行緒在處理訊息。若希望在「單一實例」內平行處理來自不同 Partitions 的訊息，應調整哪個參數？",
+        "en": "The current processing logic is slow, and you notice the instance is using only one thread to process messages. If you want to process messages from different Partitions in parallel within a \"single instance\", which parameter should you adjust?",
+        "wg": [
+          {
+            "t": "平行處理",
+            "en": "process in parallel",
+            "ps": "V"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 增加 `spring.kafka.listener.concurrency` 的值。",
+        "en": "(A) Increase the value of `spring.kafka.listener.concurrency`.",
+        "wg": []
+      },
+      {
+        "t": "(B) 增加 `spring.kafka.consumer.max-poll-records` 的值。",
+        "en": "(B) Increase the value of `spring.kafka.consumer.max-poll-records`.",
+        "wg": []
+      },
+      {
+        "t": "(C) 在監聽方法上加上 `@Async` 註解。",
+        "en": "(C) Add the `@Async` annotation to the listener method.",
+        "wg": []
+      },
+      {
+        "t": "(D) 增加 Broker 端的 Partition 數量。",
+        "en": "(D) Increase the number of Partitions on the Broker side.",
+        "wg": []
+      }
+    ],
+    "answer": "A",
+    "why": {
+      "t": "`concurrency` 參數控制 Spring `ConcurrentKafkaListenerContainerFactory` 建立的 Consumer 執行緒數量。設定為 N 代表會啟動 N 個 Consumer 執行緒，每個執行緒負責一部分的 Partitions，從而實現單一應用內的平行消費。",
+      "en": "The `concurrency` parameter controls the number of Consumer threads created by Spring's `ConcurrentKafkaListenerContainerFactory`. Setting it to N means N Consumer threads will be started, each responsible for a subset of Partitions, thereby achieving parallel consumption within a single application.",
+      "wg": [
+        {
+          "t": "平行消費",
+          "en": "parallel consumption",
+          "ps": "N"
+        }
+      ]
+    },
+    "verified": "2026-03-18T20:34:58"
+  },
+  {
+    "no": "14",
+    "level": "intermediate",
+    "keywords": "Eventual Consistency, UX, Distributed Systems",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在事件驅動架構中，使用者建立訂單後立即被導向「我的訂單」列表頁，但卻發現新訂單沒有出現在列表中，直到重新整理幾秒後才出現。",
+        "en": "In an Event-Driven Architecture, after a user creates an order, they are immediately redirected to the \"My Orders\" list page, but the new order is missing. It only appears after refreshing a few seconds later.",
+        "wg": [
+          {
+            "t": "導向",
+            "en": "redirected",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "這通常是哪種系統屬性的表現，且應如何應對？",
+        "en": "Which system attribute does this typically represent, and how should it be handled?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 這是嚴重的資料遺失 Bug，必須立即修復資料庫同步機制。",
+        "en": "(A) This is a critical data loss bug; the database synchronization mechanism must be fixed immediately.",
+        "wg": []
+      },
+      {
+        "t": "(B) 這是「最終一致性 (Eventual Consistency)」的正常現象；應優化 UI/UX（如顯示處理中狀態）來管理使用者預期。",
+        "en": "(B) This is a normal phenomenon of \"Eventual Consistency\"; UI/UX should be optimized (e.g., showing a processing status) to manage user expectations.",
+        "wg": [
+          {
+            "t": "最終一致性",
+            "en": "Eventual Consistency",
+            "ps": "N"
+          },
+          {
+            "t": "預期",
+            "en": "expectations",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) 這是快取（Cache）設定錯誤，應停用所有快取。",
+        "en": "(C) This is a cache misconfiguration; all caching should be disabled.",
+        "wg": []
+      },
+      {
+        "t": "(D) 這是訊息佇列的吞吐量不足，應立即擴充 Broker。",
+        "en": "(D) This is due to insufficient throughput of the message queue; the Broker should be scaled up immediately.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "在 EDA 中，寫入（Command）與讀取模型（Query）通常是分離且非同步更新的（CQRS），因此存在延遲。這不是 Bug，而是分散式系統為了可用性與效能所做的 Trade-off。正確做法是透過 UI 設計（如 Optimistic UI 或 Loading 提示）來改善體驗。",
+      "en": "In EDA, the Write (Command) and Read (Query) models are often separated and updated asynchronously (CQRS), leading to latency. This is not a bug but a trade-off made for availability and performance in distributed systems. The correct approach is to improve the experience via UI design (e.g., Optimistic UI or Loading indicators).",
+      "wg": [
+        {
+          "t": "分離",
+          "en": "separated",
+          "ps": "Adj"
+        }
+      ]
+    },
+    "verified": "2026-03-18T20:34:58"
+  },
+  {
+    "no": "15",
+    "level": "advanced",
+    "keywords": "Delivery Semantics, Idempotency, Kafka, Side Effects",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "即使 Kafka 支援 `exactly-once` 語意（EOS），為什麼在設計 Consumer 時，我們仍然必須實作「冪等性（Idempotency）」邏輯？",
+        "en": "Even though Kafka supports `exactly-once` semantics (EOS), why must we still implement \"Idempotency\" logic when designing a Consumer?",
+        "wg": [
+          {
+            "t": "語意",
+            "en": "semantics",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "請選出最關鍵的原因。",
+        "en": "Please select the most critical reason.",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) Kafka 的 EOS 僅保證 Broker 內部的訊息不重複，無法保證 Consumer 執行外部副作用（如寫入資料庫、呼叫 API）時的原子性。",
+        "en": "(A) Kafka's EOS only guarantees no duplicates within the Broker; it cannot guarantee atomicity when the Consumer executes external side effects (e.g., writing to a DB, calling an API).",
+        "wg": [
+          {
+            "t": "副作用",
+            "en": "side effects",
+            "ps": "N"
+          },
+          {
+            "t": "原子性",
+            "en": "atomicity",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(B) Kafka 的 EOS 功能在跨 Availability Zone 時會失效。",
+        "en": "(B) Kafka's EOS feature fails when crossing Availability Zones.",
+        "wg": []
+      },
+      {
+        "t": "(C) 啟用 EOS 會導致效能下降 90%，實務上很少使用。",
+        "en": "(C) Enabling EOS causes a 90% performance drop, so it is rarely used in practice.",
+        "wg": []
+      },
+      {
+        "t": "(D) 只有 Java Client 支援 EOS，其他語言不支援。",
+        "en": "(D) Only the Java Client supports EOS; other languages do not.",
+        "wg": []
+      }
+    ],
+    "answer": "A",
+    "why": {
+      "t": "Kafka 的 Transaction 只能保證「Consume-Process-Produce」在 Kafka 內部的原子性。如果 Consumer 的業務邏輯是寫入外部資料庫，可能發生「資料庫寫入成功，但 Kafka Offset 提交失敗」的情況，導致訊息重新投遞。因此，應用層級的冪等性是處理副作用的唯一保障。",
+      "en": "Kafka Transactions only guarantee atomicity for \"Consume-Process-Produce\" within Kafka. If the Consumer's business logic involves writing to an external database, a scenario can occur where \"the DB write succeeds, but the Kafka Offset commit fails,\" causing message redelivery. Therefore, application-level idempotency is the only guarantee for handling side effects.",
+      "wg": [
+        {
+          "t": "重新投遞",
+          "en": "redelivery",
+          "ps": "N"
+        }
+      ]
+    },
+    "verified": "2026-03-18T20:34:58"
+  }
+]

@@ -1,0 +1,1325 @@
+[
+  {
+    "no": "1",
+    "level": "intermediate",
+    "keywords": "SCM Polling, Webhook, Performance, Git, Rate Limiting",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您的團隊維護著 500 多個微服務專案，近期發現 Git Server 經常出現回應緩慢甚至限流 (Rate Limiting) 的狀況，且 Jenkins Master 的 CPU 負載居高不下。",
+        "en": "Your team maintains over 500 microservice projects. Recently, you noticed that the Git Server often responds slowly or even imposes Rate Limiting, and the Jenkins Master CPU load remains high.",
+        "wg": [
+          {
+            "t": "微服務",
+            "en": "microservice",
+            "ps": "N"
+          },
+          {
+            "t": "限流",
+            "en": "rate limiting",
+            "ps": "N"
+          },
+          {
+            "t": "負載",
+            "en": "load",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "經檢查，發現大多數專案的 Jenkinsfile 中都設定了 `triggers { pollSCM('H/2 * * * *') }`。",
+        "en": "Upon inspection, it was found that most projects have `triggers { pollSCM('H/2 * * * *') }` configured in their Jenkinsfiles.",
+        "wg": []
+      },
+      {
+        "t": "為了根本解決此效能瓶頸並提升觸發的即時性，您應該採取什麼行動？",
+        "en": "To fundamentally resolve this performance bottleneck and improve trigger responsiveness, what action should you take?",
+        "wg": [
+          {
+            "t": "即時性",
+            "en": "responsiveness",
+            "ps": "N"
+          },
+          {
+            "t": "瓶頸",
+            "en": "bottleneck",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 將輪詢間隔調整為 `H/30 * * * *` 以減少請求頻率。",
+        "en": "(A) Adjust the polling interval to `H/30 * * * *` to reduce request frequency.",
+        "wg": []
+      },
+      {
+        "t": "(B) 移除 `pollSCM`，全面改用 Git Provider (如 GitHub/GitLab) 的 Webhook 機制來主動觸發 Jenkins。",
+        "en": "(B) Remove `pollSCM` and fully switch to the Webhook mechanism of the Git Provider (e.g., GitHub/GitLab) to actively trigger Jenkins.",
+        "wg": [
+          {
+            "t": "主動觸發",
+            "en": "actively trigger",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(C) 增加 Jenkins Master 的 CPU 資源並升級 Git Server 硬體。",
+        "en": "(C) Increase the CPU resources of the Jenkins Master and upgrade the Git Server hardware.",
+        "wg": []
+      },
+      {
+        "t": "(D) 在 Jenkins 中設定隨機延遲 (Quiet Period) 以錯開建置時間。",
+        "en": "(D) Configure a random delay (Quiet Period) in Jenkins to stagger build times.",
+        "wg": [
+          {
+            "t": "錯開",
+            "en": "stagger",
+            "ps": "V"
+          }
+        ]
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "Polling (Pull 模型) 在大規模專案下會造成 'SCM Hammering'，浪費大量資源在檢查「沒有變更」的狀態。Webhook (Push 模型) 是事件驅動的，僅在有變更時觸發，能顯著降低負載並實現近乎即時的建置。",
+      "en": "Polling (Pull model) causes 'SCM Hammering' in large-scale projects, wasting significant resources checking for 'no changes'. Webhooks (Push model) are event-driven, triggering only when changes occur, significantly reducing load and achieving near real-time builds.",
+      "wg": [
+        {
+          "t": "事件驅動",
+          "en": "event-driven",
+          "ps": "Adj"
+        },
+        {
+          "t": "顯著",
+          "en": "significantly",
+          "ps": "Adv"
+        }
+      ]
+    },
+    "verified": "2026-03-18T21:00:43"
+  },
+  {
+    "no": "2",
+    "level": "advanced",
+    "keywords": "SonarQube, Pipeline, Asynchronous, Quality Gate, Debugging",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "stage('SonarQube Analysis') {\n    steps {\n        withSonarQubeEnv('MySonarServer') {\n            sh 'mvn sonar:sonar'\n        }\n    }\n}\n\nstage('Build') {\n    steps {\n        echo 'Building...'\n    }\n}",
+    "question": [
+      {
+        "t": "請檢視上方的 Jenkins Pipeline 片段。開發團隊回報，即使程式碼品質極差（例如充滿 Bug 與漏洞），Pipeline 仍然顯示「建置成功」並繼續執行後續步驟。",
+        "en": "Please review the Jenkins Pipeline snippet above. The development team reports that even if the code quality is extremely poor (e.g., full of bugs and vulnerabilities), the Pipeline still shows 'Build Success' and proceeds to subsequent steps.",
+        "wg": [
+          {
+            "t": "漏洞",
+            "en": "vulnerabilities",
+            "ps": "N"
+          },
+          {
+            "t": "後續步驟",
+            "en": "subsequent steps",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "造成此現象的根本原因為何？",
+        "en": "What is the root cause of this phenomenon?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) `mvn sonar:sonar` 命令執行失敗，但 `sh` 步驟預設忽略錯誤。",
+        "en": "(A) The `mvn sonar:sonar` command failed, but the `sh` step ignores errors by default.",
+        "wg": []
+      },
+      {
+        "t": "(B) 缺少 `waitForQualityGate` 步驟。`withSonarQubeEnv` 僅負責注入變數與上傳報告，分析是在 Server 端非同步進行的。",
+        "en": "(B) The `waitForQualityGate` step is missing. `withSonarQubeEnv` only handles variable injection and report upload; analysis is performed asynchronously on the Server side.",
+        "wg": [
+          {
+            "t": "非同步",
+            "en": "asynchronously",
+            "ps": "Adv"
+          },
+          {
+            "t": "注入",
+            "en": "injection",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) Jenkins 無法連線到 SonarQube Server，因此自動略過檢查。",
+        "en": "(C) Jenkins cannot connect to the SonarQube Server, so it automatically skips the check.",
+        "wg": [
+          {
+            "t": "略過",
+            "en": "skips",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(D) 需要在 `withSonarQubeEnv` 區塊內明確撰寫 `if (quality < threshold) error()` 的邏輯。",
+        "en": "(D) Logic like `if (quality < threshold) error()` needs to be explicitly written inside the `withSonarQubeEnv` block.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "SonarQube 的掃描機制是非同步的。Scanner 上傳報告後，Jenkins 必須暫停並等待 Server 透過 Webhook 回傳 Quality Gate 的結果（Pass/Fail）。若沒有 `waitForQualityGate`，Pipeline 不會知道分析結果。",
+      "en": "SonarQube's scanning mechanism is asynchronous. After the Scanner uploads the report, Jenkins must pause and wait for the Server to return the Quality Gate result (Pass/Fail) via Webhook. Without `waitForQualityGate`, the Pipeline remains unaware of the analysis result.",
+      "wg": [
+        {
+          "t": "暫停",
+          "en": "pause",
+          "ps": "V"
+        },
+        {
+          "t": "回傳",
+          "en": "return",
+          "ps": "V"
+        }
+      ]
+    },
+    "verified": "2026-03-18T21:00:43"
+  },
+  {
+    "no": "3",
+    "level": "intermediate",
+    "keywords": "Artifact Management, Anti-pattern, Disk Space, Artifactory",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您的 Jenkins Master 經常發生磁碟空間耗盡 (Disk Space Exhaustion) 的警報，且備份作業耗時過長。",
+        "en": "Your Jenkins Master frequently triggers Disk Space Exhaustion alerts, and backup operations take too long.",
+        "wg": [
+          {
+            "t": "耗盡",
+            "en": "exhaustion",
+            "ps": "N"
+          },
+          {
+            "t": "備份",
+            "en": "backup",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "經檢查發現，許多專案使用 `archiveArtifacts` 來保存大型的建置產出物 (如 WAR 檔或 Docker Image tarball)。",
+        "en": "Upon inspection, it was found that many projects use `archiveArtifacts` to store large build artifacts (such as WAR files or Docker Image tarballs).",
+        "wg": [
+          {
+            "t": "產出物",
+            "en": "artifacts",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "作為資深工程師，您應建議採取何種架構改善方案？",
+        "en": "As a senior engineer, what architectural improvement would you recommend?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 為 Jenkins Master 掛載更大的 SSD 硬碟。",
+        "en": "(A) Mount a larger SSD drive for the Jenkins Master.",
+        "wg": []
+      },
+      {
+        "t": "(B) 停止使用 Jenkins 作為 Artifact Store。改用 `rtUpload` (或類似插件) 將產出物推送到專用的 Artifact Repository (如 Artifactory/Nexus)，並設定 Build Discarder。",
+        "en": "(B) Stop using Jenkins as an Artifact Store. Switch to `rtUpload` (or similar plugins) to push artifacts to a dedicated Artifact Repository (e.g., Artifactory/Nexus) and configure a Build Discarder.",
+        "wg": [
+          {
+            "t": "專用的",
+            "en": "dedicated",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "(C) 撰寫 Script 定期壓縮 `jobs` 目錄下的 artifacts。",
+        "en": "(C) Write a script to periodically compress artifacts in the `jobs` directory.",
+        "wg": []
+      },
+      {
+        "t": "(D) 限制每個專案只能保留最近 1 次的建置紀錄。",
+        "en": "(D) Restrict each project to keep only the most recent build record.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "Jenkins 不適合長期儲存大型二進位檔 (Binary)。最佳實務是將 Artifacts 卸載至專門的儲存庫 (Artifactory/Nexus/S3)，Jenkins 僅保留 Logs 與 Metadata，以保持輕量與可維護性。",
+      "en": "Jenkins is not suitable for long-term storage of large binaries. The best practice is to offload Artifacts to a dedicated repository (Artifactory/Nexus/S3), with Jenkins retaining only Logs and Metadata to maintain lightweight and maintainability.",
+      "wg": [
+        {
+          "t": "卸載",
+          "en": "offload",
+          "ps": "V"
+        },
+        {
+          "t": "可維護性",
+          "en": "maintainability",
+          "ps": "N"
+        }
+      ]
+    },
+    "verified": "2026-03-18T21:00:43"
+  },
+  {
+    "no": "4",
+    "level": "advanced",
+    "keywords": "Security, Webhook, HMAC, Network",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "為了支援來自 GitHub 的 Webhook 觸發，您將 Jenkins 開放給外部網路存取（透過 Reverse Proxy）。",
+        "en": "To support Webhook triggers from GitHub, you have exposed Jenkins to the external network (via Reverse Proxy).",
+        "wg": [
+          {
+            "t": "外部網路",
+            "en": "external network",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "為了防止惡意攻擊者偽造 Webhook 請求觸發不必要的建置，下列哪項是最標準的安全實踐？",
+        "en": "To prevent malicious attackers from forging Webhook requests to trigger unnecessary builds, which of the following is the standard security practice?",
+        "wg": [
+          {
+            "t": "偽造",
+            "en": "forging",
+            "ps": "V"
+          },
+          {
+            "t": "惡意攻擊者",
+            "en": "malicious attackers",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 檢查 HTTP Header 中的 User-Agent 是否包含 'GitHub'。",
+        "en": "(A) Check if the User-Agent in the HTTP Header contains 'GitHub'.",
+        "wg": []
+      },
+      {
+        "t": "(B) 在 GitHub 與 Jenkins 之間設定 Shared Secret，並驗證 Payload 的 HMAC 簽章 (Signature)。",
+        "en": "(B) Configure a Shared Secret between GitHub and Jenkins, and verify the HMAC signature of the Payload.",
+        "wg": [
+          {
+            "t": "簽章",
+            "en": "signature",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) 定期更換 Webhook URL 的路徑，使其難以被猜測。",
+        "en": "(C) Periodically change the Webhook URL path to make it hard to guess.",
+        "wg": [
+          {
+            "t": "猜測",
+            "en": "guess",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(D) 僅允許 HTTP POST 方法，拒絕 GET 請求。",
+        "en": "(D) Only allow HTTP POST methods and reject GET requests.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "User-Agent 與 IP 都可以被偽造。使用 Shared Secret 進行 HMAC 簽章驗證是確保 Payload 確實來自 GitHub 且未被竄改的密碼學標準作法。",
+      "en": "User-Agent and IP can both be spoofed. Using a Shared Secret for HMAC signature verification is the cryptographic standard practice to ensure the Payload truly originates from GitHub and has not been tampered with.",
+      "wg": [
+        {
+          "t": "竄改",
+          "en": "tampered with",
+          "ps": "V"
+        },
+        {
+          "t": "密碼學",
+          "en": "cryptographic",
+          "ps": "Adj"
+        }
+      ]
+    },
+    "verified": "2026-03-18T21:00:43"
+  },
+  {
+    "no": "5",
+    "level": "advanced",
+    "keywords": "Quality Gate, Resilience, Fail Closed, Strategy",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在設計企業級 CI/CD Pipeline 時，若負責程式碼品質掃描的外部服務 (如 SonarQube) 發生當機無法回應，針對 Production (Master/Main) 分支的部署流程，應採取何種策略？",
+        "en": "When designing an enterprise-grade CI/CD Pipeline, if the external service responsible for code quality scanning (e.g., SonarQube) crashes and cannot respond, what strategy should be adopted for the deployment process of the Production (Master/Main) branch?",
+        "wg": [
+          {
+            "t": "當機",
+            "en": "crashes",
+            "ps": "V"
+          },
+          {
+            "t": "策略",
+            "en": "strategy",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) Fail Open：為了不阻礙發布，自動跳過品質檢查並繼續部署。",
+        "en": "(A) Fail Open: To avoid blocking the release, automatically skip the quality check and proceed with deployment.",
+        "wg": [
+          {
+            "t": "阻礙",
+            "en": "blocking",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(B) Fail Closed：為了確保品質，Pipeline 應視為失敗 (Failure)，並通知維運團隊介入。",
+        "en": "(B) Fail Closed: To ensure quality, the Pipeline should be considered a failure, and the operations team should be notified to intervene.",
+        "wg": [
+          {
+            "t": "介入",
+            "en": "intervene",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(C) Infinite Wait：讓 Pipeline 無限期等待，直到服務恢復。",
+        "en": "(C) Infinite Wait: Let the Pipeline wait indefinitely until the service is restored.",
+        "wg": []
+      },
+      {
+        "t": "(D) Retry Loop：每隔 1 秒重試一次，直到成功。",
+        "en": "(D) Retry Loop: Retry every 1 second until successful.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "對於生產環境，安全性與品質優先於速度。採用 Fail Closed (預設失敗) 策略可防止未經檢查的程式碼進入生產環境。緊急情況下可由人工介入 (Manual Override)，但不應自動放行。",
+      "en": "For production environments, security and quality take precedence over speed. Adopting a Fail Closed strategy prevents unchecked code from entering production. In emergencies, manual intervention (Manual Override) can be used, but automatic release should not be allowed.",
+      "wg": [
+        {
+          "t": "優先於",
+          "en": "take precedence over",
+          "ps": "V"
+        },
+        {
+          "t": "放行",
+          "en": "release/allow",
+          "ps": "V"
+        }
+      ]
+    },
+    "verified": "2026-03-18T21:00:43"
+  },
+  {
+    "no": "6",
+    "level": "intermediate",
+    "keywords": "ChatOps, MTTR, Notification, Feedback Loop",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您的開發團隊反應，目前的 CI/CD 通知過於頻繁且缺乏重點（Alert Fatigue），導致大家經常忽略建置失敗的訊息。",
+        "en": "Your development team reports that current CI/CD notifications are too frequent and lack focus (Alert Fatigue), causing them to often ignore build failure messages.",
+        "wg": [
+          {
+            "t": "警報疲勞",
+            "en": "Alert Fatigue",
+            "ps": "N"
+          },
+          {
+            "t": "建置失敗",
+            "en": "build failure",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "為了縮短平均修復時間 (MTTR) 並建立有效的 ChatOps 回饋迴圈，下列哪項改進措施最為適當？",
+        "en": "To reduce Mean Time To Resolution (MTTR) and establish an effective ChatOps feedback loop, which of the following improvements is most appropriate?",
+        "wg": [
+          {
+            "t": "平均修復時間",
+            "en": "Mean Time To Resolution (MTTR)",
+            "ps": "N"
+          },
+          {
+            "t": "回饋迴圈",
+            "en": "feedback loop",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 僅在建置成功時發送通知，失敗時則不發送以免打擾團隊。",
+        "en": "(A) Only send notifications when the build succeeds, and do not send them on failure to avoid disturbing the team.",
+        "wg": []
+      },
+      {
+        "t": "(B) 增加通知的頻率，每 5 分鐘重送一次失敗訊息直到有人修復為止。",
+        "en": "(B) Increase the frequency of notifications by resending failure messages every 5 minutes until someone fixes it.",
+        "wg": []
+      },
+      {
+        "t": "(C) 設計具備上下文感知 (Context-aware) 的通知，包含 Commit 作者、錯誤摘要與 Log 連結，並直接標記 (Tag) 相關人員。",
+        "en": "(C) Design context-aware notifications that include the Commit author, error summary, and Log link, and directly tag the relevant personnel.",
+        "wg": [
+          {
+            "t": "上下文感知",
+            "en": "Context-aware",
+            "ps": "Adj"
+          },
+          {
+            "t": "標記",
+            "en": "tag",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(D) 將所有通知改為電子郵件形式，並強制所有開發者訂閱。",
+        "en": "(D) Switch all notifications to email format and mandate that all developers subscribe.",
+        "wg": []
+      }
+    ],
+    "answer": "C",
+    "why": {
+      "t": "ChatOps 的核心在於提供「可行動的資訊 (Actionable Information)」。單純的報錯只會製造噪音；包含上下文（誰破壞的、哪裡錯了、Log 在哪）的通知能顯著降低 MTTR。",
+      "en": "The core of ChatOps is providing 'Actionable Information'. Generic error reports just create noise; notifications containing context (who broke it, what went wrong, where the logs are) significantly reduce MTTR.",
+      "wg": [
+        {
+          "t": "可行動的資訊",
+          "en": "Actionable Information",
+          "ps": "N"
+        },
+        {
+          "t": "噪音",
+          "en": "noise",
+          "ps": "N"
+        }
+      ]
+    },
+    "verified": "2026-03-18T21:00:43"
+  },
+  {
+    "no": "7",
+    "level": "advanced",
+    "keywords": "Traceability, Artifact Management, Build Info, Metadata",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在生產環境發生事故時，您手邊只有一個正在運行的 JAR 檔案，需要立即找出該檔案對應的原始碼版本 (Git Commit Hash) 與建置紀錄。",
+        "en": "During a production incident, you only have a running JAR file and need to immediately identify the corresponding source code version (Git Commit Hash) and build logs.",
+        "wg": [
+          {
+            "t": "生產環境",
+            "en": "production environment",
+            "ps": "N"
+          },
+          {
+            "t": "事故",
+            "en": "incident",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "為了確保這種「可追溯性 (Traceability)」，在設計 Jenkins Pipeline 的 Artifact Upload 階段時，應採取何種最佳實務？",
+        "en": "To ensure this 'Traceability', what best practice should be adopted during the Artifact Upload stage of the Jenkins Pipeline design?",
+        "wg": [
+          {
+            "t": "可追溯性",
+            "en": "Traceability",
+            "ps": "N"
+          },
+          {
+            "t": "最佳實務",
+            "en": "best practice",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 將 JAR 檔名重新命名為包含日期的格式 (例如 `app-20231010.jar`)。",
+        "en": "(A) Rename the JAR file to a format that includes the date (e.g., `app-20231010.jar`).",
+        "wg": []
+      },
+      {
+        "t": "(B) 使用 Artifactory/Nexus 插件上傳時，同步發佈 Build Info (Metadata)，將 Jenkins Build Number、Git Commit 與 Artifact 關聯起來。",
+        "en": "(B) When uploading using the Artifactory/Nexus plugin, simultaneously publish Build Info (Metadata) to link the Jenkins Build Number, Git Commit, and Artifact.",
+        "wg": [
+          {
+            "t": "關聯",
+            "en": "link/associate",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(C) 將建置好的 JAR 檔直接 Commit 回 Git Repository 中保存。",
+        "en": "(C) Commit the built JAR file directly back into the Git Repository for storage.",
+        "wg": []
+      },
+      {
+        "t": "(D) 在 Jenkins Master 上保留所有歷史建置的 Workspace，以便隨時搜尋。",
+        "en": "(D) Retain Workspaces for all historical builds on the Jenkins Master for searching at any time.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "單純儲存二進位檔是不夠的。透過發佈 Build Info (Metadata)，可以在 Artifact Repository 中建立二進位檔與 CI 流程的雙向連結，這是企業級合規與除錯的關鍵。",
+      "en": "Simply storing binaries is not enough. By publishing Build Info (Metadata), you establish a two-way link between the binary and the CI process in the Artifact Repository, which is critical for enterprise compliance and debugging.",
+      "wg": [
+        {
+          "t": "二進位檔",
+          "en": "binary",
+          "ps": "N"
+        },
+        {
+          "t": "合規",
+          "en": "compliance",
+          "ps": "N"
+        }
+      ]
+    },
+    "verified": "2026-03-18T21:00:43"
+  },
+  {
+    "no": "8",
+    "level": "intermediate",
+    "keywords": "Pipeline, Timeout, Resilience, Quality Gate",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "stage('Quality Gate') {\n    steps {\n        waitForQualityGate abortPipeline: true\n    }\n}",
+    "question": [
+      {
+        "t": "您觀察到某個 Jenkins Job 偶爾會無限期地掛在 `Quality Gate` 階段，導致 Executor 被佔用數小時。",
+        "en": "You observe that a certain Jenkins Job occasionally hangs indefinitely at the `Quality Gate` stage, causing the Executor to be occupied for hours.",
+        "wg": [
+          {
+            "t": "無限期地",
+            "en": "indefinitely",
+            "ps": "Adv"
+          },
+          {
+            "t": "掛在",
+            "en": "hangs at",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "經調查，這是因為外部掃描服務 (如 SonarQube) 在極少數情況下未能成功發送 Webhook 回調。針對上方的程式碼片段，您應如何改進以提升系統韌性？",
+        "en": "Investigation reveals this is because the external scanning service (e.g., SonarQube) fails to send the Webhook callback in rare cases. How should you improve the code snippet above to enhance system resilience?",
+        "wg": [
+          {
+            "t": "回調",
+            "en": "callback",
+            "ps": "N"
+          },
+          {
+            "t": "系統韌性",
+            "en": "system resilience",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 將 `abortPipeline` 設為 `false`，忽略品質閘門的結果。",
+        "en": "(A) Set `abortPipeline` to `false` to ignore the result of the Quality Gate.",
+        "wg": []
+      },
+      {
+        "t": "(B) 在 `waitForQualityGate` 外層包裹一個 `timeout` 區塊，設定合理的等待上限。",
+        "en": "(B) Wrap `waitForQualityGate` in a `timeout` block and set a reasonable waiting limit.",
+        "wg": [
+          {
+            "t": "包裹",
+            "en": "wrap",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(C) 改用 `sleep` 指令替代 `waitForQualityGate`，固定等待 5 分鐘。",
+        "en": "(C) Replace `waitForQualityGate` with a `sleep` command to wait for a fixed 5 minutes.",
+        "wg": []
+      },
+      {
+        "t": "(D) 增加 Jenkins Master 的記憶體配置，以容納更多掛起的 Job。",
+        "en": "(D) Increase the memory allocation of the Jenkins Master to accommodate more hanging jobs.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "依賴外部事件觸發的步驟 (如 Webhook Wait) 必須始終設定 `timeout`。這是防止外部系統故障導致本地資源耗盡的防禦性程式設計原則。",
+      "en": "Steps that rely on external event triggers (like Webhook Wait) must always have a `timeout` configured. This is a defensive programming principle to prevent external system failures from exhausting local resources.",
+      "wg": [
+        {
+          "t": "防禦性程式設計",
+          "en": "defensive programming",
+          "ps": "N"
+        },
+        {
+          "t": "資源耗盡",
+          "en": "resource exhaustion",
+          "ps": "N"
+        }
+      ]
+    },
+    "verified": "2026-03-18T21:00:43"
+  },
+  {
+    "no": "9",
+    "level": "advanced",
+    "keywords": "Microservices, Dependency Management, Downstream Triggers, Automation",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在微服務架構中，您維護著一個被多個服務共用的核心函式庫 (Shared Library)。當這個函式庫發布新版本時，您希望所有依賴它的下游服務能自動觸發建置與測試，以儘早發現相容性問題。",
+        "en": "In a microservices architecture, you maintain a Shared Library used by multiple services. When a new version of this library is released, you want all downstream services depending on it to automatically trigger builds and tests to detect compatibility issues early.",
+        "wg": [
+          {
+            "t": "核心函式庫",
+            "en": "Shared Library",
+            "ps": "N"
+          },
+          {
+            "t": "相容性問題",
+            "en": "compatibility issues",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "下列哪種 Jenkins 設計模式最能解決此問題並避免「相依性地獄 (Dependency Hell)」？",
+        "en": "Which of the following Jenkins design patterns best solves this problem and avoids 'Dependency Hell'?",
+        "wg": [
+          {
+            "t": "相依性地獄",
+            "en": "Dependency Hell",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 在下游服務的 Pipeline 中設定每小時 Polling 核心函式庫的 Git Repo。",
+        "en": "(A) Configure the downstream services' Pipelines to poll the Shared Library's Git Repo every hour.",
+        "wg": []
+      },
+      {
+        "t": "(B) 在核心函式庫的 Pipeline 成功後，使用 `build job` 步驟或 Webhook 機制主動觸發下游服務的 Pipeline。",
+        "en": "(B) After the Shared Library Pipeline succeeds, actively trigger the downstream services' Pipelines using the `build job` step or a Webhook mechanism.",
+        "wg": [
+          {
+            "t": "主動觸發",
+            "en": "actively trigger",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(C) 將所有微服務合併到一個巨大的 Monorepo 中，每次 Commit 都重建所有專案。",
+        "en": "(C) Merge all microservices into a massive Monorepo and rebuild all projects with every commit.",
+        "wg": []
+      },
+      {
+        "t": "(D) 要求開發人員在更新函式庫後，手動去點擊所有相關服務的建置按鈕。",
+        "en": "(D) Require developers to manually click the build buttons for all related services after updating the library.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "這是「上游觸發下游 (Upstream triggers Downstream)」的經典應用。透過自動化觸發，可以確保核心庫的變更即時在整合層級被驗證，而非等到下游團隊下次手動建置時才發現錯誤。",
+      "en": "This is a classic application of 'Upstream triggers Downstream'. By automating triggers, you ensure that changes in the core library are validated at the integration level immediately, rather than waiting for the downstream team to discover errors during their next manual build.",
+      "wg": [
+        {
+          "t": "上游",
+          "en": "upstream",
+          "ps": "N"
+        },
+        {
+          "t": "下游",
+          "en": "downstream",
+          "ps": "N"
+        }
+      ]
+    },
+    "verified": "2026-03-19T09:04:15"
+  },
+  {
+    "no": "10",
+    "level": "intermediate",
+    "keywords": "Security, Credentials Binding, Best Practices, Secrets Management",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您需要在 Jenkins Pipeline 的 Shell Script (`sh`) 步驟中呼叫外部 API，該 API 需要一組私密的 Token。",
+        "en": "You need to call an external API within a Shell Script (`sh`) step of a Jenkins Pipeline, and the API requires a private Token.",
+        "wg": [
+          {
+            "t": "私密的",
+            "en": "private/secret",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "為了符合安全性最佳實務，應如何將此 Token 傳遞給 Script？",
+        "en": "To comply with security best practices, how should this Token be passed to the script?",
+        "wg": [
+          {
+            "t": "符合",
+            "en": "comply with",
+            "ps": "V"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 直接將 Token 硬編碼 (Hardcode) 在 Jenkinsfile 的 `environment` 區塊中。",
+        "en": "(A) Hardcode the Token directly in the `environment` block of the Jenkinsfile.",
+        "wg": [
+          {
+            "t": "硬編碼",
+            "en": "Hardcode",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(B) 將 Token 存放在 Git Repository 的一個 `config.properties` 檔案中並加密。",
+        "en": "(B) Store the Token in a `config.properties` file within the Git Repository and encrypt it.",
+        "wg": []
+      },
+      {
+        "t": "(C) 使用 Jenkins Credentials Plugin 管理 Token，並透過 `credentials()` 方法或 `withCredentials` 區塊注入為環境變數。",
+        "en": "(C) Use the Jenkins Credentials Plugin to manage the Token and inject it as an environment variable via the `credentials()` method or `withCredentials` block.",
+        "wg": [
+          {
+            "t": "注入",
+            "en": "inject",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(D) 透過 Jenkins 全域設定的環境變數 (Global Environment Variables) 設定，讓所有 Job 都能讀取。",
+        "en": "(D) Set it via Jenkins Global Environment Variables so that all Jobs can read it.",
+        "wg": []
+      }
+    ],
+    "answer": "C",
+    "why": {
+      "t": "絕對禁止將機密資訊寫入版本控制系統 (Jenkinsfile)。使用 Credentials Binding 可以確保 Token 僅在執行期間注入記憶體，且在 Log 中會被自動遮罩 (Masked)。",
+      "en": "It is strictly forbidden to write secrets into the version control system (Jenkinsfile). Using Credentials Binding ensures that the Token is injected into memory only during execution and is automatically masked in the logs.",
+      "wg": [
+        {
+          "t": "版本控制系統",
+          "en": "version control system",
+          "ps": "N"
+        },
+        {
+          "t": "遮罩",
+          "en": "masked",
+          "ps": "V"
+        }
+      ]
+    },
+    "verified": "2026-03-19T09:04:15"
+  },
+  {
+    "no": "chapter07-q11",
+    "level": "intermediate",
+    "keywords": "Pipeline, Workspace, CleanUp, Best Practices",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "pipeline {\n    agent any\n    stages {\n        stage('Build') {\n            steps {\n                sh 'make build'\n            }\n        }\n    }\n    post {\n        success {\n            cleanWs()\n        }\n    }\n}",
+    "question": [
+      {
+        "t": "請檢視上述的 Pipeline 片段，該設定在「建置成功」時會自動清理工作區 (Workspace)。",
+        "en": "Please review the Pipeline snippet above, which is configured to automatically clean the workspace upon \"Build Success\".",
+        "wg": [
+          {
+            "t": "工作區",
+            "en": "workspace",
+            "ps": "N"
+          },
+          {
+            "t": "片段",
+            "en": "snippet",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "然而，在實務維運中，此設定導致 Jenkins Agent 的磁碟空間經常在建置失敗後被佔滿。",
+        "en": "However, in operational practice, this configuration causes the Jenkins Agent's disk space to frequently fill up after build failures.",
+        "wg": [
+          {
+            "t": "實務維運",
+            "en": "operational practice",
+            "ps": "N"
+          },
+          {
+            "t": "佔滿",
+            "en": "fill up",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "為了確保無論建置結果為何都能釋放資源，您應該如何修正此 Pipeline？",
+        "en": "To ensure resources are released regardless of the build result, how should you modify this Pipeline?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 將 `cleanWs()` 移動到 `post { always { ... } }` 區塊中。",
+        "en": "(A) Move `cleanWs()` into the `post { always { ... } }` block.",
+        "wg": []
+      },
+      {
+        "t": "(B) 在 `Build` 階段的 `steps` 開頭加入 `cleanWs()`。",
+        "en": "(B) Add `cleanWs()` at the beginning of the `steps` in the `Build` stage.",
+        "wg": []
+      },
+      {
+        "t": "(C) 設定 Jenkins Master 的全域 `Discard Old Builds` 策略。",
+        "en": "(C) Configure the global `Discard Old Builds` policy on the Jenkins Master.",
+        "wg": []
+      },
+      {
+        "t": "(D) 使用 `timeout` 指令強制終止卡住的建置。",
+        "en": "(D) Use the `timeout` directive to forcibly terminate stuck builds.",
+        "wg": []
+      }
+    ],
+    "answer": "A",
+    "why": {
+      "t": "在 Declarative Pipeline 中，`post { always { ... } }` 區塊保證無論 Pipeline 成功、失敗或被中止都會執行。將 `cleanWs()` 放在此處是防止 Agent 磁碟空間耗盡的最佳實務。",
+      "en": "In Declarative Pipeline, the `post { always { ... } }` block guarantees execution regardless of whether the Pipeline succeeds, fails, or is aborted. Placing `cleanWs()` here is a best practice to prevent Agent disk space exhaustion.",
+      "wg": [
+        {
+          "t": "中止",
+          "en": "aborted",
+          "ps": "V"
+        },
+        {
+          "t": "耗盡",
+          "en": "exhaustion",
+          "ps": "N"
+        }
+      ]
+    },
+    "verified": "2026-03-19T09:04:15"
+  },
+  {
+    "no": "chapter07-q12",
+    "level": "advanced",
+    "keywords": "Integration, Webhook, JIRA, Automation, Trigger",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您的團隊希望實現更進階的自動化：當 JIRA 上的 Ticket 狀態變更為「Ready for QA」時，自動觸發 Jenkins 執行對應的整合測試 Pipeline。",
+        "en": "Your team wants to implement advanced automation: automatically trigger a Jenkins integration test pipeline when a JIRA ticket status changes to \"Ready for QA\".",
+        "wg": [
+          {
+            "t": "整合測試",
+            "en": "integration test",
+            "ps": "N"
+          },
+          {
+            "t": "觸發",
+            "en": "trigger",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "由於觸發來源並非 Git Server，標準的 SCM Webhook 無法運作。",
+        "en": "Since the trigger source is not a Git Server, standard SCM Webhooks will not work.",
+        "wg": []
+      },
+      {
+        "t": "下列哪種機制最適合用來接收此類外部系統的 JSON Payload 並觸發建置？",
+        "en": "Which of the following mechanisms is best suited to receive JSON Payloads from such external systems and trigger a build?",
+        "wg": [
+          {
+            "t": "外部系統",
+            "en": "external system",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 設定每分鐘執行的 SCM Polling 來檢查 JIRA API。",
+        "en": "(A) Configure SCM Polling to run every minute to check the JIRA API.",
+        "wg": []
+      },
+      {
+        "t": "(B) 使用 Generic Webhook Trigger 插件來解析 Payload 並提取變數。",
+        "en": "(B) Use the Generic Webhook Trigger plugin to parse the Payload and extract variables.",
+        "wg": [
+          {
+            "t": "提取",
+            "en": "extract",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(C) 在 JIRA 中設定 Git Commit Hook，模擬 Git Push 事件。",
+        "en": "(C) Configure a Git Commit Hook in JIRA to simulate a Git Push event.",
+        "wg": [
+          {
+            "t": "模擬",
+            "en": "simulate",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(D) 開放 Jenkins CLI 端口，讓 JIRA 透過 SSH 觸發建置。",
+        "en": "(D) Open the Jenkins CLI port to allow JIRA to trigger builds via SSH.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "Generic Webhook Trigger 插件專門設計用於接收來自非 Git 系統（如 JIRA, Docker Hub）的 Webhook，並能透過 JSONPath/XPath 解析 Payload 中的資料作為環境變數傳遞給 Pipeline。",
+      "en": "The Generic Webhook Trigger plugin is specifically designed to receive Webhooks from non-Git systems (like JIRA, Docker Hub) and can parse data from the Payload via JSONPath/XPath to pass as environment variables to the Pipeline.",
+      "wg": [
+        {
+          "t": "專門設計",
+          "en": "specifically designed",
+          "ps": "V"
+        }
+      ]
+    },
+    "verified": "2026-03-19T09:04:15"
+  },
+  {
+    "no": "chapter07-q13",
+    "level": "intermediate",
+    "keywords": "Architecture, Orchestration, Mental Model, Scalability",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在將 Jenkins 從「單純的執行跑道 (Runway)」轉型為「生態系整合中樞 (Integration Hub)」的過程中，下列哪項描述最符合資深工程師應具備的心智模型？",
+        "en": "In the process of transforming Jenkins from a simple \"Runway\" to an \"Ecosystem Integration Hub,\" which of the following descriptions best fits the mental model a senior engineer should have?",
+        "wg": [
+          {
+            "t": "心智模型",
+            "en": "mental model",
+            "ps": "N"
+          },
+          {
+            "t": "轉型",
+            "en": "transforming",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "請依據「機場塔台 (Air Traffic Controller)」的比喻進行選擇。",
+        "en": "Please choose based on the \"Air Traffic Controller\" metaphor.",
+        "wg": [
+          {
+            "t": "比喻",
+            "en": "metaphor",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) Jenkins 應負責所有的重型運算與儲存，確保資料不外流。",
+        "en": "(A) Jenkins should handle all heavy computation and storage to ensure data does not leak.",
+        "wg": []
+      },
+      {
+        "t": "(B) Jenkins 應專注於流程編排 (Orchestration)，將儲存、分析與通訊交由專用工具處理。",
+        "en": "(B) Jenkins should focus on orchestration, delegating storage, analysis, and communication to specialized tools.",
+        "wg": [
+          {
+            "t": "流程編排",
+            "en": "orchestration",
+            "ps": "N"
+          },
+          {
+            "t": "委派",
+            "en": "delegating",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(C) Jenkins 應該完全被 Gitlab CI/CD 取代，因為它無法整合外部工具。",
+        "en": "(C) Jenkins should be completely replaced by Gitlab CI/CD because it cannot integrate with external tools.",
+        "wg": []
+      },
+      {
+        "t": "(D) Jenkins 僅需負責觸發 Shell Script，不應關心 Pipeline 的執行結果或回饋。",
+        "en": "(D) Jenkins should only be responsible for triggering Shell Scripts and should not care about Pipeline execution results or feedback.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "如同塔台負責協調而非親自載客，Jenkins 在生態系模式下應扮演協調者，串聯 Git (雷達)、SonarQube (安檢)、Artifactory (貨倉) 與 ChatOps (通訊)，而非將所有功能內建於自身。",
+      "en": "Just as a control tower coordinates rather than carrying passengers, Jenkins in ecosystem mode should act as an orchestrator, connecting Git (Radar), SonarQube (Security), Artifactory (Cargo), and ChatOps (Comms), rather than building all functions into itself.",
+      "wg": [
+        {
+          "t": "協調者",
+          "en": "orchestrator",
+          "ps": "N"
+        },
+        {
+          "t": "內建",
+          "en": "built-in",
+          "ps": "Adj"
+        }
+      ]
+    },
+    "verified": "2026-03-19T09:04:15"
+  },
+  {
+    "no": "chapter07-q14",
+    "level": "advanced",
+    "keywords": "Artifact Management, Methodology, Anti-pattern, Consistency",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您的團隊目前在 Dev、QA 與 Production 環境的部署流程中，分別會在每個階段重新執行 `mvn package` 來產生 JAR 檔。",
+        "en": "Your team currently re-runs `mvn package` to generate JAR files at each stage of the deployment process for Dev, QA, and Production environments.",
+        "wg": [
+          {
+            "t": "部署流程",
+            "en": "deployment process",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "從「產出物不可變性 (Artifact Immutability)」的角度來看，這種做法的主要風險為何？",
+        "en": "From the perspective of \"Artifact Immutability,\" what is the main risk of this approach?",
+        "wg": [
+          {
+            "t": "不可變性",
+            "en": "immutability",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 會導致 Jenkins Master 的 CPU 使用率過高。",
+        "en": "(A) It will cause excessive CPU usage on the Jenkins Master.",
+        "wg": []
+      },
+      {
+        "t": "(B) 可能導致在 Production 運行的二進位檔案與 QA 測試過的版本不一致（例如相依套件版本變動）。",
+        "en": "(B) It may result in the binary running in Production being inconsistent with the version tested in QA (e.g., dependency version changes).",
+        "wg": [
+          {
+            "t": "不一致",
+            "en": "inconsistent",
+            "ps": "Adj"
+          },
+          {
+            "t": "相依套件",
+            "en": "dependency",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) 會佔用過多的 Artifactory 儲存空間。",
+        "en": "(C) It will consume too much storage space in Artifactory.",
+        "wg": []
+      },
+      {
+        "t": "(D) 無法使用 SonarQube 進行程式碼掃描。",
+        "en": "(D) It prevents the use of SonarQube for code scanning.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "「Build Once, Deploy Anywhere」是 CI/CD 的黃金法則。重新建置 (Rebuild) 可能引入時間戳記差異或拉取到較新的 SNAPSHOT 相依套件，導致在 QA 驗證過的程式碼與 Production 實際運行的不完全相同。",
+      "en": "\"Build Once, Deploy Anywhere\" is the golden rule of CI/CD. Rebuilding can introduce timestamp differences or pull in newer SNAPSHOT dependencies, causing the code verified in QA to differ from what actually runs in Production.",
+      "wg": [
+        {
+          "t": "黃金法則",
+          "en": "golden rule",
+          "ps": "N"
+        },
+        {
+          "t": "驗證",
+          "en": "verified",
+          "ps": "V"
+        }
+      ]
+    },
+    "verified": "2026-03-19T09:04:15"
+  },
+  {
+    "no": "chapter07-q15",
+    "level": "intermediate",
+    "keywords": "SonarQube, Plugin, Configuration, Environment Variables",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "withSonarQubeEnv('sonar-server') {\n    sh 'mvn sonar:sonar ...'\n}",
+    "question": [
+      {
+        "t": "在 Jenkins Pipeline 中使用 `withSonarQubeEnv` 步驟時，該步驟具體透過什麼機制將 SonarQube Server 的連線資訊（如 URL 與 Token）傳遞給內部的 Maven 指令？",
+        "en": "When using the `withSonarQubeEnv` step in a Jenkins Pipeline, by what mechanism does it specifically pass the SonarQube Server connection details (like URL and Token) to the internal Maven command?",
+        "wg": [
+          {
+            "t": "具體",
+            "en": "specifically",
+            "ps": "Adv"
+          },
+          {
+            "t": "傳遞",
+            "en": "pass",
+            "ps": "V"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 自動修改專案根目錄下的 `pom.xml` 檔案。",
+        "en": "(A) Automatically modifies the `pom.xml` file in the project root directory.",
+        "wg": []
+      },
+      {
+        "t": "(B) 在執行期間注入特定的環境變數（如 `SONAR_HOST_URL`），供 Scanner 讀取。",
+        "en": "(B) Injects specific environment variables (such as `SONAR_HOST_URL`) during execution for the Scanner to read.",
+        "wg": [
+          {
+            "t": "注入",
+            "en": "injects",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(C) 透過 Jenkins Remoting 協議建立一個加密的 SSH 隧道。",
+        "en": "(C) Establishes an encrypted SSH tunnel via the Jenkins Remoting protocol.",
+        "wg": [
+          {
+            "t": "隧道",
+            "en": "tunnel",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(D) 產生一個臨時的 `settings.xml` 並強制 Maven 使用它。",
+        "en": "(D) Generates a temporary `settings.xml` and forces Maven to use it.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "`withSonarQubeEnv` 的主要功能是將 Jenkins 系統設定中定義的 Server 資訊，轉換為環境變數（如 SONAR_HOST_URL, SONAR_AUTH_TOKEN）並注入到閉包 (Closure) 範圍內，SonarScanner 會自動讀取這些變數進行連線。",
+      "en": "The primary function of `withSonarQubeEnv` is to convert the Server information defined in Jenkins system settings into environment variables (like SONAR_HOST_URL, SONAR_AUTH_TOKEN) and inject them into the closure scope, which the SonarScanner automatically reads to establish a connection.",
+      "wg": [
+        {
+          "t": "閉包",
+          "en": "closure",
+          "ps": "N"
+        },
+        {
+          "t": "範圍",
+          "en": "scope",
+          "ps": "N"
+        }
+      ]
+    },
+    "verified": "2026-03-19T09:04:15"
+  }
+]

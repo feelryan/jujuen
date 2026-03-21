@@ -1,0 +1,1249 @@
+[
+  {
+    "no": "1",
+    "level": "intermediate",
+    "keywords": "gRPC, REST, Internal Communication, Latency, Protobuf",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您正在設計一個高流量的微服務系統，其中「服務 A」需要頻繁呼叫「服務 B」來獲取核心業務數據。",
+        "en": "You are designing a high-traffic microservices system where 'Service A' needs to frequently call 'Service B' to retrieve core business data.",
+        "wg": [
+          {
+            "t": "高流量",
+            "en": "high-traffic",
+            "ps": "Adj"
+          },
+          {
+            "t": "核心業務數據",
+            "en": "core business data",
+            "ps": "NP"
+          }
+        ]
+      },
+      {
+        "t": "這兩個服務均由內部團隊開發，且對延遲極為敏感。",
+        "en": "Both services are developed by internal teams and are extremely latency-sensitive.",
+        "wg": [
+          {
+            "t": "延遲極為敏感",
+            "en": "extremely latency-sensitive",
+            "ps": "AdjP"
+          }
+        ]
+      },
+      {
+        "t": "根據本章節的通訊協議選擇原則，下列哪項決策最合適？",
+        "en": "According to the communication protocol selection principles in this chapter, which of the following decisions is most appropriate?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 使用 REST (JSON over HTTP/1.1)，因為它最具通用性且易於除錯。",
+        "en": "(A) Use REST (JSON over HTTP/1.1) because it is the most universal and easy to debug.",
+        "wg": []
+      },
+      {
+        "t": "(B) 使用 gRPC (Protobuf over HTTP/2)，以利用二進位序列化與多工傳輸來降低延遲。",
+        "en": "(B) Use gRPC (Protobuf over HTTP/2) to leverage binary serialization and multiplexing to reduce latency.",
+        "wg": [
+          {
+            "t": "二進位序列化",
+            "en": "binary serialization",
+            "ps": "NP"
+          },
+          {
+            "t": "多工傳輸",
+            "en": "multiplexing",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) 使用 Kafka 進行非同步通訊，以確保服務間的完全解耦。",
+        "en": "(C) Use Kafka for asynchronous communication to ensure complete decoupling between services.",
+        "wg": []
+      },
+      {
+        "t": "(D) 使用 GraphQL，以便讓服務 A 能夠靈活查詢服務 B 的資料欄位。",
+        "en": "(D) Use GraphQL to allow Service A to flexibly query data fields from Service B.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "對於內部關鍵路徑 (Critical Path) 且對延遲敏感的服務間通訊，gRPC 是首選。因為 Protobuf 的序列化體積小、速度快，且 HTTP/2 支援連線多工。REST 的 JSON 處理開銷較大；Kafka 適用於非同步事件而非即時資料獲取；GraphQL 雖然靈活，但通常用於 Frontend to Backend (BFF) 場景，其解析開銷通常高於 gRPC。",
+      "en": "For internal critical paths and latency-sensitive inter-service communication, gRPC is the preferred choice. Protobuf serialization is compact and fast, and HTTP/2 supports connection multiplexing. REST has higher JSON processing overhead; Kafka is for asynchronous events, not real-time data retrieval; GraphQL is flexible but typically used for Frontend to Backend (BFF) scenarios, and its parsing overhead is generally higher than gRPC.",
+      "wg": [
+        {
+          "t": "關鍵路徑",
+          "en": "Critical Path",
+          "ps": "NP"
+        },
+        {
+          "t": "開銷",
+          "en": "overhead",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "2",
+    "level": "advanced",
+    "keywords": "Idempotency, Distributed Systems, Retries, Payment",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "func Charge(ctx context.Context, req ChargeRequest) Response {\n    // Missing Idempotency Check\n    result, err := paymentGateway.Charge(req.Amount)\n    // ...\n}",
+    "question": [
+      {
+        "t": "在實作支付服務的 `Charge` API 時，若客戶端因為網路超時 (Timeout) 而未收到回應，通常會觸發重試機制。",
+        "en": "When implementing the `Charge` API for a payment service, if the client does not receive a response due to a network timeout, a retry mechanism is usually triggered.",
+        "wg": [
+          {
+            "t": "網路超時",
+            "en": "network timeout",
+            "ps": "N"
+          },
+          {
+            "t": "重試機制",
+            "en": "retry mechanism",
+            "ps": "NP"
+          }
+        ]
+      },
+      {
+        "t": "為了防止重複扣款，您引入了 `Idempotency-Key`。",
+        "en": "To prevent double charging, you introduce an `Idempotency-Key`.",
+        "wg": [
+          {
+            "t": "重複扣款",
+            "en": "double charging",
+            "ps": "NP"
+          }
+        ]
+      },
+      {
+        "t": "下列關於冪等性實作的敘述，何者是**錯誤**的？",
+        "en": "Which of the following statements about idempotency implementation is **INCORRECT**?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 伺服器應先檢查該 Key 是否已存在於儲存中；若存在，則直接回傳之前的處理結果。",
+        "en": "(A) The server should first check if the Key exists in storage; if it does, return the previous processing result directly.",
+        "wg": []
+      },
+      {
+        "t": "(B) 若業務邏輯執行失敗（例如餘額不足），該錯誤結果也應該與 Key 一起被快取，以避免客戶端重試時重複執行無效邏輯。",
+        "en": "(B) If the business logic fails (e.g., insufficient funds), the error result should also be cached with the Key to prevent the client from re-executing invalid logic on retry.",
+        "wg": [
+          {
+            "t": "餘額不足",
+            "en": "insufficient funds",
+            "ps": "NP"
+          }
+        ]
+      },
+      {
+        "t": "(C) 為了處理高併發請求，應使用分散式鎖或資料庫的唯一性限制 (Unique Constraint) 來鎖定該 Key。",
+        "en": "(C) To handle high concurrency requests, distributed locks or database unique constraints should be used to lock the Key.",
+        "wg": [
+          {
+            "t": "高併發",
+            "en": "high concurrency",
+            "ps": "NP"
+          },
+          {
+            "t": "唯一性限制",
+            "en": "unique constraint",
+            "ps": "NP"
+          }
+        ]
+      },
+      {
+        "t": "(D) 對於所有類型的錯誤（包含暫時性的網路連線錯誤），都必須快取該 Key 以確保嚴格的「一次性執行」。",
+        "en": "(D) For all types of errors (including transient network connection errors), the Key must be cached to ensure strict 'exactly-once execution'.",
+        "wg": [
+          {
+            "t": "暫時性的",
+            "en": "transient",
+            "ps": "Adj"
+          }
+        ]
+      }
+    ],
+    "answer": "D",
+    "why": {
+      "t": "對於「暫時性錯誤 (Transient Error)」（如資料庫連線瞬斷、下游服務超時），不應該佔用 Idempotency Key 或快取該失敗狀態。我們希望客戶端在這種情況下重試能夠觸發真正的業務邏輯執行。只有「確定性的結果」（成功或不可恢復的業務錯誤）才需要被快取。",
+      "en": "For 'Transient Errors' (e.g., database connection blips, downstream service timeouts), the Idempotency Key should not be consumed or the failure state cached. We want client retries in these cases to trigger actual business logic execution. Only 'deterministic results' (success or non-recoverable business errors) should be cached.",
+      "wg": [
+        {
+          "t": "不可恢復的",
+          "en": "non-recoverable",
+          "ps": "Adj"
+        },
+        {
+          "t": "確定性的",
+          "en": "deterministic",
+          "ps": "Adj"
+        }
+      ]
+    }
+  },
+  {
+    "no": "3",
+    "level": "intermediate",
+    "keywords": "Message Queue, Kafka, RabbitMQ, Anti-patterns",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您的團隊決定引入訊息佇列 (Message Queue) 來處理非同步任務。",
+        "en": "Your team decides to introduce a Message Queue to handle asynchronous tasks.",
+        "wg": []
+      },
+      {
+        "t": "目前的場景是：任務處理邏輯複雜，失敗率較高，且需要針對單條訊息進行精細的確認 (Ack) 與重試路由 (Retry Routing)。",
+        "en": "The current scenario is: The task processing logic is complex, the failure rate is relatively high, and fine-grained acknowledgement (Ack) and retry routing are required for individual messages.",
+        "wg": [
+          {
+            "t": "精細的",
+            "en": "fine-grained",
+            "ps": "Adj"
+          },
+          {
+            "t": "重試路由",
+            "en": "retry routing",
+            "ps": "NP"
+          }
+        ]
+      },
+      {
+        "t": "為何在此場景下，使用 RabbitMQ 或 SQS 通常比使用 Kafka 更合適？",
+        "en": "Why is using RabbitMQ or SQS typically more appropriate than using Kafka in this scenario?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 因為 Kafka 的吞吐量 (Throughput) 低於 RabbitMQ，無法處理大量任務。",
+        "en": "(A) Because Kafka's throughput is lower than RabbitMQ and cannot handle a large volume of tasks.",
+        "wg": []
+      },
+      {
+        "t": "(B) 因為 Kafka 是基於 Log 的設計，單條訊息處理失敗若不提交 Offset，會導致 Partition 的 Head-of-line blocking。",
+        "en": "(B) Because Kafka is Log-based; if a single message fails and the Offset is not committed, it causes Head-of-line blocking for the Partition.",
+        "wg": [
+          {
+            "t": "基於 Log 的",
+            "en": "Log-based",
+            "ps": "Adj"
+          },
+          {
+            "t": "隊頭阻塞",
+            "en": "Head-of-line blocking",
+            "ps": "NP"
+          }
+        ]
+      },
+      {
+        "t": "(C) 因為 Kafka 不支援任何形式的消費者群組 (Consumer Group) 機制。",
+        "en": "(C) Because Kafka does not support any form of Consumer Group mechanism.",
+        "wg": []
+      },
+      {
+        "t": "(D) 因為 RabbitMQ 保證了強一致性 (Strong Consistency)，而 Kafka 僅支援最終一致性。",
+        "en": "(D) Because RabbitMQ guarantees Strong Consistency, while Kafka only supports Eventual Consistency.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "Kafka 設計為循序讀取的 Log，消費者通常追蹤 Partition 的 Offset。若單條訊息卡住或失敗，為了保持順序，後續訊息無法被處理 (Head-of-line blocking)，除非實作複雜的 Dead Letter Topic 轉移。RabbitMQ/SQS 則支援單條訊息的 Ack/Nack，更適合需要獨立重試的工作佇列 (Work Queue) 場景。",
+      "en": "Kafka is designed as a sequentially read Log, where consumers track Partition Offsets. If a single message gets stuck or fails, subsequent messages cannot be processed (Head-of-line blocking) to maintain order, unless complex Dead Letter Topic diversion is implemented. RabbitMQ/SQS supports per-message Ack/Nack, making them more suitable for Work Queue scenarios requiring independent retries.",
+      "wg": [
+        {
+          "t": "循序讀取",
+          "en": "sequentially read",
+          "ps": "VP/Adj"
+        },
+        {
+          "t": "轉移",
+          "en": "diversion",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "4",
+    "level": "intermediate",
+    "keywords": "API Versioning, Backward Compatibility, Protobuf, REST",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "當您需要修改一個已發布且被多個客戶端使用的 API 時，下列哪種做法最符合「向後相容 (Backward Compatibility)」的最佳實務？",
+        "en": "When you need to modify an API that is already published and used by multiple clients, which of the following practices best aligns with 'Backward Compatibility' best practices?",
+        "wg": [
+          {
+            "t": "向後相容",
+            "en": "Backward Compatibility",
+            "ps": "NP"
+          },
+          {
+            "t": "最佳實務",
+            "en": "best practices",
+            "ps": "NP"
+          }
+        ]
+      },
+      {
+        "t": "假設您需要將原本的 `address` 字串欄位改為結構化的 `Address` 物件。",
+        "en": "Assume you need to change an original `address` string field to a structured `Address` object.",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 直接修改該欄位的型別定義，並通知所有客戶端團隊立即更新程式碼。",
+        "en": "(A) Directly modify the field's type definition and notify all client teams to update their code immediately.",
+        "wg": []
+      },
+      {
+        "t": "(B) 保留舊的 `address` 欄位不變，新增一個 `structured_address` 欄位，並標記舊欄位為 Deprecated。",
+        "en": "(B) Keep the old `address` field unchanged, add a new `structured_address` field, and mark the old field as Deprecated.",
+        "wg": [
+          {
+            "t": "標記",
+            "en": "mark",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(C) 刪除 `address` 欄位，並在 API 文件中說明新版本不相容。",
+        "en": "(C) Delete the `address` field and state in the API documentation that the new version is incompatible.",
+        "wg": []
+      },
+      {
+        "t": "(D) 在 Protobuf 中重複使用 `address` 的 tag number，但將型別改為 message。",
+        "en": "(D) Reuse the tag number of `address` in Protobuf, but change the type to message.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "API 演進的核心原則是「擴充而非修改 (Additive Changes Only)」。直接修改型別或刪除欄位會導致舊版客戶端解析失敗 (Breaking Change)。在 Protobuf 中重用 tag number 更是嚴重的錯誤，會導致二進位解碼錯亂。正確做法是並存新舊欄位，直到所有客戶端遷移完畢。",
+      "en": "The core principle of API evolution is 'Additive Changes Only'. Directly modifying types or deleting fields causes parsing failures for old clients (Breaking Change). Reusing tag numbers in Protobuf is a critical error that leads to binary decoding corruption. The correct approach is to coexist both new and old fields until all clients have migrated.",
+      "wg": [
+        {
+          "t": "擴充",
+          "en": "Additive / Extension",
+          "ps": "N"
+        },
+        {
+          "t": "並存",
+          "en": "coexist",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "5",
+    "level": "advanced",
+    "keywords": "Distributed Monolith, Coupling, Sync vs Async, Architecture",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "Service A -> Service B -> Service C -> Service D",
+    "question": [
+      {
+        "t": "您正在審查一個微服務架構，發現存在一個長鏈路的同步呼叫：Service A 呼叫 B，B 呼叫 C，C 呼叫 D。",
+        "en": "You are reviewing a microservices architecture and discover a long chain of synchronous calls: Service A calls B, B calls C, and C calls D.",
+        "wg": [
+          {
+            "t": "長鏈路",
+            "en": "long chain",
+            "ps": "NP"
+          },
+          {
+            "t": "同步呼叫",
+            "en": "synchronous calls",
+            "ps": "NP"
+          }
+        ]
+      },
+      {
+        "t": "這種模式被稱為「分散式單體 (Distributed Monolith)」。下列哪項**不是**此架構的主要缺點？",
+        "en": "This pattern is known as a 'Distributed Monolith'. Which of the following is **NOT** a primary drawback of this architecture?",
+        "wg": [
+          {
+            "t": "分散式單體",
+            "en": "Distributed Monolith",
+            "ps": "NP"
+          },
+          {
+            "t": "缺點",
+            "en": "drawback",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 延遲疊加：整體的延遲是所有服務延遲的總和。",
+        "en": "(A) Latency accumulation: The overall latency is the sum of the latencies of all services.",
+        "wg": [
+          {
+            "t": "疊加",
+            "en": "accumulation",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(B) 可用性降低：鏈條中任何一個服務失敗，都會導致最上游的請求失敗。",
+        "en": "(B) Reduced availability: Failure of any service in the chain causes the upstream request to fail.",
+        "wg": []
+      },
+      {
+        "t": "(C) 資料一致性難以保證：因為沒有使用分散式交易。",
+        "en": "(C) Difficulty in guaranteeing data consistency: Because distributed transactions are not used.",
+        "wg": []
+      },
+      {
+        "t": "(D) 資源浪費：上游服務的執行緒在等待下游回應時處於阻塞 (Blocking) 狀態。",
+        "en": "(D) Resource waste: Threads in upstream services are in a Blocking state while waiting for downstream responses.",
+        "wg": [
+          {
+            "t": "阻塞",
+            "en": "Blocking",
+            "ps": "Adj"
+          }
+        ]
+      }
+    ],
+    "answer": "C",
+    "why": {
+      "t": "雖然資料一致性在微服務中確實是挑戰，但「分散式單體」這個反模式主要強調的是**耦合度 (Coupling)**、**可用性 (Availability)** 與 **延遲 (Latency)** 的問題。事實上，同步呼叫鏈反而比非同步架構更容易理解一致性（要嘛全成功，要嘛失敗回傳錯誤）。選項 (A), (B), (D) 都是同步長鏈路的直接且致命的缺點。",
+      "en": "While data consistency is indeed a challenge in microservices, the 'Distributed Monolith' anti-pattern primarily emphasizes issues with **Coupling**, **Availability**, and **Latency**. In fact, synchronous call chains are often easier to reason about regarding consistency (either all succeed or fail with an error) than asynchronous architectures. Options (A), (B), and (D) are direct and fatal drawbacks of long synchronous chains.",
+      "wg": [
+        {
+          "t": "耦合度",
+          "en": "Coupling",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "6",
+    "level": "intermediate",
+    "keywords": "BFF, GraphQL, REST, Frontend",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在電商系統的架構設計中，前端 (Frontend) 需要同時顯示「商品詳情」、「購物車內容」與「推薦商品」。",
+        "en": "In the architectural design of an e-commerce system, the Frontend needs to simultaneously display 'Product Details', 'Cart Contents', and 'Recommended Products'.",
+        "wg": []
+      },
+      {
+        "t": "這些資料分別位於不同的微服務中。為了優化前端體驗並避免瀏覽器發送過多請求，下列哪種模式最為合適？",
+        "en": "These data reside in different microservices. To optimize the frontend experience and avoid the browser sending too many requests, which of the following patterns is most appropriate?",
+        "wg": [
+          {
+            "t": "優化",
+            "en": "optimize",
+            "ps": "V"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 讓前端直接使用 gRPC 呼叫各個微服務。",
+        "en": "(A) Let the frontend call each microservice directly using gRPC.",
+        "wg": []
+      },
+      {
+        "t": "(B) 實作 BFF (Backend for Frontend) 層，使用 GraphQL 或 REST 聚合後端服務的資料。",
+        "en": "(B) Implement a BFF (Backend for Frontend) layer using GraphQL or REST to aggregate data from backend services.",
+        "wg": [
+          {
+            "t": "聚合",
+            "en": "aggregate",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(C) 使用 Kafka 將所有資料推送到前端的 WebSocket。",
+        "en": "(C) Use Kafka to push all data to the frontend's WebSocket.",
+        "wg": []
+      },
+      {
+        "t": "(D) 讓各個微服務共用同一個資料庫，前端直接查詢資料庫。",
+        "en": "(D) Let all microservices share the same database, and the frontend queries the database directly.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "BFF (Backend for Frontend) 模式專門解決此問題。它作為適配層，可以將多個後端微服務的呼叫聚合為一個回應，減少前端的網路往返次數 (Round trips)，並處理協議轉換（如 gRPC 轉 JSON）。直接讓前端呼叫 gRPC 會有瀏覽器相容性問題；共用資料庫則違反了微服務的封裝原則。",
+      "en": "The BFF (Backend for Frontend) pattern specifically addresses this issue. Acting as an adapter layer, it aggregates calls from multiple backend microservices into a single response, reducing frontend network round trips and handling protocol conversion (e.g., gRPC to JSON). Direct gRPC calls from the frontend have browser compatibility issues; sharing a database violates microservice encapsulation principles.",
+      "wg": [
+        {
+          "t": "適配層",
+          "en": "adapter layer",
+          "ps": "NP"
+        },
+        {
+          "t": "封裝原則",
+          "en": "encapsulation principles",
+          "ps": "NP"
+        }
+      ]
+    }
+  },
+  {
+    "no": "7",
+    "level": "advanced",
+    "keywords": "Idempotency, Concurrency, Distributed Lock, Race Condition",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在實作冪等性 (Idempotency) 機制時，若發生「並發請求 (Concurrent Requests)」的邊界情況，即兩個帶有相同 Idempotency-Key 的請求幾乎同時到達伺服器，",
+        "en": "When implementing an Idempotency mechanism, consider the edge case of 'Concurrent Requests', where two requests with the same Idempotency-Key arrive at the server almost simultaneously.",
+        "wg": [
+          {
+            "t": "並發請求",
+            "en": "Concurrent Requests",
+            "ps": "NP"
+          },
+          {
+            "t": "邊界情況",
+            "en": "edge case",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "下列哪種處理方式最能確保資料的一致性與正確性？",
+        "en": "Which of the following approaches best ensures data consistency and correctness?",
+        "wg": [
+          {
+            "t": "一致性",
+            "en": "consistency",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 依賴應用程式層的記憶體快取來阻擋重複請求。",
+        "en": "(A) Rely on application-layer in-memory caching to block duplicate requests.",
+        "wg": []
+      },
+      {
+        "t": "(B) 允許兩個請求同時執行，最後寫入資料庫者覆蓋前者 (Last Write Wins)。",
+        "en": "(B) Allow both requests to execute concurrently, with the last writer overwriting the former (Last Write Wins).",
+        "wg": []
+      },
+      {
+        "t": "(C) 使用分散式鎖 (Distributed Lock) 或資料庫的唯一限制 (Unique Constraint) 來鎖定該 Key。",
+        "en": "(C) Use a Distributed Lock or a database Unique Constraint to lock the Key.",
+        "wg": [
+          {
+            "t": "分散式鎖",
+            "en": "Distributed Lock",
+            "ps": "NP"
+          },
+          {
+            "t": "唯一限制",
+            "en": "Unique Constraint",
+            "ps": "NP"
+          }
+        ]
+      },
+      {
+        "t": "(D) 回傳 HTTP 429 Too Many Requests，要求客戶端稍後重試。",
+        "en": "(D) Return HTTP 429 Too Many Requests and ask the client to retry later.",
+        "wg": []
+      }
+    ],
+    "answer": "C",
+    "why": {
+      "t": "當並發請求發生時，單純的檢查 (Check-then-Act) 會遭遇 Race Condition。必須利用原子性操作 (Atomic Operation)，如 Redis 的 `SETNX` (分散式鎖) 或資料庫的 `INSERT IGNORE` (唯一索引限制)，確保只有一個請求能成功取得處理權，另一個則直接回傳已存在的結果或錯誤。",
+      "en": "When concurrent requests occur, a simple Check-then-Act logic faces Race Conditions. You must use atomic operations, such as Redis `SETNX` (Distributed Lock) or database `INSERT IGNORE` (Unique Index Constraint), to ensure only one request gains processing rights, while the other returns the existing result or an error.",
+      "wg": [
+        {
+          "t": "原子性操作",
+          "en": "Atomic Operation",
+          "ps": "NP"
+        },
+        {
+          "t": "競態條件",
+          "en": "Race Condition",
+          "ps": "NP"
+        }
+      ]
+    }
+  },
+  {
+    "no": "8",
+    "level": "intermediate",
+    "keywords": "Kafka, RabbitMQ, Event Sourcing, Message Queue",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您的系統需要實作「事件溯源 (Event Sourcing)」，要求能夠保存歷史事件並允許新加入的服務「重播 (Replay)」過去的所有資料。",
+        "en": "Your system needs to implement 'Event Sourcing', requiring the ability to store historical events and allow new services to 'Replay' all past data.",
+        "wg": [
+          {
+            "t": "事件溯源",
+            "en": "Event Sourcing",
+            "ps": "NP"
+          },
+          {
+            "t": "重播",
+            "en": "Replay",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "基於此需求，下列哪種訊息中介軟體 (Message Broker) 是最合適的選擇？",
+        "en": "Based on this requirement, which Message Broker is the most suitable choice?",
+        "wg": [
+          {
+            "t": "訊息中介軟體",
+            "en": "Message Broker",
+            "ps": "NP"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) RabbitMQ，因為它支援複雜的路由規則。",
+        "en": "(A) RabbitMQ, because it supports complex routing rules.",
+        "wg": []
+      },
+      {
+        "t": "(B) Apache Kafka，因為它採用 Log-based storage 且支援持久化與重播。",
+        "en": "(B) Apache Kafka, because it uses Log-based storage and supports persistence and replay.",
+        "wg": [
+          {
+            "t": "持久化",
+            "en": "persistence",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) Redis Pub/Sub，因為它延遲極低。",
+        "en": "(C) Redis Pub/Sub, because it has extremely low latency.",
+        "wg": []
+      },
+      {
+        "t": "(D) gRPC Streaming，因為它支援雙向資料流。",
+        "en": "(D) gRPC Streaming, because it supports bi-directional data flow.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "Kafka 的設計模型是 Dumb Broker, Smart Consumer，並將訊息視為持久化的 Log。這使得消費者可以控制 Offset 來重播歷史訊息，非常適合 Event Sourcing。RabbitMQ 與 Redis Pub/Sub 通常在訊息被消費後即刪除，不適合此場景。",
+      "en": "Kafka's design model is Dumb Broker, Smart Consumer, treating messages as a persistent Log. This allows consumers to control the Offset to replay historical messages, making it ideal for Event Sourcing. RabbitMQ and Redis Pub/Sub typically delete messages after consumption, making them unsuitable for this scenario.",
+      "wg": [
+        {
+          "t": "偏移量",
+          "en": "Offset",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "9",
+    "level": "intermediate",
+    "keywords": "gRPC, Browser Compatibility, gRPC-Web, Frontend",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您的團隊希望在前端 (Browser) 直接呼叫後端的 gRPC 服務，以統一前後端的通訊協議。",
+        "en": "Your team wants to call backend gRPC services directly from the frontend (Browser) to unify communication protocols.",
+        "wg": [
+          {
+            "t": "統一",
+            "en": "unify",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "在目前的瀏覽器生態中，下列哪項描述是正確的？",
+        "en": "In the current browser ecosystem, which of the following descriptions is correct?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 現代瀏覽器已完全支援 HTTP/2 與 gRPC，可直接使用原生的 gRPC Client。",
+        "en": "(A) Modern browsers fully support HTTP/2 and gRPC, allowing the use of native gRPC Clients directly.",
+        "wg": []
+      },
+      {
+        "t": "(B) 瀏覽器對 HTTP/2 的實作限制了對 gRPC 的直接支援，通常需要透過 gRPC-Web 代理 (Proxy) 進行轉換。",
+        "en": "(B) Browser implementations of HTTP/2 limit direct support for gRPC, usually requiring a gRPC-Web proxy for translation.",
+        "wg": [
+          {
+            "t": "代理",
+            "en": "Proxy",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) 必須使用 WebSocket 才能傳輸 Protobuf 資料。",
+        "en": "(C) WebSockets must be used to transmit Protobuf data.",
+        "wg": []
+      },
+      {
+        "t": "(D) gRPC 僅支援 C++ 與 Java 客戶端，無法在 JavaScript 環境執行。",
+        "en": "(D) gRPC only supports C++ and Java clients and cannot run in a JavaScript environment.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "雖然現代瀏覽器支援 HTTP/2，但對於 Trailer Headers 等 gRPC 依賴的底層特性支援不足。因此，實務上通常需要使用 `gRPC-Web` Client 搭配 Envoy 等 Proxy 將瀏覽器的 HTTP/1.1 或 HTTP/2 請求轉換為後端的 gRPC 流量。",
+      "en": "Although modern browsers support HTTP/2, they lack sufficient support for low-level features like Trailer Headers that gRPC relies on. Therefore, in practice, it is usually necessary to use a `gRPC-Web` Client paired with a Proxy (like Envoy) to translate browser HTTP/1.1 or HTTP/2 requests into backend gRPC traffic.",
+      "wg": [
+        {
+          "t": "底層特性",
+          "en": "low-level features",
+          "ps": "NP"
+        }
+      ]
+    }
+  },
+  {
+    "no": "10",
+    "level": "advanced",
+    "keywords": "Kafka, Ordering, Partition Key, Message Queue",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在使用 Kafka 處理訂單狀態更新時，確保「同一筆訂單的變更事件依序被處理」至關重要。",
+        "en": "When using Kafka to handle order status updates, it is crucial to ensure that 'change events for the same order are processed in sequence'.",
+        "wg": [
+          {
+            "t": "依序",
+            "en": "in sequence",
+            "ps": "Adv"
+          }
+        ]
+      },
+      {
+        "t": "下列哪種設定方式能以最高效能達成此需求？",
+        "en": "Which of the following configurations achieves this requirement with the highest performance?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 將 Kafka Topic 設定為只有一個 Partition。",
+        "en": "(A) Configure the Kafka Topic to have only one Partition.",
+        "wg": []
+      },
+      {
+        "t": "(B) 在 Producer 端將 `OrderId` 設為 Partition Key (Message Key)。",
+        "en": "(B) Set the `OrderId` as the Partition Key (Message Key) on the Producer side.",
+        "wg": [
+          {
+            "t": "分區鍵",
+            "en": "Partition Key",
+            "ps": "NP"
+          }
+        ]
+      },
+      {
+        "t": "(C) 在 Consumer 端實作緩衝區，根據時間戳記重新排序所有訊息。",
+        "en": "(C) Implement a buffer on the Consumer side to reorder all messages based on timestamps.",
+        "wg": []
+      },
+      {
+        "t": "(D) 使用 RabbitMQ 替代 Kafka，因為 Kafka 無法保證順序。",
+        "en": "(D) Use RabbitMQ instead of Kafka, because Kafka cannot guarantee ordering.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "Kafka 保證在「同一個 Partition 內」的訊息是有序的。透過將 `OrderId` 作為 Partition Key，所有該訂單的事件都會被路由到同一個 Partition，從而確保 Consumer 能依序處理，同時又能利用多個 Partitions 保持系統的水平擴展性。",
+      "en": "Kafka guarantees that messages within the 'same Partition' are ordered. By using `OrderId` as the Partition Key, all events for that order are routed to the same Partition, ensuring the Consumer processes them in sequence while maintaining system scalability through multiple Partitions.",
+      "wg": [
+        {
+          "t": "水平擴展性",
+          "en": "scalability",
+          "ps": "N"
+        },
+        {
+          "t": "路由",
+          "en": "route",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "11",
+    "level": "intermediate",
+    "keywords": "Protobuf, Schema Evolution, Backward Compatibility, Breaking Change",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "message User {\n  int32 id = 1;\n  string name = 2;\n}\n// Modified to:\nmessage User {\n  string id = 1; // Type changed\n  string name = 2;\n}",
+    "question": [
+      {
+        "t": "您正在維護一個使用 Protobuf 的 gRPC 服務。一位開發者提交了如上所示的 `.proto` 檔案變更，將 `id` 欄位的型別從 `int32` 改為 `string`，但保留了 tag number `1`。",
+        "en": "You are maintaining a gRPC service using Protobuf. A developer submits a change to the `.proto` file as shown above, changing the type of the `id` field from `int32` to `string`, but keeping the tag number `1`.",
+        "wg": [
+          {
+            "t": "欄位",
+            "en": "field",
+            "ps": "N"
+          },
+          {
+            "t": "保留",
+            "en": "keeping",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "這會造成什麼後果？",
+        "en": "What will be the consequence of this?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 這是向後相容的變更，Protobuf 會自動進行型別轉換。",
+        "en": "(A) This is a backward-compatible change; Protobuf will automatically handle type conversion.",
+        "wg": []
+      },
+      {
+        "t": "(B) 這是破壞性變更 (Breaking Change)，舊版客戶端解析新資料時會發生錯誤或資料錯亂。",
+        "en": "(B) This is a Breaking Change; legacy clients will encounter errors or data corruption when parsing new data.",
+        "wg": [
+          {
+            "t": "破壞性變更",
+            "en": "Breaking Change",
+            "ps": "NP"
+          },
+          {
+            "t": "資料錯亂",
+            "en": "data corruption",
+            "ps": "NP"
+          }
+        ]
+      },
+      {
+        "t": "(C) 只要欄位名稱 (name) 沒變，Tag number 並不重要。",
+        "en": "(C) As long as the field name remains the same, the Tag number does not matter.",
+        "wg": []
+      },
+      {
+        "t": "(D) gRPC 編譯器會拒絕編譯這段程式碼。",
+        "en": "(D) The gRPC compiler will refuse to compile this code.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "在 Protobuf 中，Tag number 是識別欄位的唯一依據，且二進位格式依賴型別 (Wire Type) 來解析。修改同一 Tag 的型別會導致舊版客戶端無法正確解碼二進位串流，屬於嚴重的破壞性變更。正確做法是棄用舊欄位，並使用新的 Tag number 新增 `string` 類型的欄位。",
+      "en": "In Protobuf, the Tag number is the unique identifier for fields, and the binary format relies on the Wire Type for parsing. Changing the type of an existing Tag causes legacy clients to fail in decoding the binary stream correctly, which is a severe breaking change. The correct approach is to deprecate the old field and add a new `string` field with a new Tag number.",
+      "wg": [
+        {
+          "t": "棄用",
+          "en": "deprecate",
+          "ps": "V"
+        },
+        {
+          "t": "解碼",
+          "en": "decode",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "12",
+    "level": "advanced",
+    "keywords": "Observability, Distributed Tracing, OpenTelemetry, Microservices",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在一個複雜的微服務架構中，您發現某個業務流程的整體延遲 (Latency) 異常過高，該流程涉及 A -> B -> C -> D 四個服務的呼叫。",
+        "en": "In a complex microservices architecture, you notice that the overall latency of a business process is abnormally high. The process involves calls across four services: A -> B -> C -> D.",
+        "wg": [
+          {
+            "t": "異常過高",
+            "en": "abnormally high",
+            "ps": "AdjP"
+          }
+        ]
+      },
+      {
+        "t": "為了快速定位是哪一個環節成為瓶頸，下列哪項技術投資是最關鍵的？",
+        "en": "To quickly identify which segment is the bottleneck, which of the following technical investments is most critical?",
+        "wg": [
+          {
+            "t": "瓶頸",
+            "en": "bottleneck",
+            "ps": "N"
+          },
+          {
+            "t": "定位",
+            "en": "identify / pinpoint",
+            "ps": "V"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 集中式日誌 (Centralized Logging, e.g., ELK Stack)。",
+        "en": "(A) Centralized Logging (e.g., ELK Stack).",
+        "wg": []
+      },
+      {
+        "t": "(B) 分散式追蹤 (Distributed Tracing, e.g., OpenTelemetry/Jaeger)。",
+        "en": "(B) Distributed Tracing (e.g., OpenTelemetry/Jaeger).",
+        "wg": [
+          {
+            "t": "分散式追蹤",
+            "en": "Distributed Tracing",
+            "ps": "NP"
+          }
+        ]
+      },
+      {
+        "t": "(C) 基礎設施監控 (Infrastructure Monitoring, e.g., CPU/Memory metrics)。",
+        "en": "(C) Infrastructure Monitoring (e.g., CPU/Memory metrics).",
+        "wg": []
+      },
+      {
+        "t": "(D) 在每個服務之間實作 TCP Ping 檢查。",
+        "en": "(D) Implement TCP Ping checks between every service.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "雖然日誌與 metrics 很重要，但分散式追蹤 (Distributed Tracing) 能夠視覺化單一請求跨越多個服務的完整生命週期 (Trace)，並顯示每個 Span (操作區段) 的耗時。這是診斷微服務間「通訊延遲」與「級聯效應」最直接有效的工具。",
+      "en": "While logs and metrics are important, Distributed Tracing visualizes the complete lifecycle (Trace) of a single request across multiple services and shows the duration of each Span (operation segment). This is the most direct and effective tool for diagnosing 'communication latency' and 'cascading effects' between microservices.",
+      "wg": [
+        {
+          "t": "級聯效應",
+          "en": "cascading effects",
+          "ps": "NP"
+        },
+        {
+          "t": "診斷",
+          "en": "diagnose",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "13",
+    "level": "intermediate",
+    "keywords": "API Versioning, REST, Header Versioning, URI Versioning",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您的團隊正在爭論 API 版本控制的策略。架構師希望採用「Header Versioning」(例如 `Accept: application/vnd.myapi.v1+json`)，而非常見的「URI Versioning」(例如 `/v1/users`)。",
+        "en": "Your team is debating API versioning strategies. The architect prefers 'Header Versioning' (e.g., `Accept: application/vnd.myapi.v1+json`) over the common 'URI Versioning' (e.g., `/v1/users`).",
+        "wg": [
+          {
+            "t": "版本控制",
+            "en": "versioning",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "請問架構師的主要論點通常是基於什麼優點？",
+        "en": "What is the primary advantage typically supporting the architect's argument?",
+        "wg": [
+          {
+            "t": "論點",
+            "en": "argument",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) Header Versioning 讓瀏覽器更容易進行測試與探索。",
+        "en": "(A) Header Versioning makes it easier for browsers to test and explore.",
+        "wg": []
+      },
+      {
+        "t": "(B) Header Versioning 更符合 REST 的語意，保持資源識別符 (URI) 的潔淨與穩定。",
+        "en": "(B) Header Versioning aligns better with REST semantics, keeping Resource Identifiers (URIs) clean and stable.",
+        "wg": [
+          {
+            "t": "語意",
+            "en": "semantics",
+            "ps": "N"
+          },
+          {
+            "t": "資源識別符",
+            "en": "Resource Identifiers",
+            "ps": "NP"
+          }
+        ]
+      },
+      {
+        "t": "(C) Header Versioning 可以避免快取 (Caching) 問題。",
+        "en": "(C) Header Versioning avoids caching issues.",
+        "wg": []
+      },
+      {
+        "t": "(D) Header Versioning 實作起來比 URI Versioning 簡單。",
+        "en": "(D) Header Versioning is simpler to implement than URI Versioning.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "在 REST 架構風格中，URI 應該代表「資源 (Resource)」本身，而不應包含版本資訊。Header Versioning 利用 Content Negotiation 機制，讓同一個 URI 可以根據客戶端需求回傳不同版本的表現形式 (Representation)，這是最符合 REST 原則的做法，儘管犧牲了一些開發者體驗 (DX)。",
+      "en": "In REST architectural style, a URI should represent the 'Resource' itself and should not contain version information. Header Versioning uses Content Negotiation to allow the same URI to return different representations based on client needs. This aligns best with REST principles, albeit at the cost of some Developer Experience (DX).",
+      "wg": [
+        {
+          "t": "表現形式",
+          "en": "Representation",
+          "ps": "N"
+        },
+        {
+          "t": "內容協商",
+          "en": "Content Negotiation",
+          "ps": "NP"
+        }
+      ]
+    }
+  },
+  {
+    "no": "14",
+    "level": "intermediate",
+    "keywords": "Kafka, Anti-patterns, Work Queue, RabbitMQ",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您需要設計一個系統來處理「非同步任務」，需求包含：每條訊息需要獨立確認 (Ack)、支援複雜的重試策略 (例如：失敗後延遲 5 分鐘再試，再失敗延遲 10 分鐘)。",
+        "en": "You need to design a system to handle 'asynchronous tasks'. Requirements include: individual acknowledgement (Ack) for each message, and complex retry strategies (e.g., retry after 5 mins on failure, then 10 mins).",
+        "wg": [
+          {
+            "t": "獨立確認",
+            "en": "individual acknowledgement",
+            "ps": "NP"
+          },
+          {
+            "t": "重試策略",
+            "en": "retry strategies",
+            "ps": "NP"
+          }
+        ]
+      },
+      {
+        "t": "為什麼直接使用 Kafka 來實作此需求通常被視為「反模式 (Anti-pattern)」？",
+        "en": "Why is using Kafka directly to implement this requirement typically considered an 'Anti-pattern'?",
+        "wg": [
+          {
+            "t": "反模式",
+            "en": "Anti-pattern",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) Kafka 的吞吐量不足以處理大量任務。",
+        "en": "(A) Kafka's throughput is insufficient to handle a large number of tasks.",
+        "wg": []
+      },
+      {
+        "t": "(B) Kafka 缺乏持久化儲存，容易遺失任務。",
+        "en": "(B) Kafka lacks persistent storage and easily loses tasks.",
+        "wg": []
+      },
+      {
+        "t": "(C) Kafka 設計為循序讀取 (Sequential Log)，單條訊息的處理失敗或延遲會導致 Head-of-line blocking，阻塞整個 Partition。",
+        "en": "(C) Kafka is designed for sequential reading (Sequential Log); failure or delay of a single message causes Head-of-line blocking, stalling the entire Partition.",
+        "wg": [
+          {
+            "t": "循序讀取",
+            "en": "sequential reading",
+            "ps": "NP"
+          },
+          {
+            "t": "阻塞",
+            "en": "stall / block",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(D) Kafka 不支援多個消費者 (Consumer Group) 同時讀取。",
+        "en": "(D) Kafka does not support concurrent reading by multiple Consumer Groups.",
+        "wg": []
+      }
+    ],
+    "answer": "C",
+    "why": {
+      "t": "Kafka 適合串流處理而非工作佇列。在 Kafka 中，Consumer 只能提交 Offset (標示讀取進度)，難以對「單條」訊息進行 Nack 或延遲重試而不影響後續訊息。若需複雜的路由與單條訊息狀態管理，RabbitMQ 或 SQS 是更好的選擇。",
+      "en": "Kafka is suited for stream processing, not work queues. In Kafka, Consumers commit Offsets (marking progress), making it difficult to Nack or delay retry a 'single' message without affecting subsequent ones. For complex routing and individual message state management, RabbitMQ or SQS are better choices.",
+      "wg": [
+        {
+          "t": "工作佇列",
+          "en": "work queue",
+          "ps": "NP"
+        }
+      ]
+    }
+  },
+  {
+    "no": "15",
+    "level": "intermediate",
+    "keywords": "Async Communication, Eventual Consistency, Trade-offs, Architecture",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "將微服務間的通訊從「同步 (REST/gRPC)」重構為「非同步 (Messaging/Event)」的主要架構權衡 (Trade-off) 是什麼？",
+        "en": "What is the main architectural trade-off when refactoring inter-service communication from 'Synchronous (REST/gRPC)' to 'Asynchronous (Messaging/Event)'?",
+        "wg": [
+          {
+            "t": "重構",
+            "en": "refactoring",
+            "ps": "V"
+          },
+          {
+            "t": "權衡",
+            "en": "trade-off",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "意即，您獲得了解耦與容錯性，但犧牲了什麼？",
+        "en": "That is, you gain decoupling and fault tolerance, but what do you sacrifice?",
+        "wg": [
+          {
+            "t": "解耦",
+            "en": "decoupling",
+            "ps": "N"
+          },
+          {
+            "t": "犧牲",
+            "en": "sacrifice",
+            "ps": "V"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 犧牲了系統的吞吐量 (Throughput)。",
+        "en": "(A) Sacrifice system throughput.",
+        "wg": []
+      },
+      {
+        "t": "(B) 犧牲了強一致性 (Strong Consistency)，必須處理最終一致性與分散式交易的複雜度。",
+        "en": "(B) Sacrifice Strong Consistency, requiring handling the complexity of Eventual Consistency and distributed transactions.",
+        "wg": [
+          {
+            "t": "強一致性",
+            "en": "Strong Consistency",
+            "ps": "NP"
+          },
+          {
+            "t": "最終一致性",
+            "en": "Eventual Consistency",
+            "ps": "NP"
+          }
+        ]
+      },
+      {
+        "t": "(C) 犧牲了服務的可擴展性 (Scalability)。",
+        "en": "(C) Sacrifice service scalability.",
+        "wg": []
+      },
+      {
+        "t": "(D) 犧牲了安全性 (Security)，因為訊息佇列無法加密。",
+        "en": "(D) Sacrifice security, because message queues cannot be encrypted.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "引入非同步通訊後，操作不再是原子性的 (Atomic)。發送者無法立即知道接收者是否成功處理，導致系統狀態在一段時間內可能不一致。這迫使開發者必須設計補償交易 (Saga) 或複雜的狀態檢查機制來應對。",
+      "en": "After introducing asynchronous communication, operations are no longer atomic. The sender cannot immediately know if the receiver successfully processed the request, leading to potential inconsistencies in system state for a period. This forces developers to design compensating transactions (Saga) or complex state checking mechanisms to cope.",
+      "wg": [
+        {
+          "t": "補償交易",
+          "en": "compensating transactions",
+          "ps": "NP"
+        }
+      ]
+    }
+  }
+]

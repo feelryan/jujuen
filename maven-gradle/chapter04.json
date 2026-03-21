@@ -1,0 +1,1280 @@
+[
+  {
+    "no": "1",
+    "level": "intermediate",
+    "keywords": "Gradle, Build Cache, Incremental Build, Clean Build",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "./gradlew clean build",
+    "question": [
+      {
+        "t": "一位資深開發者在新的 CI 代理 (Agent) 上執行了上述指令。",
+        "en": "A senior developer executes the above command on a fresh CI agent.",
+        "wg": [
+          {
+            "t": "代理",
+            "en": "agent",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "儘管執行了 `clean` 且工作區是全新的，建置速度卻異常地快，且大部分任務標記為 `FROM-CACHE`。",
+        "en": "Although `clean` was executed and the workspace is fresh, the build is surprisingly fast, with most tasks marked as `FROM-CACHE`.",
+        "wg": [
+          {
+            "t": "工作區",
+            "en": "workspace",
+            "ps": "N"
+          },
+          {
+            "t": "異常地",
+            "en": "surprisingly",
+            "ps": "Adv"
+          }
+        ]
+      },
+      {
+        "t": "請問這是哪一種機制在運作？",
+        "en": "Which mechanism is at work here?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 增量建置 (Incremental Build)",
+        "en": "(A) Incremental Build",
+        "wg": []
+      },
+      {
+        "t": "(B) 遠端建置快取 (Remote Build Cache)",
+        "en": "(B) Remote Build Cache",
+        "wg": []
+      },
+      {
+        "t": "(C) 守護行程 JIT 優化 (Daemon JIT Optimization)",
+        "en": "(C) Daemon JIT Optimization",
+        "wg": []
+      },
+      {
+        "t": "(D) 本地依賴快取 (Local Dependency Cache)",
+        "en": "(D) Local Dependency Cache",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "增量建置依賴於上一次建置的輸出 (Output) 存在於工作區中，而 `clean` 指令會刪除這些輸出，因此增量建置失效。此處之所以快速且顯示 `FROM-CACHE`，是因為建置工具透過輸入雜湊 (Input Hash) 從遠端快取下載了先前已編譯的結果。",
+      "en": "Incremental Build relies on the outputs of the previous build existing in the workspace, but the `clean` command deletes these outputs, rendering incremental build ineffective. The reason it is fast and shows `FROM-CACHE` is that the build tool downloaded previously compiled results from the Remote Cache based on Input Hashes.",
+      "wg": [
+        {
+          "t": "失效",
+          "en": "ineffective",
+          "ps": "Adj"
+        },
+        {
+          "t": "輸入雜湊",
+          "en": "Input Hash",
+          "ps": "N"
+        }
+      ]
+    },
+    "verified": "2026-03-19T13:27:47"
+  },
+  {
+    "no": "2",
+    "level": "advanced",
+    "keywords": "Cache Miss, Non-deterministic, Gradle, Anti-pattern",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "task generateBuildInfo {\n    inputs.file('src/main/resources/config.properties')\n    outputs.file('build/info.txt')\n    doLast {\n        new File('build/info.txt').text = \"Version: 1.0\\nBuilt at: \" + new Date()\n    }\n}",
+    "question": [
+      {
+        "t": "您的團隊發現 CI Pipeline 的快取命中率 (Hit Rate) 遠低於預期。",
+        "en": "Your team notices that the Cache Hit Rate of the CI Pipeline is much lower than expected.",
+        "wg": [
+          {
+            "t": "命中率",
+            "en": "Hit Rate",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "經檢查，上述 Gradle Task 是導致後續任務快取失效 (Cache Miss) 的元兇。",
+        "en": "Upon inspection, the above Gradle Task is identified as the culprit causing Cache Misses for subsequent tasks.",
+        "wg": [
+          {
+            "t": "元兇",
+            "en": "culprit",
+            "ps": "N"
+          },
+          {
+            "t": "失效",
+            "en": "miss",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "請問主要原因為何？",
+        "en": "What is the primary reason?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 未宣告 Task 的 Inputs 與 Outputs。",
+        "en": "(A) Task Inputs and Outputs are not declared.",
+        "wg": []
+      },
+      {
+        "t": "(B) `config.properties` 檔案在每次建置時都會變更。",
+        "en": "(B) The `config.properties` file changes with every build.",
+        "wg": []
+      },
+      {
+        "t": "(C) 任務產生了非確定性的輸出內容（時間戳），導致下游任務的 Input Hash 改變。",
+        "en": "(C) The task produces non-deterministic output content (timestamp), causing the Input Hash of downstream tasks to change.",
+        "wg": [
+          {
+            "t": "非確定性的",
+            "en": "non-deterministic",
+            "ps": "Adj"
+          },
+          {
+            "t": "下游",
+            "en": "downstream",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "(D) Gradle 不支援對自定義 Task 進行快取。",
+        "en": "(D) Gradle does not support caching for custom tasks.",
+        "wg": []
+      }
+    ],
+    "answer": "C",
+    "why": {
+      "t": "該 Task 在 `doLast` 中寫入了 `new Date()`，這意味著每次執行時，產出的檔案內容都不同（非確定性）。如果其他 Task 依賴此檔案作為 Input，它們的 Input Hash 也會隨之改變，導致無法命中快取。",
+      "en": "The task writes `new Date()` in `doLast`, meaning the output file content is different every time it runs (non-deterministic). If other tasks depend on this file as an Input, their Input Hashes will also change, resulting in a cache miss.",
+      "wg": [
+        {
+          "t": "依賴",
+          "en": "depend on",
+          "ps": "V"
+        }
+      ]
+    },
+    "verified": "2026-03-19T13:27:47"
+  },
+  {
+    "no": "3",
+    "level": "advanced",
+    "keywords": "CI/CD, Remote Cache, Architecture, Best Practices",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您正在為一個擁有 500 位開發者的組織設計 CI/CD 的遠端快取 (Remote Cache) 策略。",
+        "en": "You are designing a Remote Cache strategy for a CI/CD pipeline in an organization with 500 developers.",
+        "wg": []
+      },
+      {
+        "t": "為了確保快取的品質並避免「快取污染 (Cache Poisoning)」，下列哪項配置是最佳實務？",
+        "en": "To ensure cache quality and avoid 'Cache Poisoning', which of the following configurations is a best practice?",
+        "wg": [
+          {
+            "t": "快取污染",
+            "en": "Cache Poisoning",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 允許所有 CI 分支（包含 Pull Requests）讀取並寫入遠端快取，以最大化命中率。",
+        "en": "(A) Allow all CI branches (including Pull Requests) to read and write to the remote cache to maximize hit rate.",
+        "wg": []
+      },
+      {
+        "t": "(B) 僅允許 Main/Master 分支寫入快取；Pull Requests 僅能讀取快取。",
+        "en": "(B) Only allow Main/Master branches to write to the cache; Pull Requests can only read from the cache.",
+        "wg": []
+      },
+      {
+        "t": "(C) 僅允許開發者的本地機器寫入快取，CI Server 僅負責讀取。",
+        "en": "(C) Only allow developers' local machines to write to the cache; the CI Server is only responsible for reading.",
+        "wg": []
+      },
+      {
+        "t": "(D) 停用 CI Server 的遠端快取，僅依賴 Docker Layer 快取。",
+        "en": "(D) Disable remote cache on the CI Server and rely solely on Docker Layer caching.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "Pull Requests (PR) 的程式碼尚未經過完整審查或合併，若允許寫入快取，可能會將錯誤或不穩定的建置結果存入，污染共用快取。最佳實務是將 Main/Master 分支視為「黃金標準 (Gold Standard)」，僅由其寫入快取供其他人讀取。",
+      "en": "Pull Requests (PR) code has not been fully reviewed or merged. Allowing them to write to the cache might store erroneous or unstable build results, poisoning the shared cache. The best practice is to treat the Main/Master branch as the 'Gold Standard', allowing only it to write to the cache for others to read.",
+      "wg": [
+        {
+          "t": "審查",
+          "en": "review",
+          "ps": "V"
+        },
+        {
+          "t": "黃金標準",
+          "en": "Gold Standard",
+          "ps": "N"
+        }
+      ]
+    },
+    "verified": "2026-03-19T13:27:47"
+  },
+  {
+    "no": "4",
+    "level": "advanced",
+    "keywords": "Parallel Execution, OOM, Performance Tuning, Hardware",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您的 CI 伺服器配備 8 核心 CPU 與 8GB RAM。",
+        "en": "Your CI server is equipped with an 8-core CPU and 8GB of RAM.",
+        "wg": [
+          {
+            "t": "配備",
+            "en": "equipped with",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "為了加速建置，您設定了 `org.gradle.workers.max=8` (或 Maven `-T 8`)。",
+        "en": "To speed up the build, you configured `org.gradle.workers.max=8` (or Maven `-T 8`).",
+        "wg": []
+      },
+      {
+        "t": "結果發現建置時間反而變慢，且經常出現 `OutOfMemoryError` 或系統凍結。最可能的原因是什麼？",
+        "en": "However, the build time actually increased, and `OutOfMemoryError` or system freezes occur frequently. What is the most likely reason?",
+        "wg": [
+          {
+            "t": "凍結",
+            "en": "freeze",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "您應該如何調整？",
+        "en": "How should you adjust it?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) CPU 核心數不足；應升級至 16 核心並保持設定不變。",
+        "en": "(A) Insufficient CPU cores; upgrade to 16 cores and keep the settings unchanged.",
+        "wg": []
+      },
+      {
+        "t": "(B) 過度平行化導致記憶體不足 (OOM) 與頻繁 GC；應減少 Worker 數量（例如設為 2-4）並限制 Heap Size。",
+        "en": "(B) Over-parallelization caused OOM and frequent GC; reduce the number of Workers (e.g., to 2-4) and limit Heap Size.",
+        "wg": [
+          {
+            "t": "過度平行化",
+            "en": "over-parallelization",
+            "ps": "N"
+          },
+          {
+            "t": "頻繁",
+            "en": "frequent",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "(C) 網路頻寬不足；平行下載依賴時塞車。",
+        "en": "(C) Insufficient network bandwidth; congestion during parallel dependency downloads.",
+        "wg": []
+      },
+      {
+        "t": "(D) 這是 Gradle Daemon 的 Bug，應停用 Daemon。",
+        "en": "(D) This is a bug in the Gradle Daemon; the Daemon should be disabled.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "每個 Worker (Thread/Process) 執行編譯都需要消耗記憶體。若 8 個 Worker 同時運作，每個需要 1GB+，則 8GB RAM 很快就會耗盡，導致 JVM 花費大量時間在 Garbage Collection (GC) 上，甚至崩潰。平衡 CPU 與 RAM 是關鍵。",
+      "en": "Each Worker (Thread/Process) consumes memory during compilation. If 8 Workers run simultaneously, each needing 1GB+, the 8GB RAM will be exhausted quickly, causing the JVM to spend excessive time on Garbage Collection (GC) or even crash. Balancing CPU and RAM is key.",
+      "wg": [
+        {
+          "t": "耗盡",
+          "en": "exhausted",
+          "ps": "V"
+        },
+        {
+          "t": "崩潰",
+          "en": "crash",
+          "ps": "V"
+        }
+      ]
+    },
+    "verified": "2026-03-19T13:27:47"
+  },
+  {
+    "no": "5",
+    "level": "advanced",
+    "keywords": "Relocatability, Absolute Path, Cache Miss, Troubleshooting",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "開發者回報：在本地機器上重複執行建置時，快取命中率很高；但在 CI Server 與本地機器之間，遠端快取似乎完全失效。",
+        "en": "Developers report: Cache hit rate is high when rebuilding locally; however, between the CI Server and local machines, the remote cache seems completely ineffective.",
+        "wg": [
+          {
+            "t": "失效",
+            "en": "ineffective",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "經比對 Build Scan，發現某個 Task 的 Input Hash 不一致，原因是編譯參數中包含了 `/Users/alice/app` 與 `/home/jenkins/agent/app`。",
+        "en": "After comparing Build Scans, it was found that a Task's Input Hash was inconsistent because the compilation arguments contained `/Users/alice/app` and `/home/jenkins/agent/app`.",
+        "wg": [
+          {
+            "t": "不一致",
+            "en": "inconsistent",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "這屬於什麼類型的問題？",
+        "en": "What type of issue is this?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 絕對路徑污染 (Absolute Path Pollution) 導致的可重定位性 (Relocatability) 問題。",
+        "en": "(A) Relocatability issue caused by Absolute Path Pollution.",
+        "wg": [
+          {
+            "t": "可重定位性",
+            "en": "Relocatability",
+            "ps": "N"
+          },
+          {
+            "t": "污染",
+            "en": "Pollution",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(B) 依賴版本衝突 (Dependency Conflict)。",
+        "en": "(B) Dependency Conflict.",
+        "wg": []
+      },
+      {
+        "t": "(C) 時間戳不一致 (Timestamp Inconsistency)。",
+        "en": "(C) Timestamp Inconsistency.",
+        "wg": []
+      },
+      {
+        "t": "(D) 作業系統架構差異 (OS Architecture Difference)。",
+        "en": "(D) OS Architecture Difference.",
+        "wg": []
+      }
+    ],
+    "answer": "A",
+    "why": {
+      "t": "為了讓快取在不同機器（路徑不同）間共用，建置必須是「可重定位的 (Relocatable)」。如果 Input 包含絕對路徑，雜湊值就會因機器路徑不同而改變，導致無法命中遠端快取。應確保所有路徑皆為相對路徑。",
+      "en": "For cache to be shared across different machines (with different paths), the build must be 'Relocatable'. If Inputs contain absolute paths, the hash will differ based on the machine path, causing a remote cache miss. Ensure all paths are relative.",
+      "wg": [
+        {
+          "t": "相對路徑",
+          "en": "relative path",
+          "ps": "N"
+        }
+      ]
+    },
+    "verified": "2026-03-19T13:27:47"
+  },
+  {
+    "no": "6",
+    "level": "intermediate",
+    "keywords": "Gradle Daemon, JIT, JVM, Warm-up",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "一位新加入的開發者注意到，當他在早晨第一次執行 `./gradlew build` 時，速度明顯比隨後的幾次執行慢很多。",
+        "en": "A newly joined developer notices that when they run `./gradlew build` for the first time in the morning, it is significantly slower than subsequent runs.",
+        "wg": [
+          {
+            "t": "隨後的",
+            "en": "subsequent",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "即使沒有修改任何程式碼，第一次執行也需要 2 分鐘，而第二次僅需幾秒鐘。",
+        "en": "Even without changing any code, the first run takes 2 minutes, while the second takes only a few seconds.",
+        "wg": []
+      },
+      {
+        "t": "除了增量建置 (Incremental Build) 的因素外，下列哪項是造成這種效能差異的主要架構原因？",
+        "en": "Besides Incremental Build factors, which of the following is the primary architectural reason for this performance difference?",
+        "wg": [
+          {
+            "t": "架構原因",
+            "en": "architectural reason",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) Gradle Daemon 需要時間啟動 JVM 並讓 JIT 編譯器對 Bytecode 進行熱身 (Warm-up) 優化。",
+        "en": "(A) The Gradle Daemon takes time to start the JVM and allows the JIT compiler to warm up and optimize the bytecode.",
+        "wg": [
+          {
+            "t": "熱身",
+            "en": "warm up",
+            "ps": "V"
+          },
+          {
+            "t": "編譯器",
+            "en": "compiler",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(B) 第一次執行時，Gradle 需要從遠端儲存庫重新下載所有的依賴項目。",
+        "en": "(B) On the first run, Gradle needs to re-download all dependencies from the remote repository.",
+        "wg": []
+      },
+      {
+        "t": "(C) 作業系統的檔案快取 (File System Cache) 在第一次執行時尚未建立。",
+        "en": "(C) The operating system's File System Cache has not been established during the first run.",
+        "wg": []
+      },
+      {
+        "t": "(D) 第一次執行會強制執行完整的 Clean Build，忽略本地快取。",
+        "en": "(D) The first run forces a full Clean Build, ignoring the local cache.",
+        "wg": []
+      }
+    ],
+    "answer": "A",
+    "why": {
+      "t": "Gradle Daemon 是一個長駐的背景行程。第一次執行慢是因為需要啟動 JVM，且 JVM 的 JIT (Just-In-Time) 編譯器需要時間來分析執行路徑並優化熱點代碼 (Hotspots)。後續執行則受益於已熱身的 JVM。",
+      "en": "The Gradle Daemon is a long-lived background process. The slowness of the first run is due to JVM startup and the JIT (Just-In-Time) compiler needing time to analyze execution paths and optimize hotspots. Subsequent runs benefit from the warmed-up JVM.",
+      "wg": [
+        {
+          "t": "長駐的",
+          "en": "long-lived",
+          "ps": "Adj"
+        },
+        {
+          "t": "背景行程",
+          "en": "background process",
+          "ps": "N"
+        },
+        {
+          "t": "熱點代碼",
+          "en": "hotspots",
+          "ps": "N"
+        }
+      ]
+    },
+    "verified": "2026-03-19T13:27:47"
+  },
+  {
+    "no": "7",
+    "level": "advanced",
+    "keywords": "Configuration Phase, Performance, Anti-pattern, Gradle",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "task printDate {\n    // Bad Practice\n    def date = new Date()\n    println \"Configuring task at ${date}\"\n    \n    doLast {\n        println \"Executing task at ${new Date()}\"\n    }\n}",
+    "question": [
+      {
+        "t": "您正在診斷一個大型 Gradle 專案，發現即使執行像 `./gradlew help` 這樣簡單的指令，也需要等待超過 30 秒才能看到輸出。",
+        "en": "You are diagnosing a large Gradle project and notice that even running a simple command like `./gradlew help` takes over 30 seconds to show output.",
+        "wg": [
+          {
+            "t": "診斷",
+            "en": "diagnosing",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "根據上述程式碼片段與症狀，最可能的效能瓶頸出現在哪裡？",
+        "en": "Based on the code snippet above and the symptoms, where is the most likely performance bottleneck?",
+        "wg": [
+          {
+            "t": "症狀",
+            "en": "symptoms",
+            "ps": "N"
+          },
+          {
+            "t": "瓶頸",
+            "en": "bottleneck",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 執行階段 (Execution Phase)：`doLast` 區塊中的程式碼執行過慢。",
+        "en": "(A) Execution Phase: The code inside the `doLast` block is executing too slowly.",
+        "wg": []
+      },
+      {
+        "t": "(B) 配置階段 (Configuration Phase)：在 Task 定義層級直接執行的程式碼（如 IO 操作或繁重計算）拖慢了所有指令。",
+        "en": "(B) Configuration Phase: Code executed directly at the Task definition level (such as IO operations or heavy computations) slows down all commands.",
+        "wg": [
+          {
+            "t": "配置階段",
+            "en": "Configuration Phase",
+            "ps": "N"
+          },
+          {
+            "t": "繁重計算",
+            "en": "heavy computations",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) 初始化階段 (Initialization Phase)：`settings.gradle` 中的邏輯過於複雜。",
+        "en": "(C) Initialization Phase: The logic in `settings.gradle` is too complex.",
+        "wg": []
+      },
+      {
+        "t": "(D) 依賴解析 (Dependency Resolution)：Gradle 正在背景下載 SNAPSHOT 版本的依賴。",
+        "en": "(D) Dependency Resolution: Gradle is downloading SNAPSHOT dependencies in the background.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "Gradle 的生命週期包含配置階段 (Configuration Phase)，此階段會評估所有專案的 Build Script。任何不包含在 `doFirst` 或 `doLast` 區塊外的程式碼都會在每次建置時執行（無論執行哪個 Task），這是常見的效能反模式。",
+      "en": "Gradle's lifecycle includes the Configuration Phase, which evaluates the Build Scripts of all projects. Any code outside of `doFirst` or `doLast` blocks runs on every build (regardless of which task is executed), which is a common performance anti-pattern.",
+      "wg": [
+        {
+          "t": "生命週期",
+          "en": "lifecycle",
+          "ps": "N"
+        },
+        {
+          "t": "反模式",
+          "en": "anti-pattern",
+          "ps": "N"
+        }
+      ]
+    },
+    "verified": "2026-03-19T13:27:47"
+  },
+  {
+    "no": "8",
+    "level": "intermediate",
+    "keywords": "Maven, mvnd, Daemon, Performance",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您的團隊維護一個龐大的傳統 Maven 多模組專案 (Multi-module project)，目前的建置速度令人不滿。",
+        "en": "Your team maintains a massive legacy Maven multi-module project, and the current build speed is unsatisfactory.",
+        "wg": [
+          {
+            "t": "龐大的",
+            "en": "massive",
+            "ps": "Adj"
+          },
+          {
+            "t": "令人不滿",
+            "en": "unsatisfactory",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "團隊希望在不遷移至 Gradle 的前提下，盡可能獲得類似 Gradle Daemon 的效能優勢（如 JIT 熱身與平行處理）。",
+        "en": "The team wants to gain Gradle Daemon-like performance benefits (such as JIT warm-up and parallel processing) without migrating to Gradle.",
+        "wg": [
+          {
+            "t": "遷移",
+            "en": "migrating",
+            "ps": "V"
+          },
+          {
+            "t": "前提",
+            "en": "premise",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "下列哪項工具是最佳選擇？",
+        "en": "Which of the following tools is the best choice?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 使用 `mvn -T 1C` 指令。",
+        "en": "(A) Use the `mvn -T 1C` command.",
+        "wg": []
+      },
+      {
+        "t": "(B) 引入 Maven Build Cache Extension。",
+        "en": "(B) Introduce the Maven Build Cache Extension.",
+        "wg": []
+      },
+      {
+        "t": "(C) 使用 `mvnd` (Maven Daemon)。",
+        "en": "(C) Use `mvnd` (Maven Daemon).",
+        "wg": []
+      },
+      {
+        "t": "(D) 將所有依賴改為 SNAPSHOT 版本。",
+        "en": "(D) Change all dependencies to SNAPSHOT versions.",
+        "wg": []
+      }
+    ],
+    "answer": "C",
+    "why": {
+      "t": "`mvnd` (Maven Daemon) 借鑒了 Gradle 的架構，提供了一個長駐的背景行程來服務 Maven 建置請求，消除了 JVM 啟動開銷並保持 JIT 優化狀態，是提升 Maven 效能的直接替代方案。",
+      "en": "`mvnd` (Maven Daemon) borrows from Gradle's architecture, providing a long-lived background process to serve Maven build requests, eliminating JVM startup overhead and maintaining JIT optimization, making it a drop-in replacement for boosting Maven performance.",
+      "wg": [
+        {
+          "t": "借鑒",
+          "en": "borrows from",
+          "ps": "V"
+        },
+        {
+          "t": "開銷",
+          "en": "overhead",
+          "ps": "N"
+        },
+        {
+          "t": "直接替代方案",
+          "en": "drop-in replacement",
+          "ps": "N"
+        }
+      ]
+    },
+    "verified": "2026-03-19T13:27:47"
+  },
+  {
+    "no": "9",
+    "level": "advanced",
+    "keywords": "Custom Task, Incremental Build, Inputs/Outputs, Gradle",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "task processTemplates {\n    inputs.dir 'src/templates'\n    // Missing output declaration\n    doLast {\n        file('build/generated').mkdirs()\n        // generation logic...\n    }\n}",
+    "question": [
+      {
+        "t": "您撰寫了一個自定義 Gradle Task 來處理模板生成，如上所示。",
+        "en": "You wrote a custom Gradle Task to handle template generation, as shown above.",
+        "wg": [
+          {
+            "t": "模板",
+            "en": "template",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "開發者回報即使 `src/templates` 沒有任何變更，每次執行 `build` 時，這個 Task 都會重新執行，無法標記為 `UP-TO-DATE`。",
+        "en": "Developers report that even if there are no changes in `src/templates`, this task re-runs every time `build` is executed and is never marked as `UP-TO-DATE`.",
+        "wg": []
+      },
+      {
+        "t": "這是什麼原因造成的？",
+        "en": "What is causing this?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) Gradle 無法追蹤目錄類型的輸入 (Input Directory)。",
+        "en": "(A) Gradle cannot track Input Directory types.",
+        "wg": []
+      },
+      {
+        "t": "(B) 未宣告 Task 的輸出 (Outputs)，Gradle 假設該 Task 總是需要執行。",
+        "en": "(B) The Task's Outputs are not declared, so Gradle assumes the task always needs to run.",
+        "wg": [
+          {
+            "t": "宣告",
+            "en": "declared",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(C) `doLast` 區塊內的程式碼無法被快取。",
+        "en": "(C) Code inside the `doLast` block cannot be cached.",
+        "wg": []
+      },
+      {
+        "t": "(D) 必須明確啟用 `--build-cache` 才能支援增量建置。",
+        "en": "(D) You must explicitly enable `--build-cache` to support incremental builds.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "增量建置 (Incremental Build) 依賴於對 Inputs 和 Outputs 的檢查。如果 Task 沒有宣告 Outputs，Gradle 無法判斷上次執行的產物是否仍然有效（或是否存在），因此為了安全起見，會強制每次重新執行。",
+      "en": "Incremental Build relies on checking Inputs and Outputs. If a Task does not declare Outputs, Gradle cannot determine if the artifacts from the previous run are still valid (or exist), so it forces a re-run every time for safety.",
+      "wg": [
+        {
+          "t": "產物",
+          "en": "artifacts",
+          "ps": "N"
+        },
+        {
+          "t": "強制",
+          "en": "forces",
+          "ps": "V"
+        }
+      ]
+    },
+    "verified": "2026-03-19T13:29:04"
+  },
+  {
+    "no": "10",
+    "level": "advanced",
+    "keywords": "CI/CD, Ephemeral Agents, Docker, Remote Cache",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您的公司決定將 CI 系統從固定的虛擬機 (VM) 遷移到基於 Kubernetes 的短暫容器 (Ephemeral Agents)。",
+        "en": "Your company decides to migrate the CI system from static Virtual Machines (VMs) to Kubernetes-based Ephemeral Agents.",
+        "wg": [
+          {
+            "t": "短暫的",
+            "en": "ephemeral",
+            "ps": "Adj"
+          },
+          {
+            "t": "容器",
+            "en": "containers",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "遷移後，開發者抱怨建置時間變長了，因為每次建置似乎都在重新編譯所有程式碼。",
+        "en": "After the migration, developers complain that build times have increased because every build seems to recompile all the code.",
+        "wg": []
+      },
+      {
+        "t": "在不改變「代理人是短暫的」這一架構前提下，最有效的優化策略是什麼？",
+        "en": "Without changing the architectural premise that \"agents are ephemeral\", what is the most effective optimization strategy?",
+        "wg": [
+          {
+            "t": "前提",
+            "en": "premise",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 在容器中掛載主機的 Docker Socket 以重用映像檔。",
+        "en": "(A) Mount the host's Docker Socket in the container to reuse images.",
+        "wg": []
+      },
+      {
+        "t": "(B) 配置並啟用遠端建置快取 (Remote Build Cache)，讓代理人能下載先前建置的結果。",
+        "en": "(B) Configure and enable Remote Build Cache, allowing agents to download results from previous builds.",
+        "wg": []
+      },
+      {
+        "t": "(C) 增加每個容器的 CPU 與記憶體資源配額。",
+        "en": "(C) Increase the CPU and memory resource quotas for each container.",
+        "wg": [
+          {
+            "t": "配額",
+            "en": "quotas",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(D) 在每個 Pipeline 步驟中執行 `clean` 以確保環境一致性。",
+        "en": "(D) Run `clean` in every Pipeline step to ensure environment consistency.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "短暫代理人 (Ephemeral Agents) 每次啟動都是全新的環境，本地快取 (Local Cache) 是空的。只有透過遠端建置快取 (Remote Build Cache)，代理人才能跨越不同的建置實例共享編譯產物，避免重複工作。",
+      "en": "Ephemeral Agents start with a fresh environment every time, so the Local Cache is empty. Only through Remote Build Cache can agents share build artifacts across different build instances, avoiding redundant work.",
+      "wg": [
+        {
+          "t": "實例",
+          "en": "instances",
+          "ps": "N"
+        },
+        {
+          "t": "重複工作",
+          "en": "redundant work",
+          "ps": "N"
+        }
+      ]
+    },
+    "verified": "2026-03-19T13:29:04"
+  },
+  {
+    "no": "11",
+    "level": "advanced",
+    "keywords": "Parallel Execution, Thread Safety, Flaky Tests, Race Condition",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "為了加速 CI 流程，您在 Gradle 專案中啟用了 `org.gradle.parallel=true`。",
+        "en": "To speed up the CI process, you enabled `org.gradle.parallel=true` in your Gradle project.",
+        "wg": []
+      },
+      {
+        "t": "然而，您發現單元測試開始出現隨機失敗 (Flaky Tests)，特別是那些涉及資料庫寫入或使用靜態變數 (Static Variables) 的測試。",
+        "en": "However, you notice that unit tests start to fail randomly (Flaky Tests), especially those involving database writes or using Static Variables.",
+        "wg": [
+          {
+            "t": "隨機失敗",
+            "en": "flaky",
+            "ps": "Adj"
+          },
+          {
+            "t": "靜態變數",
+            "en": "static variables",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "這最可能是什麼問題？",
+        "en": "What is the most likely problem?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 平行執行導致了記憶體不足 (OOM) 錯誤。",
+        "en": "(A) Parallel execution caused Out Of Memory (OOM) errors.",
+        "wg": []
+      },
+      {
+        "t": "(B) 測試程式碼中存在共享的可變狀態 (Shared Mutable State)，在多執行緒環境下引發了競態條件 (Race Conditions)。",
+        "en": "(B) There is Shared Mutable State in the test code, causing Race Conditions in a multi-threaded environment.",
+        "wg": [
+          {
+            "t": "共享的可變狀態",
+            "en": "shared mutable state",
+            "ps": "N"
+          },
+          {
+            "t": "競態條件",
+            "en": "race conditions",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) Gradle 的平行模式不支援測試任務。",
+        "en": "(C) Gradle's parallel mode does not support test tasks.",
+        "wg": []
+      },
+      {
+        "t": "(D) 資料庫連線池 (Connection Pool) 已耗盡。",
+        "en": "(D) The database Connection Pool is exhausted.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "當啟用平行執行時，多個 Task（包含測試）可能同時執行。如果測試依賴於全域狀態（如靜態變數）或共享資源（如固定名稱的資料庫或檔案），就會發生競態條件，導致測試結果不穩定。",
+      "en": "When parallel execution is enabled, multiple tasks (including tests) may run concurrently. If tests rely on global state (like static variables) or shared resources (like a fixed-name database or file), race conditions occur, leading to unstable test results.",
+      "wg": [
+        {
+          "t": "全域狀態",
+          "en": "global state",
+          "ps": "N"
+        },
+        {
+          "t": "不穩定",
+          "en": "unstable",
+          "ps": "Adj"
+        }
+      ]
+    },
+    "verified": "2026-03-19T13:29:04"
+  },
+  {
+    "no": "12",
+    "level": "intermediate",
+    "keywords": "Dependencies, SNAPSHOT, Performance, Network",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您的專案依賴了許多內部開發的 Library，且版本號均設定為 `1.0-SNAPSHOT`。",
+        "en": "Your project depends on many internally developed libraries, all versioned as `1.0-SNAPSHOT`.",
+        "wg": []
+      },
+      {
+        "t": "開發者抱怨即使在沒有網路的環境下，或者依賴沒有變更時，建置工具仍嘗試連線到遠端儲存庫檢查更新，導致建置緩慢。",
+        "en": "Developers complain that even in offline environments or when dependencies haven't changed, the build tool still tries to connect to the remote repository to check for updates, causing slow builds.",
+        "wg": [
+          {
+            "t": "儲存庫",
+            "en": "repository",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "關於 SNAPSHOT 依賴對效能的影響，下列敘述何者正確？",
+        "en": "Regarding the impact of SNAPSHOT dependencies on performance, which of the following statements is true?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) SNAPSHOT 依賴預設是不可變的 (Immutable)，因此快取效率很高。",
+        "en": "(A) SNAPSHOT dependencies are immutable by default, so caching efficiency is high.",
+        "wg": [
+          {
+            "t": "不可變的",
+            "en": "immutable",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "(B) 建置工具需頻繁檢查 SNAPSHOT 的 Metadata 以確認是否有新版本，這增加了網路開銷與解析時間。",
+        "en": "(B) Build tools must frequently check SNAPSHOT metadata to see if a new version exists, increasing network overhead and resolution time.",
+        "wg": [
+          {
+            "t": "頻繁",
+            "en": "frequently",
+            "ps": "Adv"
+          },
+          {
+            "t": "解析",
+            "en": "resolution",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) SNAPSHOT 依賴只會在執行 `clean` 時才檢查更新。",
+        "en": "(C) SNAPSHOT dependencies are only checked for updates when `clean` is executed.",
+        "wg": []
+      },
+      {
+        "t": "(D) 使用 SNAPSHOT 是微服務架構下的最佳實踐，不會影響效能。",
+        "en": "(D) Using SNAPSHOT is a best practice in microservices architecture and does not affect performance.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "SNAPSHOT 的設計目的就是為了允許變更。為了確保開發者取得最新版本，Maven/Gradle 預設會定期（或每次，視配置而定）檢查遠端儲存庫的 Metadata，這會產生額外的網路請求並拖慢依賴解析過程。",
+      "en": "SNAPSHOTs are designed to allow changes. To ensure developers get the latest version, Maven/Gradle checks the remote repository's metadata periodically (or every time, depending on config) by default, creating additional network requests and slowing down dependency resolution.",
+      "wg": [
+        {
+          "t": "依賴解析",
+          "en": "dependency resolution",
+          "ps": "N"
+        }
+      ]
+    },
+    "verified": "2026-03-19T13:29:04"
+  },
+  {
+    "no": "13",
+    "level": "advanced",
+    "keywords": "Build Scan, Garbage Collection, Heap Size, Performance Tuning",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您在分析一份 Gradle Build Scan 報告時，發現 \"Garbage Collection Time\" 佔據了總建置時間的 30% 以上。",
+        "en": "While analyzing a Gradle Build Scan report, you notice that \"Garbage Collection Time\" accounts for over 30% of the total build time.",
+        "wg": [
+          {
+            "t": "佔據",
+            "en": "accounts for",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "這通常暗示著什麼問題，以及該如何解決？",
+        "en": "What problem does this usually suggest, and how should it be resolved?",
+        "wg": [
+          {
+            "t": "暗示",
+            "en": "suggest",
+            "ps": "V"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) CPU 核心數不足；應增加 `org.gradle.workers.max`。",
+        "en": "(A) Insufficient CPU cores; increase `org.gradle.workers.max`.",
+        "wg": []
+      },
+      {
+        "t": "(B) 建置過程中的 IO 操作過多；應更換為 SSD。",
+        "en": "(B) Too many IO operations during the build; switch to SSD.",
+        "wg": []
+      },
+      {
+        "t": "(C) JVM Heap 記憶體不足，導致頻繁 GC；應增加 `org.gradle.jvmargs` 中的 `-Xmx` 設定。",
+        "en": "(C) Insufficient JVM Heap memory causing frequent GC; increase the `-Xmx` setting in `org.gradle.jvmargs`.",
+        "wg": [
+          {
+            "t": "頻繁",
+            "en": "frequent",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "(D) 這是 Gradle Daemon 的正常行為，無需處理。",
+        "en": "(D) This is normal behavior for the Gradle Daemon and requires no action.",
+        "wg": []
+      }
+    ],
+    "answer": "C",
+    "why": {
+      "t": "當 JVM Heap 接近滿載時，垃圾回收器 (GC) 會頻繁運作以釋放空間，導致 CPU 資源被 GC 佔用而非執行建置任務（稱為 Thrashing）。增加 Heap Size (`-Xmx`) 是標準的解決方案。",
+      "en": "When the JVM Heap is near capacity, the Garbage Collector (GC) runs frequently to free up space, causing CPU resources to be consumed by GC instead of build tasks (known as Thrashing). Increasing the Heap Size (`-Xmx`) is the standard solution.",
+      "wg": [
+        {
+          "t": "滿載",
+          "en": "capacity",
+          "ps": "N"
+        },
+        {
+          "t": "釋放",
+          "en": "free up",
+          "ps": "V"
+        }
+      ]
+    },
+    "verified": "2026-03-19T13:29:04"
+  },
+  {
+    "no": "14",
+    "level": "intermediate",
+    "keywords": "Monorepo, Change Impact, Optimization, Modules",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在一個擁有 50 個模組的 Monorepo 中，開發者只修改了一個底層模組 (Leaf Module) 的程式碼。",
+        "en": "In a Monorepo with 50 modules, a developer modifies code in only one leaf module.",
+        "wg": [
+          {
+            "t": "底層模組",
+            "en": "leaf module",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "理想情況下，CI 系統應該只重新建置該模組及其相依的模組，而不是整個專案。",
+        "en": "Ideally, the CI system should only rebuild that module and its dependents, not the entire project.",
+        "wg": [
+          {
+            "t": "相依的",
+            "en": "dependents",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "如果 CI 每次都重建所有模組，最可能是因為缺乏下列哪項機制？",
+        "en": "If the CI rebuilds all modules every time, which mechanism is most likely missing?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 缺乏有效的增量建置 (Incremental Build) 或建置快取 (Build Cache) 配置。",
+        "en": "(A) Lack of effective Incremental Build or Build Cache configuration.",
+        "wg": []
+      },
+      {
+        "t": "(B) 沒有使用微服務架構。",
+        "en": "(B) Not using a microservices architecture.",
+        "wg": []
+      },
+      {
+        "t": "(C) 專案沒有使用 SNAPSHOT 版本。",
+        "en": "(C) The project is not using SNAPSHOT versions.",
+        "wg": []
+      },
+      {
+        "t": "(D) 沒有啟用平行執行 (Parallel Execution)。",
+        "en": "(D) Parallel Execution is not enabled.",
+        "wg": []
+      }
+    ],
+    "answer": "A",
+    "why": {
+      "t": "在 Monorepo 中，如果配置了正確的增量建置與快取，未受變更影響的模組應該會命中快取 (FROM-CACHE) 或標記為 UP-TO-DATE，從而跳過執行。如果全部重建，代表系統無法識別哪些部分未變更。",
+      "en": "In a Monorepo, if Incremental Build and Cache are correctly configured, modules unaffected by changes should hit the cache (FROM-CACHE) or be marked UP-TO-DATE, skipping execution. If everything rebuilds, it means the system fails to identify unchanged parts.",
+      "wg": [
+        {
+          "t": "未受變更影響的",
+          "en": "unaffected by changes",
+          "ps": "Adj"
+        },
+        {
+          "t": "識別",
+          "en": "identify",
+          "ps": "V"
+        }
+      ]
+    },
+    "verified": "2026-03-19T13:29:04"
+  },
+  {
+    "no": "15",
+    "level": "advanced",
+    "keywords": "Cache Miss, Debugging, Fingerprint, Hash",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "您懷疑某個 Task 的 Cache Key 計算有問題，導致在兩台不同的 CI 機器上產生了 Cache Miss。",
+        "en": "You suspect an issue with a Task's Cache Key calculation, causing a Cache Miss across two different CI machines.",
+        "wg": [
+          {
+            "t": "懷疑",
+            "en": "suspect",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "為了證實這一點，您決定比較兩次建置的指紋 (Fingerprint)。",
+        "en": "To confirm this, you decide to compare the fingerprints of the two builds.",
+        "wg": [
+          {
+            "t": "證實",
+            "en": "confirm",
+            "ps": "V"
+          },
+          {
+            "t": "指紋",
+            "en": "fingerprints",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "下列哪種方法最能精確找出導致 Hash 差異的具體屬性？",
+        "en": "Which of the following methods is best for precisely identifying the specific property causing the Hash discrepancy?",
+        "wg": [
+          {
+            "t": "差異",
+            "en": "discrepancy",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 比較兩次建置的 Console Log 輸出文字。",
+        "en": "(A) Compare the Console Log text output of the two builds.",
+        "wg": []
+      },
+      {
+        "t": "(B) 使用 Gradle Build Scan 的 \"Compare Builds\" 功能或類似的指紋比較工具。",
+        "en": "(B) Use Gradle Build Scan's \"Compare Builds\" feature or a similar fingerprint comparison tool.",
+        "wg": []
+      },
+      {
+        "t": "(C) 檢查 `build/` 目錄下的檔案時間戳記。",
+        "en": "(C) Check the file timestamps in the `build/` directory.",
+        "wg": []
+      },
+      {
+        "t": "(D) 重新執行 `clean build` 並觀察執行時間。",
+        "en": "(D) Rerun `clean build` and observe the execution time.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "Gradle Build Scan 提供了專門的比較功能，能夠逐一列出每個 Task 的 Inputs 屬性及其 Hash 值，並標示出哪一個具體屬性（例如某個檔案路徑、環境變數或版本號）導致了 Cache Key 的改變。",
+      "en": "Gradle Build Scan provides a dedicated comparison feature that lists the Input properties and their Hash values for each Task, highlighting exactly which property (e.g., a file path, environment variable, or version number) caused the Cache Key to change.",
+      "wg": [
+        {
+          "t": "逐一列出",
+          "en": "lists ... one by one",
+          "ps": "V"
+        },
+        {
+          "t": "標示出",
+          "en": "highlighting",
+          "ps": "V"
+        }
+      ]
+    },
+    "verified": "2026-03-19T13:29:04"
+  }
+]
