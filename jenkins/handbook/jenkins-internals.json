@@ -27,27 +27,27 @@
     "type": "Single",
     "options": [
       {
-        "t": "Agent 與 Master 之間的網路頻寬不足，導致 JSON 檔案傳輸緩慢。",
-        "en": "Insufficient network bandwidth between the Agent and Master caused slow JSON file transfer.",
+        "t": "(A) Agent 與 Master 之間的網路頻寬不足，導致 JSON 檔案傳輸緩慢。",
+        "en": "(A) Insufficient network bandwidth between the Agent and Master caused slow JSON file transfer.",
         "wg": []
       },
       {
-        "t": "Pipeline 中的 Groovy 邏輯（`script` 區塊）實際上是在 Master 的 JVM 上執行，而非 Agent。",
-        "en": "The Groovy logic in the Pipeline (`script` block) is actually executed on the Master's JVM, not the Agent.",
+        "t": "(B) Pipeline 中的 Groovy 邏輯（`script` 區塊）實際上是在 Master 的 JVM 上執行，而非 Agent。",
+        "en": "(B) The Groovy logic in the Pipeline (`script` block) is actually executed on the Master's JVM, not the Agent.",
         "wg": []
       },
       {
-        "t": "該 Agent 的記憶體配置不足，導致 Master 嘗試接手運算。",
-        "en": "The Agent's memory configuration is insufficient, causing the Master to attempt to take over the computation.",
+        "t": "(C) 該 Agent 的記憶體配置不足，導致 Master 嘗試接手運算。",
+        "en": "(C) The Agent's memory configuration is insufficient, causing the Master to attempt to take over the computation.",
         "wg": []
       },
       {
-        "t": "`readJSON` 步驟本身有 Bug，導致記憶體洩漏。",
-        "en": "The `readJSON` step itself has a bug, causing a memory leak.",
+        "t": "(D) `readJSON` 步驟本身有 Bug，導致記憶體洩漏。",
+        "en": "(D) The `readJSON` step itself has a bug, causing a memory leak.",
         "wg": []
       }
     ],
-    "answer": "1",
+    "answer": "B",
     "why": {
       "t": "這是 Jenkins Pipeline 常見的效能陷阱。雖然 `agent` 指令分配了節點，但 Pipeline 的 Groovy 程式碼（CPS 轉換後的邏輯）始終在 Master (Controller) 上執行。只有具體的步驟（如 `sh`, `bat`）才會發送到 Agent 執行。對於複雜運算或大數據處理，應將邏輯移至 Shell 或 Python 腳本中，讓 Agent 透過 `sh` 執行。",
       "en": "This is a common performance pitfall in Jenkins Pipelines. Although the `agent` directive allocates a node, the Pipeline's Groovy code (logic transformed by CPS) always executes on the Master (Controller). Only specific steps (like `sh`, `bat`) are sent to the Agent for execution. For complex computations or large data processing, logic should be moved to Shell or Python scripts to be executed by the Agent via `sh`.",
@@ -63,7 +63,8 @@
           "ps": "noun"
         }
       ]
-    }
+    },
+    "verified": "2026-03-23T08:35:20"
   },
   {
     "no": "2",
@@ -93,13 +94,13 @@
     "type": "Single",
     "options": [
       {
-        "t": "`stash` 指令不支援跨作業系統的檔案傳輸。",
-        "en": "`stash` command does not support cross-OS file transfer.",
+        "t": "(A) `stash` 指令不支援跨作業系統的檔案傳輸。",
+        "en": "(A) `stash` command does not support cross-OS file transfer.",
         "wg": []
       },
       {
-        "t": "`stash` 的資料會透過 Remoting Channel 傳回 Master 儲存，這會阻塞 Master 的通訊管道並消耗其 I/O 資源。",
-        "en": "Data from `stash` is sent back to the Master for storage via the Remoting Channel, which blocks the Master's communication channel and consumes its I/O resources.",
+        "t": "(B) `stash` 的資料會透過 Remoting Channel 傳回 Master 儲存，這會阻塞 Master 的通訊管道並消耗其 I/O 資源。",
+        "en": "(B) Data from `stash` is sent back to the Master for storage via the Remoting Channel, which blocks the Master's communication channel and consumes its I/O resources.",
         "wg": [
           {
             "t": "阻塞",
@@ -109,17 +110,17 @@
         ]
       },
       {
-        "t": "`stash` 只能在同一個 Agent 上的不同 Stage 間運作，無法跨 Agent。",
-        "en": "`stash` only works between stages on the same Agent and cannot span across Agents.",
+        "t": "(C) `stash` 只能在同一個 Agent 上的不同 Stage 間運作，無法跨 Agent。",
+        "en": "(C) `stash` only works between stages on the same Agent and cannot span across Agents.",
         "wg": []
       },
       {
-        "t": "`stash` 會自動壓縮檔案，導致 CPU 使用率過高。",
-        "en": "`stash` automatically compresses files, leading to excessive CPU usage.",
+        "t": "(D) `stash` 會自動壓縮檔案，導致 CPU 使用率過高。",
+        "en": "(D) `stash` automatically compresses files, leading to excessive CPU usage.",
         "wg": []
       }
     ],
-    "answer": "1",
+    "answer": "B",
     "why": {
       "t": "Jenkins 的 Remoting Channel 設計上並不適合傳輸大量資料。`stash` 會強制將檔案從 Agent 1 傳回 Master，再從 Master 傳到 Agent 2。對於大檔案，這不僅佔用 Master 的磁碟空間，更會阻塞 Master 與所有 Agent 溝通的管道，導致系統不穩定。建議使用外部儲存（如 S3, Nexus）來傳遞大型產物。",
       "en": "Jenkins' Remoting Channel is not designed for transferring large amounts of data. `stash` forces files to be transferred from Agent 1 back to the Master, and then from the Master to Agent 2. For large files, this not only consumes the Master's disk space but also clogs the communication channel between the Master and all Agents, leading to system instability. It is recommended to use external storage (like S3, Nexus) for passing large artifacts.",
@@ -130,7 +131,8 @@
           "ps": "noun"
         }
       ]
-    }
+    },
+    "verified": "2026-03-23T08:35:20"
   },
   {
     "no": "3",
@@ -155,27 +157,27 @@
     "type": "Single",
     "options": [
       {
-        "t": "將 Master 的 Executor 數量設為 CPU 核心數的 2 倍，以最大化利用資源。",
-        "en": "Set the number of Executors on the Master to 2x the CPU cores to maximize resource utilization.",
+        "t": "(A) 將 Master 的 Executor 數量設為 CPU 核心數的 2 倍，以最大化利用資源。",
+        "en": "(A) Set the number of Executors on the Master to 2x the CPU cores to maximize resource utilization.",
         "wg": []
       },
       {
-        "t": "將 Master 的 Executor 數量設為 0，禁止在 Master 上執行一般的 Build Job。",
-        "en": "Set the number of Executors on the Master to 0 to prevent running general Build Jobs on the Master.",
+        "t": "(B) 將 Master 的 Executor 數量設為 0，禁止在 Master 上執行一般的 Build Job。",
+        "en": "(B) Set the number of Executors on the Master to 0 to prevent running general Build Jobs on the Master.",
         "wg": []
       },
       {
-        "t": "保留至少 4 個 Executor 在 Master 上，以備 Agent 全數離線時使用。",
-        "en": "Keep at least 4 Executors on the Master for use in case all Agents go offline.",
+        "t": "(C) 保留至少 4 個 Executor 在 Master 上，以備 Agent 全數離線時使用。",
+        "en": "(C) Keep at least 4 Executors on the Master for use in case all Agents go offline.",
         "wg": []
       },
       {
-        "t": "Master 的 Executor 數量應動態調整，視當前佇列長度而定。",
-        "en": "The number of Executors on the Master should be dynamically adjusted based on the current queue length.",
+        "t": "(D) Master 的 Executor 數量應動態調整，視當前佇列長度而定。",
+        "en": "(D) The number of Executors on the Master should be dynamically adjusted based on the current queue length.",
         "wg": []
       }
     ],
-    "answer": "1",
+    "answer": "B",
     "why": {
       "t": "這即是「Master 零執行緒原則 (No Executors on Master)」。Master 是大腦，負責調度與管理；Agent 是肌肉，負責執行。在 Master 上執行 Build 會帶來安全風險（存取 Master 檔案系統）與效能風險（CPU/RAM 耗盡導致服務中斷）。",
       "en": "This is the 'No Executors on Master' rule. The Master is the brain, responsible for scheduling and management; Agents are the muscles, responsible for execution. Running builds on the Master introduces security risks (accessing the Master's file system) and performance risks (CPU/RAM exhaustion causing service interruption).",
@@ -186,7 +188,8 @@
           "ps": "noun"
         }
       ]
-    }
+    },
+    "verified": "2026-03-23T08:35:20"
   },
   {
     "no": "4",
@@ -216,27 +219,27 @@
     "type": "Single",
     "options": [
       {
-        "t": "Launch agent via SSH (由 Master 主動連線)",
-        "en": "Launch agent via SSH (Master initiates connection)",
+        "t": "(A) Launch agent via SSH (由 Master 主動連線)",
+        "en": "(A) Launch agent via SSH (Master initiates connection)",
         "wg": []
       },
       {
-        "t": "Inbound TCP Agent (JNLP / 由 Agent 主動連線)",
-        "en": "Inbound TCP Agent (JNLP / Agent initiates connection)",
+        "t": "(B) Inbound TCP Agent (JNLP / 由 Agent 主動連線)",
+        "en": "(B) Inbound TCP Agent (JNLP / Agent initiates connection)",
         "wg": []
       },
       {
-        "t": "使用 NFS 掛載 Master 的 Workspace",
-        "en": "Use NFS to mount the Master's Workspace",
+        "t": "(C) 使用 NFS 掛載 Master 的 Workspace",
+        "en": "(C) Use NFS to mount the Master's Workspace",
         "wg": []
       },
       {
-        "t": "透過 REST API 定期輪詢",
-        "en": "Poll periodically via REST API",
+        "t": "(D) 透過 REST API 定期輪詢",
+        "en": "(D) Poll periodically via REST API",
         "wg": []
       }
     ],
-    "answer": "1",
+    "answer": "B",
     "why": {
       "t": "當 Agent 位於 NAT 後方或沒有固定 IP 時，Master 很難主動建立連線（SSH 方式會受阻）。Inbound TCP (JNLP) 允許 Agent 主動連回 Master，這穿透防火牆的能力較佳，且不依賴 Agent 的固定 IP。",
       "en": "When an Agent is behind a NAT or lacks a static IP, it is difficult for the Master to initiate a connection (SSH method would be blocked). Inbound TCP (JNLP) allows the Agent to initiate the connection back to the Master, which is better at penetrating firewalls and does not rely on the Agent having a static IP.",
@@ -252,7 +255,8 @@
           "ps": "verb"
         }
       ]
-    }
+    },
+    "verified": "2026-03-23T08:35:20"
   },
   {
     "no": "5",
@@ -282,13 +286,13 @@
     "type": "Single",
     "options": [
       {
-        "t": "可以提高建置速度，因為 Jenkins 會自動選擇 CPU 最強的機器。",
-        "en": "It improves build speed because Jenkins automatically selects the machine with the strongest CPU.",
+        "t": "(A) 可以提高建置速度，因為 Jenkins 會自動選擇 CPU 最強的機器。",
+        "en": "(A) It improves build speed because Jenkins automatically selects the machine with the strongest CPU.",
         "wg": []
       },
       {
-        "t": "實現了 Pipeline 與底層基礎設施的解耦，允許更換機器而不需修改程式碼。",
-        "en": "It achieves decoupling between the Pipeline and the underlying infrastructure, allowing machines to be replaced without modifying the code.",
+        "t": "(B) 實現了 Pipeline 與底層基礎設施的解耦，允許更換機器而不需修改程式碼。",
+        "en": "(B) It achieves decoupling between the Pipeline and the underlying infrastructure, allowing machines to be replaced without modifying the code.",
         "wg": [
           {
             "t": "解耦",
@@ -298,17 +302,17 @@
         ]
       },
       {
-        "t": "這是唯一支援 Docker Agent 的語法。",
-        "en": "This is the only syntax that supports Docker Agents.",
+        "t": "(C) 這是唯一支援 Docker Agent 的語法。",
+        "en": "(C) This is the only syntax that supports Docker Agents.",
         "wg": []
       },
       {
-        "t": "可以繞過 Master 的權限檢查。",
-        "en": "It can bypass the Master's permission checks.",
+        "t": "(D) 可以繞過 Master 的權限檢查。",
+        "en": "(D) It can bypass the Master's permission checks.",
         "wg": []
       }
     ],
-    "answer": "1",
+    "answer": "B",
     "why": {
       "t": "這是「基於標籤的路由 (Label-Based Routing)」模式。透過功能性標籤（如 `linux`, `java17`），Pipeline 只需關心環境具備什麼能力，而不需關心具體是哪一台機器在執行。這讓維運團隊可以自由汰換、擴展機器，而不會破壞現有的 Pipeline。",
       "en": "This is the 'Label-Based Routing' pattern. By using functional labels (e.g., `linux`, `java17`), the Pipeline only needs to care about what capabilities the environment has, not which specific machine is executing it. This allows the operations team to freely replace or scale machines without breaking existing Pipelines.",
@@ -319,7 +323,8 @@
           "ps": "verb"
         }
       ]
-    }
+    },
+    "verified": "2026-03-23T08:35:20"
   },
   {
     "no": "6",
@@ -344,8 +349,8 @@
     "type": "Single",
     "options": [
       {
-        "t": "Jenkins 會自動將磁碟空間不足的節點斷線，以避免建置失敗或產生損壞的產物。",
-        "en": "Jenkins automatically disconnects nodes with insufficient disk space to prevent build failures or corrupted artifacts.",
+        "t": "(A) Jenkins 會自動將磁碟空間不足的節點斷線，以避免建置失敗或產生損壞的產物。",
+        "en": "(A) Jenkins automatically disconnects nodes with insufficient disk space to prevent build failures or corrupted artifacts.",
         "wg": [
           {
             "t": "損壞的",
@@ -355,22 +360,22 @@
         ]
       },
       {
-        "t": "這是 Java Garbage Collection 的副作用，與 Jenkins 無關。",
-        "en": "This is a side effect of Java Garbage Collection and is unrelated to Jenkins.",
+        "t": "(B) 這是 Java Garbage Collection 的副作用，與 Jenkins 無關。",
+        "en": "(B) This is a side effect of Java Garbage Collection and is unrelated to Jenkins.",
         "wg": []
       },
       {
-        "t": "這表示 Agent 的硬碟已經物理損壞。",
-        "en": "This indicates that the Agent's hard drive is physically damaged.",
+        "t": "(C) 這表示 Agent 的硬碟已經物理損壞。",
+        "en": "(C) This indicates that the Agent's hard drive is physically damaged.",
         "wg": []
       },
       {
-        "t": "這是 Master 為了節省網路頻寬而採取的措施。",
-        "en": "This is a measure taken by the Master to save network bandwidth.",
+        "t": "(D) 這是 Master 為了節省網路頻寬而採取的措施。",
+        "en": "(D) This is a measure taken by the Master to save network bandwidth.",
         "wg": []
       }
     ],
-    "answer": "0",
+    "answer": "A",
     "why": {
       "t": "磁碟空間不足是 Agent 離線最常見的原因之一。Jenkins 預設會監控 Agent 的磁碟空間，一旦低於閾值（Threshold），就會主動將其標記為 Offline，防止新的 Job 被調度上去而導致執行失敗。這是確保系統穩定性的重要機制。",
       "en": "Insufficient disk space is one of the most common reasons for an Agent going offline. Jenkins monitors the Agent's disk space by default; once it falls below a threshold, it proactively marks the Agent as Offline to prevent new Jobs from being scheduled there and subsequently failing. This is a crucial mechanism for ensuring system stability.",
@@ -386,7 +391,8 @@
           "ps": "verb"
         }
       ]
-    }
+    },
+    "verified": "2026-03-23T08:35:20"
   },
   {
     "no": "7",
@@ -432,13 +438,13 @@
     "type": "Single",
     "options": [
       {
-        "t": "將執行緒數量 (Executors) 減少為 1。",
-        "en": "Reduce the number of Executors to 1.",
+        "t": "(A) 將執行緒數量 (Executors) 減少為 1。",
+        "en": "(A) Reduce the number of Executors to 1.",
         "wg": []
       },
       {
-        "t": "將使用模式 (Usage) 設定為「只建置綁定到這台機器的 Job」(Only build jobs with label expressions matching this node)。",
-        "en": "Set Usage to 'Only build jobs with label expressions matching this node'.",
+        "t": "(B) 將使用模式 (Usage) 設定為「只建置綁定到這台機器的 Job」(Only build jobs with label expressions matching this node)。",
+        "en": "(B) Set Usage to 'Only build jobs with label expressions matching this node'.",
         "wg": [
           {
             "t": "使用模式",
@@ -448,17 +454,17 @@
         ]
       },
       {
-        "t": "移除該節點的所有標籤 (Labels)，只使用節點名稱來參照。",
-        "en": "Remove all Labels from the node and refer to it only by its node name.",
+        "t": "(C) 移除該節點的所有標籤 (Labels)，只使用節點名稱來參照。",
+        "en": "(C) Remove all Labels from the node and refer to it only by its node name.",
         "wg": []
       },
       {
-        "t": "在 Master 的系統設定中，提高該節點的優先權 (Priority)。",
-        "en": "Increase the priority of this node in the Master's system settings.",
+        "t": "(D) 在 Master 的系統設定中，提高該節點的優先權 (Priority)。",
+        "en": "(D) Increase the priority of this node in the Master's system settings.",
         "wg": []
       }
     ],
-    "answer": "1",
+    "answer": "B",
     "why": {
       "t": "這是 Jenkins 中「專用模式 (Exclusive Mode)」的標準設定。預設情況下，Jenkins 會盡可能利用所有閒置的 Executor（包含那些標籤不匹配但 Usage 設為 'Use this node as much as possible' 的節點）。將 Usage 改為 'Only build jobs with label expressions matching this node' 可以防止未指定該標籤的通用任務佔用此資源。",
       "en": "This is the standard setting for 'Exclusive Mode' in Jenkins. By default, Jenkins tries to utilize all idle executors (including nodes where Usage is set to 'Use this node as much as possible'). Changing Usage to 'Only build jobs with label expressions matching this node' prevents generic tasks that haven't specified the label from occupying this resource.",
@@ -474,7 +480,8 @@
           "ps": "adjective"
         }
       ]
-    }
+    },
+    "verified": "2026-03-23T08:35:20"
   },
   {
     "no": "8",
@@ -509,13 +516,13 @@
     "type": "Single",
     "options": [
       {
-        "t": "Agent 的硬碟寫入速度過慢，導致 I/O Wait 阻塞了 Master。",
-        "en": "The Agent's disk write speed is too slow, causing I/O Wait to block the Master.",
+        "t": "(A) Agent 的硬碟寫入速度過慢，導致 I/O Wait 阻塞了 Master。",
+        "en": "(A) The Agent's disk write speed is too slow, causing I/O Wait to block the Master.",
         "wg": []
       },
       {
-        "t": "大量的 Log 透過 Remoting Channel 回傳給 Master，導致該通道阻塞並消耗 Master 的資源來處理與寫入這些日誌。",
-        "en": "Massive logs are transmitted back to the Master via the Remoting Channel, clogging the channel and consuming Master's resources to process and write these logs.",
+        "t": "(B) 大量的 Log 透過 Remoting Channel 回傳給 Master，導致該通道阻塞並消耗 Master 的資源來處理與寫入這些日誌。",
+        "en": "(B) Massive logs are transmitted back to the Master via the Remoting Channel, clogging the channel and consuming Master's resources to process and write these logs.",
         "wg": [
           {
             "t": "通道",
@@ -530,17 +537,17 @@
         ]
       },
       {
-        "t": "Jenkins Master 試圖將整個 2GB 的 Log 載入到瀏覽器的 JavaScript Heap 中。",
-        "en": "The Jenkins Master is trying to load the entire 2GB log into the browser's JavaScript Heap.",
+        "t": "(C) Jenkins Master 試圖將整個 2GB 的 Log 載入到瀏覽器的 JavaScript Heap 中。",
+        "en": "(C) The Jenkins Master is trying to load the entire 2GB log into the browser's JavaScript Heap.",
         "wg": []
       },
       {
-        "t": "Agent 上的 Java 版本與 Master 不一致，導致序列化錯誤。",
-        "en": "The Java version on the Agent is inconsistent with the Master, causing serialization errors.",
+        "t": "(D) Agent 上的 Java 版本與 Master 不一致，導致序列化錯誤。",
+        "en": "(D) The Java version on the Agent is inconsistent with the Master, causing serialization errors.",
         "wg": []
       }
     ],
-    "answer": "1",
+    "answer": "B",
     "why": {
       "t": "Master 與 Agent 之間的 Remoting Channel 是一條頻寬有限的管道。所有的 Console Output 都必須透過網路傳回 Master 進行儲存與顯示。過量的 Log 會塞爆這條管道，並迫使 Master 花費大量 CPU/IO 處理這些資料，進而影響整體系統的回應能力。",
       "en": "The Remoting Channel between Master and Agent is a pipe with limited bandwidth. All Console Output must be transmitted back to the Master over the network for storage and display. Excessive logs can clog this pipe and force the Master to spend significant CPU/IO processing this data, thereby affecting the overall system responsiveness.",
@@ -556,7 +563,8 @@
           "ps": "noun"
         }
       ]
-    }
+    },
+    "verified": "2026-03-23T08:35:20"
   },
   {
     "no": "9",
@@ -597,18 +605,18 @@
     "type": "Single",
     "options": [
       {
-        "t": "Master 與 Agent 之間的 SSH Key 權限錯誤。",
-        "en": "Incorrect SSH Key permissions between Master and Agent.",
+        "t": "(A) Master 與 Agent 之間的 SSH Key 權限錯誤。",
+        "en": "(A) Incorrect SSH Key permissions between Master and Agent.",
         "wg": []
       },
       {
-        "t": "Agent 的 Java Heap Size 設定太小。",
-        "en": "The Java Heap Size on the Agent is set too small.",
+        "t": "(B) Agent 的 Java Heap Size 設定太小。",
+        "en": "(B) The Java Heap Size on the Agent is set too small.",
         "wg": []
       },
       {
-        "t": "Master 與 Agent 之間的系統時間未同步 (NTP)。",
-        "en": "System time is not synchronized (NTP) between Master and Agent.",
+        "t": "(C) Master 與 Agent 之間的系統時間未同步 (NTP)。",
+        "en": "(C) System time is not synchronized (NTP) between Master and Agent.",
         "wg": [
           {
             "t": "同步",
@@ -618,12 +626,12 @@
         ]
       },
       {
-        "t": "Agent 的 Workspace 路徑包含空白字元。",
-        "en": "The Agent's Workspace path contains whitespace characters.",
+        "t": "(D) Agent 的 Workspace 路徑包含空白字元。",
+        "en": "(D) The Agent's Workspace path contains whitespace characters.",
         "wg": []
       }
     ],
-    "answer": "2",
+    "answer": "C",
     "why": {
       "t": "時鐘同步 (Clock Synchronization) 對於分散式系統至關重要。如果 Master 與 Agent 時間不一致，會導致 SCM 操作（依賴時間戳記）、建置計時以及 Remoting 協定出現異常行為。啟用 NTP 是必要的最佳實務。",
       "en": "Clock Synchronization is crucial for distributed systems. If the time between Master and Agent is inconsistent, it can lead to abnormal behavior in SCM operations (which rely on timestamps), build timing, and the Remoting protocol. Enabling NTP is a necessary best practice.",
@@ -639,7 +647,8 @@
           "ps": "noun"
         }
       ]
-    }
+    },
+    "verified": "2026-03-23T08:36:10"
   },
   {
     "no": "10",
@@ -674,13 +683,13 @@
     "type": "Single",
     "options": [
       {
-        "t": "購買更多台實體機器，每台機器只安裝一種語言的工具。",
-        "en": "Purchase more physical machines, with each machine installing tools for only one language.",
+        "t": "(A) 購買更多台實體機器，每台機器只安裝一種語言的工具。",
+        "en": "(A) Purchase more physical machines, with each machine installing tools for only one language.",
         "wg": []
       },
       {
-        "t": "轉向容器化 Agent (Containerized Agents)，在 Pipeline 中使用 Docker Image 定義所需的建置環境。",
-        "en": "Switch to Containerized Agents, using Docker Images in the Pipeline to define the required build environment.",
+        "t": "(B) 轉向容器化 Agent (Containerized Agents)，在 Pipeline 中使用 Docker Image 定義所需的建置環境。",
+        "en": "(B) Switch to Containerized Agents, using Docker Images in the Pipeline to define the required build environment.",
         "wg": [
           {
             "t": "容器化",
@@ -690,17 +699,17 @@
         ]
       },
       {
-        "t": "使用 `chroot` 在同一台機器上隔離不同的檔案系統。",
-        "en": "Use `chroot` to isolate different file systems on the same machine.",
+        "t": "(C) 使用 `chroot` 在同一台機器上隔離不同的檔案系統。",
+        "en": "(C) Use `chroot` to isolate different file systems on the same machine.",
         "wg": []
       },
       {
-        "t": "在 Jenkins Master 上安裝所有工具，並將計算移回 Master 執行。",
-        "en": "Install all tools on the Jenkins Master and move the computation back to the Master.",
+        "t": "(D) 在 Jenkins Master 上安裝所有工具，並將計算移回 Master 執行。",
+        "en": "(D) Install all tools on the Jenkins Master and move the computation back to the Master.",
         "wg": []
       }
     ],
-    "answer": "1",
+    "answer": "B",
     "why": {
       "t": "「巨型 Agent」是常見的反模式，會導致 Dependency Hell。最佳解法是將環境定義為程式碼 (Environment as Code)，利用 Docker 或 Kubernetes 讓每個 Build 在乾淨、獨立且版本明確的容器中執行。",
       "en": "The 'Fat Agent' is a common anti-pattern leading to Dependency Hell. The best solution is Environment as Code, using Docker or Kubernetes to let each build run in a clean, isolated, and version-explicit container.",
@@ -716,7 +725,8 @@
           "ps": "noun"
         }
       ]
-    }
+    },
+    "verified": "2026-03-23T08:36:10"
   },
   {
     "no": "11",
@@ -751,18 +761,18 @@
     "type": "Single",
     "options": [
       {
-        "t": "建置速度顯著提升，因為 CPU 利用率最大化。",
-        "en": "Build speed increases significantly because CPU utilization is maximized.",
+        "t": "(A) 建置速度顯著提升，因為 CPU 利用率最大化。",
+        "en": "(A) Build speed increases significantly because CPU utilization is maximized.",
         "wg": []
       },
       {
-        "t": "Jenkins 會自動拒絕超過 CPU 核心數的並發任務。",
-        "en": "Jenkins will automatically reject concurrent tasks exceeding the number of CPU cores.",
+        "t": "(B) Jenkins 會自動拒絕超過 CPU 核心數的並發任務。",
+        "en": "(B) Jenkins will automatically reject concurrent tasks exceeding the number of CPU cores.",
         "wg": []
       },
       {
-        "t": "嚴重的 Context Switching 與資源爭奪，導致單一任務執行時間變長，甚至機器當機。",
-        "en": "Severe Context Switching and resource contention, causing longer execution times for individual tasks or even machine crashes.",
+        "t": "(C) 嚴重的 Context Switching 與資源爭奪，導致單一任務執行時間變長，甚至機器當機。",
+        "en": "(C) Severe Context Switching and resource contention, causing longer execution times for individual tasks or even machine crashes.",
         "wg": [
           {
             "t": "資源爭奪",
@@ -777,12 +787,12 @@
         ]
       },
       {
-        "t": "Master 會自動將多出的任務重新路由到其他 Agent。",
-        "en": "The Master will automatically reroute the excess tasks to other Agents.",
+        "t": "(D) Master 會自動將多出的任務重新路由到其他 Agent。",
+        "en": "(D) The Master will automatically reroute the excess tasks to other Agents.",
         "wg": []
       }
     ],
-    "answer": "2",
+    "answer": "C",
     "why": {
       "t": "Executor 代表的是「併發插槽 (Concurrency Slots)」。設定遠超 CPU 核心數的 Executor 數量，會導致多個重型任務同時搶佔 CPU 與記憶體，造成頻繁的 Context Switch 與 Disk Thrashing，反而降低整體吞吐量。",
       "en": "Executors represent 'Concurrency Slots'. Setting the number of Executors far beyond the CPU core count causes multiple heavy tasks to compete for CPU and memory simultaneously, leading to frequent Context Switching and Disk Thrashing, which actually reduces overall throughput.",
@@ -798,7 +808,8 @@
           "ps": "verb"
         }
       ]
-    }
+    },
+    "verified": "2026-03-23T08:36:10"
   },
   {
     "no": "12",
@@ -828,27 +839,27 @@
     "type": "Single",
     "options": [
       {
-        "t": "未將工具路徑加入到該 Agent 的環境變數 `$PATH` 中。",
-        "en": "The tool path was not added to the Agent's `$PATH` environment variable.",
+        "t": "(A) 未將工具路徑加入到該 Agent 的環境變數 `$PATH` 中。",
+        "en": "(A) The tool path was not added to the Agent's `$PATH` environment variable.",
         "wg": []
       },
       {
-        "t": "Agent 的磁碟空間不足。",
-        "en": "The Agent has insufficient disk space.",
+        "t": "(B) Agent 的磁碟空間不足。",
+        "en": "(B) The Agent has insufficient disk space.",
         "wg": []
       },
       {
-        "t": "未在 Master 上安裝對應的 Plugin。",
-        "en": "The corresponding Plugin was not installed on the Master.",
+        "t": "(C) 未在 Master 上安裝對應的 Plugin。",
+        "en": "(C) The corresponding Plugin was not installed on the Master.",
         "wg": []
       },
       {
-        "t": "Agent 的標籤 (Label) 設定錯誤。",
-        "en": "The Agent's Label configuration is incorrect.",
+        "t": "(D) Agent 的標籤 (Label) 設定錯誤。",
+        "en": "(D) The Agent's Label configuration is incorrect.",
         "wg": []
       }
     ],
-    "answer": "0",
+    "answer": "A",
     "why": {
       "t": "Jenkins Agent 連線時（特別是非互動式 Shell）所取得的環境變數可能與你手動 SSH 登入時不同。必須確保工具的路徑已明確加入到 Agent 設定中的「環境變數 (Environment variables)」或系統層級的 PATH 中，才能被 Jenkins Job 識別。",
       "en": "The environment variables obtained by the Jenkins Agent upon connection (especially in a non-interactive shell) may differ from those when you manually SSH in. You must ensure the tool's path is explicitly added to the 'Environment variables' in the Agent settings or the system-level PATH to be recognized by the Jenkins Job.",
@@ -864,6 +875,7 @@
           "ps": "verb"
         }
       ]
-    }
+    },
+    "verified": "2026-03-23T08:36:10"
   }
 ]
