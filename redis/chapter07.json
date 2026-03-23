@@ -64,7 +64,7 @@
         "wg": []
       }
     ],
-    "answer": "(C)",
+    "answer": "C",
     "why": {
       "t": "`mem_fragmentation_ratio` 為 1.5 表示有 33% (5GB) 的記憶體是碎片。這通常是因為頻繁的記憶體分配與釋放導致分配器 (jemalloc) 無法有效重複利用記憶體區塊。Redis 4.0+ 支援線上 `activedefrag`，可透過搬移資料來重組記憶體，但會消耗 CPU 資源。",
       "en": "A `mem_fragmentation_ratio` of 1.5 indicates that 33% (5GB) of memory is fragmentation. This is usually caused by frequent allocation and deallocation preventing the allocator (jemalloc) from effectively reusing memory blocks. Redis 4.0+ supports online `activedefrag`, which compacts memory by moving data but consumes CPU resources.",
@@ -80,7 +80,8 @@
           "ps": "V"
         }
       ]
-    }
+    },
+    "verified": "2026-03-21T20:51:36"
   },
   {
     "no": "2",
@@ -147,7 +148,7 @@
         "wg": []
       }
     ],
-    "answer": "(B)",
+    "answer": "B",
     "why": {
       "t": "標準 LRU 需要為每個鍵維護 `prev` 和 `next` 指標。在儲存數百萬個小物件時，這種額外的記憶體開銷非常巨大。Redis 選擇在每個物件的標頭 (header) 儲存時間戳記，並在需要淘汰時隨機採樣 N 個鍵，淘汰其中最舊的，這是在記憶體效率與準確度之間的權衡。",
       "en": "Standard LRU requires maintaining `prev` and `next` pointers for each key. When storing millions of small objects, this extra memory overhead is massive. Redis chooses to store a timestamp in each object's header and randomly samples N keys when eviction is needed, removing the oldest one. This is a trade-off between memory efficiency and accuracy.",
@@ -163,7 +164,8 @@
           "ps": "N"
         }
       ]
-    }
+    },
+    "verified": "2026-03-21T20:51:36"
   },
   {
     "no": "3",
@@ -218,7 +220,7 @@
         "wg": []
       }
     ],
-    "answer": "(A)",
+    "answer": "A",
     "why": {
       "t": "這是一個常見的設定陷阱 (Anti-pattern)。`volatile-*` 系列策略的先決條件是鍵必須有 TTL。如果所有鍵都沒有 TTL，Redis 找不到可淘汰的候選者，當記憶體達到 `maxmemory` 時，就會拒絕寫入並回傳 OOM 錯誤。",
       "en": "This is a common configuration anti-pattern. The prerequisite for `volatile-*` policies is that keys must have a TTL. If no keys have a TTL, Redis cannot find candidates for eviction. When memory reaches `maxmemory`, it rejects writes and returns an OOM error.",
@@ -239,7 +241,8 @@
           "ps": "N"
         }
       ]
-    }
+    },
+    "verified": "2026-03-21T20:51:36"
   },
   {
     "no": "4",
@@ -322,7 +325,7 @@
         ]
       }
     ],
-    "answer": "(B)",
+    "answer": "B",
     "why": {
       "t": "當 Redis 記憶體已滿，每個寫入指令都會觸發淘汰循環。如果演算法決定淘汰一個大鍵 (Big Key)，預設的 `DEL` 操作是同步的，這意味著主執行緒必須等待記憶體釋放完成才能繼續處理請求，導致顯著的延遲。解決方案包括拆分大鍵或啟用 `lazyfree-lazy-eviction`。",
       "en": "When Redis memory is full, every write command triggers the eviction loop. If the algorithm decides to evict a Big Key, the default `DEL` operation is synchronous, meaning the main thread must wait for memory reclamation to finish before processing requests, causing significant latency. Solutions include breaking down big keys or enabling `lazyfree-lazy-eviction`.",
@@ -338,7 +341,8 @@
           "ps": "N"
         }
       ]
-    }
+    },
+    "verified": "2026-03-21T20:51:36"
   },
   {
     "no": "5",
@@ -404,7 +408,7 @@
         "wg": []
       }
     ],
-    "answer": "(A)",
+    "answer": "A",
     "why": {
       "t": "LRU 假設「最近被存取」等於「重要」。全表掃描會一次性存取大量冷資料，將它們標記為「最近使用」，從而擠掉原本的熱門資料。LFU (Least Frequently Used) 根據存取頻率運作，掃描產生的一次性存取不會顯著增加頻率計數，因此能抵抗此類快取污染。",
       "en": "LRU assumes 'recently accessed' equals 'important'. A full scan accesses a large amount of cold data at once, marking it as 'recently used' and pushing out the actual hot data. LFU (Least Frequently Used) works based on access frequency; one-off accesses from a scan won't significantly boost frequency counts, making it resistant to such cache pollution.",
@@ -420,7 +424,8 @@
           "ps": "V"
         }
       ]
-    }
+    },
+    "verified": "2026-03-21T20:51:36"
   },
   {
     "no": "6",
@@ -492,7 +497,7 @@
         "wg": []
       }
     ],
-    "answer": "(B)",
+    "answer": "B",
     "why": {
       "t": "Redis 的主動過期機制會定期採樣。如果樣本中過期鍵的比例超過閾值 (預設 25%)，它會重複執行清理循環。當發生「驚群效應 (Thundering Herd)」，即大量鍵在同一刻過期時，這個循環會持續執行直到比例下降或達到 CPU 時間限制，這會阻塞主執行緒處理正常請求。",
       "en": "Redis's active expiration mechanism samples periodically. If the percentage of expired keys in the sample exceeds a threshold (default 25%), it repeats the cleanup loop. When a 'Thundering Herd' occurs (massive keys expiring at once), this loop runs continuously until the percentage drops or a CPU time limit is reached, blocking the main thread from processing normal requests.",
@@ -508,7 +513,8 @@
           "ps": "N"
         }
       ]
-    }
+    },
+    "verified": "2026-03-21T20:51:36"
   },
   {
     "no": "7",
@@ -585,7 +591,7 @@
         "wg": []
       }
     ],
-    "answer": "(B)",
+    "answer": "B",
     "why": {
       "t": "`noeviction` 策略意味著當記憶體已滿時，Redis 不會淘汰任何鍵。對於會增加記憶體使用量的寫入指令（如 SET, LPUSH），Redis 會回傳錯誤；但對於讀取指令（如 GET）或不增加記憶體的指令（如 DEL），則仍能正常運作。這確保了現有資料不會被意外刪除，但犧牲了寫入可用性。",
       "en": "The `noeviction` policy means Redis will not evict any keys when memory is full. For write commands that would increase memory usage (like SET, LPUSH), Redis returns an error; however, read commands (like GET) or commands that do not increase memory (like DEL) continue to function. This ensures existing data is not accidentally deleted but sacrifices write availability.",
@@ -596,7 +602,8 @@
           "ps": "V"
         }
       ]
-    }
+    },
+    "verified": "2026-03-21T20:51:36"
   },
   {
     "no": "8",
@@ -669,7 +676,7 @@
         "wg": []
       }
     ],
-    "answer": "(B)",
+    "answer": "B",
     "why": {
       "t": "Redis 的 LFU 實作將 24 位元分為兩部分：高 16 位元儲存最後一次衰減的時間（以分鐘為單位，用於計算衰減），低 8 位元則使用 Morris Counter 演算法儲存「對數」頻率（而非線性次數），這使得僅用 8 位元就能表示大範圍的存取頻率。",
       "en": "Redis's LFU implementation splits the 24 bits into two parts: the high 16 bits store the last decrement time (in minutes, used for calculating decay), and the low 8 bits store a 'logarithmic' frequency using the Morris Counter algorithm (instead of a linear count), allowing it to represent a wide range of access frequencies with just 8 bits.",
@@ -680,7 +687,8 @@
           "ps": "NP"
         }
       ]
-    }
+    },
+    "verified": "2026-03-21T20:51:36"
   },
   {
     "no": "9",
@@ -746,7 +754,7 @@
         "wg": []
       }
     ],
-    "answer": "(B)",
+    "answer": "B",
     "why": {
       "t": "Redis 的 LRU 是透過隨機採樣一小組鍵並淘汰其中閒置最久者來運作的。`maxmemory-samples` 控制採樣池的大小。增加此值（預設為 5）可以提高演算法找到「全域」最舊鍵的機率，從而提高準確度，但代價是每次淘汰循環需要消耗更多 CPU。",
       "en": "Redis LRU works by randomly sampling a small set of keys and evicting the one with the longest idle time. `maxmemory-samples` controls the size of this sample pool. Increasing this value (default is 5) improves the probability of finding the 'globally' oldest key, thus increasing accuracy, but at the cost of higher CPU consumption per eviction cycle.",
@@ -762,7 +770,8 @@
           "ps": "N"
         }
       ]
-    }
+    },
+    "verified": "2026-03-22T16:22:17"
   },
   {
     "no": "10",
@@ -829,7 +838,7 @@
         "wg": []
       }
     ],
-    "answer": "(C)",
+    "answer": "C",
     "why": {
       "t": "Redis 的主動過期是一個機率性的演算法。它每秒執行 10 次，每次隨機採樣 20 個設有 TTL 的鍵。如果其中過期的比例低於 25%，它就會停止該次循環。這意味著如果過期鍵分散在大量未過期的鍵中，它們可能不會被立即發現並刪除。",
       "en": "Redis's active expiration is a probabilistic algorithm. It runs 10 times per second, randomly sampling 20 keys with TTL each time. If the percentage of expired keys is below 25%, it stops the cycle. This means if expired keys are sparse among many unexpired keys, they might not be discovered and deleted immediately.",
@@ -845,7 +854,8 @@
           "ps": "Adj"
         }
       ]
-    }
+    },
+    "verified": "2026-03-22T16:22:17"
   },
   {
     "no": "11",
@@ -911,7 +921,7 @@
         "wg": []
       }
     ],
-    "answer": "(B)",
+    "answer": "B",
     "why": {
       "t": "題目明確指出延遲是由「淘汰 (Eviction)」觸發的。`lazyfree-lazy-eviction` 專門控制當 Redis 為了釋放記憶體（達到 maxmemory）而淘汰鍵時，是否應以非同步方式（在背景執行緒）進行刪除。選項 A 針對的是 TTL 過期，選項 C 針對的是伺服器端指令（如 RENAME）產生的刪除。",
       "en": "The scenario explicitly states the latency is triggered by 'Eviction'. `lazyfree-lazy-eviction` specifically controls whether keys evicted to free up memory (reaching maxmemory) should be deleted asynchronously (in a background thread). Option A is for TTL expiration, and Option C is for server-side deletions (like RENAME).",
@@ -927,7 +937,8 @@
           "ps": "Adv"
         }
       ]
-    }
+    },
+    "verified": "2026-03-22T16:22:17"
   },
   {
     "no": "12",
@@ -988,7 +999,7 @@
         "wg": []
       }
     ],
-    "answer": "(B)",
+    "answer": "B",
     "why": {
       "t": "`mem_fragmentation_ratio` = `used_memory_rss` / `used_memory`。當此比率小於 1.0 時，表示 RSS（駐留集大小）小於 Redis 邏輯上分配的記憶體。這通常意味著作業系統已經開始將 Redis 的部分記憶體頁面 Swap（交換）到磁碟上。對於記憶體資料庫而言，磁碟 I/O 會導致毀滅性的效能延遲。",
       "en": "`mem_fragmentation_ratio` = `used_memory_rss` / `used_memory`. When this ratio is less than 1.0, it means RSS (Resident Set Size) is smaller than the memory Redis logically allocated. This usually implies the OS has started swapping some of Redis's memory pages to disk. For an in-memory database, disk I/O causes catastrophic performance latency.",
@@ -1004,7 +1015,8 @@
           "ps": "Adj"
         }
       ]
-    }
+    },
+    "verified": "2026-03-22T16:22:17"
   },
   {
     "no": "13",
@@ -1065,7 +1077,7 @@
         "wg": []
       }
     ],
-    "answer": "(A)",
+    "answer": "A",
     "why": {
       "t": "為了保持資料一致性，Redis Replica 預設不會主動淘汰鍵。它會等待 Master 發生淘汰後，將生成的 `DEL` 指令透過複製串流傳送過來。因此，Replica 的記憶體使用量可能會暫時高於 Master（例如 Master 剛淘汰但 DEL 尚未同步到達，或 Replica 有額外的唯讀緩衝區）。",
       "en": "To maintain data consistency, Redis Replicas do not actively evict keys by default. They wait for the Master to evict keys and send the generated `DEL` commands via the replication stream. Therefore, a Replica's memory usage might temporarily exceed the Master's (e.g., Master just evicted but DEL hasn't arrived, or Replica has extra read-only buffers).",
@@ -1081,7 +1093,8 @@
           "ps": "N"
         }
       ]
-    }
+    },
+    "verified": "2026-03-22T16:22:17"
   },
   {
     "no": "14",
@@ -1141,7 +1154,7 @@
         "wg": []
       }
     ],
-    "answer": "(B)",
+    "answer": "B",
     "why": {
       "t": "`volatile-ttl` 策略會優先淘汰那些「即將過期」（TTL 剩餘時間最短）的鍵。這符合題目要求保留 TTL 較長資料的邏輯。相比之下，`volatile-lru` 是看最近是否被使用，與剩餘壽命無關。",
       "en": "The `volatile-ttl` policy prioritizes evicting keys that are 'expiring soonest' (have the shortest remaining TTL). This aligns with the requirement to keep data with longer TTLs. In contrast, `volatile-lru` looks at recency of use, regardless of remaining lifespan.",
@@ -1157,7 +1170,8 @@
           "ps": "NP"
         }
       ]
-    }
+    },
+    "verified": "2026-03-22T16:22:17"
   },
   {
     "no": "15",
@@ -1212,7 +1226,7 @@
         "wg": []
       }
     ],
-    "answer": "(C)",
+    "answer": "C",
     "why": {
       "t": "當存取模式為均勻分佈時，LRU 和 LFU 無法預測哪些鍵未來較可能被存取（因為機率都一樣）。此時使用 `allkeys-random` 是最佳選擇，因為它不需要消耗 CPU 和記憶體來維護 LRU/LFU 的元數據，且在均勻分佈下，隨機淘汰的效果與 LRU 相當。",
       "en": "When the access pattern is uniformly distributed, LRU and LFU cannot predict which keys are more likely to be accessed in the future (since probabilities are equal). In this case, `allkeys-random` is the best choice as it does not consume CPU and memory to maintain LRU/LFU metadata, and under uniform distribution, random eviction performs comparably to LRU.",
@@ -1228,6 +1242,7 @@
           "ps": "Adv"
         }
       ]
-    }
+    },
+    "verified": "2026-03-22T16:22:17"
   }
 ]

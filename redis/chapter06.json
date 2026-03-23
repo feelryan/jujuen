@@ -90,7 +90,7 @@
         "wg": []
       }
     ],
-    "answer": "(A)",
+    "answer": "A",
     "why": {
       "t": "這是分散式鎖最經典的反模式。SETNX 和 EXPIRE 是兩個獨立指令，若 Client 在 SETNX 成功後但在 EXPIRE 執行前崩潰（Crash），該 Key 將永遠沒有過期時間，導致其他 Client 永遠無法取得鎖（死鎖）。正確做法是使用 `SET key value NX PX milliseconds`。",
       "en": "This is the most classic anti-pattern for distributed locks. SETNX and EXPIRE are two separate commands. If the client crashes after SETNX succeeds but before EXPIRE executes, the key will never have an expiration time, causing other clients to be unable to acquire the lock forever (deadlock). The correct approach is to use `SET key value NX PX milliseconds`.",
@@ -106,7 +106,8 @@
           "ps": "N"
         }
       ]
-    }
+    },
+    "verified": "2026-03-22T13:56:14"
   },
   {
     "no": "2",
@@ -178,7 +179,7 @@
         ]
       }
     ],
-    "answer": "(B)",
+    "answer": "B",
     "why": {
       "t": "若不使用 Lua，流程為：Client A 檢查鎖是自己的 -> (此時鎖過期，Client B 取得鎖) -> Client A 發送 DEL。這會導致 A 刪除了 B 的鎖。Lua Script 保證了「檢查 Value」與「刪除 Key」這兩個動作在 Redis 伺服器端是原子執行的，中間不會插入其他指令。",
       "en": "Without Lua, the flow is: Client A checks the lock belongs to it -> (Lock expires, Client B acquires lock) -> Client A sends DEL. This results in A deleting B's lock. Lua Script ensures that 'Check Value' and 'Delete Key' are executed atomically on the Redis server side, with no other commands inserted in between.",
@@ -189,7 +190,8 @@
           "ps": "Adv"
         }
       ]
-    }
+    },
+    "verified": "2026-03-22T13:56:14"
   },
   {
     "no": "3",
@@ -283,7 +285,7 @@
         "wg": []
       }
     ],
-    "answer": "(C)",
+    "answer": "C",
     "why": {
       "t": "這是典型的 GC Pause 導致鎖失效問題。單純依賴 Redis 鎖無法解決「舊請求復活」的問題。Fencing Token 是一種資料庫層級的防護：每次鎖生成時配發一個遞增 Token，資料庫在寫入時檢查 `current_token < incoming_token`，若不符合則拒絕寫入。",
       "en": "This is a typical issue where GC Pause causes lock invalidation. Relying solely on Redis locks cannot solve the 'zombie request' problem. Fencing Token is a database-level protection: an incrementing Token is issued with each lock, and the database checks `current_token < incoming_token` on write, rejecting the write if the condition is not met.",
@@ -304,7 +306,8 @@
           "ps": "V"
         }
       ]
-    }
+    },
+    "verified": "2026-03-22T13:56:14"
   },
   {
     "no": "4",
@@ -365,7 +368,7 @@
         "wg": []
       }
     ],
-    "answer": "(A)",
+    "answer": "A",
     "why": {
       "t": "Redis 的主從複製是非同步的，Master 掛掉時 Slave 可能還沒收到鎖資訊。Redlock 透過向多個（通常是 5 個）完全獨立的 Master 節點請求鎖，並要求過半數（Quorum）成功，來容忍部分節點故障並提高可靠性。",
       "en": "Redis master-slave replication is asynchronous; when the Master fails, the Slave might not have received the lock info yet. Redlock tolerates partial node failures and improves reliability by requesting locks from multiple (usually 5) fully independent Master nodes and requiring a majority (Quorum) success.",
@@ -381,7 +384,8 @@
           "ps": "V"
         }
       ]
-    }
+    },
+    "verified": "2026-03-22T13:56:14"
   },
   {
     "no": "5",
@@ -448,7 +452,7 @@
         "wg": []
       }
     ],
-    "answer": "(C)",
+    "answer": "C",
     "why": {
       "t": "可重入鎖需要記錄「是誰持有的」以及「持有了幾次」。Redis Hash 結構非常適合此場景：`HINCRBY lock_key client_uuid 1` 可原子性地增加計數，解鎖時則減少計數，直到歸零才真正刪除 Key。",
       "en": "A reentrant lock needs to record 'who holds it' and 'how many times it is held'. The Redis Hash structure is perfect for this: `HINCRBY lock_key client_uuid 1` can atomically increment the count, and unlocking decrements it, only truly deleting the Key when the count reaches zero.",
@@ -459,7 +463,8 @@
           "ps": "V"
         }
       ]
-    }
+    },
+    "verified": "2026-03-22T13:56:14"
   },
   {
     "no": "6",
