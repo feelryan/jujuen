@@ -69,7 +69,7 @@
         "wg": []
       }
     ],
-    "answer": "(B)",
+    "answer": "B",
     "why": {
       "t": "對於內部微服務溝通，特別是追求極致低延遲時，L4 LB 僅在 Transport Layer 轉發 TCP 封包，無需解析應用層內容，因此能避免 L7 LB 所需的 Context Switching 與 Data Copying，提供更高的效能。",
       "en": "For internal microservice communication, especially when aiming for ultra-low latency, L4 LB forwards TCP packets at the Transport Layer without parsing application layer content. This avoids the Context Switching and Data Copying required by L7 LB, providing higher performance.",
@@ -85,7 +85,8 @@
           "ps": "V"
         }
       ]
-    }
+    },
+    "verified": "2026-03-21T20:11:29"
   },
   {
     "no": "2",
@@ -157,7 +158,7 @@
         "wg": []
       }
     ],
-    "answer": "(B)",
+    "answer": "B",
     "why": {
       "t": "使用時間戳或單調遞增的 ID 作為 Sharding Key 會導致所有最新的寫入流量都集中在負責當前時間範圍的單一分片（Hot Shard）上，而其他分片則處於閒置狀態，這完全喪失了分片帶來的寫入擴展優勢。",
       "en": "Using a timestamp or monotonically increasing ID as a Sharding Key causes all latest write traffic to concentrate on the single shard responsible for the current time range (Hot Shard), while other shards remain idle. This completely defeats the purpose of write scaling provided by sharding.",
@@ -173,7 +174,8 @@
           "ps": "Adj"
         }
       ]
-    }
+    },
+    "verified": "2026-03-21T20:11:29"
   },
   {
     "no": "3",
@@ -239,7 +241,7 @@
         "wg": []
       }
     ],
-    "answer": "(B)",
+    "answer": "B",
     "why": {
       "t": "秒殺場景的特徵是短時間內的突發流量。透過 MQ 將同步的寫入轉為非同步處理，可以緩衝瞬間壓力（削峰），讓後端 Worker 以資料庫能負荷的固定速率慢慢消化（填谷），避免資料庫崩潰。",
       "en": "Flash sale scenarios are characterized by bursty traffic in a short period. Converting synchronous writes to asynchronous processing via MQ buffers the sudden pressure (Peak Shaving), allowing backend Workers to digest requests at a fixed rate that the database can handle, preventing a crash.",
@@ -260,7 +262,8 @@
           "ps": "V"
         }
       ]
-    }
+    },
+    "verified": "2026-03-21T20:11:29"
   },
   {
     "no": "4",
@@ -326,7 +329,7 @@
         "wg": []
       }
     ],
-    "answer": "(A)",
+    "answer": "A",
     "why": {
       "t": "當查詢條件不包含 Sharding Key 時，系統無法定位特定分片，必須向 *所有* 分片發送查詢（Scatter），然後將結果收集回應用程式進行排序與聚合（Gather）。這不僅延遲極高，還容易因資料量過大導致應用程式記憶體不足。",
       "en": "When the query condition does not include the Sharding Key, the system cannot target a specific shard and must send the query to *all* shards (Scatter), then collect the results back to the application for sorting and aggregation (Gather). This not only causes extreme latency but also risks running out of application memory due to large data volumes.",
@@ -342,7 +345,8 @@
           "ps": "N"
         }
       ]
-    }
+    },
+    "verified": "2026-03-21T20:11:29"
   },
   {
     "no": "5",
@@ -408,7 +412,7 @@
         "wg": []
       }
     ],
-    "answer": "(B)",
+    "answer": "B",
     "why": {
       "t": "使用 Modulo Hashing 時，一旦 N（節點數）改變，幾乎所有 Key 的映射結果都會改變，導致大規模資料遷移或快取失效。Consistent Hashing 透過環狀結構，確保僅有約 `1/N` 的資料需要移動，大幅提升系統穩定性。",
       "en": "With Modulo Hashing, if N (number of nodes) changes, the mapping for almost all keys changes, leading to massive data migration or cache invalidation. Consistent Hashing uses a ring structure to ensure that only about `1/N` of the data needs to move, significantly improving system stability.",
@@ -424,7 +428,8 @@
           "ps": "N"
         }
       ]
-    }
+    },
+    "verified": "2026-03-21T20:11:29"
   },
   {
     "no": "6",
@@ -496,7 +501,7 @@
         "wg": []
       }
     ],
-    "answer": "(A)",
+    "answer": "A",
     "why": {
       "t": "MQ 通常保證「至少一次傳遞（At-least-once delivery）」，這意味著訊息可能會重複。Consumer 必須具備冪等性，即處理同一條訊息多次與處理一次的結果（副作用）完全相同，才能避免資料不一致。",
       "en": "MQs typically guarantee 'At-least-once delivery', meaning messages can be duplicated. Consumers must be Idempotent, meaning processing the same message multiple times has the exact same result (side effect) as processing it once, to avoid data inconsistency.",
@@ -512,7 +517,8 @@
           "ps": "N"
         }
       ]
-    }
+    },
+    "verified": "2026-03-21T20:11:29"
   },
   {
     "no": "7",
@@ -611,7 +617,7 @@
         ]
       }
     ],
-    "answer": "(A)",
+    "answer": "A",
     "why": {
       "t": "這是 Transactional Outbox Pattern。透過將業務數據與訊息事件在同一個 ACID 交易中寫入，保證了原子性。若交易失敗則兩者皆不寫入；若成功則兩者皆存在，再由 Relay Process 確保訊息至少被發送一次（At-least-once delivery）。(B) 可能導致訊息發送了但資料庫寫入失敗（幽靈訊息）；(C) Kafka 不支援標準 XA/2PC 且此方案效能極差；(D) 在高併發下依賴 Log 與人工修復並不可靠。",
       "en": "This is the Transactional Outbox Pattern. By writing business data and message events within the same ACID transaction, atomicity is guaranteed. If the transaction fails, neither is written; if it succeeds, both exist, and a Relay Process ensures the message is delivered at least once. (B) can lead to 'ghost messages' where the message is sent but the DB write fails; (C) Kafka does not support standard XA/2PC and this approach has poor performance; (D) relying on logs and manual fixes is unreliable under high concurrency.",
@@ -627,7 +633,8 @@
           "ps": "N"
         }
       ]
-    }
+    },
+    "verified": "2026-03-21T20:11:29"
   },
   {
     "no": "8",
@@ -721,7 +728,7 @@
         ]
       }
     ],
-    "answer": "(A)",
+    "answer": "A",
     "why": {
       "t": "使用時間戳作為 Sharding Key 是常見的反模式（Anti-pattern）。因為時間是單調遞增的，當下的寫入流量永遠只會落在對應「現在時間」的那一個 Shard 上，導致該 Shard 過載（Hot Spot），而舊資料的 Shards 則完全沒有寫入負載，失去了水平擴展分擔寫入壓力的意義。",
       "en": "Using a timestamp as a Sharding Key is a common Anti-pattern. Since time is monotonically increasing, current write traffic will always hit the single Shard corresponding to the 'current time', causing that Shard to overload (Hot Spot), while Shards for older data have zero write load. This defeats the purpose of horizontal scaling to distribute write pressure.",
@@ -737,7 +744,8 @@
           "ps": "Adj"
         }
       ]
-    }
+    },
+    "verified": "2026-03-21T20:11:29"
   },
   {
     "no": "9",
@@ -836,7 +844,7 @@
         "wg": []
       }
     ],
-    "answer": "(A)",
+    "answer": "A",
     "why": {
       "t": "這是典型的 Hot Key 問題。(A) 是標準解法：透過快取吸收讀取流量，並透過隔離（Isolation）防止單一用戶影響其他用戶。若寫入量過大，還可考慮將 Key 加上後綴拆分。(B) 更改全域 Sharding Key 成本極高且風險大；(C) 影響用戶體驗不可取；(D) 增加 Read Replicas 只能解決讀取問題，無法解決 Master DB 的寫入熱點。",
       "en": "This is a classic Hot Key problem. (A) is the standard solution: absorb read traffic via caching and prevent a single user from affecting others via Isolation. If write volume is too high, splitting the Key with suffixes is also an option. (B) Changing the global Sharding Key is extremely costly and risky; (C) degrading user experience is undesirable; (D) adding Read Replicas only solves read issues, not the write hotspot on the Master DB.",
@@ -852,7 +860,8 @@
           "ps": "V"
         }
       ]
-    }
+    },
+    "verified": "2026-03-22T12:48:48"
   },
   {
     "no": "10",
@@ -947,7 +956,7 @@
         ]
       }
     ],
-    "answer": "(A)",
+    "answer": "A",
     "why": {
       "t": "當一則訊息導致 Consumer 崩潰且因重試機制而無限循環時，稱為 Poison Pill 或 Poison Message。最佳解法是設定重試上限（Max Retries），一旦超過上限，將該訊息轉移至死信佇列（DLQ）供後續人工分析或修復，以避免阻塞正常流量。",
       "en": "When a message causes a Consumer to crash and loops infinitely due to retries, it is called a Poison Pill or Poison Message. The best solution is to set a Max Retry limit; once exceeded, move the message to a Dead Letter Queue (DLQ) for later manual analysis or repair, preventing blockage of normal traffic.",
@@ -963,7 +972,8 @@
           "ps": "N"
         }
       ]
-    }
+    },
+    "verified": "2026-03-22T12:48:48"
   },
   {
     "no": "11",
@@ -1030,7 +1040,7 @@
         "wg": []
       }
     ],
-    "answer": "(A)",
+    "answer": "A",
     "why": {
       "t": "當應用程式是有狀態（Stateful）或依賴本地快取時，必須確保同一位使用者的請求總是導向同一台伺服器。L7 Load Balancer 的 Sticky Session（通常透過 Cookie 實作）可以達成此目的。Round Robin 會隨機分發請求，導致快取未命中（Cache Miss）。",
       "en": "When an application is Stateful or relies on local caching, it is essential to ensure that requests from the same user are always routed to the same server. L7 Load Balancer's Sticky Session (usually implemented via Cookies) achieves this. Round Robin distributes requests randomly, leading to Cache Misses.",
@@ -1046,7 +1056,8 @@
           "ps": "N"
         }
       ]
-    }
+    },
+    "verified": "2026-03-22T12:48:48"
   },
   {
     "no": "12",
