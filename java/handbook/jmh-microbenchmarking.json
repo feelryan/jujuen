@@ -1,0 +1,881 @@
+[
+  {
+    "no": 1,
+    "level": "Easy",
+    "keywords": "Mental Model, JIT Compiler",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "根據 JMH 的心智模型，在 Java 中進行微基準測試時，最大的「敵人」通常是誰？",
+        "en": "According to the mental model of JMH, what is typically the biggest \"enemy\" when conducting microbenchmarking in Java?",
+        "wg": [
+          {
+            "t": "心智模型",
+            "en": "mental model",
+            "ps": "n."
+          },
+          {
+            "t": "微基準測試",
+            "en": "microbenchmarking",
+            "ps": "n."
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) 作業系統的執行緒排程器。",
+        "en": "(A) The operating system's thread scheduler.",
+        "wg": []
+      },
+      {
+        "t": "(B) JVM 內建的即時編譯器（JIT Compiler）。",
+        "en": "(B) The JVM's built-in Just-In-Time (JIT) compiler.",
+        "wg": [
+          {
+            "t": "即時編譯器",
+            "en": "Just-In-Time compiler",
+            "ps": "n."
+          }
+        ]
+      },
+      {
+        "t": "(C) 垃圾回收器（Garbage Collector）。",
+        "en": "(C) The Garbage Collector (GC).",
+        "wg": []
+      },
+      {
+        "t": "(D) CPU 的分支預測器。",
+        "en": "(D) The CPU's branch predictor.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "現代的 JVM 內建了極度聰明的即時編譯器（JIT Compiler），它會在執行期間動態分析程式碼並進行激進的優化（如消除死代碼）。如果不使用 JMH 進行嚴格的變因控制，測量到的往往是編譯器優化後的幻象，而非真實的業務邏輯效能。",
+      "en": "Modern JVMs are equipped with incredibly smart Just-In-Time (JIT) compilers that dynamically analyze code at runtime and apply aggressive optimizations (like Dead Code Elimination). Without JMH's strict variable control, you often measure the illusion created by compiler optimizations rather than the actual performance of your business logic.",
+      "wg": [
+        {
+          "t": "激進的優化",
+          "en": "aggressive optimizations",
+          "ps": "n."
+        },
+        {
+          "t": "幻象",
+          "en": "illusion",
+          "ps": "n."
+        }
+      ]
+    }
+  },
+  {
+    "no": 2,
+    "level": "Medium",
+    "keywords": "Dead Code Elimination, DCE, Sanity Check",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "一位工程師寫了一個 JMH 測試來評估複雜字串處理的效能，但測試結果顯示每次操作只需 0.001 奈秒。",
+        "en": "An engineer wrote a JMH test to evaluate the performance of complex string processing, but the result shows it takes only 0.001 nanoseconds per operation.",
+        "wg": []
+      },
+      {
+        "t": "這最可能是因為發生了什麼事？",
+        "en": "What is the most likely reason for this?",
+        "wg": []
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) JIT 編譯器觸發了「死代碼消除（DCE）」，直接把整段邏輯刪除了。",
+        "en": "(A) The JIT compiler triggered \"Dead Code Elimination (DCE)\" and deleted the logic entirely.",
+        "wg": [
+          {
+            "t": "死代碼消除",
+            "en": "Dead Code Elimination",
+            "ps": "n."
+          }
+        ]
+      },
+      {
+        "t": "(B) 測試機器的 CPU 效能極度強大。",
+        "en": "(B) The CPU of the test machine is extremely powerful.",
+        "wg": []
+      },
+      {
+        "t": "(C) JMH 自動將執行緒平行化以加速執行。",
+        "en": "(C) JMH automatically parallelized the threads to speed up execution.",
+        "wg": []
+      },
+      {
+        "t": "(D) 預熱（Warmup）的迭代次數設定得太少。",
+        "en": "(D) The warmup iterations were configured too low.",
+        "wg": [
+          {
+            "t": "預熱",
+            "en": "Warmup",
+            "ps": "n."
+          },
+          {
+            "t": "迭代",
+            "en": "iterations",
+            "ps": "n."
+          }
+        ]
+      }
+    ],
+    "answer": "A",
+    "why": {
+      "t": "如果一個複雜操作的測量結果數量級極小（例如 0.001 奈秒），通常代表 JIT 編譯器發現計算結果沒有被使用，因此將其判定為死代碼並直接消除。解決方法是回傳結果或使用 Blackhole.consume()。",
+      "en": "If the measurement of a complex operation is illogically small (e.g., 0.001 nanoseconds), it usually means the JIT compiler realized the result was unused, deemed it dead code, and eliminated it. The solution is to return the result or use Blackhole.consume().",
+      "wg": [
+        {
+          "t": "數量級",
+          "en": "magnitude",
+          "ps": "n."
+        }
+      ]
+    }
+  },
+  {
+    "no": 3,
+    "level": "Medium",
+    "keywords": "Constant Folding, Anti-pattern",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "```java\n@Benchmark\npublic int testAddition() {\n    int a = 10;\n    int b = 20;\n    return a + b;\n}\n```",
+    "question": [
+      {
+        "t": "觀察上方的 JMH 測試程式碼。",
+        "en": "Observe the JMH test code above.",
+        "wg": []
+      },
+      {
+        "t": "這種寫法會觸發哪一種 JIT 優化反模式，進而產生不切實際的效能數據？",
+        "en": "Which JIT optimization anti-pattern does this approach trigger, leading to unrealistically fast performance metrics?",
+        "wg": [
+          {
+            "t": "反模式",
+            "en": "anti-pattern",
+            "ps": "n."
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) 迴圈展開（Loop Unrolling）",
+        "en": "(A) Loop Unrolling",
+        "wg": [
+          {
+            "t": "迴圈展開",
+            "en": "Loop Unrolling",
+            "ps": "n."
+          }
+        ]
+      },
+      {
+        "t": "(B) 常數摺疊（Constant Folding）",
+        "en": "(B) Constant Folding",
+        "wg": [
+          {
+            "t": "常數摺疊",
+            "en": "Constant Folding",
+            "ps": "n."
+          }
+        ]
+      },
+      {
+        "t": "(C) 鎖粗化（Lock Coarsening）",
+        "en": "(C) Lock Coarsening",
+        "wg": []
+      },
+      {
+        "t": "(D) 死代碼消除（Dead Code Elimination）",
+        "en": "(D) Dead Code Elimination",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "在測試方法中寫死輸入參數，會讓 JIT 編譯器在編譯期就直接算出結果（此例為 30），執行期根本不會進行加法運算。這被稱為「常數摺疊」。正確做法是將參數定義在 @State 類別中。",
+      "en": "Hardcoding input parameters in the test method allows the JIT compiler to calculate the result (30 in this case) during compilation. No addition happens at runtime. This is known as \"Constant Folding.\" The correct approach is to define parameters in a @State class.",
+      "wg": [
+        {
+          "t": "編譯期",
+          "en": "compilation",
+          "ps": "n."
+        }
+      ]
+    }
+  },
+  {
+    "no": 4,
+    "level": "Hard",
+    "keywords": "Loop Unrolling, Vectorization",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "為了放大執行時間以便更容易觀察，開發者在 `@Benchmark` 方法內手動寫了一個執行 1,000 次的 `for` 迴圈。",
+        "en": "To amplify execution time for easier observation, a developer manually writes a `for` loop that iterates 1,000 times inside the `@Benchmark` method.",
+        "wg": [
+          {
+            "t": "放大",
+            "en": "amplify",
+            "ps": "v."
+          }
+        ]
+      },
+      {
+        "t": "根據 JMH 最佳實務，這種做法有什麼風險？",
+        "en": "According to JMH best practices, what is the risk of this approach?",
+        "wg": []
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) 會導致記憶體洩漏（Memory Leak），因為迴圈內的物件無法被回收。",
+        "en": "(A) It causes memory leaks because objects inside the loop cannot be garbage collected.",
+        "wg": []
+      },
+      {
+        "t": "(B) JIT 可能會進行「迴圈展開」或「向量化」優化，這與實際生產環境單次呼叫的行為完全不同。",
+        "en": "(B) The JIT compiler may apply \"Loop Unrolling\" or \"Vectorization\" optimizations, which behaves completely differently from a single invocation in production.",
+        "wg": [
+          {
+            "t": "向量化",
+            "en": "Vectorization",
+            "ps": "n."
+          }
+        ]
+      },
+      {
+        "t": "(C) JMH 框架會因為執行時間過長而觸發 Timeout 例外。",
+        "en": "(C) The JMH framework will trigger a Timeout exception due to excessive execution time.",
+        "wg": []
+      },
+      {
+        "t": "(D) 會強制關閉 JIT 編譯器，導致測量到的是直譯模式（Interpreted Mode）的效能。",
+        "en": "(D) It forces the JIT compiler to shut down, resulting in measuring the performance of Interpreted Mode.",
+        "wg": [
+          {
+            "t": "直譯模式",
+            "en": "Interpreted Mode",
+            "ps": "n."
+          }
+        ]
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "自己寫迴圈是 JMH 的常見反模式。JIT 編譯器非常擅長優化迴圈（例如迴圈展開或向量化），這會扭曲單次操作的真實效能。應該讓 @Benchmark 方法只包含單次操作邏輯，重複呼叫的工作交給 JMH 處理。",
+      "en": "Writing your own loops is a common JMH anti-pattern. The JIT compiler is highly adept at optimizing loops (e.g., loop unrolling or vectorization), which distorts the true performance of a single operation. You should keep the @Benchmark method focused on a single operation and let JMH handle repetitions.",
+      "wg": [
+        {
+          "t": "扭曲",
+          "en": "distort",
+          "ps": "v."
+        }
+      ]
+    }
+  },
+  {
+    "no": 5,
+    "level": "Medium",
+    "keywords": "BenchmarkMode, P99 Latency",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "如果你的業務場景是評估一個「延遲敏感的 API」，並且需要了解其最大/最小延遲分佈（例如 P99 延遲）。",
+        "en": "If your business scenario is evaluating a \"latency-sensitive API\" and you need to understand its max/min latency distribution (e.g., P99 latency).",
+        "wg": [
+          {
+            "t": "延遲敏感",
+            "en": "latency-sensitive",
+            "ps": "adj."
+          },
+          {
+            "t": "分佈",
+            "en": "distribution",
+            "ps": "n."
+          }
+        ]
+      },
+      {
+        "t": "你應該選擇哪一種 `@BenchmarkMode`？",
+        "en": "Which `@BenchmarkMode` should you choose?",
+        "wg": []
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) Mode.Throughput",
+        "en": "(A) Mode.Throughput",
+        "wg": []
+      },
+      {
+        "t": "(B) Mode.AverageTime",
+        "en": "(B) Mode.AverageTime",
+        "wg": []
+      },
+      {
+        "t": "(C) Mode.SampleTime",
+        "en": "(C) Mode.SampleTime",
+        "wg": []
+      },
+      {
+        "t": "(D) Mode.SingleShotTime",
+        "en": "(D) Mode.SingleShotTime",
+        "wg": []
+      }
+    ],
+    "answer": "C",
+    "why": {
+      "t": "Mode.SampleTime 會抽樣記錄執行時間，並提供詳細的延遲分佈數據（包含最大、最小、百分位數如 P99），非常適合用來評估系統的極端延遲情況。Throughput 適合高併發，AverageTime 只提供平均值。",
+      "en": "Mode.SampleTime samples execution times and provides detailed latency distribution data (including max, min, and percentiles like P99), making it ideal for evaluating extreme latency scenarios. Throughput is for high concurrency, and AverageTime only provides the mean.",
+      "wg": [
+        {
+          "t": "抽樣",
+          "en": "sample",
+          "ps": "v."
+        },
+        {
+          "t": "百分位數",
+          "en": "percentiles",
+          "ps": "n."
+        }
+      ]
+    }
+  },
+  {
+    "no": 6,
+    "level": "Easy",
+    "keywords": "Execution Environment, IDE, Uber JAR",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "關於 JMH 的執行環境，下列哪一種做法是官方推薦的最佳實務？",
+        "en": "Regarding the execution environment of JMH, which of the following is the officially recommended best practice?",
+        "wg": []
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) 直接在 IntelliJ IDEA 或 Eclipse 中點擊 \"Run\" 執行，以方便使用 Debugger 排查效能瓶頸。",
+        "en": "(A) Click \"Run\" directly in IntelliJ IDEA or Eclipse to easily use the Debugger for troubleshooting performance bottlenecks.",
+        "wg": []
+      },
+      {
+        "t": "(B) 透過 Maven/Gradle 打包成獨立的 Uber JAR，並在安靜的終端機環境中執行。",
+        "en": "(B) Package it as a standalone Uber JAR via Maven/Gradle and run it in a quiet terminal environment.",
+        "wg": [
+          {
+            "t": "獨立的",
+            "en": "standalone",
+            "ps": "adj."
+          }
+        ]
+      },
+      {
+        "t": "(C) 在背景運行著多個 Docker 容器的開發機上執行，以模擬真實的複雜環境。",
+        "en": "(C) Run it on a development machine with multiple Docker containers running in the background to simulate a real complex environment.",
+        "wg": []
+      },
+      {
+        "t": "(D) 關閉 JMH 的 Fork 機制（設定 `@Fork(0)`），讓測試與主程式在同一個 JVM 行程中運行以節省記憶體。",
+        "en": "(D) Disable JMH's Fork mechanism (set `@Fork(0)`) to run the test and main program in the same JVM process to save memory.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "在 IDE 內執行會因為 Debugger、Profiler 或背景任務嚴重干擾 CPU 快取與執行緒排程，導致數據抖動（Jitter）。最佳實務是打包成 Uber JAR 並在關閉不相關程式的「安靜狀態」終端機中執行。",
+      "en": "Running inside an IDE causes severe interference with CPU caches and thread scheduling due to debuggers, profilers, or background tasks, leading to data jitter. The best practice is to package it as an Uber JAR and run it in a \"quiet state\" terminal with unrelated programs closed.",
+      "wg": [
+        {
+          "t": "數據抖動",
+          "en": "data jitter",
+          "ps": "n."
+        }
+      ]
+    }
+  },
+  {
+    "no": 7,
+    "level": "Medium",
+    "keywords": "State Isolation, Setup",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "為什麼我們應該將大型物件的初始化邏輯放在標註有 `@Setup` 的方法中（搭配 `@State`），而不是直接寫在 `@Benchmark` 方法內？（複選）",
+        "en": "Why should we place the initialization logic of large objects in a method annotated with `@Setup` (paired with `@State`) rather than directly inside the `@Benchmark` method? (Multiple Choice)",
+        "wg": [
+          {
+            "t": "初始化",
+            "en": "initialization",
+            "ps": "n."
+          }
+        ]
+      }
+    ],
+    "type": "Multiple Choice",
+    "options": [
+      {
+        "t": "(A) 為了將「初始化時間」與「執行時間」分離，避免初始化成本污染效能測量結果。",
+        "en": "(A) To separate \"initialization time\" from \"execution time,\" preventing initialization costs from polluting the performance measurement.",
+        "wg": [
+          {
+            "t": "污染",
+            "en": "polluting",
+            "ps": "v."
+          }
+        ]
+      },
+      {
+        "t": "(B) 為了防止 JVM 的垃圾回收器（GC）在測試期間回收這些物件。",
+        "en": "(B) To prevent the JVM's Garbage Collector (GC) from collecting these objects during the test.",
+        "wg": []
+      },
+      {
+        "t": "(C) 透過 `@State` 宣告變數，可以打破常數摺疊（Constant Folding）優化。",
+        "en": "(C) Declaring variables via `@State` helps defeat Constant Folding optimization.",
+        "wg": []
+      },
+      {
+        "t": "(D) 為了自動觸發死代碼消除（DCE），讓測試跑得更快。",
+        "en": "(D) To automatically trigger Dead Code Elimination (DCE) and make the test run faster.",
+        "wg": []
+      }
+    ],
+    "answer": "A,C",
+    "why": {
+      "t": "使用 @State 與 @Setup 的主要目的是隔離狀態：確保測量的只有核心業務邏輯的時間（不含初始化），同時將輸入變數抽離方法本體，防止 JIT 在編譯期進行常數摺疊。GC 依然會運作，且我們應該避免（而非觸發）DCE。",
+      "en": "The main purposes of using @State and @Setup are state isolation: ensuring only the core business logic time is measured (excluding initialization), and extracting input variables from the method body to prevent JIT from applying constant folding during compilation. GC still operates, and we want to prevent (not trigger) DCE.",
+      "wg": [
+        {
+          "t": "隔離",
+          "en": "isolation",
+          "ps": "n."
+        }
+      ]
+    }
+  },
+  {
+    "no": 8,
+    "level": "Medium",
+    "keywords": "Warmup, Steady State",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在 JMH 中，為什麼設定 `@Warmup`（預熱）是必要的步驟？",
+        "en": "In JMH, why is configuring `@Warmup` a necessary step?",
+        "wg": []
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) 為了預先分配 JVM Heap 記憶體，避免執行時發生 OutOfMemoryError。",
+        "en": "(A) To pre-allocate JVM Heap memory and avoid OutOfMemoryError during execution.",
+        "wg": []
+      },
+      {
+        "t": "(B) 為了讓程式碼經過足夠次數的呼叫，促使 JIT 將其編譯為高度優化的機器碼，達到「穩定狀態」。",
+        "en": "(B) To allow the code to be invoked enough times, prompting the JIT to compile it into highly optimized machine code and reach a \"Steady State.\"",
+        "wg": [
+          {
+            "t": "穩定狀態",
+            "en": "Steady State",
+            "ps": "n."
+          }
+        ]
+      },
+      {
+        "t": "(C) 為了在物理層面上提升 CPU 的溫度，使其進入超頻模式。",
+        "en": "(C) To physically increase the CPU temperature so it enters overclocking mode.",
+        "wg": [
+          {
+            "t": "超頻",
+            "en": "overclocking",
+            "ps": "n."
+          }
+        ]
+      },
+      {
+        "t": "(D) 為了確保資料庫連線池（Connection Pool）已經建立滿載的連線。",
+        "en": "(D) To ensure the database connection pool is fully populated with connections.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "Java 程式剛啟動時是透過直譯器（Interpreter）執行的，速度較慢。必須經過預熱階段的反覆呼叫，JIT 才會介入將熱點程式碼編譯為機器碼。只有在達到「穩定狀態」後進行測量，數據才具有代表性。",
+      "en": "Java code runs slowly at startup because it is executed via the interpreter. It requires repeated invocations during the warmup phase for the JIT to intervene and compile hot code into machine code. Measurements are only representative after reaching a \"Steady State.\"",
+      "wg": [
+        {
+          "t": "直譯器",
+          "en": "interpreter",
+          "ps": "n."
+        },
+        {
+          "t": "熱點程式碼",
+          "en": "hot code",
+          "ps": "n."
+        }
+      ]
+    }
+  },
+  {
+    "no": 9,
+    "level": "Medium",
+    "keywords": "Blackhole, DCE Prevention",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在 JMH 中，為了防止死代碼消除（DCE），你可以採取哪些官方推薦的有效方法？（複選）",
+        "en": "In JMH, to prevent Dead Code Elimination (DCE), which of the following are officially recommended effective methods you can adopt? (Multiple Choice)",
+        "wg": []
+      }
+    ],
+    "type": "Multiple Choice",
+    "options": [
+      {
+        "t": "(A) 直接從 `@Benchmark` 方法中 `return` 計算結果。",
+        "en": "(A) Return the computed result directly from the `@Benchmark` method.",
+        "wg": []
+      },
+      {
+        "t": "(B) 使用 `System.out.println()` 將結果印出到控制台。",
+        "en": "(B) Print the result to the console using `System.out.println()`.",
+        "wg": []
+      },
+      {
+        "t": "(C) 將計算結果傳遞給 `Blackhole.consume()` 方法。",
+        "en": "(C) Pass the computed result to the `Blackhole.consume()` method.",
+        "wg": []
+      },
+      {
+        "t": "(D) 將結果賦值給方法內部宣告的區域變數（Local Variable）。",
+        "en": "(D) Assign the result to a local variable declared inside the method.",
+        "wg": [
+          {
+            "t": "區域變數",
+            "en": "local variable",
+            "ps": "n."
+          }
+        ]
+      }
+    ],
+    "answer": "A,C",
+    "why": {
+      "t": "防止 DCE 的標準做法是讓 JVM 認為結果被使用了，這可以透過直接 return 或使用 Blackhole.consume() 達成。雖然 System.out.println() 也能防止 DCE，但 I/O 操作極度緩慢會嚴重破壞微基準測試的準確性，因此絕非推薦做法。賦值給區域變數若後續未被使用，依然會被 DCE 消除。",
+      "en": "The standard way to prevent DCE is to convince the JVM the result is used, achieved by returning it or using Blackhole.consume(). While System.out.println() prevents DCE, extremely slow I/O operations will ruin the microbenchmark's accuracy, making it an anti-pattern. Assigning to a local variable that remains unused will still be eliminated by DCE.",
+      "wg": [
+        {
+          "t": "破壞",
+          "en": "ruin",
+          "ps": "v."
+        }
+      ]
+    }
+  },
+  {
+    "no": 10,
+    "level": "Easy",
+    "keywords": "Checklist, Sanity Check",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "當你完成 JMH 測試並準備提交報告時，下列哪一項檢查清單（Checklist）的描述是**錯誤**的？",
+        "en": "When you finish a JMH test and prepare to submit the report, which of the following checklist descriptions is **INCORRECT**?",
+        "wg": [
+          {
+            "t": "檢查清單",
+            "en": "checklist",
+            "ps": "n."
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) 確認所有的測試輸入資料都宣告在 `@State` 類別中，而不是在方法內 hardcode。",
+        "en": "(A) Ensure all test inputs are declared in a `@State` class rather than hardcoded in the method.",
+        "wg": []
+      },
+      {
+        "t": "(B) 確認 `@Benchmark` 方法有回傳值，或者使用了 `Blackhole.consume()`。",
+        "en": "(B) Verify that the `@Benchmark` method returns a value or uses `Blackhole.consume()`.",
+        "wg": []
+      },
+      {
+        "t": "(C) 確認最終數據是來自 IDE（如 IntelliJ）中直接點擊執行的結果，以保證與開發環境一致。",
+        "en": "(C) Ensure the final metrics are generated by clicking run directly in the IDE to guarantee consistency with the development environment.",
+        "wg": [
+          {
+            "t": "一致",
+            "en": "consistency",
+            "ps": "n."
+          }
+        ]
+      },
+      {
+        "t": "(D) 檢查測試結果的數量級是否合理（例如：若耗時僅 0.001 奈秒，通常代表代碼被 JIT 消除掉了）。",
+        "en": "(D) Check if the magnitude of the result is logical (e.g., if it takes only 0.001 nanoseconds, it usually means the code was eliminated by JIT).",
+        "wg": []
+      }
+    ],
+    "answer": "C",
+    "why": {
+      "t": "在 IDE 中執行是 JMH 的反模式，因為 IDE 的背景任務與附加工具會造成數據抖動。最終數據必須來自命令列執行的獨立 Uber JAR（java -jar target/benchmarks.jar）。",
+      "en": "Running in an IDE is a JMH anti-pattern because background tasks and attached tools cause data jitter. The final metrics must come from a standalone Uber JAR executed in the command line (java -jar target/benchmarks.jar).",
+      "wg": []
+    }
+  },
+  {
+    "no": 11,
+    "level": "Medium",
+    "keywords": "State Isolation, Scope, Multi-threading",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "一個團隊正在對自訂的資料處理類別進行基準測試。",
+        "en": "A team is benchmarking a custom data processing class.",
+        "wg": [
+          {
+            "t": "基準測試",
+            "en": "benchmarking",
+            "ps": "v"
+          },
+          {
+            "t": "自訂的",
+            "en": "custom",
+            "ps": "adj"
+          }
+        ]
+      },
+      {
+        "t": "他們希望模擬多執行緒的環境。",
+        "en": "They want to simulate a multi-threaded environment.",
+        "wg": [
+          {
+            "t": "模擬",
+            "en": "simulate",
+            "ps": "v"
+          },
+          {
+            "t": "多執行緒的",
+            "en": "multi-threaded",
+            "ps": "adj"
+          }
+        ]
+      },
+      {
+        "t": "然而，該類別不是執行緒安全的，因此每個執行緒必須在自己獨立的實例上操作，以避免競爭危害。",
+        "en": "However, the class is not thread-safe, so each thread must operate on its own independent instance to avoid race conditions.",
+        "wg": [
+          {
+            "t": "執行緒安全的",
+            "en": "thread-safe",
+            "ps": "adj"
+          },
+          {
+            "t": "獨立的",
+            "en": "independent",
+            "ps": "adj"
+          },
+          {
+            "t": "實例",
+            "en": "instance",
+            "ps": "n"
+          },
+          {
+            "t": "競爭危害",
+            "en": "race conditions",
+            "ps": "n"
+          }
+        ]
+      },
+      {
+        "t": "根據 JMH 最佳實務，應該對該類別套用哪一種 `@State` 範圍？",
+        "en": "Based on JMH best practices, which `@State` scope should be applied to the class?",
+        "wg": [
+          {
+            "t": "範圍",
+            "en": "scope",
+            "ps": "n"
+          },
+          {
+            "t": "套用",
+            "en": "applied",
+            "ps": "v"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) 使用 `@State(Scope.Benchmark)`，讓所有執行緒共用同一個實例。",
+        "en": "(A) Use `@State(Scope.Benchmark)` to let all threads share the same instance.",
+        "wg": []
+      },
+      {
+        "t": "(B) 使用 `@State(Scope.Thread)`，讓 JMH 為每個執行緒提供獨立的實例。",
+        "en": "(B) Use `@State(Scope.Thread)` to let JMH provide a distinct instance for each thread.",
+        "wg": []
+      },
+      {
+        "t": "(C) 使用 `@State(Scope.Group)` 來同步所有執行緒的狀態。",
+        "en": "(C) Use `@State(Scope.Group)` to synchronize the state across all threads.",
+        "wg": []
+      },
+      {
+        "t": "(D) 不要使用 `@State`，直接在 `@Benchmark` 方法內部初始化實例。",
+        "en": "(D) Do not use `@State`, and initialize the instance directly inside the `@Benchmark` method.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "手冊指出，`@State` 可以控制多執行緒下的狀態共用範圍。`Scope.Thread` 確保每個執行緒獲得自己獨立的實例，這對於非執行緒安全的物件是必要的。`Scope.Benchmark` 會讓所有執行緒共用實例，導致競爭危害；而在 `@Benchmark` 內初始化則會將初始化時間計入測量結果中，屬於反模式。",
+      "en": "The handbook states that `@State` controls state sharing across threads. `Scope.Thread` ensures each thread gets its own isolated instance, which is necessary for non-thread-safe objects. `Scope.Benchmark` shares the instance across all threads, causing race conditions; initializing inside `@Benchmark` includes initialization time in the measurement, which is an anti-pattern.",
+      "wg": [
+        {
+          "t": "共用範圍",
+          "en": "sharing scope",
+          "ps": "n"
+        },
+        {
+          "t": "競爭危害",
+          "en": "race conditions",
+          "ps": "n"
+        },
+        {
+          "t": "反模式",
+          "en": "anti-pattern",
+          "ps": "n"
+        }
+      ]
+    }
+  },
+  {
+    "no": 12,
+    "level": "Easy",
+    "keywords": "Fork, JVM Isolation, Execution Environment",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在手冊提供的字串串接實戰案例中，基準測試類別使用了 `@Fork(1)` 標註。",
+        "en": "In the real-world string concatenation example provided in the handbook, the `@Fork(1)` annotation is applied to the benchmark class.",
+        "wg": [
+          {
+            "t": "字串串接",
+            "en": "string concatenation",
+            "ps": "n"
+          },
+          {
+            "t": "實戰案例",
+            "en": "real-world example",
+            "ps": "n"
+          },
+          {
+            "t": "標註",
+            "en": "annotation",
+            "ps": "n"
+          }
+        ]
+      },
+      {
+        "t": "根據程式碼註解與 JMH 實務，此設定的主要目的是什麼？",
+        "en": "According to the code comments and JMH practices, what is the primary purpose of this configuration?",
+        "wg": [
+          {
+            "t": "註解",
+            "en": "comments",
+            "ps": "n"
+          },
+          {
+            "t": "設定",
+            "en": "configuration",
+            "ps": "n"
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) 指示 JIT 編譯器精確地執行一次迴圈展開。",
+        "en": "(A) To instruct the JIT compiler to perform loop unrolling exactly one time.",
+        "wg": []
+      },
+      {
+        "t": "(B) 啟動一個獨立的 JVM 行程來執行測試，以隔離環境。",
+        "en": "(B) To spawn a separate, isolated JVM process to run the test, isolating the environment.",
+        "wg": []
+      },
+      {
+        "t": "(C) 在測試期間建立單一背景執行緒來進行垃圾回收。",
+        "en": "(C) To create a single background thread for garbage collection during the test.",
+        "wg": []
+      },
+      {
+        "t": "(D) 確保基準測試只在單一 CPU 核心上執行。",
+        "en": "(D) To ensure that the benchmark only runs on a single CPU core.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "手冊中的程式碼範例明確註解 `@Fork(1)` 的作用是「啟動一個獨立的 JVM 行程進行測試」。這樣做可以確保測試在乾淨的環境中執行，避免先前的測試或 JVM 狀態干擾 JIT 編譯器的優化行為。其他選項皆非 `@Fork` 的實際功能。",
+      "en": "The code example in the handbook explicitly comments that the role of `@Fork(1)` is to \"Fork a separate JVM process for testing.\" This ensures the test runs in a clean environment, preventing previous tests or JVM states from interfering with the JIT compiler's optimization behavior. The other options are not actual functions of `@Fork`.",
+      "wg": [
+        {
+          "t": "獨立的",
+          "en": "separate",
+          "ps": "adj"
+        },
+        {
+          "t": "行程",
+          "en": "process",
+          "ps": "n"
+        },
+        {
+          "t": "干擾",
+          "en": "interfering with",
+          "ps": "v"
+        }
+      ]
+    }
+  }
+]

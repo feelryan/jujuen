@@ -1,0 +1,1332 @@
+[
+  {
+    "no": "enum-const-01",
+    "level": "Medium",
+    "keywords": "ordinal, JPA, database mapping, anti-pattern",
+    "parentNo": null,
+    "images": "",
+    "codeSnippet": "public enum OrderStatus {\n    CREATED,  // ordinal 0\n    PAID,     // ordinal 1\n    SHIPPED   // ordinal 2\n}\n\n// Later, a developer updates the enum:\npublic enum OrderStatus {\n    CREATED,  // ordinal 0\n    PROCESSING, // ordinal 1 (NEW)\n    PAID,     // ordinal 2\n    SHIPPED   // ordinal 3\n}",
+    "question": [
+      {
+        "t": "在上述程式碼中，開發者在原本的列舉中插入了一個新的狀態 `PROCESSING`。",
+        "en": "In the code above, a developer inserts a new state `PROCESSING` into the existing enum.",
+        "wg": [
+          {
+            "t": "列舉",
+            "en": "enum",
+            "ps": "n."
+          }
+        ]
+      },
+      {
+        "t": "如果系統原本依賴 `ordinal()` 將狀態寫入資料庫，這會導致什麼最嚴重的後果？",
+        "en": "If the system originally relied on `ordinal()` to write states to the database, what is the most severe consequence of this change?",
+        "wg": [
+          {
+            "t": "依賴",
+            "en": "relied on",
+            "ps": "v."
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 編譯器會報錯，因為列舉的順序被改變了。",
+        "en": "(A) The compiler will throw an error because the enum order has changed.",
+        "wg": [
+          {
+            "t": "編譯器",
+            "en": "compiler",
+            "ps": "n."
+          }
+        ]
+      },
+      {
+        "t": "(B) 舊有的資料庫紀錄會默默地映射到錯誤的列舉值，導致難以察覺的業務邏輯崩潰。",
+        "en": "(B) Existing database records will silently map to incorrect enum values, causing hard-to-detect business logic failures.",
+        "wg": [
+          {
+            "t": "映射",
+            "en": "map",
+            "ps": "v."
+          },
+          {
+            "t": "業務邏輯崩潰",
+            "en": "business logic failures",
+            "ps": "n."
+          }
+        ]
+      },
+      {
+        "t": "(C) JVM 會在啟動時拋出 `IllegalArgumentException`。",
+        "en": "(C) The JVM will throw an `IllegalArgumentException` upon startup.",
+        "wg": []
+      },
+      {
+        "t": "(D) `EnumSet` 將無法正確初始化這些列舉值。",
+        "en": "(D) `EnumSet` will fail to initialize these enum values correctly.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": [
+      {
+        "t": "`ordinal()` 回傳的是列舉宣告的順序（0, 1, 2...）。",
+        "en": "`ordinal()` returns the declaration order of the Enum (0, 1, 2...).",
+        "wg": [
+          {
+            "t": "宣告",
+            "en": "declaration",
+            "ps": "n."
+          }
+        ]
+      },
+      {
+        "t": "如果在中間插入新值，原本 `PAID` 的值會從 1 變成 2。",
+        "en": "If a new value is inserted in the middle, the value of `PAID` changes from 1 to 2.",
+        "wg": []
+      },
+      {
+        "t": "資料庫中存為 1 的舊訂單會被錯誤地解析為 `PROCESSING`，這是一個嚴重的反模式。",
+        "en": "Old orders stored as 1 in the database will be incorrectly parsed as `PROCESSING`, which is a severe anti-pattern.",
+        "wg": [
+          {
+            "t": "解析",
+            "en": "parsed",
+            "ps": "v."
+          },
+          {
+            "t": "反模式",
+            "en": "anti-pattern",
+            "ps": "n."
+          }
+        ]
+      },
+      {
+        "t": "正確做法是使用 `name()` 或自訂的 `code` 屬性，並在 JPA 中使用 `@Enumerated(EnumType.STRING)`。",
+        "en": "The correct approach is to use `name()` or a custom `code` property, and use `@Enumerated(EnumType.STRING)` in JPA.",
+        "wg": []
+      }
+    ]
+  },
+  {
+    "no": "enum-const-02",
+    "level": "Hard",
+    "keywords": "thread-safety, mutable state, singleton, concurrency",
+    "parentNo": null,
+    "images": "",
+    "codeSnippet": "public enum FeatureToggle {\n    NEW_CHECKOUT_FLOW;\n\n    private boolean isEnabled = false;\n\n    public void setEnabled(boolean enabled) {\n        this.isEnabled = enabled;\n    }\n\n    public boolean isEnabled() {\n        return this.isEnabled;\n    }\n}",
+    "question": [
+      {
+        "t": "上述程式碼實作了一個功能開關（Feature Toggle）的列舉。",
+        "en": "The code above implements an enum for a Feature Toggle.",
+        "wg": [
+          {
+            "t": "功能開關",
+            "en": "Feature Toggle",
+            "ps": "n."
+          }
+        ]
+      },
+      {
+        "t": "在多執行緒的 Web 應用程式中，這種設計會帶來什麼風險？",
+        "en": "What risk does this design pose in a multi-threaded Web application?",
+        "wg": [
+          {
+            "t": "多執行緒",
+            "en": "multi-threaded",
+            "ps": "adj."
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 列舉不能包含方法，因此這段程式碼無法編譯。",
+        "en": "(A) Enums cannot contain methods, so this code will not compile.",
+        "wg": []
+      },
+      {
+        "t": "(B) 每次呼叫 `FeatureToggle.NEW_CHECKOUT_FLOW` 都會建立一個新實例，導致狀態無法共享。",
+        "en": "(B) Calling `FeatureToggle.NEW_CHECKOUT_FLOW` creates a new instance every time, preventing state sharing.",
+        "wg": [
+          {
+            "t": "實例",
+            "en": "instance",
+            "ps": "n."
+          }
+        ]
+      },
+      {
+        "t": "(C) 列舉是全域單例，包含非 final 的可變狀態會引發嚴重的執行緒安全問題。",
+        "en": "(C) Enums are global singletons; containing non-final mutable state will cause severe thread-safety issues.",
+        "wg": [
+          {
+            "t": "全域單例",
+            "en": "global singletons",
+            "ps": "n."
+          },
+          {
+            "t": "可變狀態",
+            "en": "mutable state",
+            "ps": "n."
+          },
+          {
+            "t": "執行緒安全",
+            "en": "thread-safety",
+            "ps": "n."
+          }
+        ]
+      },
+      {
+        "t": "(D) 這種設計會導致垃圾回收器（GC）無法回收該列舉，造成記憶體洩漏。",
+        "en": "(D) This design prevents the Garbage Collector (GC) from reclaiming the enum, causing a memory leak.",
+        "wg": [
+          {
+            "t": "垃圾回收器",
+            "en": "Garbage Collector",
+            "ps": "n."
+          },
+          {
+            "t": "記憶體洩漏",
+            "en": "memory leak",
+            "ps": "n."
+          }
+        ]
+      }
+    ],
+    "answer": "C",
+    "why": [
+      {
+        "t": "在 Java 中，列舉是由 JVM 保證的單例物件集合（Global Singletons）。",
+        "en": "In Java, Enums are a collection of singleton objects (Global Singletons) guaranteed by the JVM.",
+        "wg": []
+      },
+      {
+        "t": "如果你在列舉中定義了非 `final` 的屬性並允許修改它，所有執行緒都會共享並競爭這個變數。",
+        "en": "If you define a non-`final` property in an Enum and allow it to be mutated, all threads will share and compete for this variable.",
+        "wg": [
+          {
+            "t": "競爭",
+            "en": "compete",
+            "ps": "v."
+          }
+        ]
+      },
+      {
+        "t": "這會導致競爭條件（Race Conditions）等嚴重的執行緒安全問題。",
+        "en": "This leads to severe thread-safety issues such as Race Conditions.",
+        "wg": [
+          {
+            "t": "競爭條件",
+            "en": "Race Conditions",
+            "ps": "n."
+          }
+        ]
+      },
+      {
+        "t": "因此，列舉中的所有屬性都應該宣告為 `final` 以確保不可變性。",
+        "en": "Therefore, all fields in an Enum must be declared as `final` to ensure immutability.",
+        "wg": [
+          {
+            "t": "不可變性",
+            "en": "immutability",
+            "ps": "n."
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "no": "enum-const-03",
+    "level": "Medium",
+    "keywords": "EnumSet, collections, performance, bit-vector",
+    "parentNo": null,
+    "images": "",
+    "codeSnippet": "",
+    "question": [
+      {
+        "t": "當你需要將列舉（Enum）作為集合的元素時，最佳實務建議優先使用 `EnumSet` 而不是 `HashSet`。",
+        "en": "When you need to use Enums as collection elements, best practices recommend preferring `EnumSet` over `HashSet`.",
+        "wg": [
+          {
+            "t": "最佳實務",
+            "en": "best practices",
+            "ps": "n."
+          }
+        ]
+      },
+      {
+        "t": "下列何者是 `EnumSet` 效能遠勝 `HashSet` 的主要原因？",
+        "en": "Which of the following is the primary reason why `EnumSet` vastly outperforms `HashSet`?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) `EnumSet` 底層基於位元向量（Bit-vector）實作，操作極為快速且沒有額外的記憶體開銷。",
+        "en": "(A) `EnumSet` is backed by a bit-vector implementation, making operations extremely fast with no additional memory overhead.",
+        "wg": [
+          {
+            "t": "位元向量",
+            "en": "bit-vector",
+            "ps": "n."
+          },
+          {
+            "t": "記憶體開銷",
+            "en": "memory overhead",
+            "ps": "n."
+          }
+        ]
+      },
+      {
+        "t": "(B) `EnumSet` 會自動將列舉值轉換為字串並進行快取。",
+        "en": "(B) `EnumSet` automatically converts enum values to strings and caches them.",
+        "wg": [
+          {
+            "t": "快取",
+            "en": "caches",
+            "ps": "v."
+          }
+        ]
+      },
+      {
+        "t": "(C) `HashSet` 在處理列舉時會強制使用同步鎖（Synchronized lock），導致效能低落。",
+        "en": "(C) `HashSet` forces the use of synchronized locks when handling enums, leading to poor performance.",
+        "wg": [
+          {
+            "t": "同步鎖",
+            "en": "synchronized locks",
+            "ps": "n."
+          }
+        ]
+      },
+      {
+        "t": "(D) `EnumSet` 允許儲存 null 值，從而減少了 NullPointerException 的檢查成本。",
+        "en": "(D) `EnumSet` allows storing null values, thereby reducing the cost of NullPointerException checks.",
+        "wg": []
+      }
+    ],
+    "answer": "A",
+    "why": [
+      {
+        "t": "`EnumSet` 和 `EnumMap` 底層是基於位元向量（Bit-vector）與陣列實作的。",
+        "en": "`EnumSet` and `EnumMap` are backed by bit-vectors and arrays.",
+        "wg": [
+          {
+            "t": "陣列",
+            "en": "arrays",
+            "ps": "n."
+          }
+        ]
+      },
+      {
+        "t": "這使得它們在執行聯集、交集等集合操作時，只需進行簡單的位元運算（Bitwise operations），效能遠勝基於雜湊（Hash）的 `HashSet`。",
+        "en": "This allows them to perform set operations like union and intersection using simple bitwise operations, vastly outperforming hash-based `HashSet`.",
+        "wg": [
+          {
+            "t": "聯集",
+            "en": "union",
+            "ps": "n."
+          },
+          {
+            "t": "交集",
+            "en": "intersection",
+            "ps": "n."
+          },
+          {
+            "t": "位元運算",
+            "en": "bitwise operations",
+            "ps": "n."
+          }
+        ]
+      },
+      {
+        "t": "此外，`EnumSet` 不允許儲存 null 值。",
+        "en": "Additionally, `EnumSet` does not allow storing null values.",
+        "wg": []
+      }
+    ]
+  },
+  {
+    "no": "enum-const-04",
+    "level": "Medium",
+    "keywords": "strategy pattern, refactoring, polymorphism",
+    "parentNo": null,
+    "images": "",
+    "codeSnippet": "public BigDecimal calculate(DiscountPolicy policy, BigDecimal amount) {\n    switch (policy) {\n        case NO_DISCOUNT:\n            return amount;\n        case TEN_PERCENT_OFF:\n            return amount.multiply(BigDecimal.valueOf(0.9));\n        case FIXED_MINUS_FIFTY:\n            return amount.subtract(BigDecimal.valueOf(50));\n        default:\n            throw new IllegalArgumentException(\"Unknown policy\");\n    }\n}",
+    "question": [
+      {
+        "t": "上述程式碼在 Service 層使用 `switch-case` 來判斷折扣策略並計算金額。",
+        "en": "The code above uses a `switch-case` in the Service layer to evaluate the discount policy and calculate the amount.",
+        "wg": [
+          {
+            "t": "折扣策略",
+            "en": "discount policy",
+            "ps": "n."
+          }
+        ]
+      },
+      {
+        "t": "根據列舉的設計模式，應如何重構這段程式碼以達到更好的物件導向設計？",
+        "en": "According to Enum design patterns, how should this code be refactored to achieve better object-oriented design?",
+        "wg": [
+          {
+            "t": "重構",
+            "en": "refactored",
+            "ps": "v."
+          },
+          {
+            "t": "物件導向設計",
+            "en": "object-oriented design",
+            "ps": "n."
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 將 `switch-case` 移到一個獨立的 `DiscountUtil` 靜態類別中。",
+        "en": "(A) Move the `switch-case` to an independent `DiscountUtil` static class.",
+        "wg": []
+      },
+      {
+        "t": "(B) 在 `DiscountPolicy` 列舉中定義一個抽象方法 `applyDiscount`，並讓每個列舉實例實作自己的計算邏輯。",
+        "en": "(B) Define an abstract method `applyDiscount` in the `DiscountPolicy` enum, and have each enum instance implement its own calculation logic.",
+        "wg": [
+          {
+            "t": "抽象方法",
+            "en": "abstract method",
+            "ps": "n."
+          }
+        ]
+      },
+      {
+        "t": "(C) 使用常數介面（Constant Interface）來取代列舉，並將公式定義為字串常數。",
+        "en": "(C) Use a Constant Interface to replace the enum, and define the formulas as string constants.",
+        "wg": [
+          {
+            "t": "常數介面",
+            "en": "Constant Interface",
+            "ps": "n."
+          }
+        ]
+      },
+      {
+        "t": "(D) 將所有計算邏輯寫入資料庫，並在執行時動態載入以避免修改程式碼。",
+        "en": "(D) Write all calculation logic into the database and load it dynamically at runtime to avoid modifying code.",
+        "wg": [
+          {
+            "t": "動態載入",
+            "en": "load it dynamically",
+            "ps": "v."
+          }
+        ]
+      }
+    ],
+    "answer": "B",
+    "why": [
+      {
+        "t": "這正是「列舉實作策略模式（Strategy Pattern via Enum）」的經典應用。",
+        "en": "This is the classic application of the \"Strategy Pattern via Enum.\"",
+        "wg": [
+          {
+            "t": "策略模式",
+            "en": "Strategy Pattern",
+            "ps": "n."
+          }
+        ]
+      },
+      {
+        "t": "與其在外部寫冗長的 `switch-case`，不如讓 Enum 本身攜帶行為。",
+        "en": "Instead of writing lengthy `switch-case` statements externally, let the Enum itself carry the behavior.",
+        "wg": [
+          {
+            "t": "冗長的",
+            "en": "lengthy",
+            "ps": "adj."
+          }
+        ]
+      },
+      {
+        "t": "透過定義抽象方法，強制每個 Enum 實例實作自己的邏輯，可以提高內聚性並符合開閉原則（OCP）。",
+        "en": "By defining an abstract method and forcing each Enum instance to implement its own logic, you increase cohesion and adhere to the Open-Closed Principle (OCP).",
+        "wg": [
+          {
+            "t": "內聚性",
+            "en": "cohesion",
+            "ps": "n."
+          },
+          {
+            "t": "開閉原則",
+            "en": "Open-Closed Principle",
+            "ps": "n."
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "no": "enum-const-05",
+    "level": "Easy",
+    "keywords": "constant interface, anti-pattern, utility class",
+    "parentNo": null,
+    "images": "",
+    "codeSnippet": "public interface SecurityConstants {\n    String TOKEN_PREFIX = \"Bearer \";\n    int MAX_RETRY = 3;\n}",
+    "question": [
+      {
+        "t": "上述程式碼展示了被稱為「常數介面（Constant Interface）」的設計。",
+        "en": "The code above demonstrates a design known as the \"Constant Interface.\"",
+        "wg": [
+          {
+            "t": "常數介面",
+            "en": "Constant Interface",
+            "ps": "n."
+          }
+        ]
+      },
+      {
+        "t": "為什麼這被視為一種反模式（Anti-pattern），以及正確的替代方案是什麼？",
+        "en": "Why is this considered an anti-pattern, and what is the correct alternative?",
+        "wg": [
+          {
+            "t": "替代方案",
+            "en": "alternative",
+            "ps": "n."
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 介面不能包含變數；應改用 `abstract class`。",
+        "en": "(A) Interfaces cannot contain variables; an `abstract class` should be used instead.",
+        "wg": []
+      },
+      {
+        "t": "(B) 實作該介面會嚴重污染類別的公開 API；應改用帶有私有建構子的 `final class`。",
+        "en": "(B) Implementing the interface severely pollutes the class's public API; a `final class` with a private constructor should be used instead.",
+        "wg": [
+          {
+            "t": "污染",
+            "en": "pollutes",
+            "ps": "v."
+          },
+          {
+            "t": "公開 API",
+            "en": "public API",
+            "ps": "n."
+          },
+          {
+            "t": "私有建構子",
+            "en": "private constructor",
+            "ps": "n."
+          }
+        ]
+      },
+      {
+        "t": "(C) 常數會佔用過多記憶體；應將它們改為列舉（Enum）的屬性。",
+        "en": "(C) Constants consume too much memory; they should be changed to properties of an Enum.",
+        "wg": []
+      },
+      {
+        "t": "(D) 介面中的常數預設不是執行緒安全的；應加上 `volatile` 關鍵字。",
+        "en": "(D) Constants in interfaces are not thread-safe by default; the `volatile` keyword should be added.",
+        "wg": [
+          {
+            "t": "執行緒安全的",
+            "en": "thread-safe",
+            "ps": "adj."
+          }
+        ]
+      }
+    ],
+    "answer": "B",
+    "why": [
+      {
+        "t": "建立一個只包含常數的 `interface` 並讓類別去 `implements` 它，會將這些常數暴露為該類別公開 API 的一部分。",
+        "en": "Creating an `interface` containing only constants and having classes `implements` it exposes these constants as part of the class's public API.",
+        "wg": [
+          {
+            "t": "暴露",
+            "en": "exposes",
+            "ps": "v."
+          }
+        ]
+      },
+      {
+        "t": "這破壞了封裝性，因為這些常數通常只是內部實作細節。",
+        "en": "This breaks encapsulation because these constants are usually just internal implementation details.",
+        "wg": [
+          {
+            "t": "封裝性",
+            "en": "encapsulation",
+            "ps": "n."
+          }
+        ]
+      },
+      {
+        "t": "最佳實務是使用 `final class` 搭配私有建構子來集中管理常數，並在需要時使用 `import static`。",
+        "en": "The best practice is to use a `final class` with a private constructor to group constants, and use `import static` when needed.",
+        "wg": []
+      }
+    ]
+  },
+  {
+    "no": "enum-const-06",
+    "level": "Hard",
+    "keywords": "fat enum, architecture, domain logic, testing",
+    "parentNo": null,
+    "images": "",
+    "codeSnippet": "",
+    "question": [
+      {
+        "t": "在團隊的程式碼審查中，你發現一位工程師將呼叫外部金流 API 的邏輯，以及 Spring Bean 的注入（Injection）直接寫進了 `PaymentMethod` 列舉中。",
+        "en": "During a team code review, you notice an engineer has written external payment API calling logic and Spring Bean injection directly into the `PaymentMethod` enum.",
+        "wg": [
+          {
+            "t": "程式碼審查",
+            "en": "code review",
+            "ps": "n."
+          },
+          {
+            "t": "注入",
+            "en": "injection",
+            "ps": "n."
+          }
+        ]
+      },
+      {
+        "t": "這種被稱為「肥大列舉（Fat Enums）」的做法會帶來什麼主要問題？",
+        "en": "What is the main problem with this practice, known as \"Fat Enums\"?",
+        "wg": [
+          {
+            "t": "肥大列舉",
+            "en": "Fat Enums",
+            "ps": "n."
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 列舉無法被序列化為 JSON，導致 API 回應失敗。",
+        "en": "(A) Enums cannot be serialized to JSON, causing API responses to fail.",
+        "wg": [
+          {
+            "t": "序列化",
+            "en": "serialized",
+            "ps": "v."
+          }
+        ]
+      },
+      {
+        "t": "(B) JVM 會限制列舉的位元組碼大小，過多的邏輯會導致 `OutOfMemoryError`。",
+        "en": "(B) The JVM limits the bytecode size of enums; too much logic will cause an `OutOfMemoryError`.",
+        "wg": [
+          {
+            "t": "位元組碼",
+            "en": "bytecode",
+            "ps": "n."
+          }
+        ]
+      },
+      {
+        "t": "(C) 列舉應只負責純粹的領域邏輯；混入外部依賴會導致職責過載且極難進行單元測試。",
+        "en": "(C) Enums should only handle pure domain logic; mixing in external dependencies leads to overloaded responsibilities and makes unit testing extremely difficult.",
+        "wg": [
+          {
+            "t": "純粹的領域邏輯",
+            "en": "pure domain logic",
+            "ps": "n."
+          },
+          {
+            "t": "職責過載",
+            "en": "overloaded responsibilities",
+            "ps": "n."
+          }
+        ]
+      },
+      {
+        "t": "(D) 這會破壞列舉的單例特性，導致每次呼叫都產生新的實例。",
+        "en": "(D) This destroys the singleton nature of the enum, causing a new instance to be created on every call.",
+        "wg": []
+      }
+    ],
+    "answer": "C",
+    "why": [
+      {
+        "t": "列舉非常適合封裝「狀態」與「純粹的領域邏輯（Pure Domain Logic）」。",
+        "en": "Enums are highly suitable for encapsulating \"state\" and \"pure domain logic.\"",
+        "wg": []
+      },
+      {
+        "t": "然而，將外部服務整合（如呼叫 API、資料庫存取、注入 Spring Bean）塞進列舉中，會嚴重違反單一職責原則（SRP）。",
+        "en": "However, stuffing external service integrations (like API calls, DB access, Spring Bean injection) into an enum severely violates the Single Responsibility Principle (SRP).",
+        "wg": [
+          {
+            "t": "單一職責原則",
+            "en": "Single Responsibility Principle",
+            "ps": "n."
+          }
+        ]
+      },
+      {
+        "t": "這不僅讓列舉變得難以單元測試（因為難以 Mock 外部依賴），也讓系統架構變得僵化。",
+        "en": "This not only makes the enum hard to unit test (because mocking external dependencies is difficult) but also makes the system architecture rigid.",
+        "wg": [
+          {
+            "t": "僵化",
+            "en": "rigid",
+            "ps": "adj."
+          }
+        ]
+      },
+      {
+        "t": "需要外部依賴的邏輯應交給外部的 Service 或 Strategy Factory 處理。",
+        "en": "Logic requiring external dependencies should be delegated to external Services or Strategy Factories.",
+        "wg": []
+      }
+    ]
+  },
+  {
+    "no": "enum-const-07",
+    "level": "Medium",
+    "keywords": "state machine, defensive logic, workflow",
+    "parentNo": null,
+    "images": "",
+    "codeSnippet": "",
+    "question": [
+      {
+        "t": "在實作訂單狀態的工作流程時，我們希望防止出現「已取消的訂單變成已出貨」這種不合理的狀態轉換。",
+        "en": "When implementing a workflow for order statuses, we want to prevent illogical state transitions like \"a canceled order becoming shipped.\"",
+        "wg": [
+          {
+            "t": "狀態轉換",
+            "en": "state transitions",
+            "ps": "n."
+          }
+        ]
+      },
+      {
+        "t": "根據手冊中的「狀態機模式（State Machine Pattern）」，下列哪一種實作方式最為推薦？",
+        "en": "According to the \"State Machine Pattern\" in the handbook, which of the following implementation approaches is most recommended?",
+        "wg": [
+          {
+            "t": "狀態機模式",
+            "en": "State Machine Pattern",
+            "ps": "n."
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 在 Service 層寫一個巨大的 `if-else` 區塊來檢查所有可能的狀態組合。",
+        "en": "(A) Write a giant `if-else` block in the Service layer to check all possible state combinations.",
+        "wg": []
+      },
+      {
+        "t": "(B) 在資料庫中建立一個 `valid_transitions` 資料表，每次轉換前都去查詢該表。",
+        "en": "(B) Create a `valid_transitions` table in the database and query it before every transition.",
+        "wg": []
+      },
+      {
+        "t": "(C) 在列舉內部定義每個狀態允許的「下一個合法狀態」（例如使用 `EnumSet`），並提供一個 `canTransitionTo` 方法進行防禦性檢查。",
+        "en": "(C) Define the allowed \"next valid states\" for each state within the enum itself (e.g., using `EnumSet`), and provide a `canTransitionTo` method for defensive checking.",
+        "wg": [
+          {
+            "t": "防禦性檢查",
+            "en": "defensive checking",
+            "ps": "n."
+          }
+        ]
+      },
+      {
+        "t": "(D) 比較兩個狀態的 `ordinal()` 值，只允許轉換到 `ordinal()` 較大的狀態。",
+        "en": "(D) Compare the `ordinal()` values of the two states, only allowing transitions to states with a larger `ordinal()`.",
+        "wg": []
+      }
+    ],
+    "answer": "C",
+    "why": [
+      {
+        "t": "將狀態轉換的防禦性邏輯內聚在 Enum 中，是實作狀態機模式的最佳實務。",
+        "en": "Keeping the defensive logic for state transitions cohesive within the Enum is the best practice for implementing the State Machine Pattern.",
+        "wg": [
+          {
+            "t": "內聚",
+            "en": "cohesive",
+            "ps": "adj."
+          }
+        ]
+      },
+      {
+        "t": "這樣可以確保狀態轉換規則與狀態本身綁定，避免邏輯散落在各個 Service 中。",
+        "en": "This ensures that transition rules are bound to the states themselves, preventing logic from scattering across various Services.",
+        "wg": [
+          {
+            "t": "散落",
+            "en": "scattering",
+            "ps": "v."
+          }
+        ]
+      },
+      {
+        "t": "選項 (D) 是錯誤的，因為狀態轉換不一定是線性的（例如可以從 PAID 轉換為 CANCELLED），依賴 `ordinal()` 也是一種反模式。",
+        "en": "Option (D) is incorrect because state transitions are not always linear (e.g., transitioning from PAID to CANCELLED), and relying on `ordinal()` is an anti-pattern.",
+        "wg": [
+          {
+            "t": "線性的",
+            "en": "linear",
+            "ps": "adj."
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "no": "enum-const-08",
+    "level": "Medium",
+    "keywords": "checklist, best practices, immutability, JPA",
+    "parentNo": null,
+    "images": "",
+    "codeSnippet": "",
+    "question": [
+      {
+        "t": "作為資深工程師，你正在審查一份關於列舉（Enums）與常數設計的 Checklist。",
+        "en": "As a senior engineer, you are reviewing a Checklist regarding Enums and constant design.",
+        "wg": [
+          {
+            "t": "審查",
+            "en": "reviewing",
+            "ps": "v."
+          }
+        ]
+      },
+      {
+        "t": "下列哪些檢查項目是符合最佳實務的？（多選）",
+        "en": "Which of the following checklist items align with best practices? (Multiple Choice)",
+        "wg": []
+      }
+    ],
+    "type": "複選題",
+    "options": [
+      {
+        "t": "(A) 檢查不可變性：確保 Enum 內部的所有成員變數（Fields）都已經標記為 `final`。",
+        "en": "(A) Check Immutability: Ensure all member variables (Fields) inside the Enum are marked as `final`.",
+        "wg": []
+      },
+      {
+        "t": "(B) 檢查資料庫映射：確保在 JPA 中使用了 `@Enumerated(EnumType.STRING)` 而不是預設的 `ORDINAL`。",
+        "en": "(B) Check DB Mapping: Ensure `@Enumerated(EnumType.STRING)` is used in JPA instead of the default `ORDINAL`.",
+        "wg": []
+      },
+      {
+        "t": "(C) 檢查集合型別：當儲存 Enum 集合時，確保已將 `EnumSet` 替換為 `HashSet` 以獲得更好的相容性。",
+        "en": "(C) Check Collection Types: When storing Enum collections, ensure `EnumSet` has been replaced with `HashSet` for better compatibility.",
+        "wg": [
+          {
+            "t": "相容性",
+            "en": "compatibility",
+            "ps": "n."
+          }
+        ]
+      },
+      {
+        "t": "(D) 消除常數介面：確保移除了所有只包含常數的 `interface`，並改用 `final class` 或 Enum 替代。",
+        "en": "(D) Eliminate Constant Interfaces: Ensure all `interface`s containing only constants are removed and replaced with a `final class` or Enum.",
+        "wg": []
+      }
+    ],
+    "answer": "A,B,D",
+    "why": [
+      {
+        "t": "選項 (A)、(B)、(D) 都是手冊中明確列出的最佳實務與檢查點。",
+        "en": "Options (A), (B), and (D) are explicitly listed best practices and checkpoints in the handbook.",
+        "wg": []
+      },
+      {
+        "t": "選項 (C) 是錯誤的；方向完全相反。",
+        "en": "Option (C) is incorrect; the direction is completely reversed.",
+        "wg": []
+      },
+      {
+        "t": "最佳實務是將 `HashSet<MyEnum>` 替換為 `EnumSet.noneOf(MyEnum.class)`，因為 `EnumSet` 在效能和記憶體使用上遠勝 `HashSet`。",
+        "en": "The best practice is to replace `HashSet<MyEnum>` with `EnumSet.noneOf(MyEnum.class)` because `EnumSet` vastly outperforms `HashSet` in performance and memory usage.",
+        "wg": []
+      }
+    ]
+  },
+  {
+    "no": "enum-const-09",
+    "level": "Medium",
+    "keywords": "EnumMap, collections, performance, array-backed",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "Map<UserRole, List<String>> rolePermissions = new HashMap<>();",
+    "question": [
+      {
+        "t": "在進行系統效能優化時，你發現一段程式碼使用 `HashMap` 來儲存不同使用者角色的權限清單。",
+        "en": "During system performance optimization, you find a piece of code using `HashMap` to store permission lists for different user roles.",
+        "wg": [
+          {
+            "t": "效能優化",
+            "en": "performance optimization",
+            "ps": "n."
+          },
+          {
+            "t": "使用者角色",
+            "en": "user roles",
+            "ps": "n."
+          }
+        ]
+      },
+      {
+        "t": "根據手冊中的最佳實務，你應該如何重構這段程式碼？",
+        "en": "According to the best practices in the handbook, how should you refactor this code?",
+        "wg": [
+          {
+            "t": "最佳實務",
+            "en": "best practices",
+            "ps": "n."
+          },
+          {
+            "t": "重構",
+            "en": "refactor",
+            "ps": "v."
+          }
+        ]
+      },
+      {
+        "t": "為什麼？",
+        "en": "Why?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 維持使用 `HashMap`，因為它已經提供了 O(1) 的時間複雜度。",
+        "en": "(A) Keep using `HashMap` as it already provides O(1) time complexity.",
+        "wg": [
+          {
+            "t": "時間複雜度",
+            "en": "time complexity",
+            "ps": "n."
+          }
+        ]
+      },
+      {
+        "t": "(B) 改用 `EnumMap`，因為它底層基於陣列實作，效能遠勝 `HashMap` 且沒有額外的記憶體開銷。",
+        "en": "(B) Switch to `EnumMap`, because it is internally backed by an array, offering vastly superior performance compared to `HashMap` without additional memory overhead.",
+        "wg": [
+          {
+            "t": "底層基於",
+            "en": "internally backed by",
+            "ps": "phr."
+          },
+          {
+            "t": "記憶體開銷",
+            "en": "memory overhead",
+            "ps": "n."
+          }
+        ]
+      },
+      {
+        "t": "(C) 改用 `TreeMap`，以確保角色能依照字母順序自動排序。",
+        "en": "(C) Switch to `TreeMap` to ensure the roles are automatically sorted alphabetically.",
+        "wg": [
+          {
+            "t": "字母順序",
+            "en": "alphabetically",
+            "ps": "adv."
+          }
+        ]
+      },
+      {
+        "t": "(D) 改用 `ConcurrentHashMap`，因為列舉是全域單例，預設需要執行緒安全的集合。",
+        "en": "(D) Switch to `ConcurrentHashMap`, because Enums are global singletons and require thread-safe collections by default.",
+        "wg": [
+          {
+            "t": "全域單例",
+            "en": "global singletons",
+            "ps": "n."
+          },
+          {
+            "t": "執行緒安全",
+            "en": "thread-safe",
+            "ps": "adj."
+          }
+        ]
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "當需要將列舉（Enum）作為 Map 的 Key 時，最佳實務是優先使用 `EnumMap`。因為 `EnumMap` 底層是使用陣列（Array）實作的，不僅存取速度比基於雜湊的 `HashMap` 更快，而且不需要配置 Map.Entry 物件，因此能大幅減少記憶體開銷。選項 A 忽略了 `EnumMap` 的優勢；選項 C 的排序通常不是主要考量且效能較差；選項 D 錯誤地將列舉本身的執行緒安全與集合的執行緒安全混為一談。",
+      "en": "When using an Enum as a Map key, the best practice is to always prefer `EnumMap`. Because `EnumMap` is internally backed by an array, it is not only faster than the hash-based `HashMap`, but it also avoids allocating Map.Entry objects, significantly reducing memory overhead. Option A ignores the benefits of `EnumMap`; Option C introduces unnecessary sorting overhead; Option D incorrectly conflates the thread-safety of the Enum itself with the thread-safety of the collection.",
+      "wg": [
+        {
+          "t": "陣列",
+          "en": "array",
+          "ps": "n."
+        },
+        {
+          "t": "雜湊",
+          "en": "hash-based",
+          "ps": "adj."
+        },
+        {
+          "t": "混為一談",
+          "en": "conflates",
+          "ps": "v."
+        }
+      ]
+    }
+  },
+  {
+    "no": "enum-const-10",
+    "level": "Medium",
+    "keywords": "strongly-typed, compile-time safety, error codes, refactoring",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "public static final String ERR_NOT_FOUND = \"404\";\n\npublic void handleError(String errorCode) {\n    // 處理錯誤邏輯\n}",
+    "question": [
+      {
+        "t": "某個舊系統使用字串常數來定義錯誤碼。",
+        "en": "A legacy system uses string constants to define error codes.",
+        "wg": [
+          {
+            "t": "舊系統",
+            "en": "legacy system",
+            "ps": "n."
+          },
+          {
+            "t": "錯誤碼",
+            "en": "error codes",
+            "ps": "n."
+          }
+        ]
+      },
+      {
+        "t": "開發者在呼叫 `handleError(String errorCode)` 時，不小心傳入了普通的字串 `\"User not found\"`，導致系統在執行期發生非預期的錯誤。",
+        "en": "When calling `handleError(String errorCode)`, a developer accidentally passed a normal string `\"User not found\"`, causing an unexpected runtime error.",
+        "wg": [
+          {
+            "t": "執行期",
+            "en": "runtime",
+            "ps": "n."
+          },
+          {
+            "t": "非預期的",
+            "en": "unexpected",
+            "ps": "adj."
+          }
+        ]
+      },
+      {
+        "t": "為了從根本上防止這類錯誤，最佳的重構方式是什麼？",
+        "en": "To fundamentally prevent this class of errors, what is the best refactoring approach?",
+        "wg": [
+          {
+            "t": "根本上",
+            "en": "fundamentally",
+            "ps": "adv."
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 在 `handleError` 方法內部加入驗證邏輯，檢查傳入的字串是否符合已知的常數值。",
+        "en": "(A) Add validation logic inside the `handleError` method to check if the passed string matches known constant values.",
+        "wg": [
+          {
+            "t": "驗證邏輯",
+            "en": "validation logic",
+            "ps": "n."
+          }
+        ]
+      },
+      {
+        "t": "(B) 將常數的型別從 `String` 改為 `int`，以提升比對時的效能。",
+        "en": "(B) Change the constant type from `String` to `int` to improve comparison performance.",
+        "wg": []
+      },
+      {
+        "t": "(C) 將錯誤碼重構為帶有屬性的列舉（Enum），並將方法簽章修改為接收該列舉型別。",
+        "en": "(C) Refactor the error codes into an Enum with properties, and change the method signature to accept the Enum type.",
+        "wg": [
+          {
+            "t": "帶有屬性的",
+            "en": "with properties",
+            "ps": "phr."
+          },
+          {
+            "t": "方法簽章",
+            "en": "method signature",
+            "ps": "n."
+          }
+        ]
+      },
+      {
+        "t": "(D) 建立一個自訂的 `@ErrorCode` 註解，並在執行期透過反射來驗證輸入參數。",
+        "en": "(D) Create a custom `@ErrorCode` annotation and use reflection to validate the input parameter at runtime.",
+        "wg": [
+          {
+            "t": "註解",
+            "en": "annotation",
+            "ps": "n."
+          },
+          {
+            "t": "反射",
+            "en": "reflection",
+            "ps": "n."
+          }
+        ]
+      }
+    ],
+    "answer": "C",
+    "why": {
+      "t": "使用 `public static final String` 定義常數的最大缺點是缺乏型別安全（Type Safety），編譯器無法阻止開發者傳入任意字串。根據手冊，最佳實務是使用「帶有屬性的強型別常數」，也就是將錯誤碼重構為 Enum，並賦予 `code` 等屬性。這樣一來，方法簽章可以限制只能傳入該 Enum 型別，從而在編譯期（Compile time）就能抓出型別錯誤。選項 A 和 D 只能在執行期發現錯誤；選項 B 依然缺乏型別安全（可以傳入任意整數）。",
+      "en": "The biggest drawback of using `public static final String` for constants is the lack of type safety; the compiler cannot prevent developers from passing arbitrary strings. According to the handbook, the best practice is to use 'Strongly-Typed Constants with Properties' by refactoring error codes into an Enum with properties like `code`. This allows the method signature to restrict inputs to that specific Enum type, catching type errors at compile time. Options A and D only catch errors at runtime; Option B still lacks type safety (any integer could be passed).",
+      "wg": [
+        {
+          "t": "型別安全",
+          "en": "Type Safety",
+          "ps": "n."
+        },
+        {
+          "t": "編譯期",
+          "en": "Compile time",
+          "ps": "n."
+        }
+      ]
+    }
+  },
+  {
+    "no": "enum-const-11",
+    "level": "Hard",
+    "keywords": "state machine, forward-reference, static initialization, compilation error",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "public enum OrderStatus {\n    CREATED,\n    PAID;\n\n    private Set<OrderStatus> validNextStates;\n\n    static {\n        CREATED.validNextStates = EnumSet.of(PAID);\n        // ...\n    }\n}",
+    "question": [
+      {
+        "t": "在實作訂單狀態機（State Machine）時，我們需要在每個狀態中定義其允許的「下一個合法狀態」。",
+        "en": "When implementing an order state machine, we need to define the allowed \"next valid states\" for each state.",
+        "wg": [
+          {
+            "t": "狀態機",
+            "en": "State Machine",
+            "ps": "n."
+          },
+          {
+            "t": "合法狀態",
+            "en": "valid states",
+            "ps": "n."
+          }
+        ]
+      },
+      {
+        "t": "手冊中的範例程式碼使用了 `static { ... }` 靜態初始化區塊來設定這些規則，而不是直接透過列舉的建構子傳入。",
+        "en": "The example code in the handbook uses a `static { ... }` initialization block to set up these rules, rather than passing them directly through the Enum constructor.",
+        "wg": [
+          {
+            "t": "靜態初始化區塊",
+            "en": "static initialization block",
+            "ps": "n."
+          },
+          {
+            "t": "建構子",
+            "en": "constructor",
+            "ps": "n."
+          }
+        ]
+      },
+      {
+        "t": "這樣設計的主要原因是什麼？",
+        "en": "What is the primary reason for this design?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 因為列舉的建構子不允許接收像 `EnumSet` 這樣的集合型別作為參數。",
+        "en": "(A) Because Enum constructors do not allow accepting collection types like `EnumSet` as parameters.",
+        "wg": []
+      },
+      {
+        "t": "(B) 為了避免「非法向前參考」的編譯錯誤，因為在建構當前狀態時，後續的狀態實例尚未被初始化。",
+        "en": "(B) To avoid \"illegal forward reference\" compilation errors, because subsequent state instances are not yet initialized when constructing the current state.",
+        "wg": [
+          {
+            "t": "非法向前參考",
+            "en": "illegal forward reference",
+            "ps": "n."
+          },
+          {
+            "t": "編譯錯誤",
+            "en": "compilation errors",
+            "ps": "n."
+          }
+        ]
+      },
+      {
+        "t": "(C) 因為靜態區塊在類別載入時執行速度更快，能有效提升應用程式的啟動時間。",
+        "en": "(C) Because static blocks execute faster during class loading, effectively improving application startup time.",
+        "wg": [
+          {
+            "t": "類別載入",
+            "en": "class loading",
+            "ps": "n."
+          }
+        ]
+      },
+      {
+        "t": "(D) 為了確保狀態轉換規則可以在應用程式執行期間被動態修改。",
+        "en": "(D) To ensure that state transition rules can be dynamically modified during application runtime.",
+        "wg": [
+          {
+            "t": "動態修改",
+            "en": "dynamically modified",
+            "ps": "v."
+          }
+        ]
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "在 Java 列舉中，所有的列舉實例（如 `CREATED`, `PAID`）都是在類別載入時依序被實例化的。如果我們試圖在 `CREATED` 的建構子中直接參考 `PAID`，編譯器會報錯（Illegal forward reference），因為此時 `PAID` 尚未被建立。為了解決這個問題，我們將狀態的關聯邏輯延遲到所有列舉實例都建立完成後，再透過 `static` 區塊進行初始化。選項 A 錯誤，建構子可以接收集合；選項 C 錯誤，這與效能無關；選項 D 錯誤，狀態機規則通常是固定的，不應在執行期動態修改。",
+      "en": "In Java Enums, all enum instances (like `CREATED`, `PAID`) are instantiated sequentially during class loading. If we try to reference `PAID` directly inside the constructor of `CREATED`, the compiler will throw an error (Illegal forward reference) because `PAID` has not been created yet. To solve this, we defer the linking logic until all enum instances are fully created, and then initialize them using a `static` block. Option A is false; constructors can accept collections. Option C is false; this is not about performance. Option D is false; state machine rules are typically fixed and shouldn't be mutated at runtime.",
+      "wg": [
+        {
+          "t": "實例化",
+          "en": "instantiated",
+          "ps": "v."
+        },
+        {
+          "t": "延遲",
+          "en": "defer",
+          "ps": "v."
+        }
+      ]
+    }
+  },
+  {
+    "no": "enum-const-12",
+    "level": "Easy",
+    "keywords": "utility class, constant interface, instantiation, best practices",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "當你需要將一個「常數介面（Constant Interface）」重構為最佳實務的寫法時，你決定建立一個專門管理常數的類別。",
+        "en": "When you need to refactor a \"Constant Interface\" into a best practice approach, you decide to create a dedicated class for managing constants.",
+        "wg": [
+          {
+            "t": "常數介面",
+            "en": "Constant Interface",
+            "ps": "n."
+          },
+          {
+            "t": "專門管理",
+            "en": "dedicated ... for managing",
+            "ps": "phr."
+          }
+        ]
+      },
+      {
+        "t": "下列哪些是實作此常數類別時應遵循的正確步驟？（複選）",
+        "en": "Which of the following are correct steps to follow when implementing this constant class? (Multiple Choice)",
+        "wg": [
+          {
+            "t": "遵循",
+            "en": "follow",
+            "ps": "v."
+          }
+        ]
+      }
+    ],
+    "type": "複選題",
+    "options": [
+      {
+        "t": "(A) 將類別宣告為 `final`，以防止被其他類別繼承。",
+        "en": "(A) Declare the class as `final` to prevent it from being subclassed.",
+        "wg": [
+          {
+            "t": "繼承",
+            "en": "subclassed",
+            "ps": "v."
+          }
+        ]
+      },
+      {
+        "t": "(B) 提供一個私有建構子（Private Constructor），以防止該類別被實例化。",
+        "en": "(B) Provide a private constructor to prevent the class from being instantiated.",
+        "wg": [
+          {
+            "t": "私有建構子",
+            "en": "private constructor",
+            "ps": "n."
+          }
+        ]
+      },
+      {
+        "t": "(C) 在私有建構子內部拋出 `AssertionError`，以防止透過反射機制強行建立實例。",
+        "en": "(C) Throw an `AssertionError` inside the private constructor to prevent instantiation via reflection.",
+        "wg": [
+          {
+            "t": "反射機制",
+            "en": "reflection",
+            "ps": "n."
+          }
+        ]
+      },
+      {
+        "t": "(D) 實作 `Serializable` 介面，確保這些常數可以在分散式系統中被序列化傳輸。",
+        "en": "(D) Implement the `Serializable` interface to ensure these constants can be serialized and transferred in a distributed system.",
+        "wg": [
+          {
+            "t": "序列化",
+            "en": "serialized",
+            "ps": "v."
+          },
+          {
+            "t": "分散式系統",
+            "en": "distributed system",
+            "ps": "n."
+          }
+        ]
+      }
+    ],
+    "answer": "A,B,C",
+    "why": {
+      "t": "根據手冊中的實戰案例，取代常數介面的最佳實務是建立一個 Utility Class。這個類別應該宣告為 `final`（防止繼承），並且擁有一個私有建構子（防止被 `new` 出來）。為了進一步防止開發者在類別內部不小心呼叫建構子，或是透過 Java 反射（Reflection）機制強行實例化，通常會在私有建構子內拋出 `AssertionError`。選項 D 是錯誤的，因為常數類別根本不應該被實例化，自然也不需要（也不應該）實作 `Serializable` 介面。",
+      "en": "According to the real-world examples in the handbook, the best practice for replacing a Constant Interface is to create a Utility Class. This class should be declared `final` (to prevent subclassing) and have a private constructor (to prevent instantiation). To further prevent accidental instantiation from within the class or forced instantiation via Java Reflection, an `AssertionError` is typically thrown inside the private constructor. Option D is incorrect because a constant class should never be instantiated in the first place, so it does not need (and should not) implement the `Serializable` interface.",
+      "wg": [
+        {
+          "t": "實例化",
+          "en": "instantiation",
+          "ps": "n."
+        },
+        {
+          "t": "強行",
+          "en": "forced",
+          "ps": "adj."
+        }
+      ]
+    }
+  }
+]

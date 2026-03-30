@@ -1,0 +1,1059 @@
+[
+  {
+    "no": 1,
+    "level": "Medium",
+    "keywords": "Gradle, Lifecycle, Configuration Phase, Anti-pattern",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "def fetchMetadata() {\n    // Simulating a slow HTTP call\n    Thread.sleep(3000)\n    return \"metadata\"\n}\n\n// Top-level of build.gradle\ndef data = fetchMetadata()\nprintln \"Fetched data: $data\"\n\ntasks.register('myTask') {\n    doLast {\n        println \"Running myTask\"\n    }\n}",
+    "question": [
+      {
+        "t": "一位開發者在 Gradle 腳本的頂層（不在任何 Task 區塊內）加入了一個耗時的 HTTP 請求來獲取中繼資料。他發現即使只是執行 `gradle tasks` 這樣無關的指令，建置過程也變得非常緩慢。請問根本原因是什麼？",
+        "en": "A developer added a time-consuming HTTP request to fetch metadata at the top level of a Gradle script (outside of any Task blocks). They noticed that even running an unrelated command like `gradle tasks` became extremely slow. What is the root cause?",
+        "wg": [
+          {
+            "t": "中繼資料",
+            "en": "metadata",
+            "ps": "n."
+          },
+          {
+            "t": "根本原因",
+            "en": "root cause",
+            "ps": "n."
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) 該 HTTP 請求在「初始化階段 (Initialization phase)」執行，阻塞了 Gradle Daemon。",
+        "en": "(A) The HTTP request is executed during the Initialization phase, blocking the Gradle Daemon.",
+        "wg": [
+          {
+            "t": "初始化階段",
+            "en": "Initialization phase",
+            "ps": "n."
+          }
+        ]
+      },
+      {
+        "t": "(B) 該 HTTP 請求在「配置階段 (Configuration phase)」執行，而此階段在每次呼叫 Gradle 時都會對所有專案進行評估，無論目標任務為何。",
+        "en": "(B) The HTTP request is executed during the Configuration phase, which evaluates all projects every time Gradle is invoked, regardless of the target task.",
+        "wg": [
+          {
+            "t": "配置階段",
+            "en": "Configuration phase",
+            "ps": "n."
+          }
+        ]
+      },
+      {
+        "t": "(C) Gradle 預設停用了 Build Cache，導致每次執行都會重新編譯腳本並觸發網路請求。",
+        "en": "(C) Gradle disables the Build Cache by default, causing the script to be recompiled and triggering the network request every time.",
+        "wg": [
+          {
+            "t": "重新編譯",
+            "en": "recompiled",
+            "ps": "v."
+          }
+        ]
+      },
+      {
+        "t": "(D) 該 HTTP 請求在 `tasks` 任務的「執行階段 (Execution phase)」被意外觸發。",
+        "en": "(D) The HTTP request is accidentally triggered during the Execution phase of the `tasks` task.",
+        "wg": [
+          {
+            "t": "執行階段",
+            "en": "Execution phase",
+            "ps": "n."
+          }
+        ]
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "Gradle 的生命週期分為初始化、配置與執行三個階段。寫在 `build.gradle` 頂層的程式碼屬於「配置階段 (Configuration phase)」。在這個階段，Gradle 會評估專案並建立任務的有向無環圖 (DAG)，這意味著無論你執行什麼任務（即使只是 `gradle tasks`），這些頂層邏輯都會被執行。正確的做法是將耗時的執行邏輯放入 Task 的 `doLast` 或 `doFirst` 區塊中（即執行階段）。選項 (A) 錯誤，因為初始化階段主要是決定哪些專案參與建置（settings.gradle）。選項 (C) 錯誤，這與 Build Cache 無關。選項 (D) 錯誤，頂層程式碼不屬於任何特定任務的執行階段。",
+      "en": "Gradle's lifecycle consists of three phases: Initialization, Configuration, and Execution. Code written at the top level of `build.gradle` belongs to the Configuration phase. During this phase, Gradle evaluates the project to build the Directed Acyclic Graph (DAG) of tasks, meaning this logic runs regardless of which task is executed (even `gradle tasks`). The correct approach is to put time-consuming logic inside a Task's `doLast` or `doFirst` block (Execution phase). Option (A) is incorrect because the Initialization phase mainly determines which projects participate in the build (settings.gradle). Option (C) is incorrect as this is unrelated to the Build Cache. Option (D) is incorrect because top-level code is not part of any specific task's execution phase.",
+      "wg": [
+        {
+          "t": "有向無環圖",
+          "en": "Directed Acyclic Graph (DAG)",
+          "ps": "n."
+        },
+        {
+          "t": "評估",
+          "en": "evaluates",
+          "ps": "v."
+        }
+      ]
+    }
+  },
+  {
+    "no": 2,
+    "level": "Hard",
+    "keywords": "Phantom Dependencies, Transitive Dependencies, Anti-pattern",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你的 Java 專案目前編譯正常，因為程式碼中使用了 Jackson 的 `ObjectMapper`，而這個類別是由第三方套件 `foo-client` 作為「傳遞依賴 (Transitive Dependency)」偷偷帶入的。幾個月後，你升級了 `foo-client` 的版本，專案突然因為 `ClassNotFoundException: ObjectMapper` 而編譯失敗。為避免這類「幽靈依賴 (Phantom Dependencies)」問題，最佳實踐是什麼？",
+        "en": "Your Java project compiles successfully because it uses Jackson's `ObjectMapper`, which is brought in as a Transitive Dependency by a third-party library `foo-client`. Months later, you upgrade `foo-client`, and the project suddenly fails to compile with `ClassNotFoundException: ObjectMapper`. What is the best practice to prevent this \"Phantom Dependencies\" issue?",
+        "wg": [
+          {
+            "t": "傳遞依賴",
+            "en": "Transitive Dependency",
+            "ps": "n."
+          },
+          {
+            "t": "幽靈依賴",
+            "en": "Phantom Dependencies",
+            "ps": "n."
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) 為 `foo-client` 使用動態版本號（如 `latest.release`），確保總是獲取最新的傳遞依賴。",
+        "en": "(A) Use a dynamic version (like `latest.release`) for `foo-client` to ensure you always get the newest transitive dependencies.",
+        "wg": [
+          {
+            "t": "動態版本號",
+            "en": "dynamic version",
+            "ps": "n."
+          }
+        ]
+      },
+      {
+        "t": "(B) 只要你的程式碼直接 `import` 了某個套件的類別，就必須在建置檔中顯式宣告該依賴 (Declare what you use)。",
+        "en": "(B) Explicitly declare the dependency in your build file whenever your code directly `import`s its classes (Declare what you use).",
+        "wg": [
+          {
+            "t": "顯式宣告",
+            "en": "Explicitly declare",
+            "ps": "v."
+          }
+        ]
+      },
+      {
+        "t": "(C) 使用 `<dependencyManagement>` 強制 `foo-client` 保留舊版的 Jackson。",
+        "en": "(C) Use `<dependencyManagement>` to force `foo-client` to retain the older version of Jackson.",
+        "wg": [
+          {
+            "t": "強制",
+            "en": "force",
+            "ps": "v."
+          }
+        ]
+      },
+      {
+        "t": "(D) 將 `foo-client` 的依賴範圍 (Scope) 變更為 `provided`，讓執行環境來提供 Jackson。",
+        "en": "(D) Change the dependency scope of `foo-client` to `provided` so the runtime environment supplies Jackson.",
+        "wg": [
+          {
+            "t": "依賴範圍",
+            "en": "dependency scope",
+            "ps": "n."
+          }
+        ]
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "幽靈依賴（Phantom Dependencies）是指專案依賴了未顯式宣告的傳遞依賴。當上層依賴（如 `foo-client`）升級或移除時，底層依賴可能會消失或版本大改，導致編譯或執行期錯誤。最佳實踐是「Declare what you use」：只要程式碼直接用到了某個套件，就必須顯式宣告它。選項 (A) 是反模式，會破壞建置可重現性。選項 (C) 治標不治本，且若 `foo-client` 的新版不相容舊版 Jackson 會引發其他問題。選項 (D) 錯誤，`provided` 是用於 Servlet API 等由容器提供的依賴，無法解決編譯期幽靈依賴的問題。",
+      "en": "Phantom Dependencies occur when a project relies on undeclared transitive dependencies. When the top-level dependency (like `foo-client`) is upgraded or removed, the transitive dependency might disappear or change versions, causing compile-time or runtime errors. The best practice is \"Declare what you use\": explicitly declare any library your code directly imports. Option (A) is an anti-pattern that breaks build reproducibility. Option (C) is a band-aid solution and might cause incompatibilities if the new `foo-client` requires a newer Jackson. Option (D) is incorrect; `provided` is for container-supplied dependencies (like Servlet API) and doesn't solve compile-time phantom dependency issues.",
+      "wg": [
+        {
+          "t": "治標不治本",
+          "en": "band-aid solution",
+          "ps": "n."
+        },
+        {
+          "t": "可重現性",
+          "en": "reproducibility",
+          "ps": "n."
+        }
+      ]
+    }
+  },
+  {
+    "no": 3,
+    "level": "Medium",
+    "keywords": "Gradle, api vs implementation, Dependency Scopes",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "// Module: core (build.gradle)\ndependencies {\n    // How to declare guava?\n    ??? 'com.google.guava:guava:32.1.3-jre'\n}",
+    "question": [
+      {
+        "t": "在 Gradle 多模組專案中，模組 `core` 依賴了 `guava`，而模組 `app` 依賴了 `core`。如果 `core` 模組在其公開的介面方法簽名中（Public API）暴露了 Guava 的 `ImmutableList` 類別，`core` 應該如何宣告對 `guava` 的依賴？",
+        "en": "In a Gradle multi-module project, module `core` depends on `guava`, and module `app` depends on `core`. If the `core` module exposes Guava's `ImmutableList` class in its public interface method signatures (Public API), how should `core` declare the `guava` dependency?",
+        "wg": [
+          {
+            "t": "方法簽名",
+            "en": "method signatures",
+            "ps": "n."
+          },
+          {
+            "t": "暴露",
+            "en": "exposes",
+            "ps": "v."
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) `implementation 'com.google.guava:guava'`",
+        "en": "(A) `implementation 'com.google.guava:guava'`",
+        "wg": []
+      },
+      {
+        "t": "(B) `api 'com.google.guava:guava'`",
+        "en": "(B) `api 'com.google.guava:guava'`",
+        "wg": []
+      },
+      {
+        "t": "(C) `compileOnly 'com.google.guava:guava'`",
+        "en": "(C) `compileOnly 'com.google.guava:guava'`",
+        "wg": []
+      },
+      {
+        "t": "(D) `runtimeOnly 'com.google.guava:guava'`",
+        "en": "(D) `runtimeOnly 'com.google.guava:guava'`",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "在 Gradle 中，如果你的模組對外暴露了某個依賴的類別（例如在 public 方法的回傳值或參數中使用），必須使用 `api` 來宣告該依賴。這樣依賴該模組的消費者（如 `app`）在編譯時才能看見並使用這個類別。如果只是內部實作細節，則應使用 `implementation` 以避免依賴污染並加速編譯。選項 (A) 會導致 `app` 在編譯時找不到 `ImmutableList`。選項 (C) 和 (D) 分別只在編譯期或執行期可用，不符合此情境的需求。",
+      "en": "In Gradle, if your module exposes a dependency's class in its public API (e.g., in return types or parameters of public methods), you must use `api` to declare it. This ensures that consumers of the module (like `app`) can see and use the class at compile time. If it were purely an internal implementation detail, `implementation` should be used to prevent dependency leakage and speed up compilation. Option (A) would cause a compile error in `app` when it tries to use `ImmutableList`. Options (C) and (D) are only available at compile-time or runtime respectively, which doesn't fit this scenario.",
+      "wg": [
+        {
+          "t": "依賴污染",
+          "en": "dependency leakage",
+          "ps": "n."
+        },
+        {
+          "t": "消費者",
+          "en": "consumers",
+          "ps": "n."
+        }
+      ]
+    }
+  },
+  {
+    "no": 4,
+    "level": "Easy",
+    "keywords": "Maven, Dependency Management, BOM",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在大型的多模組 Maven 專案中，你希望確保所有子模組都使用特定版本（例如 `3.2.0`）的 Spring Boot 相關套件，且不希望在每個子模組的 `pom.xml` 中重複撰寫版本號。請問 Maven 中哪個機制專門用於解決這個「集中化依賴管理」的問題？",
+        "en": "In a large multi-module Maven project, you want to ensure all submodules use a specific version (e.g., `3.2.0`) of Spring Boot libraries without repeating the version number in every submodule's `pom.xml`. Which Maven mechanism is specifically designed to solve this \"Centralized Dependency Management\" problem?",
+        "wg": [
+          {
+            "t": "集中化依賴管理",
+            "en": "Centralized Dependency Management",
+            "ps": "n."
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) 在每個子模組中使用 `<properties>` 區塊定義版本號。",
+        "en": "(A) Defining the version in a `<properties>` block within each submodule.",
+        "wg": []
+      },
+      {
+        "t": "(B) 在父 POM 中使用 `<dependencyManagement>` 區塊（或引入 BOM）。",
+        "en": "(B) Using a `<dependencyManagement>` block (or importing a BOM) in the parent POM.",
+        "wg": [
+          {
+            "t": "父 POM",
+            "en": "parent POM",
+            "ps": "n."
+          }
+        ]
+      },
+      {
+        "t": "(C) 在父 POM 中使用 `<pluginManagement>` 區塊。",
+        "en": "(C) Using a `<pluginManagement>` block in the parent POM.",
+        "wg": []
+      },
+      {
+        "t": "(D) 在父 POM 中使用 `<exclusions>` 區塊。",
+        "en": "(D) Using an `<exclusions>` block in the parent POM.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "在 Maven 中，`<dependencyManagement>` 區塊（通常位於父 POM 中）用於集中管理依賴的版本號。子模組在引入依賴時只需宣告 `groupId` 和 `artifactId`，Maven 會自動從 `<dependencyManagement>` 中尋找對應的版本號。引入 BOM (Bill of Materials) 也是透過 `<dependencyManagement>` 搭配 `scope=import` 來實現的。選項 (A) 無法達到集中管理的目的。選項 (C) 是用來管理 Maven 插件 (Plugins) 的版本，而非依賴。選項 (D) 是用來排除傳遞依賴的。",
+      "en": "In Maven, the `<dependencyManagement>` block (typically in the parent POM) is used to centralize dependency versions. Submodules only need to declare the `groupId` and `artifactId`, and Maven will automatically resolve the version from `<dependencyManagement>`. Importing a BOM (Bill of Materials) is also achieved via `<dependencyManagement>` with `scope=import`. Option (A) does not centralize management. Option (C) is for managing Maven Plugins, not dependencies. Option (D) is used to exclude transitive dependencies.",
+      "wg": [
+        {
+          "t": "集中管理",
+          "en": "centralize management",
+          "ps": "v."
+        }
+      ]
+    }
+  },
+  {
+    "no": 5,
+    "level": "Medium",
+    "keywords": "Dynamic Versions, Reproducibility, Anti-pattern",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "為什麼在正式環境的建置設定中使用「動態版本號」（例如 `1.2.+`、`LATEST` 或 `RELEASE`）被視為一種反模式 (Anti-pattern)？",
+        "en": "Why is using \"Dynamic Versions\" (e.g., `1.2.+`, `LATEST`, or `RELEASE`) in production build configurations considered an anti-pattern?",
+        "wg": [
+          {
+            "t": "動態版本號",
+            "en": "Dynamic Versions",
+            "ps": "n."
+          },
+          {
+            "t": "反模式",
+            "en": "anti-pattern",
+            "ps": "n."
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) 它會大幅拖慢建置速度，因為建置工具必須下載該套件的所有可用版本來進行比對。",
+        "en": "(A) It significantly slows down the build because the build tool must download all available versions of the package for comparison.",
+        "wg": []
+      },
+      {
+        "t": "(B) 它破壞了建置的「可重現性 (Reproducibility)」，今天成功的建置可能明天會因為第三方發布了有 bug 的新版本而突然崩潰。",
+        "en": "(B) It breaks build \"Reproducibility\"; a build that succeeds today might suddenly crash tomorrow because a third party released a buggy new version.",
+        "wg": [
+          {
+            "t": "可重現性",
+            "en": "Reproducibility",
+            "ps": "n."
+          }
+        ]
+      },
+      {
+        "t": "(C) 它會導致建置工具強制繞過本地快取 (Local Cache)，永遠只從遠端儲存庫拉取依賴。",
+        "en": "(C) It causes the build tool to strictly bypass the local cache and always fetch dependencies from the remote repository.",
+        "wg": [
+          {
+            "t": "繞過",
+            "en": "bypass",
+            "ps": "v."
+          }
+        ]
+      },
+      {
+        "t": "(D) 它與現代的集中化依賴管理工具（如 Gradle Version Catalogs）完全不相容，會導致語法錯誤。",
+        "en": "(D) It is completely incompatible with modern centralized dependency management tools (like Gradle Version Catalogs) and causes syntax errors.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "動態版本號最大的風險是破壞了「可重現性 (Reproducibility)」。如果依賴版本沒有被鎖定，每次建置時都可能拉取到不同的版本。如果上游發布了包含 breaking changes 或 bug 的新版本，你的 CI/CD 流程可能會在沒有修改任何程式碼的情況下突然失敗。選項 (A) 不完全正確，工具通常只會查詢 metadata 而非下載所有版本。選項 (C) 錯誤，工具仍會使用快取，只是會定期檢查更新（如 Maven 的 updatePolicy）。選項 (D) 錯誤，Version Catalogs 語法上仍支援定義動態版本，只是實務上強烈不建議這麼做。",
+      "en": "The biggest risk of dynamic versions is that they break \"Reproducibility\". If dependency versions are not locked down, different versions might be pulled during each build. If an upstream maintainer releases a new version with breaking changes or bugs, your CI/CD pipeline might suddenly fail without any code changes on your end. Option (A) is inaccurate; tools usually just query metadata rather than downloading all versions. Option (C) is incorrect; tools still use caches but check for updates periodically (e.g., Maven's updatePolicy). Option (D) is incorrect; Version Catalogs syntactically support dynamic versions, though it is strongly discouraged in practice.",
+      "wg": [
+        {
+          "t": "破壞",
+          "en": "break",
+          "ps": "v."
+        },
+        {
+          "t": "上游",
+          "en": "upstream",
+          "ps": "n."
+        }
+      ]
+    }
+  },
+  {
+    "no": 6,
+    "level": "Hard",
+    "keywords": "Dependency Conflict, Troubleshooting, Maven, Gradle",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在執行期，你的應用程式拋出了 `NoSuchMethodError`。你懷疑發生了「依賴衝突 (Dependency Conflict)」，導致系統載入了舊版的套件而非你期望的新版。根據最佳實踐，排查與解決此問題的標準流程包含哪些步驟？（多選）",
+        "en": "At runtime, your application throws a `NoSuchMethodError`. You suspect a \"Dependency Conflict\" where an older version of a library is loaded instead of the newer one you expect. According to best practices, what are the standard steps to troubleshoot and resolve this issue? (Select all that apply)",
+        "wg": [
+          {
+            "t": "依賴衝突",
+            "en": "Dependency Conflict",
+            "ps": "n."
+          },
+          {
+            "t": "排查",
+            "en": "troubleshoot",
+            "ps": "v."
+          }
+        ]
+      }
+    ],
+    "type": "Multiple Choice",
+    "options": [
+      {
+        "t": "(A) 視覺化依賴樹（例如使用 `mvn dependency:tree` 或 `gradle dependencies`）來識別衝突的來源。",
+        "en": "(A) Visualize the dependency tree (e.g., using `mvn dependency:tree` or `gradle dependencies`) to identify the source of the conflict.",
+        "wg": [
+          {
+            "t": "視覺化",
+            "en": "Visualize",
+            "ps": "v."
+          }
+        ]
+      },
+      {
+        "t": "(B) 刪除 `~/.m2/repository` 或 `~/.gradle/caches` 目錄並重新建置，以確保不是快取損壞導致的問題。",
+        "en": "(B) Delete the `~/.m2/repository` or `~/.gradle/caches` directory and rebuild to ensure it's not a corrupted cache issue.",
+        "wg": [
+          {
+            "t": "快取損壞",
+            "en": "corrupted cache",
+            "ps": "n."
+          }
+        ]
+      },
+      {
+        "t": "(C) 使用 `<exclusion>` (Maven) 或 `exclude` (Gradle) 將錯誤版本的傳遞依賴從引入它的上層套件中剔除。",
+        "en": "(C) Use `<exclusion>` (Maven) or `exclude` (Gradle) to remove the wrong version of the transitive dependency from the top-level library that brings it in.",
+        "wg": [
+          {
+            "t": "剔除",
+            "en": "remove / exclude",
+            "ps": "v."
+          }
+        ]
+      },
+      {
+        "t": "(D) 如果排除依賴過於繁瑣，可直接在 Maven 的 `<dependencyManagement>` 或 Gradle 的 `resolutionStrategy.force` 中強制宣告期望的最終版本。",
+        "en": "(D) If excluding is too tedious, directly force the desired final version in Maven's `<dependencyManagement>` or Gradle's `resolutionStrategy.force`.",
+        "wg": [
+          {
+            "t": "繁瑣",
+            "en": "tedious",
+            "ps": "adj."
+          }
+        ]
+      }
+    ],
+    "answer": "A,C,D",
+    "why": {
+      "t": "排查依賴衝突的標準流程是：1. 視覺化依賴樹以找出是哪個套件引入了錯誤的版本；2. 使用 exclude 排除不需要的依賴；3. 若衝突來源太多，使用強制鎖定版本（如 dependencyManagement 或 force）來統一版本。選項 (B) 雖然有時能解決快取損壞的問題，但它不是解決「依賴衝突 (Dependency Conflict)」的標準邏輯排查步驟，且會導致下次建置非常緩慢，不屬於解決衝突的最佳實踐流程。",
+      "en": "The standard workflow for resolving dependency conflicts is: 1. Visualize the dependency tree to find which library brought in the wrong version; 2. Use exclusions to remove the unwanted dependency; 3. If there are too many sources of conflict, use forced version resolution (like dependencyManagement or force) to unify the version. Option (B), while sometimes useful for corrupted caches, is not a logical troubleshooting step for \"Dependency Conflicts\" and will make the next build extremely slow. It is not part of the best practice workflow for resolving conflicts.",
+      "wg": [
+        {
+          "t": "邏輯排查步驟",
+          "en": "logical troubleshooting step",
+          "ps": "n."
+        }
+      ]
+    }
+  },
+  {
+    "no": 7,
+    "level": "Medium",
+    "keywords": "Modular Architecture, API Modules, Zero Dependencies",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在進行模組化架構設計時，通常會將系統拆分為「API 模組」與「實作模組 (Implementation Modules)」。對於只包含介面 (Interfaces)、DTOs 與 Exceptions 的「API 模組」，最佳的依賴策略是什麼？",
+        "en": "When designing a modular architecture, systems are often split into \"API Modules\" and \"Implementation Modules\". For an \"API Module\" that contains only Interfaces, DTOs, and Exceptions, what is the best dependency strategy?",
+        "wg": [
+          {
+            "t": "模組化架構",
+            "en": "modular architecture",
+            "ps": "n."
+          },
+          {
+            "t": "依賴策略",
+            "en": "dependency strategy",
+            "ps": "n."
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) 應該包含實作模組所需的所有第三方依賴，以達到依賴集中管理的目的。",
+        "en": "(A) It should include all third-party dependencies required by the implementation modules to centralize dependency management.",
+        "wg": []
+      },
+      {
+        "t": "(B) 應該只包含資料庫驅動程式與 ORM 框架的依賴，因為 DTO 通常與資料庫相關。",
+        "en": "(B) It should only include database drivers and ORM framework dependencies, as DTOs are usually related to the database.",
+        "wg": []
+      },
+      {
+        "t": "(C) 應該保持極度輕量，盡可能做到「零外部依賴 (Zero external dependencies)」。",
+        "en": "(C) It should be kept extremely lightweight, aiming for \"Zero external dependencies\" whenever possible.",
+        "wg": [
+          {
+            "t": "零外部依賴",
+            "en": "Zero external dependencies",
+            "ps": "n."
+          }
+        ]
+      },
+      {
+        "t": "(D) 應該依賴「實作模組」，以便在編譯期驗證介面是否被正確實作。",
+        "en": "(D) It should depend on the \"Implementation Modules\" to verify at compile-time that interfaces are correctly implemented.",
+        "wg": [
+          {
+            "t": "驗證",
+            "en": "verify",
+            "ps": "v."
+          }
+        ]
+      }
+    ],
+    "answer": "C",
+    "why": {
+      "t": "API 模組的核心目的是定義契約 (Contracts)，供其他模組或外部系統引用。為了避免引入 API 模組時連帶引入大量不必要的傳遞依賴（這會增加衝突風險與套件體積），API 模組應該保持極度輕量，最佳實踐是「零外部依賴」。選項 (A) 會導致嚴重的依賴污染。選項 (B) 錯誤，DTO 應該是純粹的資料傳遞物件，不應依賴特定的 ORM 框架。選項 (D) 是嚴重的循環依賴或架構反向，實作模組才應該依賴 API 模組。",
+      "en": "The core purpose of an API module is to define contracts for other modules or external systems to consume. To prevent consumers from pulling in a massive tree of unwanted transitive dependencies (which increases conflict risks and artifact size), API modules should be extremely lightweight, ideally with \"zero external dependencies\". Option (A) causes severe dependency leakage. Option (B) is wrong; DTOs should be pure data transfer objects and not depend on specific ORM frameworks. Option (D) describes a severe circular dependency or architectural inversion; implementation modules must depend on API modules, not the other way around.",
+      "wg": [
+        {
+          "t": "契約",
+          "en": "Contracts",
+          "ps": "n."
+        },
+        {
+          "t": "循環依賴",
+          "en": "circular dependency",
+          "ps": "n."
+        }
+      ]
+    }
+  },
+  {
+    "no": 8,
+    "level": "Medium",
+    "keywords": "Mental Model, Maven, Gradle, Concept Check",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "關於 Maven 與 Gradle 的「心智模型 (Mental Models)」與核心哲學，下列哪些敘述是正確的？（多選）",
+        "en": "Regarding the \"Mental Models\" and core philosophies of Maven and Gradle, which of the following statements are correct? (Select all that apply)",
+        "wg": [
+          {
+            "t": "心智模型",
+            "en": "Mental Models",
+            "ps": "n."
+          },
+          {
+            "t": "核心哲學",
+            "en": "core philosophies",
+            "ps": "n."
+          }
+        ]
+      }
+    ],
+    "type": "Multiple Choice",
+    "options": [
+      {
+        "t": "(A) Maven 是「宣告式 (Declarative)」的，依賴「慣例優於設定 (Convention over Configuration)」原則，並具有嚴格且固定的生命週期。",
+        "en": "(A) Maven is \"Declarative\", relies on the \"Convention over Configuration\" principle, and has a strict, fixed lifecycle.",
+        "wg": [
+          {
+            "t": "宣告式",
+            "en": "Declarative",
+            "ps": "adj."
+          },
+          {
+            "t": "慣例優於設定",
+            "en": "Convention over Configuration",
+            "ps": "phr."
+          }
+        ]
+      },
+      {
+        "t": "(B) Gradle 是一個基於「有向無環圖 (DAG)」的任務執行引擎，分為初始化、配置與執行三個明確的階段。",
+        "en": "(B) Gradle is a task execution engine based on a \"Directed Acyclic Graph (DAG)\", divided into three distinct phases: Initialization, Configuration, and Execution.",
+        "wg": [
+          {
+            "t": "有向無環圖",
+            "en": "Directed Acyclic Graph (DAG)",
+            "ps": "n."
+          }
+        ]
+      },
+      {
+        "t": "(C) Maven 允許開發者直接在 `pom.xml` 中使用 Groovy 或 Kotlin 撰寫複雜的自訂建置邏輯腳本。",
+        "en": "(C) Maven allows developers to write complex custom build logic scripts directly in the `pom.xml` using Groovy or Kotlin.",
+        "wg": []
+      },
+      {
+        "t": "(D) Gradle 的「配置階段 (Configuration Phase)」只會評估並載入透過命令列明確指定的任務 (Tasks)。",
+        "en": "(D) Gradle's \"Configuration Phase\" only evaluates and loads the tasks explicitly requested via the command line.",
+        "wg": [
+          {
+            "t": "評估",
+            "en": "evaluates",
+            "ps": "v."
+          }
+        ]
+      }
+    ],
+    "answer": "A,B",
+    "why": {
+      "t": "選項 (A) 正確描述了 Maven 的核心哲學，開發者只需宣告專案樣貌，Maven 會按固定階段執行。選項 (B) 正確描述了 Gradle 的 DAG 模型與三大階段。選項 (C) 錯誤，Maven 是純 XML 宣告式的，不支援直接在 POM 中寫 Groovy/Kotlin 腳本（需透過 Plugin 實作）。選項 (D) 錯誤，Gradle 在配置階段會評估專案中所有的 Tasks 以建立完整的 DAG，而不僅僅是命令列指定的任務。",
+      "en": "Option (A) accurately describes Maven's core philosophy: developers declare the project structure, and Maven executes through fixed phases. Option (B) accurately describes Gradle's DAG model and its three phases. Option (C) is incorrect; Maven uses pure XML declarations and does not support writing Groovy/Kotlin scripts directly in the POM (custom logic requires writing Plugins). Option (D) is incorrect; during the Configuration phase, Gradle evaluates ALL tasks in the project to build the complete DAG, not just the ones specified on the command line.",
+      "wg": [
+        {
+          "t": "宣告",
+          "en": "declare",
+          "ps": "v."
+        }
+      ]
+    }
+  },
+  {
+    "no": 9,
+    "level": "Medium",
+    "keywords": "Build Performance, Configuration Cache, Maven Daemon",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "為了優化 CI/CD 流程中的建置效能，團隊決定檢視 Maven 與 Gradle 的設定。",
+        "en": "To optimize build performance in the CI/CD pipeline, the team decides to review Maven and Gradle configurations.",
+        "wg": [
+          {
+            "t": "建置效能",
+            "en": "build performance",
+            "ps": "n."
+          }
+        ]
+      },
+      {
+        "t": "根據建置工具的最佳實踐，下列哪些做法能有效提升編譯與建置的速度？（多選）",
+        "en": "According to build tool best practices, which of the following approaches can effectively improve compilation and build speed? (Multiple Choice)",
+        "wg": [
+          {
+            "t": "最佳實踐",
+            "en": "best practices",
+            "ps": "n."
+          }
+        ]
+      }
+    ],
+    "type": "Multiple Choice",
+    "options": [
+      {
+        "t": "(A) 在 Gradle 中啟用配置快取（Configuration Cache），以重複使用任務圖。",
+        "en": "(A) Enable Configuration Cache in Gradle to reuse the task graph.",
+        "wg": [
+          {
+            "t": "配置快取",
+            "en": "Configuration Cache",
+            "ps": "n."
+          },
+          {
+            "t": "任務圖",
+            "en": "task graph",
+            "ps": "n."
+          }
+        ]
+      },
+      {
+        "t": "(B) 在 Maven 中使用 Maven Daemon (`mvnd`) 或透過 `-T 1C` 參數來啟用並行建置。",
+        "en": "(B) Use Maven Daemon (`mvnd`) or enable parallel builds via the `-T 1C` parameter in Maven.",
+        "wg": [
+          {
+            "t": "並行建置",
+            "en": "parallel builds",
+            "ps": "n."
+          }
+        ]
+      },
+      {
+        "t": "(C) 將所有 Gradle 模組的依賴範圍統一設為 `api`，讓編譯器能完整存取所有類別以加速編譯。",
+        "en": "(C) Uniformly set the dependency scope of all Gradle modules to `api` so the compiler has full access to all classes to speed up compilation.",
+        "wg": [
+          {
+            "t": "依賴範圍",
+            "en": "dependency scope",
+            "ps": "n."
+          }
+        ]
+      },
+      {
+        "t": "(D) 使用動態版本號（如 `LATEST`），讓建置工具跳過版本解析的快取檢查。",
+        "en": "(D) Use dynamic versions (like `LATEST`) so the build tool skips the cache check for version resolution.",
+        "wg": [
+          {
+            "t": "動態版本號",
+            "en": "dynamic versions",
+            "ps": "n."
+          }
+        ]
+      }
+    ],
+    "answer": "A,B",
+    "why": {
+      "t": "選項 (A) 與 (B) 是官方推薦的效能優化方式。Gradle 的 Configuration Cache 能避免每次建置都重新執行配置階段；Maven Daemon 與並行建置能充分利用多核心 CPU。選項 (C) 是錯誤的，濫用 `api` 會導致依賴污染，並引發大量不必要的重新編譯，反而拖慢速度（應優先使用 `implementation`）。選項 (D) 也是錯誤的，動態版本號不僅會破壞建置的可重現性，還會因為頻繁檢查遠端更新而降低建置速度。",
+      "en": "Options (A) and (B) are officially recommended performance optimization methods. Gradle's Configuration Cache avoids re-executing the configuration phase on every build; Maven Daemon and parallel builds fully utilize multi-core CPUs. Option (C) is incorrect; abusing `api` causes dependency leakage and triggers massive unnecessary recompilations, slowing down the build (use `implementation` instead). Option (D) is also incorrect; dynamic versions not only break build reproducibility but also slow down the build due to frequent checks for remote updates.",
+      "wg": [
+        {
+          "t": "依賴污染",
+          "en": "dependency leakage",
+          "ps": "n."
+        },
+        {
+          "t": "可重現性",
+          "en": "reproducibility",
+          "ps": "n."
+        }
+      ]
+    }
+  },
+  {
+    "no": 10,
+    "level": "Medium",
+    "keywords": "Gradle, Version Catalogs, Bundles",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在將大型 Gradle 多模組專案遷移至 Version Catalogs（`libs.versions.toml`）時，你希望將多個常用的工具庫（如 Guava 與 Apache Commons）組合在一起。",
+        "en": "When migrating a large Gradle multi-module project to Version Catalogs (`libs.versions.toml`), you want to group several commonly used utility libraries (like Guava and Apache Commons) together.",
+        "wg": [
+          {
+            "t": "多模組專案",
+            "en": "multi-module project",
+            "ps": "n."
+          }
+        ]
+      },
+      {
+        "t": "這樣一來，子模組只需宣告一行程式碼即可同時引入這些依賴。",
+        "en": "This way, submodules only need to declare a single line of code to include these dependencies simultaneously.",
+        "wg": [
+          {
+            "t": "宣告",
+            "en": "declare",
+            "ps": "v."
+          }
+        ]
+      },
+      {
+        "t": "你應該在 TOML 檔案中使用哪一個區塊來達成這個目的？",
+        "en": "Which block in the TOML file should you use to achieve this purpose?",
+        "wg": [
+          {
+            "t": "區塊",
+            "en": "block",
+            "ps": "n."
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) 在 `[bundles]` 區塊中定義陣列，並在腳本中使用 `implementation libs.bundles.xxx` 引入。",
+        "en": "(A) Define an array in the `[bundles]` block, and include it in the script using `implementation libs.bundles.xxx`.",
+        "wg": [
+          {
+            "t": "陣列",
+            "en": "array",
+            "ps": "n."
+          }
+        ]
+      },
+      {
+        "t": "(B) 在 `[plugins]` 區塊中定義它們，並透過 `plugins { }` 區塊套用。",
+        "en": "(B) Define them in the `[plugins]` block, and apply them via the `plugins { }` block.",
+        "wg": [
+          {
+            "t": "套用",
+            "en": "apply",
+            "ps": "v."
+          }
+        ]
+      },
+      {
+        "t": "(C) 在 `[versions]` 區塊中使用逗號分隔多個模組名稱。",
+        "en": "(C) Use comma-separated multiple module names in the `[versions]` block.",
+        "wg": [
+          {
+            "t": "逗號分隔",
+            "en": "comma-separated",
+            "ps": "adj."
+          }
+        ]
+      },
+      {
+        "t": "(D) 在 `build.gradle` 中使用 Maven 的 `<dependencyManagement>` 標籤來群組化。",
+        "en": "(D) Use Maven's `<dependencyManagement>` tag in `build.gradle` to group them.",
+        "wg": [
+          {
+            "t": "群組化",
+            "en": "group",
+            "ps": "v."
+          }
+        ]
+      }
+    ],
+    "answer": "A",
+    "why": {
+      "t": "在 Gradle Version Catalogs 中，`[bundles]` 區塊專門用來將多個在 `[libraries]` 中定義的依賴打包成一個集合。這樣在子模組中就可以透過 `libs.bundles.xxx` 一次性引入。`[plugins]` 用於 Gradle 外掛；`[versions]` 僅用於定義版本號字串；選項 (D) 混淆了 Maven 與 Gradle 的語法。",
+      "en": "In Gradle Version Catalogs, the `[bundles]` block is specifically used to group multiple dependencies defined in `[libraries]` into a single collection. This allows submodules to import them all at once via `libs.bundles.xxx`. `[plugins]` is used for Gradle plugins; `[versions]` is only for defining version number strings; Option (D) confuses Maven and Gradle syntax.",
+      "wg": [
+        {
+          "t": "打包",
+          "en": "group/bundle",
+          "ps": "v."
+        },
+        {
+          "t": "混淆",
+          "en": "confuse",
+          "ps": "v."
+        }
+      ]
+    }
+  },
+  {
+    "no": 11,
+    "level": "Easy",
+    "keywords": "Maven, Dependency Scopes, provided",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你正在開發一個將部署到外部 Tomcat 伺服器的 Java Web 應用程式。",
+        "en": "You are developing a Java Web application that will be deployed to an external Tomcat server.",
+        "wg": [
+          {
+            "t": "部署",
+            "en": "deployed",
+            "ps": "v."
+          }
+        ]
+      },
+      {
+        "t": "你的程式碼需要依賴 Servlet API 才能成功編譯，但 Tomcat 伺服器在執行期已經內建了這個 API。",
+        "en": "Your code depends on the Servlet API to compile successfully, but the Tomcat server already has this API built-in at runtime.",
+        "wg": [
+          {
+            "t": "執行期",
+            "en": "runtime",
+            "ps": "n."
+          },
+          {
+            "t": "內建",
+            "en": "built-in",
+            "ps": "adj."
+          }
+        ]
+      },
+      {
+        "t": "為了避免將多餘的 JAR 檔打包進最終的 WAR 檔中，你應該在 Maven 的 `pom.xml` 中為 Servlet API 設定哪種依賴範圍（Scope）？",
+        "en": "To avoid packaging redundant JAR files into the final WAR file, which dependency scope should you set for the Servlet API in Maven's `pom.xml`?",
+        "wg": [
+          {
+            "t": "多餘的",
+            "en": "redundant",
+            "ps": "adj."
+          },
+          {
+            "t": "依賴範圍",
+            "en": "dependency scope",
+            "ps": "n."
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) `<scope>provided</scope>`",
+        "en": "(A) `<scope>provided</scope>`",
+        "wg": []
+      },
+      {
+        "t": "(B) `<scope>compile</scope>`",
+        "en": "(B) `<scope>compile</scope>`",
+        "wg": []
+      },
+      {
+        "t": "(C) `<scope>runtime</scope>`",
+        "en": "(C) `<scope>runtime</scope>`",
+        "wg": []
+      },
+      {
+        "t": "(D) `<scope>test</scope>`",
+        "en": "(D) `<scope>test</scope>`",
+        "wg": []
+      }
+    ],
+    "answer": "A",
+    "why": {
+      "t": "`provided` 範圍表示該依賴在編譯與測試階段是必需的，但在執行階段會由 JDK 或執行環境（如 Tomcat 容器）提供，因此 Maven 不會將其打包進最終的產物中。`compile` 是預設值，會被打包；`runtime` 表示編譯時不需要但執行時需要；`test` 僅在測試階段可用。",
+      "en": "The `provided` scope indicates that the dependency is required for compilation and testing, but will be provided by the JDK or the runtime environment (like a Tomcat container) at execution time. Therefore, Maven will not package it into the final artifact. `compile` is the default and will be packaged; `runtime` means it's not needed for compilation but required for execution; `test` is only available during the testing phase.",
+      "wg": [
+        {
+          "t": "產物",
+          "en": "artifact",
+          "ps": "n."
+        }
+      ]
+    }
+  },
+  {
+    "no": 12,
+    "level": "Hard",
+    "keywords": "Dependency Conflict, Exclusions, SLF4J",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你的專案原本使用 `logback-classic` 作為日誌實作。",
+        "en": "Your project originally uses `logback-classic` as the logging implementation.",
+        "wg": [
+          {
+            "t": "日誌實作",
+            "en": "logging implementation",
+            "ps": "n."
+          }
+        ]
+      },
+      {
+        "t": "最近你引入了一個名為 `legacy-library` 的第三方套件後，應用程式啟動時出現了 `SLF4J: Class path contains multiple SLF4J bindings.` 的警告。",
+        "en": "Recently, after introducing a third-party library named `legacy-library`, the application shows the warning `SLF4J: Class path contains multiple SLF4J bindings.` upon startup.",
+        "wg": [
+          {
+            "t": "第三方套件",
+            "en": "third-party library",
+            "ps": "n."
+          }
+        ]
+      },
+      {
+        "t": "經過排查，你發現 `legacy-library` 偷偷帶入了 `slf4j-simple` 這個傳遞依賴，導致了衝突。",
+        "en": "After troubleshooting, you discover that `legacy-library` implicitly brought in `slf4j-simple` as a transitive dependency, causing the conflict.",
+        "wg": [
+          {
+            "t": "傳遞依賴",
+            "en": "transitive dependency",
+            "ps": "n."
+          },
+          {
+            "t": "排查",
+            "en": "troubleshooting",
+            "ps": "n."
+          }
+        ]
+      },
+      {
+        "t": "根據最佳實踐，你應該如何解決這個問題？",
+        "en": "According to best practices, how should you resolve this issue?",
+        "wg": [
+          {
+            "t": "最佳實踐",
+            "en": "best practices",
+            "ps": "n."
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) 在宣告 `legacy-library` 依賴時，使用 `<exclusions>` (Maven) 或 `exclude` (Gradle) 將 `slf4j-simple` 剔除。",
+        "en": "(A) When declaring the `legacy-library` dependency, use `<exclusions>` (Maven) or `exclude` (Gradle) to remove `slf4j-simple`.",
+        "wg": [
+          {
+            "t": "剔除",
+            "en": "remove/exclude",
+            "ps": "v."
+          }
+        ]
+      },
+      {
+        "t": "(B) 手動進入 `~/.m2/repository` 或 `~/.gradle/caches` 目錄，刪除 `slf4j-simple` 的 JAR 檔。",
+        "en": "(B) Manually navigate to the `~/.m2/repository` or `~/.gradle/caches` directory and delete the `slf4j-simple` JAR file.",
+        "wg": [
+          {
+            "t": "目錄",
+            "en": "directory",
+            "ps": "n."
+          }
+        ]
+      },
+      {
+        "t": "(C) 將 `legacy-library` 的版本號改為 `LATEST`，讓建置工具自動解析並修復衝突。",
+        "en": "(C) Change the version of `legacy-library` to `LATEST` so the build tool automatically resolves and fixes the conflict.",
+        "wg": [
+          {
+            "t": "解析",
+            "en": "resolve",
+            "ps": "v."
+          }
+        ]
+      },
+      {
+        "t": "(D) 在專案的直接依賴中加入 `slf4j-simple` 並指定更高的版本號，以覆蓋舊版本。",
+        "en": "(D) Add `slf4j-simple` to the project's direct dependencies with a higher version number to override the older version.",
+        "wg": [
+          {
+            "t": "直接依賴",
+            "en": "direct dependencies",
+            "ps": "n."
+          },
+          {
+            "t": "覆蓋",
+            "en": "override",
+            "ps": "v."
+          }
+        ]
+      }
+    ],
+    "answer": "A",
+    "why": {
+      "t": "處理依賴衝突的最佳實踐是識別來源後，使用 exclusions 將不需要的傳遞依賴排除。選項 (B) 是無效的，因為快取被刪除後會在下次建置時重新下載。選項 (C) 使用動態版本號是反模式，無法解決衝突且會破壞穩定性。選項 (D) 會讓專案中依然存在兩個不同的 SLF4J 綁定（`logback-classic` 與 `slf4j-simple`），無法解決 Multiple Bindings 的根本問題。",
+      "en": "The best practice for handling dependency conflicts is to identify the source and use exclusions to remove the unwanted transitive dependency. Option (B) is invalid because deleted caches will be re-downloaded on the next build. Option (C) uses dynamic versions, which is an anti-pattern, won't solve the conflict, and breaks stability. Option (D) leaves two different SLF4J bindings (`logback-classic` and `slf4j-simple`) in the project, failing to solve the root cause of the Multiple Bindings issue.",
+      "wg": [
+        {
+          "t": "反模式",
+          "en": "anti-pattern",
+          "ps": "n."
+        },
+        {
+          "t": "根本問題",
+          "en": "root cause",
+          "ps": "n."
+        }
+      ]
+    }
+  }
+]

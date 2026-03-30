@@ -1,0 +1,893 @@
+[
+  {
+    "no": "java-io-nio2-01",
+    "level": "Medium",
+    "keywords": "Mental Model, java.nio, Multiplexing",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在現代 Java 開發中，關於 I/O 處理的心智模型，下列敘述何者正確？",
+        "en": "Regarding the mental models for I/O processing in modern Java development, which of the following statements is correct?",
+        "wg": [
+          {
+            "t": "心智模型",
+            "en": "mental models",
+            "ps": "n."
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) `java.io` 採用貨櫃模型，資料被打包成區塊批次運送，適合高併發場景。",
+        "en": "(A) `java.io` uses the Container Model where data is packed and transported in blocks, suitable for high-concurrency scenarios.",
+        "wg": []
+      },
+      {
+        "t": "(B) `java.nio` 引入了 Buffer 與 Channel，並透過 Selector 實現多工處理（Multiplexing），達成非阻塞 I/O。",
+        "en": "(B) `java.nio` introduces Buffers and Channels, and achieves non-blocking I/O through multiplexing via a Selector.",
+        "wg": [
+          {
+            "t": "多工處理",
+            "en": "multiplexing",
+            "ps": "n."
+          },
+          {
+            "t": "非阻塞",
+            "en": "non-blocking",
+            "ps": "adj."
+          }
+        ]
+      },
+      {
+        "t": "(C) `java.nio.file` (NIO.2) 只是 `java.io.File` 的簡單包裝，底層仍依賴相同的阻塞式 API。",
+        "en": "(C) `java.nio.file` (NIO.2) is just a simple wrapper around `java.io.File`, relying on the same blocking APIs underneath.",
+        "wg": []
+      },
+      {
+        "t": "(D) 在 Java 11 之後，`java.io` 預設已全面升級為非阻塞模式，因此不再需要使用 NIO。",
+        "en": "(D) After Java 11, `java.io` has been fully upgraded to non-blocking mode by default, so NIO is no longer needed.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "`java.io` 是傳統的阻塞式水管模型（Stream）；`java.nio` 才是採用 Buffer 與 Channel 的貨櫃模型，並支援 Selector 多工處理；而 NIO.2 (`java.nio.file`) 則是徹底解耦路徑與操作的現代檔案系統 API，並非單純包裝。",
+      "en": "`java.io` is the traditional blocking water pipe model (Stream); `java.nio` uses the Container Model with Buffers and Channels, supporting multiplexing via Selectors. NIO.2 (`java.nio.file`) is a modern file system API that completely decouples paths and operations, not just a simple wrapper.",
+      "wg": [
+        {
+          "t": "解耦",
+          "en": "decouples",
+          "ps": "v."
+        }
+      ]
+    }
+  },
+  {
+    "no": "java-io-nio2-02",
+    "level": "Easy",
+    "keywords": "Anti-pattern, OOM, Large Files",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "Path logPath = Path.of(\"/var/log/app.log\");\nList<String> lines = Files.readAllLines(logPath);\nlong errorCount = lines.stream().filter(l -> l.contains(\"ERROR\")).count();",
+    "question": [
+      {
+        "t": "一位工程師需要從一個 5GB 的日誌檔中計算包含 \"ERROR\" 的行數，並寫出了上述程式碼。",
+        "en": "An engineer needs to count the number of lines containing \"ERROR\" from a 5GB log file and wrote the above code."
+      },
+      {
+        "t": "這段程式碼在生產環境中最可能引發什麼問題？",
+        "en": "What is the most likely issue this code will cause in a production environment?",
+        "wg": [
+          {
+            "t": "生產環境",
+            "en": "production environment",
+            "ps": "n."
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 拋出 `TooManyOpenFilesException`，因為沒有關閉檔案描述符。",
+        "en": "(A) It will throw a `TooManyOpenFilesException` because the file descriptor is not closed.",
+        "wg": [
+          {
+            "t": "檔案描述符",
+            "en": "file descriptor",
+            "ps": "n."
+          }
+        ]
+      },
+      {
+        "t": "(B) 拋出 `OutOfMemoryError` (OOM)，因為它試圖將整個 5GB 的檔案一次性載入記憶體。",
+        "en": "(B) It will throw an `OutOfMemoryError` (OOM) because it attempts to load the entire 5GB file into memory all at once.",
+        "wg": []
+      },
+      {
+        "t": "(C) 發生執行緒死結（Deadlock），因為 `readAllLines` 是阻塞操作。",
+        "en": "(C) It will cause a thread deadlock because `readAllLines` is a blocking operation.",
+        "wg": [
+          {
+            "t": "死結",
+            "en": "deadlock",
+            "ps": "n."
+          }
+        ]
+      },
+      {
+        "t": "(D) 程式能正常且高效地執行，因為 Stream API 會自動進行惰性求值（Lazy Evaluation）。",
+        "en": "(D) The program will run normally and efficiently because the Stream API automatically performs lazy evaluation.",
+        "wg": [
+          {
+            "t": "惰性求值",
+            "en": "lazy evaluation",
+            "ps": "n."
+          }
+        ]
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "`Files.readAllLines()` 會將檔案的所有內容一次性讀取並轉換為 `List<String>` 存放在記憶體中。對於數 GB 的大檔案，這會直接導致 JVM 記憶體耗盡並拋出 OOM。正確的做法是使用 `Files.lines()` 配合 try-with-resources 進行逐行惰性處理。",
+      "en": "`Files.readAllLines()` reads the entire file content at once and stores it in memory as a `List<String>`. For multi-GB files, this directly exhausts JVM memory and throws an OOM. The correct approach is to use `Files.lines()` with try-with-resources for lazy, line-by-line processing.",
+      "wg": [
+        {
+          "t": "耗盡",
+          "en": "exhausts",
+          "ps": "v."
+        }
+      ]
+    }
+  },
+  {
+    "no": "java-io-nio2-03",
+    "level": "Hard",
+    "keywords": "Resource Leak, Files.lines, Try-With-Resources",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "public Optional<String> findFirstError(Path path) throws IOException {\n    return Files.lines(path)\n                .filter(line -> line.contains(\"ERROR\"))\n                .findFirst();\n}",
+    "question": [
+      {
+        "t": "上述程式碼使用了 `Files.lines()` 來尋找檔案中的第一個錯誤。",
+        "en": "The above code uses `Files.lines()` to find the first error in a file."
+      },
+      {
+        "t": "從資源管理的角度來看，這段程式碼存在什麼潛在的嚴重缺陷？",
+        "en": "From a resource management perspective, what is the potential critical flaw in this code?",
+        "wg": [
+          {
+            "t": "資源管理",
+            "en": "resource management",
+            "ps": "n."
+          },
+          {
+            "t": "缺陷",
+            "en": "flaw",
+            "ps": "n."
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) `findFirst()` 是短路操作，會導致 Stream 提早結束，進而引發 `IllegalStateException`。",
+        "en": "(A) `findFirst()` is a short-circuiting operation, which causes the Stream to terminate early, leading to an `IllegalStateException`.",
+        "wg": [
+          {
+            "t": "短路操作",
+            "en": "short-circuiting operation",
+            "ps": "n."
+          }
+        ]
+      },
+      {
+        "t": "(B) `Files.lines()` 回傳的 Stream 底層持有作業系統的檔案描述符，若不使用 try-with-resources 關閉，會導致資源洩漏（Resource Leak）。",
+        "en": "(B) The Stream returned by `Files.lines()` holds an OS file descriptor. If not closed using try-with-resources, it causes a resource leak.",
+        "wg": [
+          {
+            "t": "資源洩漏",
+            "en": "resource leak",
+            "ps": "n."
+          }
+        ]
+      },
+      {
+        "t": "(C) `Files.lines()` 預設使用 ISO-8859-1 編碼，處理包含中文的日誌時會拋出 `CharacterCodingException`。",
+        "en": "(C) `Files.lines()` uses ISO-8859-1 by default and will throw a `CharacterCodingException` when processing logs with Chinese characters.",
+        "wg": []
+      },
+      {
+        "t": "(D) 這段程式碼沒有缺陷，因為 Java 的垃圾回收器（GC）會立即回收未使用的 Stream 與其關聯的檔案資源。",
+        "en": "(D) There is no flaw in this code because Java's Garbage Collector (GC) immediately reclaims unused Streams and their associated file resources.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "`Files.lines()` 和 `Files.walk()` 回傳的 Stream 實作了 `AutoCloseable`，因為它們底層開啟了 I/O 資源。如果不顯式關閉（通常透過 try-with-resources），GC 回收的時間點是不可控的，高頻率呼叫下極易引發 `Too many open files` 錯誤。",
+      "en": "The Streams returned by `Files.lines()` and `Files.walk()` implement `AutoCloseable` because they open underlying I/O resources. If not explicitly closed (usually via try-with-resources), the timing of GC reclamation is unpredictable, easily leading to `Too many open files` errors under high-frequency calls.",
+      "wg": [
+        {
+          "t": "顯式",
+          "en": "explicitly",
+          "ps": "adv."
+        }
+      ]
+    }
+  },
+  {
+    "no": "java-io-nio2-04",
+    "level": "Medium",
+    "keywords": "Atomic Move, Crash-safe, StandardCopyOption",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在設計一個需要頻繁更新設定檔的系統時，為了防止在寫入過程中發生斷電或當機導致檔案損壞（Crash-safe），應採用哪種最佳實務？（複選）",
+        "en": "When designing a system that frequently updates configuration files, which best practices should be adopted to prevent file corruption in case of a power outage or crash during the write process (Crash-safe)? (Multiple Choice)",
+        "wg": [
+          {
+            "t": "當機",
+            "en": "crash",
+            "ps": "n."
+          },
+          {
+            "t": "損壞",
+            "en": "corruption",
+            "ps": "n."
+          }
+        ]
+      }
+    ],
+    "type": "複選題",
+    "options": [
+      {
+        "t": "(A) 直接使用 `Files.writeString()` 並加上 `StandardOpenOption.TRUNCATE_EXISTING` 覆寫原檔案。",
+        "en": "(A) Use `Files.writeString()` directly with `StandardOpenOption.TRUNCATE_EXISTING` to overwrite the original file.",
+        "wg": []
+      },
+      {
+        "t": "(B) 先將新的設定內容寫入到一個暫存檔（Temporary File）中。",
+        "en": "(B) Write the new configuration content to a temporary file first.",
+        "wg": [
+          {
+            "t": "暫存檔",
+            "en": "temporary file",
+            "ps": "n."
+          }
+        ]
+      },
+      {
+        "t": "(C) 使用 `Files.move()` 搭配 `StandardCopyOption.ATOMIC_MOVE` 將暫存檔替換為目標檔案。",
+        "en": "(C) Use `Files.move()` with `StandardCopyOption.ATOMIC_MOVE` to replace the target file with the temporary file.",
+        "wg": [
+          {
+            "t": "替換",
+            "en": "replace",
+            "ps": "v."
+          }
+        ]
+      },
+      {
+        "t": "(D) 在寫入前使用 `FileChannel.lock()` 鎖定檔案，寫入完成後再釋放鎖。",
+        "en": "(D) Lock the file using `FileChannel.lock()` before writing, and release the lock after writing is complete.",
+        "wg": []
+      }
+    ],
+    "answer": "B,C",
+    "why": {
+      "t": "直接覆寫檔案（選項 A）在寫入中斷時會留下不完整的損壞檔案。File Lock（選項 D）只能防止其他行程同時寫入，無法防止斷電導致的寫入中斷。正確的防崩潰（Crash-safe）模式是：先寫入暫存檔（選項 B），確認寫入完整後，再利用作業系統層級的原子性搬移（選項 C）覆蓋原檔，確保檔案狀態非舊即新，不會有中間狀態。",
+      "en": "Directly overwriting the file (Option A) leaves a corrupted, incomplete file if interrupted. File Lock (Option D) only prevents concurrent writes from other processes, not power outages. The correct crash-safe pattern is: write to a temp file first (Option B), and once complete, use an OS-level atomic move (Option C) to overwrite the original file, ensuring the state is either completely old or completely new, with no intermediate state.",
+      "wg": [
+        {
+          "t": "原子性搬移",
+          "en": "atomic move",
+          "ps": "n."
+        }
+      ]
+    }
+  },
+  {
+    "no": "java-io-nio2-05",
+    "level": "Medium",
+    "keywords": "Decision Tree, FileChannel, MappedByteBuffer, Performance",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "根據檔案讀取決策樹，若你需要對一個 20GB 的超大檔案進行「極致效能的頻繁隨機讀寫」，下列哪一種 API 組合是最適合的選擇？",
+        "en": "According to the file reading decision tree, if you need to perform \"extreme performance frequent random read/writes\" on a massive 20GB file, which API combination is the most suitable choice?",
+        "wg": [
+          {
+            "t": "決策樹",
+            "en": "decision tree",
+            "ps": "n."
+          },
+          {
+            "t": "隨機讀寫",
+            "en": "random read/writes",
+            "ps": "n."
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) `Files.readAllBytes()`",
+        "en": "(A) `Files.readAllBytes()`",
+        "wg": []
+      },
+      {
+        "t": "(B) `Files.lines()` 搭配 Stream API",
+        "en": "(B) `Files.lines()` with Stream API",
+        "wg": []
+      },
+      {
+        "t": "(C) `FileChannel.open()` 搭配 `MappedByteBuffer`",
+        "en": "(C) `FileChannel.open()` with `MappedByteBuffer`",
+        "wg": []
+      },
+      {
+        "t": "(D) `BufferedReader` 搭配 `RandomAccessFile`",
+        "en": "(D) `BufferedReader` with `RandomAccessFile`",
+        "wg": []
+      }
+    ],
+    "answer": "C",
+    "why": {
+      "t": "對於 GB 級別的超大檔案且需要頻繁隨機存取，使用 `FileChannel` 取得 `MappedByteBuffer` 可以將檔案直接映射到作業系統的虛擬記憶體中。這不僅大幅降低了 JVM Heap 的記憶體消耗，還能利用 OS 的 Page Cache 達到極致的 I/O 效能。",
+      "en": "For GB-sized massive files requiring frequent random access, using `FileChannel` to obtain a `MappedByteBuffer` maps the file directly into the OS's virtual memory. This drastically reduces JVM Heap memory consumption and leverages the OS Page Cache for extreme I/O performance.",
+      "wg": [
+        {
+          "t": "虛擬記憶體",
+          "en": "virtual memory",
+          "ps": "n."
+        },
+        {
+          "t": "映射",
+          "en": "maps",
+          "ps": "v."
+        }
+      ]
+    }
+  },
+  {
+    "no": "java-io-nio2-06",
+    "level": "Easy",
+    "keywords": "Charset, Encoding, Cross-platform",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "某個 Java 應用程式在 Windows 開發環境下讀取包含中文的文字檔時一切正常，但部署到 Linux 容器後，讀取出來的內容卻變成亂碼。",
+        "en": "A Java application reads text files containing Chinese characters perfectly fine in a Windows development environment, but produces garbled text (mojibake) after being deployed to a Linux container."
+      },
+      {
+        "t": "根據 I/O 最佳實務，造成此現象最可能的原因是什麼？",
+        "en": "According to I/O best practices, what is the most likely cause of this phenomenon?",
+        "wg": [
+          {
+            "t": "亂碼",
+            "en": "garbled text (mojibake)",
+            "ps": "n."
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) Linux 容器的檔案系統不支援 NIO.2 的 `Path` API。",
+        "en": "(A) The Linux container's file system does not support the NIO.2 `Path` API.",
+        "wg": []
+      },
+      {
+        "t": "(B) 程式碼中使用了依賴平台預設字元集的 API（如 `new FileReader(file)`），而未明確指定 `StandardCharsets.UTF_8`。",
+        "en": "(B) The code uses APIs that rely on the platform's default charset (e.g., `new FileReader(file)`) without explicitly specifying `StandardCharsets.UTF_8`.",
+        "wg": [
+          {
+            "t": "預設字元集",
+            "en": "default charset",
+            "ps": "n."
+          }
+        ]
+      },
+      {
+        "t": "(C) Linux 容器的 JVM 記憶體不足，導致字元緩衝區溢位。",
+        "en": "(C) The Linux container's JVM lacks sufficient memory, causing a character buffer overflow.",
+        "wg": []
+      },
+      {
+        "t": "(D) Windows 與 Linux 的換行符號（CRLF vs LF）不同，導致字串解析失敗。",
+        "en": "(D) The difference in line endings between Windows and Linux (CRLF vs LF) causes string parsing to fail.",
+        "wg": [
+          {
+            "t": "換行符號",
+            "en": "line endings",
+            "ps": "n."
+          }
+        ]
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "依賴平台預設字元集是常見的反模式。Windows 的預設編碼通常是 MS950 或 CP1252，而 Linux 通常是 UTF-8。如果不顯式指定編碼，跨平台部署時極易出現亂碼。最佳實務是永遠明確指定 `StandardCharsets.UTF_8`。",
+      "en": "Relying on the platform's default charset is a common anti-pattern. Windows typically defaults to MS950 or CP1252, while Linux defaults to UTF-8. Without explicitly specifying the encoding, cross-platform deployments easily result in garbled text. The best practice is to always explicitly specify `StandardCharsets.UTF_8`.",
+      "wg": []
+    }
+  },
+  {
+    "no": "java-io-nio2-07",
+    "level": "Medium",
+    "keywords": "WatchService, Directory Monitoring, Event Loop",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "WatchKey key = watchService.take();\nfor (WatchEvent<?> event : key.pollEvents()) {\n    // 處理變更事件 / Process change event\n}\n// 缺少了某個關鍵步驟 / Missing a crucial step",
+    "question": [
+      {
+        "t": "在使用 `WatchService` 監控目錄變更（例如實作設定檔熱載入）時，處理完 `WatchKey` 中的事件後，必須執行哪一個關鍵步驟，才能確保該目錄繼續被監控？",
+        "en": "When using `WatchService` to monitor directory changes (e.g., implementing config hot-reloading), which crucial step must be executed after processing the events in a `WatchKey` to ensure the directory continues to be monitored?",
+        "wg": [
+          {
+            "t": "熱載入",
+            "en": "hot-reloading",
+            "ps": "n."
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 呼叫 `watchService.close()` 以釋放當前資源並重新初始化。",
+        "en": "(A) Call `watchService.close()` to release current resources and reinitialize.",
+        "wg": []
+      },
+      {
+        "t": "(B) 呼叫 `key.reset()`，並檢查其回傳值；若為 false 則代表目錄已不可存取，應跳出迴圈。",
+        "en": "(B) Call `key.reset()` and check its return value; if false, it means the directory is inaccessible and the loop should break.",
+        "wg": [
+          {
+            "t": "不可存取",
+            "en": "inaccessible",
+            "ps": "adj."
+          }
+        ]
+      },
+      {
+        "t": "(C) 重新呼叫 `dirToWatch.register(...)` 將目錄再次註冊到 WatchService 中。",
+        "en": "(C) Call `dirToWatch.register(...)` again to re-register the directory with the WatchService.",
+        "wg": []
+      },
+      {
+        "t": "(D) 呼叫 `key.cancel()` 清除舊的事件狀態。",
+        "en": "(D) Call `key.cancel()` to clear the old event state.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "在 `WatchService` 的事件迴圈中，`WatchKey` 在事件發生時會進入「發出信號（signaled）」狀態。處理完事件後，必須呼叫 `key.reset()` 將其重置為「就緒（ready）」狀態，否則該 key 將不會再接收後續的事件。如果 `reset()` 回傳 false，表示該目錄已被刪除或無法存取。",
+      "en": "In the `WatchService` event loop, a `WatchKey` enters the 'signaled' state when events occur. After processing, you must call `key.reset()` to return it to the 'ready' state; otherwise, the key will not receive further events. If `reset()` returns false, the directory has been deleted or is inaccessible.",
+      "wg": [
+        {
+          "t": "發出信號",
+          "en": "signaled",
+          "ps": "adj."
+        },
+        {
+          "t": "就緒",
+          "en": "ready",
+          "ps": "adj."
+        }
+      ]
+    }
+  },
+  {
+    "no": "java-io-nio2-08",
+    "level": "Easy",
+    "keywords": "Modern API, Path, Files",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在現代 Java (Java 11+) 開發中，若要檢查位於 `/app/config/settings.json` 的檔案是否存在，下列哪一種寫法最符合現代 API 的最佳實務？",
+        "en": "In modern Java (Java 11+) development, to check if a file located at `/app/config/settings.json` exists, which of the following approaches best aligns with modern API best practices?",
+        "wg": [
+          {
+            "t": "最佳實務",
+            "en": "best practices",
+            "ps": "n."
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) `new File(\"/app/config/settings.json\").exists()`",
+        "en": "(A) `new File(\"/app/config/settings.json\").exists()`",
+        "wg": []
+      },
+      {
+        "t": "(B) `Files.exists(Path.of(\"/app/config\", \"settings.json\"))`",
+        "en": "(B) `Files.exists(Path.of(\"/app/config\", \"settings.json\"))`",
+        "wg": []
+      },
+      {
+        "t": "(C) `Paths.get(\"/app/config\").checkExists(\"settings.json\")`",
+        "en": "(C) `Paths.get(\"/app/config\").checkExists(\"settings.json\")`",
+        "wg": []
+      },
+      {
+        "t": "(D) `FileSystems.getDefault().exists(\"/app/config/settings.json\")`",
+        "en": "(D) `FileSystems.getDefault().exists(\"/app/config/settings.json\")`",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "在現代 Java 中，`java.io.File` 被視為遺留 API。最佳實務是使用 `Path.of()` (Java 11 引入，比 `Paths.get()` 更簡潔) 來建構路徑，並透過 `Files` 工具類別（如 `Files.exists()`）來進行檔案操作。",
+      "en": "In modern Java, `java.io.File` is considered a legacy API. The best practice is to use `Path.of()` (introduced in Java 11, cleaner than `Paths.get()`) to construct paths, and perform file operations via the `Files` utility class (e.g., `Files.exists()`).",
+      "wg": [
+        {
+          "t": "遺留 API",
+          "en": "legacy API",
+          "ps": "n."
+        }
+      ]
+    }
+  },
+  {
+    "no": "java-io-nio2-09",
+    "level": "Hard",
+    "keywords": "Files.walk, Try-With-Resources, Directory Stream",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "Stream<Path> paths = Files.walk(Path.of(\"/var/data\"));\npaths.filter(Files::isRegularFile)\n     .forEach(System.out::println);",
+    "question": [
+      {
+        "t": "關於上述使用 `Files.walk()` 走訪目錄的程式碼，下列敘述何者正確？",
+        "en": "Regarding the above code using `Files.walk()` to traverse a directory, which of the following statements is correct?",
+        "wg": [
+          {
+            "t": "走訪",
+            "en": "traverse",
+            "ps": "v."
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 程式碼完全正確，因為 Stream API 會在終端操作（`forEach`）結束後自動釋放記憶體。",
+        "en": "(A) The code is perfectly correct because the Stream API automatically releases memory after the terminal operation (`forEach`) finishes.",
+        "wg": [
+          {
+            "t": "終端操作",
+            "en": "terminal operation",
+            "ps": "n."
+          }
+        ]
+      },
+      {
+        "t": "(B) 程式碼存在資源洩漏風險。`Files.walk()` 會開啟目錄串流，必須將其放在 try-with-resources 區塊中以確保檔案描述符被關閉。",
+        "en": "(B) The code has a resource leak risk. `Files.walk()` opens directory streams and must be placed in a try-with-resources block to ensure file descriptors are closed.",
+        "wg": []
+      },
+      {
+        "t": "(C) `Files.walk()` 只能走訪單層目錄，若要遞迴走訪必須改用 `Files.list()`。",
+        "en": "(C) `Files.walk()` can only traverse a single level of directories; to traverse recursively, `Files.list()` must be used instead.",
+        "wg": [
+          {
+            "t": "遞迴",
+            "en": "recursively",
+            "ps": "adv."
+          }
+        ]
+      },
+      {
+        "t": "(D) 程式碼會拋出 `OutOfMemoryError`，因為 `Files.walk()` 會預先將所有檔案路徑載入到一個 List 中再轉換為 Stream。",
+        "en": "(D) The code will throw an `OutOfMemoryError` because `Files.walk()` eagerly loads all file paths into a List before converting to a Stream.",
+        "wg": [
+          {
+            "t": "預先",
+            "en": "eagerly",
+            "ps": "adv."
+          }
+        ]
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "`Files.walk()` 會遞迴走訪目錄，且它是惰性求值的（不會 OOM）。但關鍵在於它底層會開啟 `DirectoryStream`，這會佔用作業系統的檔案描述符。如果不使用 try-with-resources 關閉 Stream，將會導致資源洩漏。",
+      "en": "`Files.walk()` traverses directories recursively and is lazily evaluated (won't cause OOM). However, the key issue is that it opens `DirectoryStream`s underneath, which consume OS file descriptors. Failing to close the Stream using try-with-resources will lead to a resource leak.",
+      "wg": []
+    }
+  },
+  {
+    "no": "java-io-nio2-10",
+    "level": "Medium",
+    "keywords": "Small Files, Convenience Methods, Files.readString",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "當你需要讀取一個大小僅有 50KB 的 JSON 設定檔，並將其內容轉換為字串時，根據現代 Java 最佳實務，哪一種做法最簡潔且適當？",
+        "en": "When you need to read a 50KB JSON configuration file and convert its content into a String, which approach is the cleanest and most appropriate according to modern Java best practices?",
+        "wg": [
+          {
+            "t": "簡潔",
+            "en": "cleanest",
+            "ps": "adj."
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 使用 `try (Stream<String> lines = Files.lines(path))` 逐行讀取並使用 `StringBuilder` 拼接。",
+        "en": "(A) Use `try (Stream<String> lines = Files.lines(path))` to read line by line and concatenate using `StringBuilder`.",
+        "wg": [
+          {
+            "t": "拼接",
+            "en": "concatenate",
+            "ps": "v."
+          }
+        ]
+      },
+      {
+        "t": "(B) 使用 `Files.readString(path, StandardCharsets.UTF_8)` 直接讀取。",
+        "en": "(B) Use `Files.readString(path, StandardCharsets.UTF_8)` to read it directly.",
+        "wg": []
+      },
+      {
+        "t": "(C) 使用 `FileChannel.open()` 搭配 `MappedByteBuffer` 以獲得最高效能。",
+        "en": "(C) Use `FileChannel.open()` with `MappedByteBuffer` for maximum performance.",
+        "wg": []
+      },
+      {
+        "t": "(D) 使用 `new BufferedReader(new FileReader(file))` 讀取。",
+        "en": "(D) Use `new BufferedReader(new FileReader(file))` to read it.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "對於 MB 級別以下的小檔案，直接使用 NIO.2 提供的便捷方法 `Files.readString()` 是最簡潔且適當的選擇。`Files.lines()` 適合大檔案逐行處理；`MappedByteBuffer` 適合 GB 級別大檔案；而 `FileReader` 則是遺留 API 且容易有編碼問題。",
+      "en": "For small files under a few MBs, using the convenience method `Files.readString()` provided by NIO.2 is the cleanest and most appropriate choice. `Files.lines()` is for line-by-line processing of large files; `MappedByteBuffer` is for GB-sized files; and `FileReader` is a legacy API prone to encoding issues.",
+      "wg": [
+        {
+          "t": "便捷方法",
+          "en": "convenience method",
+          "ps": "n."
+        }
+      ]
+    }
+  },
+  {
+    "no": "java-io-nio2-11",
+    "level": "Medium",
+    "keywords": "Binary Stream, Large Files, Files.newInputStream, Decision Tree",
+    "parentNo": null,
+    "images": "",
+    "codeSnippet": "",
+    "question": [
+      {
+        "t": "你需要循序處理一個 5GB 的二進位檔案（例如影片檔或備份壓縮檔），以計算其 SHA-256 雜湊值。",
+        "en": "You need to sequentially process a 5GB binary file (e.g., a video or backup archive) to compute its SHA-256 checksum.",
+        "wg": [
+          {
+            "t": "循序",
+            "en": "sequentially",
+            "ps": "adv."
+          },
+          {
+            "t": "二進位檔案",
+            "en": "binary file",
+            "ps": "n."
+          },
+          {
+            "t": "雜湊值",
+            "en": "checksum / hash",
+            "ps": "n."
+          }
+        ]
+      },
+      {
+        "t": "根據現代 Java I/O 決策樹，下列哪一種做法最合適且能確保記憶體安全？",
+        "en": "According to the modern Java I/O decision tree, which approach is the most appropriate and memory-safe?",
+        "wg": [
+          {
+            "t": "決策樹",
+            "en": "decision tree",
+            "ps": "n."
+          },
+          {
+            "t": "記憶體安全",
+            "en": "memory-safe",
+            "ps": "adj."
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 使用 `Files.readAllBytes(path)` 將整個檔案載入位元組陣列中進行雜湊計算。",
+        "en": "(A) Use `Files.readAllBytes(path)` to load the entire file into a byte array for hashing.",
+        "wg": [
+          {
+            "t": "位元組陣列",
+            "en": "byte array",
+            "ps": "n."
+          }
+        ]
+      },
+      {
+        "t": "(B) 使用 `try (Stream<String> lines = Files.lines(path))` 逐行讀取檔案以節省記憶體。",
+        "en": "(B) Use `try (Stream<String> lines = Files.lines(path))` to read the file line by line to save memory.",
+        "wg": [
+          {
+            "t": "逐行",
+            "en": "line by line",
+            "ps": "adv."
+          }
+        ]
+      },
+      {
+        "t": "(C) 使用 `try (InputStream is = Files.newInputStream(path))` 以串流方式分塊讀取並處理檔案。",
+        "en": "(C) Use `try (InputStream is = Files.newInputStream(path))` to read and process the file in chunks via a stream.",
+        "wg": [
+          {
+            "t": "串流方式",
+            "en": "via a stream",
+            "ps": "adv."
+          },
+          {
+            "t": "分塊",
+            "en": "in chunks",
+            "ps": "adv."
+          }
+        ]
+      },
+      {
+        "t": "(D) 使用 `Files.readString(path)` 將檔案讀取為字串後，再轉換回位元組進行計算。",
+        "en": "(D) Use `Files.readString(path)` to read the file as a string, then convert it back to bytes for computation.",
+        "wg": []
+      }
+    ],
+    "answer": "C",
+    "why": {
+      "t": "根據檔案讀取決策樹，當檔案很大且需要進行二進位串流處理時，應使用 `Files.newInputStream(path)` 配合 try-with-resources 進行分塊讀取。(A) 會導致 OutOfMemoryError (OOM)。(B) 和 (D) 適用於文字檔，若用於二進位檔案會導致資料損壞或編碼錯誤。",
+      "en": "According to the file reading decision tree, when a file is large and requires binary stream processing, you should use `Files.newInputStream(path)` with try-with-resources to read it in chunks. (A) will cause an OutOfMemoryError (OOM). (B) and (D) are for text files and will corrupt the data or cause encoding errors if applied to binary files.",
+      "wg": [
+        {
+          "t": "資料損壞",
+          "en": "data corruption",
+          "ps": "n."
+        }
+      ]
+    }
+  },
+  {
+    "no": "java-io-nio2-12",
+    "level": "Medium",
+    "keywords": "NIO.2, Path, Files, Decoupling, Architecture",
+    "parentNo": null,
+    "images": "",
+    "codeSnippet": "",
+    "question": [
+      {
+        "t": "在現代 Java 中，NIO.2 (`java.nio.file`) 被設計用來徹底取代老舊的 `java.io.File`。",
+        "en": "In modern Java, NIO.2 (`java.nio.file`) is designed to completely replace the legacy `java.io.File`.",
+        "wg": [
+          {
+            "t": "徹底取代",
+            "en": "completely replace",
+            "ps": "v."
+          },
+          {
+            "t": "老舊的",
+            "en": "legacy",
+            "ps": "adj."
+          }
+        ]
+      },
+      {
+        "t": "關於 NIO.2 在檔案系統互動上的核心架構改進，下列敘述何者正確？",
+        "en": "Regarding the core architectural improvement of NIO.2 in file system interactions, which of the following statements is correct?",
+        "wg": [
+          {
+            "t": "架構改進",
+            "en": "architectural improvement",
+            "ps": "n."
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 它將「路徑」與「檔案操作」合併到單一的超級物件中，以簡化 API 的呼叫。",
+        "en": "(A) It merges \"Path\" and \"File Operations\" into a single God object to simplify API calls.",
+        "wg": [
+          {
+            "t": "合併",
+            "en": "merges",
+            "ps": "v."
+          }
+        ]
+      },
+      {
+        "t": "(B) 它將「路徑 (`Path`)」與「操作 (`Files`)」解耦，並提供了對符號連結與檔案屬性的原生支援。",
+        "en": "(B) It decouples the \"Path\" (`Path`) from \"Operations\" (`Files`), providing native support for symlinks and metadata.",
+        "wg": [
+          {
+            "t": "解耦",
+            "en": "decouples",
+            "ps": "v."
+          },
+          {
+            "t": "符號連結",
+            "en": "symlinks",
+            "ps": "n."
+          }
+        ]
+      },
+      {
+        "t": "(C) 它強制所有的檔案讀寫都必須是非阻塞（Non-blocking）的，完全淘汰了傳統的阻塞式 I/O。",
+        "en": "(C) It forces all file read/writes to be non-blocking, completely eliminating traditional blocking I/O.",
+        "wg": [
+          {
+            "t": "非阻塞",
+            "en": "non-blocking",
+            "ps": "adj."
+          }
+        ]
+      },
+      {
+        "t": "(D) 它會自動將所有讀取的檔案內容快取在 JVM 記憶體中，以提升後續的存取效能。",
+        "en": "(D) It automatically caches all read file contents in JVM memory to improve subsequent access performance.",
+        "wg": [
+          {
+            "t": "快取",
+            "en": "caches",
+            "ps": "v."
+          }
+        ]
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "NIO.2 的核心心智模型是將代表位置的「路徑 (`Path`)」與實際執行的「操作 (`Files`)」解耦，這解決了舊版 `java.io.File` 職責過於龐雜的問題，同時加入了對現代檔案系統特性（如符號連結、Metadata）的原生支援。(A) 描述的恰好是舊版 `File` 的缺點。(C) 錯誤，NIO.2 的 `Files` 工具類別大多仍是阻塞式操作。(D) 錯誤，自動快取大檔案會導致 OOM，這是一種反模式。",
+      "en": "The core mental model of NIO.2 is decoupling the location representation (`Path`) from the actual execution (`Files`). This solves the bloated responsibility issue of the legacy `java.io.File` and adds native support for modern file system features like symlinks and metadata. (A) describes the exact flaw of the legacy `File` class. (C) is incorrect because most operations in the `Files` utility class are still blocking. (D) is incorrect; automatically caching large files leads to OOM, which is an anti-pattern.",
+      "wg": [
+        {
+          "t": "職責",
+          "en": "responsibility",
+          "ps": "n."
+        },
+        {
+          "t": "龐雜",
+          "en": "bloated",
+          "ps": "adj."
+        }
+      ]
+    }
+  }
+]

@@ -1,0 +1,1046 @@
+[
+  {
+    "no": "1",
+    "level": "Medium",
+    "keywords": "Executor, I/O blocking, ForkJoinPool",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "一位開發者使用 `CompletableFuture.supplyAsync()` 來呼叫外部的支付 API。",
+        "en": "A developer uses `CompletableFuture.supplyAsync()` to call an external payment API.",
+        "wg": [
+          {
+            "t": "外部的",
+            "en": "external",
+            "ps": "adj."
+          }
+        ]
+      },
+      {
+        "t": "在高併發負載下，系統中其他完全不相關的非同步任務突然全部卡住並停止回應。",
+        "en": "Under high concurrent load, other completely unrelated async tasks in the system suddenly freeze and stop responding.",
+        "wg": [
+          {
+            "t": "高併發負載",
+            "en": "high concurrent load",
+            "ps": "n."
+          },
+          {
+            "t": "非同步任務",
+            "en": "async tasks",
+            "ps": "n."
+          }
+        ]
+      },
+      {
+        "t": "根據最佳實務，造成此現象最可能的原因是什麼？",
+        "en": "According to best practices, what is the most likely cause of this phenomenon?",
+        "wg": [
+          {
+            "t": "最佳實務",
+            "en": "best practices",
+            "ps": "n."
+          },
+          {
+            "t": "現象",
+            "en": "phenomenon",
+            "ps": "n."
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) 支付 API 回應太快，導致了競爭條件 (Race Condition)。",
+        "en": "(A) The payment API responds too quickly, causing a race condition.",
+        "wg": [
+          {
+            "t": "競爭條件",
+            "en": "race condition",
+            "ps": "n."
+          }
+        ]
+      },
+      {
+        "t": "(B) 程式碼在管線的最後忘記呼叫 `.join()` 來等待結果。",
+        "en": "(B) The code forgets to call `.join()` at the end of the pipeline to wait for the result.",
+        "wg": [
+          {
+            "t": "管線",
+            "en": "pipeline",
+            "ps": "n."
+          }
+        ]
+      },
+      {
+        "t": "(C) `supplyAsync` 預設使用了 common pool，該執行緒池被 I/O 阻塞型任務耗盡了。",
+        "en": "(C) `supplyAsync` uses the common pool by default, which gets exhausted by I/O blocking tasks.",
+        "wg": [
+          {
+            "t": "執行緒池",
+            "en": "pool",
+            "ps": "n."
+          },
+          {
+            "t": "耗盡",
+            "en": "exhausted",
+            "ps": "v."
+          },
+          {
+            "t": "I/O 阻塞型任務",
+            "en": "I/O blocking tasks",
+            "ps": "n."
+          }
+        ]
+      },
+      {
+        "t": "(D) 在非同步呼叫期間，`ThreadLocal` 的上下文遺失了。",
+        "en": "(D) The `ThreadLocal` context was lost during the asynchronous call.",
+        "wg": [
+          {
+            "t": "上下文",
+            "en": "context",
+            "ps": "n."
+          },
+          {
+            "t": "遺失",
+            "en": "lost",
+            "ps": "v."
+          }
+        ]
+      }
+    ],
+    "answer": "C",
+    "why": {
+      "t": "預設的 `CompletableFuture.supplyAsync()` 會使用 `ForkJoinPool.commonPool()`。這個池的大小預設為 CPU 核心數減一，專為 CPU 密集型任務設計。如果非同步任務包含呼叫外部 API（I/O 阻塞），會瞬間耗盡 common pool，導致整個 JVM 的其他非同步任務癱瘓。因此，永遠要為 I/O 任務指定自訂的執行緒池。",
+      "en": "The default `CompletableFuture.supplyAsync()` uses `ForkJoinPool.commonPool()`. The size of this pool defaults to CPU cores minus one and is designed for CPU-bound tasks. If async tasks involve calling external APIs (I/O blocking), they will instantly exhaust the common pool, starving all other async tasks across the JVM. Therefore, always provide custom executors for I/O tasks.",
+      "wg": [
+        {
+          "t": "CPU 密集型任務",
+          "en": "CPU-bound tasks",
+          "ps": "n."
+        },
+        {
+          "t": "癱瘓",
+          "en": "starving",
+          "ps": "v."
+        }
+      ]
+    }
+  },
+  {
+    "no": "2",
+    "level": "Medium",
+    "keywords": "thenApply, thenCompose, Transformation, Flattening",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "CompletableFuture<String> userIdFuture = fetchUserIdAsync();\n// We want to use the userId to fetch User details asynchronously:\n// CompletableFuture<User> fetchUserDetailAsync(String userId);\n\nCompletableFuture<User> userFuture = userIdFuture._______(id -> fetchUserDetailAsync(id));",
+    "question": [
+      {
+        "t": "在上述程式碼中，你需要將一個非同步獲取到的 `userId` 傳遞給另一個回傳 `CompletableFuture<User>` 的非同步方法。",
+        "en": "In the code snippet above, you need to pass an asynchronously fetched `userId` to another asynchronous method that returns a `CompletableFuture<User>`.",
+        "wg": [
+          {
+            "t": "傳遞",
+            "en": "pass",
+            "ps": "v."
+          }
+        ]
+      },
+      {
+        "t": "為了避免產生 `CompletableFuture<CompletableFuture<User>>` 這種巢狀結構，你應該在空白處填入哪一個方法？",
+        "en": "To avoid creating a nested structure like `CompletableFuture<CompletableFuture<User>>`, which method should you fill in the blank?",
+        "wg": [
+          {
+            "t": "巢狀結構",
+            "en": "nested structure",
+            "ps": "n."
+          },
+          {
+            "t": "空白處",
+            "en": "blank",
+            "ps": "n."
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) `thenApply`",
+        "en": "(A) `thenApply`",
+        "wg": []
+      },
+      {
+        "t": "(B) `thenCompose`",
+        "en": "(B) `thenCompose`",
+        "wg": []
+      },
+      {
+        "t": "(C) `thenCombine`",
+        "en": "(C) `thenCombine`",
+        "wg": []
+      },
+      {
+        "t": "(D) `thenAccept`",
+        "en": "(D) `thenAccept`",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "`thenCompose` 類似於 Stream API 中的 `flatMap`。當你的下一步也是一個會回傳 `CompletableFuture` 的非同步操作時，使用 `thenCompose` 可以將結果攤平，避免產生巢狀的 Future。相對地，`thenApply` 類似於 `map`，用於同步轉換結果。",
+      "en": "`thenCompose` is similar to `flatMap` in the Stream API. When your next step is also an asynchronous operation that returns a `CompletableFuture`, using `thenCompose` flattens the result, preventing nested Futures. In contrast, `thenApply` is similar to `map` and is used for synchronous result transformation.",
+      "wg": [
+        {
+          "t": "攤平",
+          "en": "flattens",
+          "ps": "v."
+        },
+        {
+          "t": "同步轉換",
+          "en": "synchronous transformation",
+          "ps": "n."
+        }
+      ]
+    }
+  },
+  {
+    "no": "3",
+    "level": "Hard",
+    "keywords": "Anti-pattern, Blocking, join",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "CompletableFuture.supplyAsync(() -> fetchRawData())\n    .thenApply(data -> {\n        // Anti-pattern here\n        EnrichedData enriched = fetchEnrichedDataAsync(data).join(); \n        return process(enriched);\n    })\n    .thenAccept(result -> save(result));",
+    "question": [
+      {
+        "t": "觀察上方的程式碼片段，開發者在 `thenApply` 的 Lambda 表達式內部呼叫了 `.join()`。",
+        "en": "Observe the code snippet above, where the developer calls `.join()` inside the Lambda expression of `thenApply`.",
+        "wg": [
+          {
+            "t": "程式碼片段",
+            "en": "code snippet",
+            "ps": "n."
+          },
+          {
+            "t": "Lambda 表達式",
+            "en": "Lambda expression",
+            "ps": "n."
+          }
+        ]
+      },
+      {
+        "t": "這種做法被視為一種反模式 (Anti-pattern)，其主要風險與後果是什麼？",
+        "en": "This practice is considered an anti-pattern. What is the primary risk and consequence of doing this?",
+        "wg": [
+          {
+            "t": "反模式",
+            "en": "anti-pattern",
+            "ps": "n."
+          },
+          {
+            "t": "後果",
+            "en": "consequence",
+            "ps": "n."
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) 它會立刻阻塞當前的非同步執行緒，破壞了非同步管線不阻塞的初衷。",
+        "en": "(A) It immediately blocks the current async thread, defeating the non-blocking purpose of the async pipeline.",
+        "wg": [
+          {
+            "t": "阻塞",
+            "en": "blocks",
+            "ps": "v."
+          },
+          {
+            "t": "初衷",
+            "en": "purpose",
+            "ps": "n."
+          }
+        ]
+      },
+      {
+        "t": "(B) 它會引發編譯錯誤，因為 `.join()` 不能在 Lambda 內部被呼叫。",
+        "en": "(B) It causes a compilation error because `.join()` cannot be called inside a Lambda.",
+        "wg": [
+          {
+            "t": "編譯錯誤",
+            "en": "compilation error",
+            "ps": "n."
+          }
+        ]
+      },
+      {
+        "t": "(C) 如果任務執行時間過長，它會自動觸發超時異常 (TimeoutException)。",
+        "en": "(C) It automatically triggers a TimeoutException if the task takes too long.",
+        "wg": [
+          {
+            "t": "超時異常",
+            "en": "TimeoutException",
+            "ps": "n."
+          }
+        ]
+      },
+      {
+        "t": "(D) 它會導致記憶體流失，因為 `CompletableFuture` 實例會無限期地存活。",
+        "en": "(D) It causes a memory leak because the `CompletableFuture` instance will stay alive indefinitely.",
+        "wg": [
+          {
+            "t": "記憶體流失",
+            "en": "memory leak",
+            "ps": "n."
+          },
+          {
+            "t": "無限期地",
+            "en": "indefinitely",
+            "ps": "adv."
+          }
+        ]
+      }
+    ],
+    "answer": "A",
+    "why": {
+      "t": "在管線中途呼叫 `.join()` 或 `.get()` 會立刻阻塞當前執行緒去等待結果，這完全違背了資料流驅動與非同步程式設計的原則。正確的解法是將 `thenApply` 替換為 `thenCompose`，並回傳 `fetchEnrichedDataAsync(data)`，讓管線保持純粹的非同步狀態。",
+      "en": "Calling `.join()` or `.get()` in the middle of a pipeline immediately blocks the current thread to wait for the result, which completely violates the principles of data-flow driven and asynchronous programming. The correct solution is to replace `thenApply` with `thenCompose` and return `fetchEnrichedDataAsync(data)`, keeping the pipeline purely asynchronous.",
+      "wg": [
+        {
+          "t": "資料流驅動",
+          "en": "data-flow driven",
+          "ps": "adj."
+        },
+        {
+          "t": "純粹的",
+          "en": "purely",
+          "ps": "adv."
+        }
+      ]
+    }
+  },
+  {
+    "no": "4",
+    "level": "Hard",
+    "keywords": "thenCombine, completeOnTimeout, Parallel Task Composition",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在一個電商系統中，你需要同時獲取「商品基本資訊」與「商品評論」。",
+        "en": "In an e-commerce system, you need to fetch \"Product Info\" and \"Product Reviews\" concurrently.",
+        "wg": [
+          {
+            "t": "同時",
+            "en": "concurrently",
+            "ps": "adv."
+          }
+        ]
+      },
+      {
+        "t": "這兩個 API 互不相依。為了提供良好的使用者體驗，如果「商品評論」API 呼叫超過 1 秒鐘，你希望容忍並回傳一個空列表，但「商品基本資訊」的獲取不能受到影響。",
+        "en": "These two APIs are independent. To provide a good user experience, if the \"Product Reviews\" API call takes more than 1 second, you want to tolerate it and return an empty list, but the fetching of \"Product Info\" must not be affected.",
+        "wg": [
+          {
+            "t": "互不相依",
+            "en": "independent",
+            "ps": "adj."
+          },
+          {
+            "t": "容忍",
+            "en": "tolerate",
+            "ps": "v."
+          }
+        ]
+      },
+      {
+        "t": "下列哪一種設計方式最符合上述需求與最佳實務？",
+        "en": "Which of the following designs best meets the above requirements and best practices?",
+        "wg": [
+          {
+            "t": "設計方式",
+            "en": "designs",
+            "ps": "n."
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) 使用 `thenCompose` 將兩者循序串接，並在最後加上 `.orTimeout(1, TimeUnit.SECONDS)`。",
+        "en": "(A) Use `thenCompose` to chain them sequentially, and append `.orTimeout(1, TimeUnit.SECONDS)` at the end.",
+        "wg": [
+          {
+            "t": "循序串接",
+            "en": "chain them sequentially",
+            "ps": "v."
+          }
+        ]
+      },
+      {
+        "t": "(B) 對兩個任務都使用 `supplyAsync`，然後分別呼叫 `.get(1, TimeUnit.SECONDS)` 來阻塞等待。",
+        "en": "(B) Use `supplyAsync` for both tasks, and call `.get(1, TimeUnit.SECONDS)` on each to block and wait.",
+        "wg": [
+          {
+            "t": "阻塞等待",
+            "en": "block and wait",
+            "ps": "v."
+          }
+        ]
+      },
+      {
+        "t": "(C) 使用 `thenCombine` 平行組合兩者，並在合併後的 Future 加上 `.orTimeout(1, TimeUnit.SECONDS)`。",
+        "en": "(C) Use `thenCombine` to compose them in parallel, and attach `.orTimeout(1, TimeUnit.SECONDS)` to the combined Future.",
+        "wg": [
+          {
+            "t": "平行組合",
+            "en": "compose them in parallel",
+            "ps": "v."
+          }
+        ]
+      },
+      {
+        "t": "(D) 使用 `thenCombine` 平行組合兩者，並專門在「商品評論」的 Future 上加上 `.completeOnTimeout(emptyList, 1, TimeUnit.SECONDS)`。",
+        "en": "(D) Use `thenCombine` to compose them in parallel, and specifically attach `.completeOnTimeout(emptyList, 1, TimeUnit.SECONDS)` to the \"Product Reviews\" Future.",
+        "wg": [
+          {
+            "t": "專門",
+            "en": "specifically",
+            "ps": "adv."
+          }
+        ]
+      }
+    ],
+    "answer": "D",
+    "why": {
+      "t": "使用 `thenCombine` 可以平行執行兩個毫無相依性的任務。為了實踐「優雅降級」，我們應該將 `.completeOnTimeout()` 僅掛載於容許超時的「商品評論」Future 上。如果掛載在合併後的 Future (選項 C)，一旦超時整個結果都會失敗，無法保留商品基本資訊。",
+      "en": "Using `thenCombine` allows parallel execution of two independent tasks. To implement \"Graceful Degradation\", we should attach `.completeOnTimeout()` only to the \"Product Reviews\" Future, which is allowed to time out. If attached to the combined Future (Option C), a timeout would fail the entire result, discarding the product info.",
+      "wg": [
+        {
+          "t": "優雅降級",
+          "en": "Graceful Degradation",
+          "ps": "n."
+        },
+        {
+          "t": "掛載",
+          "en": "attach",
+          "ps": "v."
+        }
+      ]
+    }
+  },
+  {
+    "no": "5",
+    "level": "Medium",
+    "keywords": "ThreadLocal, Context Loss, Troubleshooting",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在排查線上問題時，你發現非同步任務 (`CompletableFuture.supplyAsync`) 內部印出的 Log 缺少了 MDC (Mapped Diagnostic Context) 中的 Trace ID，但在呼叫非同步方法之前的 Log 卻有 Trace ID。",
+        "en": "While troubleshooting a production issue, you notice that logs printed inside an async task (`CompletableFuture.supplyAsync`) are missing the Trace ID from the MDC (Mapped Diagnostic Context), whereas logs printed just before calling the async method have the Trace ID.",
+        "wg": [
+          {
+            "t": "排查",
+            "en": "troubleshooting",
+            "ps": "v."
+          },
+          {
+            "t": "線上問題",
+            "en": "production issue",
+            "ps": "n."
+          }
+        ]
+      },
+      {
+        "t": "造成這個現象的根本原因是什麼？",
+        "en": "What is the root cause of this phenomenon?",
+        "wg": [
+          {
+            "t": "根本原因",
+            "en": "root cause",
+            "ps": "n."
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) 日誌框架 (Logging Framework) 本身不支援 Java 8 以上的非同步特性。",
+        "en": "(A) The Logging Framework itself does not support asynchronous features of Java 8 and above.",
+        "wg": [
+          {
+            "t": "日誌框架",
+            "en": "Logging Framework",
+            "ps": "n."
+          }
+        ]
+      },
+      {
+        "t": "(B) 基於安全考量，`commonPool` 會自動清理所有日誌輸出。",
+        "en": "(B) For security reasons, the `commonPool` automatically sanitizes all log outputs.",
+        "wg": [
+          {
+            "t": "清理",
+            "en": "sanitizes",
+            "ps": "v."
+          }
+        ]
+      },
+      {
+        "t": "(C) MDC 底層依賴 `ThreadLocal`，而 `ThreadLocal` 變數綁定於原執行緒，不會自動傳遞到非同步執行緒中。",
+        "en": "(C) MDC relies on `ThreadLocal` under the hood, and `ThreadLocal` variables are bound to the original thread and do not automatically propagate to async threads.",
+        "wg": [
+          {
+            "t": "綁定於",
+            "en": "bound to",
+            "ps": "v."
+          },
+          {
+            "t": "傳遞",
+            "en": "propagate",
+            "ps": "v."
+          }
+        ]
+      },
+      {
+        "t": "(D) 管線末端的 `.exceptionally()` 區塊吞噬了日誌輸出。",
+        "en": "(D) The `.exceptionally()` block at the end of the pipeline swallowed the log output.",
+        "wg": [
+          {
+            "t": "吞噬",
+            "en": "swallowed",
+            "ps": "v."
+          }
+        ]
+      }
+    ],
+    "answer": "C",
+    "why": {
+      "t": "在非同步執行緒中，無法直接獲取原執行緒的 `ThreadLocal` 變數（如 Security Context 或 MDC Logging Trace ID）。解決方案通常是使用自訂的 `Executor` 裝飾器，在任務提交前複製 Context，並在任務執行前設定到新的執行緒中。",
+      "en": "In an async thread, you cannot directly access `ThreadLocal` variables (like Security Context or MDC Logging Trace ID) from the original thread. The standard solution is to use a custom `Executor` decorator to copy the context before task submission and set it in the new thread before execution.",
+      "wg": [
+        {
+          "t": "裝飾器",
+          "en": "decorator",
+          "ps": "n."
+        },
+        {
+          "t": "提交",
+          "en": "submission",
+          "ps": "n."
+        }
+      ]
+    }
+  },
+  {
+    "no": "6",
+    "level": "Medium",
+    "keywords": "Exception Handling, exceptionally, handle, Swallowing Exceptions",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "當你在 `CompletableFuture` 管線內部拋出了一個 `RuntimeException`，但應用程式卻沒有崩潰，控制台也沒有印出任何錯誤日誌，彷彿什麼事都沒發生過。",
+        "en": "When a `RuntimeException` is thrown inside a `CompletableFuture` pipeline, the application does not crash, and no error logs are printed to the console, as if nothing happened.",
+        "wg": [
+          {
+            "t": "崩潰",
+            "en": "crash",
+            "ps": "v."
+          },
+          {
+            "t": "控制台",
+            "en": "console",
+            "ps": "n."
+          },
+          {
+            "t": "彷彿",
+            "en": "as if",
+            "ps": "conj."
+          }
+        ]
+      },
+      {
+        "t": "這種「吞噬非同步異常」的反模式，通常是因為開發者遺漏了哪一個關鍵步驟？",
+        "en": "This anti-pattern of \"swallowing async exceptions\" is usually caused by the developer missing which key step?",
+        "wg": [
+          {
+            "t": "吞噬",
+            "en": "swallowing",
+            "ps": "v."
+          },
+          {
+            "t": "遺漏",
+            "en": "missing",
+            "ps": "v."
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) 沒有在管線末端加上 `.exceptionally()` 或 `.handle()` 來捕捉與處理異常。",
+        "en": "(A) Failing to attach `.exceptionally()` or `.handle()` at the end of the pipeline to catch and handle the exception.",
+        "wg": [
+          {
+            "t": "捕捉",
+            "en": "catch",
+            "ps": "v."
+          }
+        ]
+      },
+      {
+        "t": "(B) Java 預設會自動忽略非同步執行緒中的所有 `RuntimeException`。",
+        "en": "(B) Java automatically ignores all `RuntimeException`s in asynchronous threads by default.",
+        "wg": [
+          {
+            "t": "忽略",
+            "en": "ignores",
+            "ps": "v."
+          }
+        ]
+      },
+      {
+        "t": "(C) 沒有設定 Executor 服務在背景自動重試失敗的任務。",
+        "en": "(C) Failing to configure the Executor service to automatically retry failed tasks in the background.",
+        "wg": [
+          {
+            "t": "重試",
+            "en": "retry",
+            "ps": "v."
+          }
+        ]
+      },
+      {
+        "t": "(D) 異常被自動轉換為 `null` 值並傳遞給了下一個階段，導致後續邏輯中斷。",
+        "en": "(D) The exception was automatically converted to a `null` value and passed to the next stage, causing subsequent logic to halt.",
+        "wg": [
+          {
+            "t": "中斷",
+            "en": "halt",
+            "ps": "v."
+          }
+        ]
+      }
+    ],
+    "answer": "A",
+    "why": {
+      "t": "在 `CompletableFuture` 中，如果沒有在管線末端顯式地掛載 `.exceptionally()` 或 `.handle()`，非同步執行緒內拋出的 Exception 會被封裝在 Future 內部無聲無息地消失。除非你呼叫 `.join()` 或 `.get()`，否則你永遠不會知道發生了錯誤，這會讓除錯變得毫無頭緒。",
+      "en": "In `CompletableFuture`, if `.exceptionally()` or `.handle()` is not explicitly attached at the end of the pipeline, Exceptions thrown inside the async thread will be encapsulated within the Future and vanish silently. Unless you call `.join()` or `.get()`, you will never know an error occurred, making debugging a nightmare.",
+      "wg": [
+        {
+          "t": "顯式地",
+          "en": "explicitly",
+          "ps": "adv."
+        },
+        {
+          "t": "封裝",
+          "en": "encapsulated",
+          "ps": "v."
+        },
+        {
+          "t": "無聲無息地",
+          "en": "silently",
+          "ps": "adv."
+        }
+      ]
+    }
+  },
+  {
+    "no": 7,
+    "level": "Medium",
+    "keywords": "Mental Model, Data-flow driven, Callbacks",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在從傳統同步程式設計轉移到 `CompletableFuture` 時，下列何者最能描述核心的心智模型轉變？",
+        "en": "When migrating from traditional synchronous programming to `CompletableFuture`, which of the following best describes the core mental model shift?",
+        "wg": [
+          {
+            "t": "心智模型轉變",
+            "en": "mental model shift",
+            "ps": "n."
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) 從「等待結果」轉變為以資料流驅動的方式「註冊回呼」。",
+        "en": "(A) From \"waiting for results\" to \"registering callbacks\" in a data-flow driven manner.",
+        "wg": [
+          {
+            "t": "資料流驅動",
+            "en": "data-flow driven",
+            "ps": "adj."
+          },
+          {
+            "t": "註冊回呼",
+            "en": "registering callbacks",
+            "ps": "v."
+          }
+        ]
+      },
+      {
+        "t": "(B) 從「註冊回呼」轉變為使用執行緒輪詢來「等待結果」。",
+        "en": "(B) From \"registering callbacks\" to \"waiting for results\" using thread polling.",
+        "wg": [
+          {
+            "t": "執行緒輪詢",
+            "en": "thread polling",
+            "ps": "n."
+          }
+        ]
+      },
+      {
+        "t": "(C) 從使用多個執行緒轉變為所有 I/O 操作共用單一執行緒。",
+        "en": "(C) From using multiple threads to sharing a single thread for all I/O operations.",
+        "wg": []
+      },
+      {
+        "t": "(D) 從全域處理異常轉變為在非同步管線中忽略異常。",
+        "en": "(D) From handling exceptions globally to ignoring exceptions in async pipelines.",
+        "wg": []
+      }
+    ],
+    "answer": "A",
+    "why": {
+      "t": "根據手冊，`CompletableFuture` 的核心觀念轉變是從「等待結果（阻塞）」變為「註冊回呼」，且程式碼結構反映的是資料流向（資料流驅動），而非執行緒的控制流程。選項 (B)、(C)、(D) 皆與此核心理念背道而馳。",
+      "en": "According to the handbook, the core paradigm shift of `CompletableFuture` is moving from \"waiting for results (blocking)\" to \"registering callbacks\", and the code structure reflects the data flow (data-flow driven) rather than thread control flow. Options (B), (C), and (D) contradict this core philosophy.",
+      "wg": [
+        {
+          "t": "背道而馳",
+          "en": "contradict",
+          "ps": "v."
+        }
+      ]
+    }
+  },
+  {
+    "no": 8,
+    "level": "Medium",
+    "keywords": "Resource Cleanup, whenComplete, finally",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "你在一個非同步任務中開啟了檔案串流來處理資料。",
+        "en": "You open a file stream inside an asynchronous task to process data.",
+        "wg": [
+          {
+            "t": "檔案串流",
+            "en": "file stream",
+            "ps": "n."
+          }
+        ]
+      },
+      {
+        "t": "為了確保無論任務成功或拋出異常，檔案串流都能被正確關閉，你應該使用下列哪一個方法？",
+        "en": "To ensure the file stream is properly closed regardless of whether the task succeeds or throws an exception, which method should you use?",
+        "wg": []
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) `thenApply`",
+        "en": "(A) `thenApply`",
+        "wg": []
+      },
+      {
+        "t": "(B) `thenAccept`",
+        "en": "(B) `thenAccept`",
+        "wg": []
+      },
+      {
+        "t": "(C) `whenComplete`",
+        "en": "(C) `whenComplete`",
+        "wg": []
+      },
+      {
+        "t": "(D) `exceptionally`",
+        "en": "(D) `exceptionally`",
+        "wg": []
+      }
+    ],
+    "answer": "C",
+    "why": {
+      "t": "手冊中的檢查清單明確指出，如果非同步任務涉及資源操作，應在 `.whenComplete()` 中確保資源被正確關閉，其作用類似於同步程式設計中的 `finally` 區塊。`exceptionally` 只在發生異常時執行，而 `thenApply` 與 `thenAccept` 只在成功時執行。",
+      "en": "The handbook's checklist explicitly states that if an async task involves resource operations, you should ensure they are properly closed in `.whenComplete()`, which acts similarly to a `finally` block in synchronous programming. `exceptionally` only runs on errors, while `thenApply` and `thenAccept` only run on success.",
+      "wg": [
+        {
+          "t": "資源操作",
+          "en": "resource operations",
+          "ps": "n."
+        }
+      ]
+    }
+  },
+  {
+    "no": 9,
+    "level": "Hard",
+    "keywords": "Timeout, orTimeout, completeOnTimeout, Fallback",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在微服務架構中，你正在呼叫一個關鍵的支付 API。",
+        "en": "In a microservice architecture, you are calling a critical payment API.",
+        "wg": []
+      },
+      {
+        "t": "如果該 API 在 3 秒內沒有回應，交易必須被明確中止，並向使用者回傳錯誤，而不是繼續使用預設值。",
+        "en": "If the API does not respond within 3 seconds, the transaction must be explicitly aborted and an error returned to the user, rather than proceeding with a default value.",
+        "wg": [
+          {
+            "t": "明確中止",
+            "en": "explicitly aborted",
+            "ps": "v."
+          }
+        ]
+      },
+      {
+        "t": "下列哪一種 Java 9+ 的超時機制最適合此情境？",
+        "en": "Which timeout mechanism in Java 9+ is most appropriate for this scenario?",
+        "wg": []
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) `.completeOnTimeout(null, 3, TimeUnit.SECONDS)`",
+        "en": "(A) `.completeOnTimeout(null, 3, TimeUnit.SECONDS)`",
+        "wg": []
+      },
+      {
+        "t": "(B) `.orTimeout(3, TimeUnit.SECONDS)`",
+        "en": "(B) `.orTimeout(3, TimeUnit.SECONDS)`",
+        "wg": []
+      },
+      {
+        "t": "(C) `.thenApplyAsync(..., delayedExecutor)`",
+        "en": "(C) `.thenApplyAsync(..., delayedExecutor)`",
+        "wg": []
+      },
+      {
+        "t": "(D) `.exceptionally(ex -> new Payment(0))`",
+        "en": "(D) `.exceptionally(ex -> new Payment(0))`",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "手冊指出，`orTimeout()` 會在超時發生時拋出異常（TimeoutException），適合需要中斷流程並報錯的情境；而 `completeOnTimeout()` 則是提供預設的降級值。由於題目要求明確中止並回傳錯誤，因此 `orTimeout()` 是正確選擇。",
+      "en": "The handbook points out that `orTimeout()` throws an exception (TimeoutException) when a timeout occurs, making it suitable for scenarios where the flow must be interrupted and an error reported. `completeOnTimeout()` provides a default fallback value. Since the requirement is to explicitly abort and return an error, `orTimeout()` is the correct choice.",
+      "wg": [
+        {
+          "t": "降級值",
+          "en": "fallback value",
+          "ps": "n."
+        }
+      ]
+    }
+  },
+  {
+    "no": 10,
+    "level": "Hard",
+    "keywords": "Anti-pattern, Hidden Blocking, thenCompose",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "future.thenApply(data -> {\n    return synchronousHttpCall(data);\n});",
+    "question": [
+      {
+        "t": "在程式碼審查時，你注意到了上述的程式碼片段。",
+        "en": "During a code review, you notice the above code snippet.",
+        "wg": []
+      },
+      {
+        "t": "根據最佳實務，這種作法的主要問題是什麼，且應該如何修正？",
+        "en": "According to best practices, what is the primary issue with this approach, and how should it be fixed?",
+        "wg": []
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) 它會導致記憶體洩漏，應該替換為 `thenAccept`。",
+        "en": "(A) It causes a memory leak and should be replaced with `thenAccept`.",
+        "wg": []
+      },
+      {
+        "t": "(B) 它在管線內部隱藏了阻塞呼叫，應該改用非同步的 HTTP 呼叫並搭配 `thenCompose`。",
+        "en": "(B) It hides a blocking call inside the pipeline; it should be replaced with an asynchronous HTTP call and `thenCompose`.",
+        "wg": [
+          {
+            "t": "隱藏了阻塞呼叫",
+            "en": "hides a blocking call",
+            "ps": "v."
+          }
+        ]
+      },
+      {
+        "t": "(C) 它會在主執行緒上執行，應該使用 `try-catch` 區塊包覆。",
+        "en": "(C) It executes on the main thread and should be wrapped in a `try-catch` block.",
+        "wg": []
+      },
+      {
+        "t": "(D) 只要為 `thenApply` 提供自訂的執行緒池，這種作法就完全沒有問題。",
+        "en": "(D) It is perfectly fine as long as a custom Executor is provided to `thenApply`.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "手冊的「無阻塞驗證」檢查清單提到，應檢查管線鏈中（如 `thenApply` 內）是否隱藏了會阻塞執行緒的同步呼叫（如同步 HTTP 請求）。如果有，應改用 `thenCompose` 串接非同步版本，以避免佔用執行緒池資源。",
+      "en": "The handbook's \"Non-blocking Verification\" checklist mentions that you should check for hidden blocking calls (like synchronous HTTP requests) inside the pipeline chain (e.g., in `thenApply`). If found, they should be replaced with async versions using `thenCompose` to avoid tying up thread pool resources.",
+      "wg": [
+        {
+          "t": "無阻塞驗證",
+          "en": "Non-blocking Verification",
+          "ps": "n."
+        }
+      ]
+    }
+  },
+  {
+    "no": 11,
+    "level": "Medium",
+    "keywords": "Architecture, join, System Boundary",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "根據手冊中的反模式說明，如果你絕對必須使用 `.join()` 將非同步的 `CompletableFuture` 管線橋接回同步流程，最適合放置此呼叫的位置是哪裡？",
+        "en": "According to the anti-patterns in the handbook, if you absolutely must use `.join()` to bridge an asynchronous `CompletableFuture` pipeline back to a synchronous flow, where is the most appropriate place to put this call?",
+        "wg": [
+          {
+            "t": "橋接",
+            "en": "bridge",
+            "ps": "v."
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) 在資料存取（Repository）層內部，以確保資料已準備就緒。",
+        "en": "(A) Inside the Data Access (Repository) layer to ensure data is ready.",
+        "wg": []
+      },
+      {
+        "t": "(B) 在 `thenApply` 的轉換步驟內部。",
+        "en": "(B) Inside a `thenApply` transformation step.",
+        "wg": []
+      },
+      {
+        "t": "(C) 在系統的最邊界（例如 Controller 層或框架邊界）。",
+        "en": "(C) At the absolute edge of the system (e.g., the Controller layer or framework boundary).",
+        "wg": [
+          {
+            "t": "系統的最邊界",
+            "en": "absolute edge of the system",
+            "ps": "n."
+          }
+        ]
+      },
+      {
+        "t": "(D) 在自訂的 `Executor` 執行緒內部。",
+        "en": "(D) Inside a custom `Executor` thread.",
+        "wg": []
+      }
+    ],
+    "answer": "C",
+    "why": {
+      "t": "手冊在反模式章節中明確指出，在管線中途呼叫 `.join()` 會立刻阻塞當前執行緒，破壞非同步管線的初衷。正確的解法是一路回傳 `CompletableFuture` 到最外層，或者只在系統的最邊界（如 Controller 層）呼叫 `.join()`。",
+      "en": "The handbook explicitly states in the anti-patterns section that calling `.join()` in the middle of a pipeline immediately blocks the current thread, defeating the purpose of the async pipeline. The correct solution is to return the `CompletableFuture` all the way to the top layer or only call `.join()` at the absolute edge of the system (e.g., Controller layer).",
+      "wg": [
+        {
+          "t": "初衷",
+          "en": "purpose",
+          "ps": "n."
+        }
+      ]
+    }
+  },
+  {
+    "no": 12,
+    "level": "Hard",
+    "keywords": "Best Practices, Checklist, Executor, Exception Handling",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在使用 `CompletableFuture` 建構穩健的非同步管線時，下列哪些是手冊中建議的最佳實務？（複選）",
+        "en": "When building robust asynchronous pipelines with `CompletableFuture`, which of the following are recommended best practices from the handbook? (Select all that apply)",
+        "wg": [
+          {
+            "t": "穩健的",
+            "en": "robust",
+            "ps": "adj."
+          }
+        ]
+      }
+    ],
+    "type": "Multiple Choice",
+    "options": [
+      {
+        "t": "(A) 永遠使用預設的 `ForkJoinPool.commonPool()` 來執行資料庫查詢，以最大化 CPU 使用率。",
+        "en": "(A) Always use the default `ForkJoinPool.commonPool()` for database queries to maximize CPU utilization.",
+        "wg": []
+      },
+      {
+        "t": "(B) 為所有涉及 I/O 操作的 `CompletableFuture` 顯式傳入自訂的 `Executor`。",
+        "en": "(B) Explicitly pass a custom `Executor` to all `CompletableFuture`s involving I/O operations.",
+        "wg": []
+      },
+      {
+        "t": "(C) 在管線的最後掛載 `.exceptionally()` 或 `.handle()`，以防止異常被吞噬。",
+        "en": "(C) Attach `.exceptionally()` or `.handle()` at the end of the pipeline to prevent exceptions from being swallowed.",
+        "wg": [
+          {
+            "t": "被吞噬",
+            "en": "being swallowed",
+            "ps": "v."
+          }
+        ]
+      },
+      {
+        "t": "(D) 在管線階段之間頻繁使用 `.join()`，以確保資料的一致性。",
+        "en": "(D) Use `.join()` frequently between pipeline stages to ensure data consistency.",
+        "wg": []
+      }
+    ],
+    "answer": "B,C",
+    "why": {
+      "t": "選項 (A) 是錯誤的，因為 I/O 任務會耗盡 commonPool，應使用自訂 Executor（即選項 B）。選項 (C) 是正確的，能避免非同步異常無聲消失。選項 (D) 是反模式，管線中途呼叫 `.join()` 會導致阻塞。",
+      "en": "Option (A) is incorrect because I/O tasks will exhaust the commonPool; a custom Executor should be used instead (which is Option B). Option (C) is correct as it prevents async exceptions from vanishing silently. Option (D) is an anti-pattern; calling `.join()` between pipeline stages causes blocking.",
+      "wg": [
+        {
+          "t": "無聲消失",
+          "en": "vanishing silently",
+          "ps": "v."
+        }
+      ]
+    }
+  }
+]

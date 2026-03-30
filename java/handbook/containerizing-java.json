@@ -1,0 +1,1002 @@
+[
+  {
+    "no": "001",
+    "level": "Intermediate",
+    "keywords": "OOMKilled, Memory Limit, Metaspace, Non-Heap",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在 Kubernetes 環境中，某個 Java 應用的 Pod Memory Limit 被設定為 1GB，開發者將 JVM 啟動參數設定為 `-Xmx1G`。不久後，該 Pod 頻繁發生 OOMKilled 並重啟。請問最可能的原因是什麼？",
+        "en": "In a Kubernetes environment, a Java application's Pod Memory Limit is set to 1GB, and the developer sets the JVM startup parameter to `-Xmx1G`. Shortly after, the Pod frequently experiences OOMKilled and restarts. What is the most likely cause?",
+        "wg": [
+          {
+            "t": "頻繁發生",
+            "en": "frequently experiences",
+            "ps": "adv. + v."
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) JVM 除了 Heap 之外，還需要額外記憶體存放 Metaspace、執行緒堆疊與 Native Memory，導致總記憶體用量超出容器限制而被作業系統砍掉。",
+        "en": "(A) In addition to the Heap, the JVM requires extra memory for Metaspace, thread stacks, and Native Memory, causing the total memory usage to exceed the container limit and be terminated by the OS.",
+        "wg": [
+          {
+            "t": "執行緒堆疊",
+            "en": "thread stacks",
+            "ps": "n."
+          }
+        ]
+      },
+      {
+        "t": "(B) 現代 JVM 預設會忽略 Kubernetes 的限制，直接讀取宿主機 (Host) 的記憶體大小進行分配。",
+        "en": "(B) Modern JVMs default to ignoring Kubernetes limits and directly read the host's memory size for allocation.",
+        "wg": [
+          {
+            "t": "宿主機",
+            "en": "host",
+            "ps": "n."
+          }
+        ]
+      },
+      {
+        "t": "(C) 應用程式發生了嚴重的 Memory Leak，導致 Heap Size 不斷膨脹直到崩潰。",
+        "en": "(C) The application has a severe Memory Leak, causing the Heap Size to expand continuously until it crashes.",
+        "wg": [
+          {
+            "t": "膨脹",
+            "en": "expand",
+            "ps": "v."
+          }
+        ]
+      },
+      {
+        "t": "(D) Kubernetes 的 OOM Killer 為了釋放系統資源，會優先隨機砍掉 Java 行程。",
+        "en": "(D) The Kubernetes OOM Killer prioritizes randomly terminating Java processes to free up system resources.",
+        "wg": [
+          {
+            "t": "優先",
+            "en": "prioritizes",
+            "ps": "v."
+          }
+        ]
+      }
+    ],
+    "answer": "A",
+    "why": {
+      "t": "這是一個典型的反模式。當 `-Xmx` (最大 Heap 大小) 等於容器的 Memory Limit 時，必定會發生 OOMKilled。因為 JVM 運行時不僅需要 Heap，還需要 Non-Heap 記憶體（如 Metaspace、Thread Stacks、Direct Buffers 等）。正確做法是保留 20%-30% 的記憶體給 Non-Heap 與作業系統。",
+      "en": "This is a typical anti-pattern. When `-Xmx` (Max Heap Size) equals the container's Memory Limit, OOMKilled is inevitable. The JVM requires not only Heap but also Non-Heap memory (e.g., Metaspace, Thread Stacks, Direct Buffers) to run. The correct approach is to reserve 20%-30% of memory for Non-Heap and the OS.",
+      "wg": [
+        {
+          "t": "反模式",
+          "en": "anti-pattern",
+          "ps": "n."
+        },
+        {
+          "t": "保留",
+          "en": "reserve",
+          "ps": "v."
+        }
+      ]
+    }
+  },
+  {
+    "no": "002",
+    "level": "Basic",
+    "keywords": "MaxRAMPercentage, Memory Allocation, Container Support",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "為了讓 Java 應用程式在 Kubernetes 中能根據 Pod 的資源限制動態調整記憶體大小，而不需要每次修改啟動腳本，應該使用哪一個 JVM 參數來取代寫死的 `-Xmx`？",
+        "en": "To allow a Java application in Kubernetes to dynamically adjust its memory size based on Pod resource limits without modifying the startup script every time, which JVM parameter should be used to replace the hardcoded `-Xmx`?",
+        "wg": [
+          {
+            "t": "動態調整",
+            "en": "dynamically adjust",
+            "ps": "adv. + v."
+          },
+          {
+            "t": "寫死的",
+            "en": "hardcoded",
+            "ps": "adj."
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) `-XX:MaxMetaspaceSize`",
+        "en": "(A) `-XX:MaxMetaspaceSize`",
+        "wg": []
+      },
+      {
+        "t": "(B) `-XX:InitialRAMPercentage`",
+        "en": "(B) `-XX:InitialRAMPercentage`",
+        "wg": []
+      },
+      {
+        "t": "(C) `-XX:MaxRAMPercentage`",
+        "en": "(C) `-XX:MaxRAMPercentage`",
+        "wg": []
+      },
+      {
+        "t": "(D) `-XX:+UseContainerSupport`",
+        "en": "(D) `-XX:+UseContainerSupport`",
+        "wg": []
+      }
+    ],
+    "answer": "C",
+    "why": {
+      "t": "在容器化環境中，最佳實踐是使用 `-XX:MaxRAMPercentage`（例如設為 75.0）。這樣當 Pod 的 Memory Limit 改變時，JVM 會自動按比例計算出合適的 Heap Size，無需重新設定參數。選項 (D) 雖然是容器支援的開關，但它不是用來設定記憶體比例的參數。",
+      "en": "In containerized environments, the best practice is to use `-XX:MaxRAMPercentage` (e.g., set to 75.0). This way, when the Pod's Memory Limit changes, the JVM automatically calculates the appropriate Heap Size proportionally, without needing to reconfigure parameters. Option (D) is the toggle for container support, but not the parameter for setting memory percentage.",
+      "wg": [
+        {
+          "t": "按比例",
+          "en": "proportionally",
+          "ps": "adv."
+        }
+      ]
+    }
+  },
+  {
+    "no": "003",
+    "level": "Advanced",
+    "keywords": "CPU Throttling, JIT, Liveness Probe, Kubernetes",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "某個 Spring Boot 應用程式部署到 Kubernetes 後，啟動時間異常緩慢，甚至經常觸發 Liveness Probe 失敗而陷入無限重啟的迴圈。經檢查，該 Pod 的 CPU Limit 被設定為 `0.5` 核心。請問下列哪些是解決此問題的有效方法？（複選）",
+        "en": "After deploying a Spring Boot application to Kubernetes, the startup time is unusually slow, often triggering Liveness Probe failures and falling into an infinite restart loop. Upon inspection, the Pod's CPU Limit is set to `0.5` cores. Which of the following are effective solutions to this problem? (Multiple choice)",
+        "wg": [
+          {
+            "t": "無限重啟",
+            "en": "infinite restart",
+            "ps": "adj. + n."
+          },
+          {
+            "t": "迴圈",
+            "en": "loop",
+            "ps": "n."
+          }
+        ]
+      }
+    ],
+    "type": "Multiple Choice",
+    "options": [
+      {
+        "t": "(A) 增加 Pod 的 CPU Limit（例如提升至 1-2 cores），以滿足 JVM JIT 編譯在啟動時的大量 CPU 需求。",
+        "en": "(A) Increase the Pod's CPU Limit (e.g., to 1-2 cores) to meet the heavy CPU demands of JVM JIT compilation during startup.",
+        "wg": [
+          {
+            "t": "編譯",
+            "en": "compilation",
+            "ps": "n."
+          }
+        ]
+      },
+      {
+        "t": "(B) 將 JVM 的記憶體配置改為使用絕對值 `-Xmx`，避免動態計算消耗 CPU。",
+        "en": "(B) Change the JVM memory allocation to use an absolute value `-Xmx` to avoid CPU consumption from dynamic calculation.",
+        "wg": []
+      },
+      {
+        "t": "(C) 延長 Liveness Probe 的 `initialDelaySeconds`，給予 JVM 足夠的暖機與啟動時間。",
+        "en": "(C) Increase the `initialDelaySeconds` of the Liveness Probe to give the JVM enough time to warm up and start.",
+        "wg": [
+          {
+            "t": "暖機",
+            "en": "warm up",
+            "ps": "v."
+          }
+        ]
+      },
+      {
+        "t": "(D) 改用包含完整 JDK 的基礎映像檔，以加速應用程式的執行效能。",
+        "en": "(D) Switch to a base image containing the full JDK to accelerate the application's execution performance.",
+        "wg": []
+      }
+    ],
+    "answer": "A,C",
+    "why": {
+      "t": "JVM 在啟動時需要進行大量的 JIT (Just-In-Time) 編譯，這是一個高度消耗 CPU 的過程。如果 CPU 被嚴重節流（Throttled，如 0.5 核心），啟動會非常慢。解決方案是給予足夠的 CPU 資源 (A)，或者拉長 Liveness Probe 的初始延遲時間 (C)，避免 Kubernetes 在應用程式還沒準備好時就將其強制重啟。選項 (B) 無助於解決 CPU 節流問題；選項 (D) 是反模式，生產環境不應使用 JDK。",
+      "en": "The JVM requires extensive JIT (Just-In-Time) compilation during startup, which is highly CPU-intensive. If the CPU is severely throttled (e.g., 0.5 cores), startup will be extremely slow. The solutions are to provide sufficient CPU resources (A) or increase the initial delay of the Liveness Probe (C) to prevent Kubernetes from forcefully restarting the app before it's ready. Option (B) does not help with CPU throttling; Option (D) is an anti-pattern, as JDKs should not be used in production.",
+      "wg": [
+        {
+          "t": "節流",
+          "en": "throttled",
+          "ps": "v. / adj."
+        },
+        {
+          "t": "強制重啟",
+          "en": "forcefully restarting",
+          "ps": "adv. + v."
+        }
+      ]
+    }
+  },
+  {
+    "no": "004",
+    "level": "Intermediate",
+    "keywords": "Layered JAR, Docker Cache, CI/CD, Multi-stage Build",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在建置 Spring Boot 應用的 Docker 映像檔時，最佳實踐建議使用「分層打包 (Layered JAR)」而非直接將單一的 Fat JAR 放進映像檔中。這樣做的主要好處是什麼？",
+        "en": "When building a Docker image for a Spring Boot application, best practices recommend using a \"Layered JAR\" instead of directly putting a single Fat JAR into the image. What is the primary benefit of doing this?",
+        "wg": [
+          {
+            "t": "分層打包",
+            "en": "Layered JAR",
+            "ps": "n."
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) 能夠自動壓縮程式碼，減少應用程式在執行時的記憶體消耗。",
+        "en": "(A) It automatically compresses the code, reducing the application's memory consumption during runtime.",
+        "wg": []
+      },
+      {
+        "t": "(B) 將不常變動的依賴庫與常變動的業務程式碼分離，利用 Docker 快取機制大幅加快 CI/CD 部署速度。",
+        "en": "(B) It separates infrequently changing dependencies from frequently changing business code, leveraging Docker's caching mechanism to drastically speed up CI/CD deployments.",
+        "wg": [
+          {
+            "t": "依賴庫",
+            "en": "dependencies",
+            "ps": "n."
+          },
+          {
+            "t": "快取機制",
+            "en": "caching mechanism",
+            "ps": "n."
+          }
+        ]
+      },
+      {
+        "t": "(C) 讓 JVM 能夠正確識別容器的 CPU 核心數，避免 JIT 編譯效能低落。",
+        "en": "(C) It allows the JVM to correctly identify the container's CPU core count, avoiding poor JIT compilation performance.",
+        "wg": []
+      },
+      {
+        "t": "(D) 啟用 Class Data Sharing (CDS) 功能，縮短容器啟動時間。",
+        "en": "(D) It enables the Class Data Sharing (CDS) feature, shortening the container startup time.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "Fat JAR 通常包含幾十 MB 的依賴庫和僅幾 KB 的業務程式碼。如果每次修改程式碼都重新打包整個 Fat JAR，Docker 無法有效快取，導致每次都要上傳/下載龐大的映像檔層。分層打包可以將依賴庫獨立成一層，由於依賴庫不常變動，Docker 可以直接使用快取，每次部署只需傳輸極小的業務程式碼層，極大提升 CI/CD 效率。",
+      "en": "A Fat JAR typically contains tens of MBs of dependencies and only a few KBs of business code. If the entire Fat JAR is repackaged every time code changes, Docker cannot cache it effectively, resulting in large image layers being uploaded/downloaded every time. Layering separates dependencies into their own layer. Since dependencies rarely change, Docker can use its cache, meaning only the tiny business code layer needs to be transferred per deployment, vastly improving CI/CD efficiency.",
+      "wg": [
+        {
+          "t": "傳輸",
+          "en": "transferred",
+          "ps": "v."
+        }
+      ]
+    }
+  },
+  {
+    "no": "005",
+    "level": "Basic",
+    "keywords": "Base Image, Security, JRE, Distroless",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "為了減少映像檔體積並降低安全漏洞（CVEs）的攻擊面，生產環境的 Java 應用程式應該選擇下列哪些基礎映像檔 (Base Image)？（複選）",
+        "en": "To reduce image size and minimize the attack surface for security vulnerabilities (CVEs), which of the following base images should be chosen for Java applications in a production environment? (Multiple choice)",
+        "wg": [
+          {
+            "t": "攻擊面",
+            "en": "attack surface",
+            "ps": "n."
+          },
+          {
+            "t": "基礎映像檔",
+            "en": "base images",
+            "ps": "n."
+          }
+        ]
+      }
+    ],
+    "type": "Multiple Choice",
+    "options": [
+      {
+        "t": "(A) `maven:3.8-openjdk-17`",
+        "en": "(A) `maven:3.8-openjdk-17`",
+        "wg": []
+      },
+      {
+        "t": "(B) `eclipse-temurin:17-jre-alpine`",
+        "en": "(B) `eclipse-temurin:17-jre-alpine`",
+        "wg": []
+      },
+      {
+        "t": "(C) `distroless/java17-debian11`",
+        "en": "(C) `distroless/java17-debian11`",
+        "wg": []
+      },
+      {
+        "t": "(D) `openjdk:17`",
+        "en": "(D) `openjdk:17`",
+        "wg": []
+      }
+    ],
+    "answer": "B,C",
+    "why": {
+      "t": "在生產環境中，應該只打包必需品（JRE 或客製化 Runtime），避免使用包含編譯器和除錯工具的龐大 JDK 映像檔（如選項 A 和 D）。選項 B (Alpine JRE) 和選項 C (Distroless) 都是極簡的基礎映像檔，能大幅減少體積並降低潛在的安全風險。",
+      "en": "In a production environment, you should only pack the essentials (JRE or custom Runtime) and avoid bloated JDK images that contain compilers and debugging tools (like options A and D). Option B (Alpine JRE) and Option C (Distroless) are minimal base images that significantly reduce size and lower potential security risks.",
+      "wg": [
+        {
+          "t": "必需品",
+          "en": "essentials",
+          "ps": "n."
+        },
+        {
+          "t": "極簡的",
+          "en": "minimal",
+          "ps": "adj."
+        }
+      ]
+    }
+  },
+  {
+    "no": "006",
+    "level": "Intermediate",
+    "keywords": "AppCDS, Startup Time, Memory Footprint",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "對於非 GraalVM Native Image 的傳統 JVM 應用，如果希望在容器環境中減少 20%~40% 的啟動時間並降低記憶體消耗，應該啟用下列哪一項技術？",
+        "en": "For traditional JVM applications not using GraalVM Native Image, if you want to reduce startup time by 20%~40% and lower memory footprint in a containerized environment, which of the following technologies should be enabled?",
+        "wg": [
+          {
+            "t": "記憶體消耗",
+            "en": "memory footprint",
+            "ps": "n."
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) Class Data Sharing (AppCDS)",
+        "en": "(A) Class Data Sharing (AppCDS)",
+        "wg": []
+      },
+      {
+        "t": "(B) Just-In-Time Compilation (JIT)",
+        "en": "(B) Just-In-Time Compilation (JIT)",
+        "wg": []
+      },
+      {
+        "t": "(C) Garbage First Garbage Collector (G1GC)",
+        "en": "(C) Garbage First Garbage Collector (G1GC)",
+        "wg": []
+      },
+      {
+        "t": "(D) Spring Boot Layered JAR",
+        "en": "(D) Spring Boot Layered JAR",
+        "wg": []
+      }
+    ],
+    "answer": "A",
+    "why": {
+      "t": "啟用 AppCDS (Application Class Data Sharing) 可以將類別的元資料快取起來並在多個 JVM 實例間共享，這能顯著加快類別載入速度，從而減少啟動時間並降低整體的記憶體消耗。JIT 是預設的編譯機制；G1GC 是垃圾回收器；Layered JAR 是用來加速 CI/CD 映像檔建置的，與 JVM 啟動時間無直接關聯。",
+      "en": "Enabling AppCDS (Application Class Data Sharing) caches class metadata and shares it across JVM instances. This significantly speeds up class loading, thereby reducing startup time and lowering the overall memory footprint. JIT is the default compilation mechanism; G1GC is a garbage collector; Layered JAR is used to accelerate CI/CD image builds and is not directly related to JVM startup time.",
+      "wg": [
+        {
+          "t": "元資料",
+          "en": "metadata",
+          "ps": "n."
+        },
+        {
+          "t": "實例",
+          "en": "instances",
+          "ps": "n."
+        }
+      ]
+    }
+  },
+  {
+    "no": "007",
+    "level": "Basic",
+    "keywords": "Graceful Shutdown, Lifecycle, SIGTERM",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在 Kubernetes 中管理容器化 Java 應用的生命週期時，為了確保應用程式能夠進行「優雅停機 (Graceful Shutdown)」，應用程式必須能夠正確處理哪一個系統訊號？",
+        "en": "When managing the lifecycle of a containerized Java application in Kubernetes, to ensure the application can perform a \"Graceful Shutdown\", which system signal must the application correctly handle?",
+        "wg": [
+          {
+            "t": "優雅停機",
+            "en": "Graceful Shutdown",
+            "ps": "n."
+          },
+          {
+            "t": "系統訊號",
+            "en": "system signal",
+            "ps": "n."
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) `SIGKILL`",
+        "en": "(A) `SIGKILL`",
+        "wg": []
+      },
+      {
+        "t": "(B) `SIGINT`",
+        "en": "(B) `SIGINT`",
+        "wg": []
+      },
+      {
+        "t": "(C) `SIGTERM`",
+        "en": "(C) `SIGTERM`",
+        "wg": []
+      },
+      {
+        "t": "(D) `SIGHUP`",
+        "en": "(D) `SIGHUP`",
+        "wg": []
+      }
+    ],
+    "answer": "C",
+    "why": {
+      "t": "當 Kubernetes 準備終止一個 Pod 時，會先發送 `SIGTERM` 訊號給容器內的主行程。Java 應用程式（如 Spring Boot）接收到 `SIGTERM` 後，會觸發關閉掛鉤 (Shutdown Hook) 來拒絕新請求並完成處理中的任務，實現優雅停機。如果超過寬限期仍未停止，K8s 才會發送 `SIGKILL` 強制終止。",
+      "en": "When Kubernetes is about to terminate a Pod, it first sends a `SIGTERM` signal to the main process in the container. Upon receiving `SIGTERM`, a Java application (like Spring Boot) triggers its Shutdown Hook to reject new requests and finish in-flight tasks, achieving a graceful shutdown. If it doesn't stop within the grace period, K8s will then send a `SIGKILL` to forcefully terminate it.",
+      "wg": [
+        {
+          "t": "終止",
+          "en": "terminate",
+          "ps": "v."
+        },
+        {
+          "t": "關閉掛鉤",
+          "en": "Shutdown Hook",
+          "ps": "n."
+        },
+        {
+          "t": "寬限期",
+          "en": "grace period",
+          "ps": "n."
+        }
+      ]
+    }
+  },
+  {
+    "no": "008",
+    "level": "Intermediate",
+    "keywords": "UseContainerSupport, cgroups, Java 11",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "現代 JVM (Java 8u191 及 Java 11 起) 終於學會了「容器感知」，能夠遵守 Linux cgroups 的限制而非讀取宿主機的硬體資訊。這是因為 JVM 預設啟用了哪一個參數？",
+        "en": "Modern JVMs (starting from Java 8u191 and Java 11) finally learned \"container awareness\" and can respect Linux cgroups limits instead of reading the host's hardware information. This is because which parameter is enabled by default in the JVM?",
+        "wg": [
+          {
+            "t": "容器感知",
+            "en": "container awareness",
+            "ps": "n."
+          },
+          {
+            "t": "遵守",
+            "en": "respect",
+            "ps": "v."
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) `-XX:+UseCGroupMemoryLimitForHeap`",
+        "en": "(A) `-XX:+UseCGroupMemoryLimitForHeap`",
+        "wg": []
+      },
+      {
+        "t": "(B) `-XX:+UseContainerSupport`",
+        "en": "(B) `-XX:+UseContainerSupport`",
+        "wg": []
+      },
+      {
+        "t": "(C) `-XX:+UnlockExperimentalVMOptions`",
+        "en": "(C) `-XX:+UnlockExperimentalVMOptions`",
+        "wg": []
+      },
+      {
+        "t": "(D) `-XX:MaxRAMPercentage=100.0`",
+        "en": "(D) `-XX:MaxRAMPercentage=100.0`",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "從 Java 8u191 和 Java 11 開始，`-XX:+UseContainerSupport` 被引入並預設啟用。它讓 JVM 能夠正確讀取 Docker/Kubernetes 透過 cgroups 設定的 CPU 與記憶體限制。選項 (A) 是早期 Java 8 版本中的實驗性參數，現已被廢棄並由 UseContainerSupport 取代。",
+      "en": "Starting from Java 8u191 and Java 11, `-XX:+UseContainerSupport` was introduced and enabled by default. It allows the JVM to correctly read the CPU and memory limits set by Docker/Kubernetes via cgroups. Option (A) was an experimental parameter in earlier Java 8 versions and is now deprecated and replaced by UseContainerSupport.",
+      "wg": [
+        {
+          "t": "廢棄",
+          "en": "deprecated",
+          "ps": "adj."
+        }
+      ]
+    }
+  },
+  {
+    "no": "009",
+    "level": "Intermediate",
+    "keywords": "MaxRAMPercentage, OOMKilled, Non-Heap, Metaspace",
+    "parentNo": null,
+    "images": "",
+    "codeSnippet": "",
+    "question": [
+      {
+        "t": "一位開發者在 Kubernetes 中將 Java 應用的 Pod 記憶體限制設為 2GB，並將 JVM 啟動參數設定為 `-XX:MaxRAMPercentage=100.0`。",
+        "en": "A developer configures a Java application in Kubernetes with a Pod memory limit of 2GB and sets the JVM startup argument to `-XX:MaxRAMPercentage=100.0`.",
+        "wg": [
+          {
+            "t": "記憶體限制",
+            "en": "memory limit",
+            "ps": "n."
+          },
+          {
+            "t": "啟動參數",
+            "en": "startup argument",
+            "ps": "n."
+          }
+        ]
+      },
+      {
+        "t": "請問這個設定最有可能導致什麼結果？為什麼？",
+        "en": "What is the most likely outcome of this configuration and why?",
+        "wg": [
+          {
+            "t": "結果",
+            "en": "outcome",
+            "ps": "n."
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) 應用程式將達到最佳效能，因為它完全利用了 2GB 的記憶體作為 JVM Heap。",
+        "en": "(A) The application will achieve optimal performance by fully utilizing the 2GB memory for the JVM Heap.",
+        "wg": [
+          {
+            "t": "最佳效能",
+            "en": "optimal performance",
+            "ps": "n."
+          }
+        ]
+      },
+      {
+        "t": "(B) 應用程式極有可能被作業系統 OOMKilled，因為 JVM 除了 Heap 之外，還需要額外的記憶體供 Metaspace、執行緒堆疊與原生記憶體使用。",
+        "en": "(B) The application will most likely be OOMKilled by the OS because the JVM requires additional memory beyond the Heap for Metaspace, thread stacks, and native memory.",
+        "wg": [
+          {
+            "t": "執行緒堆疊",
+            "en": "thread stacks",
+            "ps": "n."
+          },
+          {
+            "t": "原生記憶體",
+            "en": "native memory",
+            "ps": "n."
+          }
+        ]
+      },
+      {
+        "t": "(C) JVM 會自動保留 25% 的記憶體供 Non-Heap 使用，實際上會將 Heap 大小設定為 1.5GB。",
+        "en": "(C) The JVM will automatically reserve 25% of the memory for Non-Heap usage, effectively setting the Heap size to 1.5GB.",
+        "wg": [
+          {
+            "t": "保留",
+            "en": "reserve",
+            "ps": "v."
+          }
+        ]
+      },
+      {
+        "t": "(D) 容器將無法啟動，因為 `MaxRAMPercentage` 的值依法規不能超過 `80.0`。",
+        "en": "(D) The container will fail to start because the value of `MaxRAMPercentage` cannot legally exceed `80.0`.",
+        "wg": [
+          {
+            "t": "超過",
+            "en": "exceed",
+            "ps": "v."
+          }
+        ]
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "`MaxRAMPercentage` 決定的是分配給 JVM Heap 的容器記憶體比例。若設為 100%，代表沒有留下任何空間給 Non-Heap 記憶體（如 Metaspace、執行緒堆疊、C++ 程式碼等）與作業系統。當 JVM 嘗試分配這些額外記憶體時，整體用量將超過容器限制，導致被 Linux 核心的 OOM Killer 強制終止。",
+      "en": "`MaxRAMPercentage` dictates the percentage of container memory allocated to the JVM Heap. Setting it to 100% leaves no room for Non-Heap memory (like Metaspace, thread stacks, C++ code) and the OS. When the JVM attempts to allocate this extra memory, the total usage will exceed the container limit, resulting in termination by the Linux kernel's OOM Killer.",
+      "wg": [
+        {
+          "t": "分配",
+          "en": "allocated",
+          "ps": "v."
+        },
+        {
+          "t": "強制終止",
+          "en": "termination",
+          "ps": "n."
+        }
+      ]
+    }
+  },
+  {
+    "no": "010",
+    "level": "Basic",
+    "keywords": "JDK, JRE, Security, Attack Surface, Multi-stage Build",
+    "parentNo": null,
+    "images": "",
+    "codeSnippet": "",
+    "question": [
+      {
+        "t": "某個團隊在撰寫 Dockerfile 時，使用 `FROM maven:3.8-openjdk-17` 作為生產環境 Java 應用的最終基礎映像檔 (Base Image)。",
+        "en": "A team writes a Dockerfile using `FROM maven:3.8-openjdk-17` as the final base image for their production Java application.",
+        "wg": [
+          {
+            "t": "基礎映像檔",
+            "en": "base image",
+            "ps": "n."
+          },
+          {
+            "t": "生產環境",
+            "en": "production",
+            "ps": "n."
+          }
+        ]
+      },
+      {
+        "t": "根據最佳實踐，這種做法會帶來哪些主要的負面影響？（複選）",
+        "en": "According to best practices, what are the primary negative consequences of this approach? (Select all that apply)",
+        "wg": [
+          {
+            "t": "最佳實踐",
+            "en": "best practices",
+            "ps": "n."
+          },
+          {
+            "t": "負面影響",
+            "en": "negative consequences",
+            "ps": "n."
+          }
+        ]
+      }
+    ],
+    "type": "Multiple Choice",
+    "options": [
+      {
+        "t": "(A) 映像檔體積會變得不必要地龐大（通常超過 400MB）。",
+        "en": "(A) The image size will become unnecessarily bloated (often exceeding 400MB).",
+        "wg": [
+          {
+            "t": "體積",
+            "en": "size",
+            "ps": "n."
+          },
+          {
+            "t": "龐大",
+            "en": "bloated",
+            "ps": "adj."
+          }
+        ]
+      },
+      {
+        "t": "(B) 映像檔內包含了編譯器與除錯工具，這會大幅增加安全漏洞的攻擊面。",
+        "en": "(B) The image includes compilers and debugging tools, which significantly increases the attack surface for security vulnerabilities.",
+        "wg": [
+          {
+            "t": "編譯器",
+            "en": "compilers",
+            "ps": "n."
+          },
+          {
+            "t": "攻擊面",
+            "en": "attack surface",
+            "ps": "n."
+          }
+        ]
+      },
+      {
+        "t": "(C) JVM 在 JDK 環境中將無法啟用 `UseContainerSupport` 功能。",
+        "en": "(C) The JVM will not be able to enable the `UseContainerSupport` feature in a JDK environment.",
+        "wg": [
+          {
+            "t": "啟用",
+            "en": "enable",
+            "ps": "v."
+          }
+        ]
+      },
+      {
+        "t": "(D) 這種做法會導致無法使用 Spring Boot 的分層打包 (Layered JAR) 功能。",
+        "en": "(D) This approach prevents the use of Spring Boot's Layered JAR feature.",
+        "wg": [
+          {
+            "t": "分層打包",
+            "en": "Layered JAR",
+            "ps": "n."
+          }
+        ]
+      }
+    ],
+    "answer": "A,B",
+    "why": {
+      "t": "在生產環境使用 JDK 或 Maven 映像檔是一個反模式。這會導致映像檔體積過大（選項 A 正確），並且包含了駭客可以利用的工具鏈（如編譯器），增加了安全風險與攻擊面（選項 B 正確）。這並不影響容器支援的啟用，也不會阻止分層打包的使用。",
+      "en": "Using a JDK or Maven image in production is an anti-pattern. It results in an excessively large image size (Option A is correct) and includes toolchains (like compilers) that hackers can exploit, increasing security risks and the attack surface (Option B is correct). It does not affect the enablement of container support, nor does it prevent the use of layered packaging.",
+      "wg": [
+        {
+          "t": "反模式",
+          "en": "anti-pattern",
+          "ps": "n."
+        },
+        {
+          "t": "工具鏈",
+          "en": "toolchains",
+          "ps": "n."
+        }
+      ]
+    }
+  },
+  {
+    "no": "011",
+    "level": "Advanced",
+    "keywords": "OOMKilled, Heap Dump, SIGKILL, cgroups",
+    "parentNo": null,
+    "images": "",
+    "codeSnippet": "",
+    "question": [
+      {
+        "t": "一個容器化的 Java 應用程式在 Kubernetes 中頻繁因為 `OOMKilled` 狀態而終止。",
+        "en": "A containerized Java application is frequently terminated with the `OOMKilled` status in Kubernetes.",
+        "wg": [
+          {
+            "t": "容器化",
+            "en": "containerized",
+            "ps": "adj."
+          },
+          {
+            "t": "終止",
+            "en": "terminated",
+            "ps": "v."
+          }
+        ]
+      },
+      {
+        "t": "為了排查問題，開發者加入了 `-XX:+HeapDumpOnOutOfMemoryError` 參數，但發現當 Pod 崩潰時，並沒有產生任何 Heap Dump 檔案。",
+        "en": "To troubleshoot, the developer adds the `-XX:+HeapDumpOnOutOfMemoryError` parameter, but notices that no Heap Dump file is generated when the Pod crashes.",
+        "wg": [
+          {
+            "t": "排查",
+            "en": "troubleshoot",
+            "ps": "v."
+          },
+          {
+            "t": "崩潰",
+            "en": "crashes",
+            "ps": "v."
+          }
+        ]
+      },
+      {
+        "t": "請問造成這個現象最主要的原因是什麼？",
+        "en": "What is the primary reason for this phenomenon?",
+        "wg": [
+          {
+            "t": "現象",
+            "en": "phenomenon",
+            "ps": "n."
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) Heap Dump 的路徑必須明確掛載到 Kubernetes 的 PersistentVolume 才能被建立。",
+        "en": "(A) The Heap Dump path must be explicitly mounted to a Kubernetes PersistentVolume to be created.",
+        "wg": [
+          {
+            "t": "掛載",
+            "en": "mounted",
+            "ps": "v."
+          }
+        ]
+      },
+      {
+        "t": "(B) `OOMKilled` 是由 cgroups 觸發的作業系統層級終止 (SIGKILL)，這意味著 JVM 被瞬間砍掉，根本沒有機會拋出 `OutOfMemoryError` 並產生 Dump。",
+        "en": "(B) `OOMKilled` is an OS-level termination (SIGKILL) triggered by cgroups, meaning the JVM is killed instantly without a chance to throw `OutOfMemoryError` and generate a dump.",
+        "wg": [
+          {
+            "t": "觸發",
+            "en": "triggered",
+            "ps": "v."
+          },
+          {
+            "t": "瞬間",
+            "en": "instantly",
+            "ps": "adv."
+          }
+        ]
+      },
+      {
+        "t": "(C) JVM 必須停用 `-XX:+UseContainerSupport` 標記，才能在容器環境中產生 Heap Dump。",
+        "en": "(C) The JVM requires the `-XX:+UseContainerSupport` flag to be disabled to generate Heap Dumps in a container environment.",
+        "wg": [
+          {
+            "t": "停用",
+            "en": "disabled",
+            "ps": "v."
+          }
+        ]
+      },
+      {
+        "t": "(D) 產生 Heap Dump 的過程本身需要額外的記憶體，由於容器已經耗盡記憶體，因此該過程會失敗。",
+        "en": "(D) The Heap Dump generation process itself requires additional memory, which fails because the container is already out of memory.",
+        "wg": [
+          {
+            "t": "耗盡",
+            "en": "out of",
+            "ps": "phr."
+          }
+        ]
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "`OOMKilled` 發生在容器整體的記憶體用量超過 cgroups 限制時，此時 Linux 核心的 OOM Killer 會發送 SIGKILL 訊號強制終止行程。這是一個作業系統層級的行為，而非 JVM 內部的 `java.lang.OutOfMemoryError`。因此，JVM 的 Heap Dump 機制根本不會被觸發。",
+      "en": "`OOMKilled` occurs when the overall container memory usage exceeds the cgroups limit, causing the Linux kernel's OOM Killer to send a SIGKILL signal to forcefully terminate the process. This is an OS-level action, not an internal JVM `java.lang.OutOfMemoryError`. Therefore, the JVM's Heap Dump mechanism is never triggered.",
+      "wg": [
+        {
+          "t": "強制",
+          "en": "forcefully",
+          "ps": "adv."
+        },
+        {
+          "t": "機制",
+          "en": "mechanism",
+          "ps": "n."
+        }
+      ]
+    }
+  },
+  {
+    "no": "012",
+    "level": "Intermediate",
+    "keywords": "Docker Cache, Layered JAR, Dockerfile",
+    "parentNo": null,
+    "images": "",
+    "codeSnippet": "",
+    "question": [
+      {
+        "t": "在撰寫多階段建置 (Multi-stage build) 的 Dockerfile 來打包 Spring Boot 分層 JAR (Layered JAR) 時，必須謹慎安排不同分層（例如依賴庫、業務程式碼）的 `COPY` 指令順序。",
+        "en": "When writing a multi-stage Dockerfile to package a Spring Boot Layered JAR, the order of `COPY` commands for different extracted layers (e.g., dependencies, application code) must be arranged carefully.",
+        "wg": [
+          {
+            "t": "多階段建置",
+            "en": "Multi-stage build",
+            "ps": "n."
+          },
+          {
+            "t": "謹慎安排",
+            "en": "arranged carefully",
+            "ps": "v."
+          }
+        ]
+      },
+      {
+        "t": "請問排列這些分層的正確原則是什麼？",
+        "en": "What is the correct principle for ordering these layers?",
+        "wg": [
+          {
+            "t": "原則",
+            "en": "principle",
+            "ps": "n."
+          }
+        ]
+      }
+    ],
+    "type": "Single Choice",
+    "options": [
+      {
+        "t": "(A) 依照目錄名稱的字母順序排列，以確保建置過程具備決定性 (Deterministic)。",
+        "en": "(A) Alphabetical order of the directory names to ensure deterministic builds.",
+        "wg": [
+          {
+            "t": "決定性",
+            "en": "deterministic",
+            "ps": "adj."
+          }
+        ]
+      },
+      {
+        "t": "(B) 從最常變動的分層（業務程式碼）排到最不常變動的分層（依賴庫）。",
+        "en": "(B) From the most frequently changed layers (application code) to the least frequently changed layers (dependencies).",
+        "wg": [
+          {
+            "t": "頻繁",
+            "en": "frequently",
+            "ps": "adv."
+          }
+        ]
+      },
+      {
+        "t": "(C) 從最不常變動的分層（依賴庫）排到最常變動的分層（業務程式碼），以最大化 Docker 快取的利用率。",
+        "en": "(C) From the least frequently changed layers (dependencies) to the most frequently changed layers (application code) to maximize Docker cache utilization.",
+        "wg": [
+          {
+            "t": "最大化",
+            "en": "maximize",
+            "ps": "v."
+          },
+          {
+            "t": "快取",
+            "en": "cache",
+            "ps": "n."
+          }
+        ]
+      },
+      {
+        "t": "(D) 必須將所有分層合併在單一個 `COPY` 指令中執行，以減少映像檔的總層數。",
+        "en": "(D) All layers must be copied in a single `COPY` command to reduce the total number of image layers.",
+        "wg": [
+          {
+            "t": "合併",
+            "en": "copied in a single",
+            "ps": "phr."
+          }
+        ]
+      }
+    ],
+    "answer": "C",
+    "why": {
+      "t": "Docker 會依序快取映像檔的每一層。一旦某一層發生變更，該層及其後續的所有層快取都會失效。因此，將最不常變動的依賴庫（Dependencies）放在最前面，可以讓 Docker 在後續建置時重複使用快取，僅需重新打包和上傳最常變動的業務程式碼（Application），大幅加快 CI/CD 速度。",
+      "en": "Docker caches image layers sequentially. Once a layer changes, its cache and all subsequent layers' caches are invalidated. Therefore, by placing the least frequently changed dependencies first, Docker can reuse the cache in subsequent builds, requiring only the frequently changed application code to be repackaged and uploaded, drastically speeding up CI/CD.",
+      "wg": [
+        {
+          "t": "失效",
+          "en": "invalidated",
+          "ps": "v."
+        },
+        {
+          "t": "後續",
+          "en": "subsequent",
+          "ps": "adj."
+        }
+      ]
+    }
+  }
+]

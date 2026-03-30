@@ -1,0 +1,1466 @@
+[
+  {
+    "no": "1",
+    "level": "intermediate",
+    "keywords": "ThreadPool, Executors, OOM, Best Practices",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "ExecutorService executor = Executors.newFixedThreadPool(50);\nfor (int i = 0; i < 1000000; i++) {\n    executor.submit(() -> processHeavyTask());\n}",
+    "question": [
+      {
+        "t": "一位開發者在處理突發的高流量 API 時，使用了 `Executors.newFixedThreadPool(50)` 來建立執行緒池。",
+        "en": "A developer used `Executors.newFixedThreadPool(50)` to create a thread pool when handling a bursty, high-traffic API.",
+        "wg": [
+          {
+            "t": "突發的",
+            "en": "bursty",
+            "ps": "Adj"
+          },
+          {
+            "t": "執行緒池",
+            "en": "thread pool",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "根據上述程式碼與 Java 併發最佳實務，這種做法在系統過載時最可能導致什麼風險？",
+        "en": "Based on the code above and Java concurrency best practices, what is the most likely risk of this approach when the system is overloaded?",
+        "wg": [
+          {
+            "t": "最佳實務",
+            "en": "best practices",
+            "ps": "N"
+          },
+          {
+            "t": "過載",
+            "en": "overloaded",
+            "ps": "Adj"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 由於無限建立新執行緒，導致 CPU 資源耗盡。",
+        "en": "(A) CPU exhaustion due to the infinite creation of new threads.",
+        "wg": [
+          {
+            "t": "耗盡",
+            "en": "exhaustion",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(B) 由於底層使用無界佇列，任務無限堆積導致 OutOfMemoryError (OOM)。",
+        "en": "(B) OutOfMemoryError (OOM) due to tasks queuing up indefinitely in the underlying unbounded queue.",
+        "wg": [
+          {
+            "t": "無界佇列",
+            "en": "unbounded queue",
+            "ps": "N"
+          },
+          {
+            "t": "堆積",
+            "en": "queuing up",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(C) 由於執行緒飢餓，導致系統發生死鎖。",
+        "en": "(C) System deadlock due to thread starvation.",
+        "wg": [
+          {
+            "t": "執行緒飢餓",
+            "en": "thread starvation",
+            "ps": "N"
+          },
+          {
+            "t": "死鎖",
+            "en": "deadlock",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(D) 觸發預設的拒絕策略，拋出 RejectedExecutionException。",
+        "en": "(D) Triggers the default rejection policy, throwing a RejectedExecutionException.",
+        "wg": [
+          {
+            "t": "拒絕策略",
+            "en": "rejection policy",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "Executors.newFixedThreadPool 底層使用的是無界佇列（LinkedBlockingQueue，容量為 Integer.MAX_VALUE）。在突發流量下，任務會無限堆積在記憶體中，最終導致 OOM，因此實務上應手動實例化 ThreadPoolExecutor 並設定有界佇列。",
+      "en": "Executors.newFixedThreadPool uses an unbounded queue (LinkedBlockingQueue with capacity Integer.MAX_VALUE) under the hood. During traffic spikes, tasks will queue up indefinitely in memory, eventually causing OOM. Therefore, in practice, you should manually instantiate ThreadPoolExecutor with a bounded queue.",
+      "wg": [
+        {
+          "t": "實例化",
+          "en": "instantiate",
+          "ps": "V"
+        },
+        {
+          "t": "有界佇列",
+          "en": "bounded queue",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "2",
+    "level": "advanced",
+    "keywords": "System Design, Bulkhead Pattern, Thread Pool Isolation",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在一個微服務架構的 BFF（Backend for Frontend）中，某個 API 需要同時呼叫「使用者服務」、「訂單服務」與「推薦服務」。",
+        "en": "In a BFF (Backend for Frontend) of a microservices architecture, an API needs to concurrently call the 'User Service', 'Order Service', and 'Recommendation Service'.",
+        "wg": [
+          {
+            "t": "微服務架構",
+            "en": "microservices architecture",
+            "ps": "N"
+          },
+          {
+            "t": "同時",
+            "en": "concurrently",
+            "ps": "Adv"
+          }
+        ]
+      },
+      {
+        "t": "近期發現，當「推薦服務」發生延遲時，整個 BFF 的執行緒池會被耗盡，導致原本正常的「訂單服務」也無法回應。",
+        "en": "It was recently discovered that when the 'Recommendation Service' experiences latency, the entire BFF thread pool is exhausted, causing the otherwise healthy 'Order Service' to become unresponsive.",
+        "wg": [
+          {
+            "t": "延遲",
+            "en": "latency",
+            "ps": "N"
+          },
+          {
+            "t": "耗盡",
+            "en": "exhausted",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "從系統設計的角度來看，下列哪一種解決方案最能有效防止這種單點故障拖垮全局？",
+        "en": "From a system design perspective, which of the following solutions is the most effective in preventing this single point of failure from dragging down the entire system?",
+        "wg": [
+          {
+            "t": "單點故障",
+            "en": "single point of failure",
+            "ps": "N"
+          },
+          {
+            "t": "拖垮",
+            "en": "dragging down",
+            "ps": "V"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 將 BFF 的全域執行緒池最大執行緒數（Max Threads）增加一倍。",
+        "en": "(A) Double the maximum number of threads (Max Threads) in the BFF's global thread pool.",
+        "wg": [
+          {
+            "t": "全域",
+            "en": "global",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "(B) 引入艙壁模式（Bulkhead Pattern），為不同的下游服務配置獨立的執行緒池。",
+        "en": "(B) Introduce the Bulkhead Pattern, configuring independent thread pools for different downstream services.",
+        "wg": [
+          {
+            "t": "艙壁模式",
+            "en": "Bulkhead Pattern",
+            "ps": "N"
+          },
+          {
+            "t": "下游服務",
+            "en": "downstream services",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) 將所有非同步呼叫改為使用 synchronized 關鍵字進行同步阻塞。",
+        "en": "(C) Change all asynchronous calls to use the synchronized keyword for synchronous blocking.",
+        "wg": [
+          {
+            "t": "同步阻塞",
+            "en": "synchronous blocking",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(D) 使用 Executors.newCachedThreadPool() 替換原有的執行緒池。",
+        "en": "(D) Replace the original thread pool with Executors.newCachedThreadPool().",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "艙壁模式（Bulkhead Pattern）透過為不同的外部依賴分配獨立的執行緒池（執行緒池隔離），確保一個緩慢的下游服務不會耗盡所有系統資源，從而保護核心服務的可用性。",
+      "en": "The Bulkhead Pattern ensures that a slow downstream service does not exhaust all system resources by allocating independent thread pools for different external dependencies (thread pool isolation), thereby protecting the availability of core services.",
+      "wg": [
+        {
+          "t": "外部依賴",
+          "en": "external dependencies",
+          "ps": "N"
+        },
+        {
+          "t": "隔離",
+          "en": "isolation",
+          "ps": "N"
+        },
+        {
+          "t": "可用性",
+          "en": "availability",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "3",
+    "level": "advanced",
+    "keywords": "AQS, ReentrantLock, Concurrency, Internals",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在 Java 的 java.util.concurrent.locks 套件中，AQS (AbstractQueuedSynchronizer) 是許多鎖機制的基石。",
+        "en": "In Java's java.util.concurrent.locks package, AQS (AbstractQueuedSynchronizer) is the cornerstone of many lock mechanisms.",
+        "wg": [
+          {
+            "t": "基石",
+            "en": "cornerstone",
+            "ps": "N"
+          },
+          {
+            "t": "鎖機制",
+            "en": "lock mechanisms",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "關於 ReentrantLock 是如何透過 AQS 實現「可重入性（Reentrancy）」的，下列敘述何者正確？",
+        "en": "Regarding how ReentrantLock implements 'Reentrancy' through AQS, which of the following statements is correct?",
+        "wg": [
+          {
+            "t": "可重入性",
+            "en": "Reentrancy",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 每次重入時，AQS 會在 FIFO 佇列中建立一個新的節點來代表該執行緒。",
+        "en": "(A) Upon each reentrant call, AQS creates a new node in the FIFO queue to represent the thread.",
+        "wg": [
+          {
+            "t": "佇列",
+            "en": "queue",
+            "ps": "N"
+          },
+          {
+            "t": "節點",
+            "en": "node",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(B) 透過 ThreadLocal 變數來記錄當前執行緒獲取鎖的次數。",
+        "en": "(B) It uses a ThreadLocal variable to record the number of times the current thread has acquired the lock.",
+        "wg": []
+      },
+      {
+        "t": "(C) 當同一個執行緒再次請求鎖時，透過 CAS 操作將 AQS 的 state 變數加 1，釋放時減 1，直到 state 為 0 才真正釋放鎖。",
+        "en": "(C) When the same thread requests the lock again, it uses a CAS operation to increment the AQS state variable by 1, and decrements it upon release, truly releasing the lock only when state reaches 0.",
+        "wg": [
+          {
+            "t": "請求",
+            "en": "requests",
+            "ps": "V"
+          },
+          {
+            "t": "釋放",
+            "en": "release",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(D) AQS 會暫停當前執行緒，並立即喚醒它以繞過死鎖檢查。",
+        "en": "(D) AQS suspends the current thread and immediately wakes it up to bypass deadlock checks.",
+        "wg": [
+          {
+            "t": "暫停",
+            "en": "suspends",
+            "ps": "V"
+          },
+          {
+            "t": "繞過",
+            "en": "bypass",
+            "ps": "V"
+          }
+        ]
+      }
+    ],
+    "answer": "C",
+    "why": {
+      "t": "ReentrantLock 內部持有當前獲得鎖的執行緒參考。當該執行緒再次獲取鎖時，AQS 不需要阻塞它，而是直接將同步狀態（state）累加；解鎖時遞減，直到 state 歸零才允許其他執行緒獲取鎖。",
+      "en": "ReentrantLock internally holds a reference to the thread that currently owns the lock. When this thread acquires the lock again, AQS does not block it; instead, it directly increments the synchronization state. Upon unlocking, it decrements the state, allowing other threads to acquire the lock only when the state reaches zero.",
+      "wg": [
+        {
+          "t": "持有",
+          "en": "holds",
+          "ps": "V"
+        },
+        {
+          "t": "累加",
+          "en": "increments",
+          "ps": "V"
+        },
+        {
+          "t": "遞減",
+          "en": "decrements",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "4",
+    "level": "intermediate",
+    "keywords": "CompletableFuture, ForkJoinPool, I/O Blocking",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "CompletableFuture<User> userFuture = CompletableFuture.supplyAsync(() -> {\n    return databaseRepository.findUserById(userId); // Blocking I/O\n});",
+    "question": [
+      {
+        "t": "在上述程式碼中，開發者使用 `CompletableFuture.supplyAsync()` 執行了一個會產生阻塞 I/O 的資料庫查詢，且未指定自定義的執行緒池。",
+        "en": "In the code above, the developer uses `CompletableFuture.supplyAsync()` to execute a database query that causes blocking I/O, without specifying a custom thread pool.",
+        "wg": [
+          {
+            "t": "阻塞 I/O",
+            "en": "blocking I/O",
+            "ps": "N"
+          },
+          {
+            "t": "自定義的",
+            "en": "custom",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "在高併發場景下，這種做法最主要的負面影響是什麼？",
+        "en": "In a high-concurrency scenario, what is the primary negative impact of this approach?",
+        "wg": [
+          {
+            "t": "高併發",
+            "en": "high-concurrency",
+            "ps": "Adj"
+          },
+          {
+            "t": "負面影響",
+            "en": "negative impact",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 會導致資料庫連線池立刻拋出 TimeoutException。",
+        "en": "(A) It will cause the database connection pool to immediately throw a TimeoutException.",
+        "wg": [
+          {
+            "t": "連線池",
+            "en": "connection pool",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(B) 預設會使用 ForkJoinPool.commonPool()，慢查詢會耗盡該池的執行緒，進而阻塞 JVM 內其他共用此池的非同步任務與並行流。",
+        "en": "(B) It defaults to using ForkJoinPool.commonPool(); slow queries will exhaust the threads in this pool, thereby blocking other async tasks and parallel streams in the JVM that share it.",
+        "wg": [
+          {
+            "t": "慢查詢",
+            "en": "slow queries",
+            "ps": "N"
+          },
+          {
+            "t": "並行流",
+            "en": "parallel streams",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) JVM 會自動為每個請求建立一個全新的 OS 執行緒，導致 Context Switch 成本過高。",
+        "en": "(C) The JVM will automatically create a brand new OS thread for each request, leading to excessively high Context Switch costs.",
+        "wg": [
+          {
+            "t": "成本過高",
+            "en": "excessively high costs",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "(D) CompletableFuture 會自動偵測到 I/O 阻塞並切換為虛擬執行緒（Virtual Threads）。",
+        "en": "(D) CompletableFuture will automatically detect the I/O blocking and switch to Virtual Threads.",
+        "wg": [
+          {
+            "t": "偵測",
+            "en": "detect",
+            "ps": "V"
+          }
+        ]
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "未指定執行緒池時，CompletableFuture 預設使用 ForkJoinPool.commonPool()。該池的執行緒數通常等於 CPU 核心數減一，非常適合 CPU 密集型任務，但若用於阻塞 I/O，極易被耗盡，導致整個應用程式中依賴 commonPool 的功能（如 parallelStream）全部卡死。",
+      "en": "When no thread pool is specified, CompletableFuture defaults to ForkJoinPool.commonPool(). The thread count of this pool is typically equal to CPU cores minus one, which is ideal for CPU-bound tasks. However, if used for blocking I/O, it is easily exhausted, causing all features in the application relying on commonPool (like parallelStream) to stall.",
+      "wg": [
+        {
+          "t": "卡死",
+          "en": "stall",
+          "ps": "V"
+        },
+        {
+          "t": "依賴",
+          "en": "relying on",
+          "ps": "V"
+        }
+      ]
+    }
+  },
+  {
+    "no": "5",
+    "level": "advanced",
+    "keywords": "Project Loom, Virtual Threads, Structured Concurrency",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": "try (var scope = new StructuredTaskScope.ShutdownOnFailure()) {\n    Subtask<String> task1 = scope.fork(() -> fetchServiceA());\n    Subtask<String> task2 = scope.fork(() -> fetchServiceB());\n    scope.join();\n    scope.throwIfFailed();\n    return task1.get() + task2.get();\n}",
+    "question": [
+      {
+        "t": "Java 21 引入了虛擬執行緒（Virtual Threads）與結構化並發（Structured Concurrency）。",
+        "en": "Java 21 introduced Virtual Threads and Structured Concurrency.",
+        "wg": [
+          {
+            "t": "結構化並發",
+            "en": "Structured Concurrency",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "在上述使用 `StructuredTaskScope.ShutdownOnFailure()` 的程式碼中，如果 `fetchServiceA()` 拋出異常失敗，相較於傳統的 `CompletableFuture`，此模式最大的架構優勢是什麼？",
+        "en": "In the code above using `StructuredTaskScope.ShutdownOnFailure()`, if `fetchServiceA()` fails by throwing an exception, what is the biggest architectural advantage of this pattern compared to traditional `CompletableFuture`?",
+        "wg": [
+          {
+            "t": "架構優勢",
+            "en": "architectural advantage",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 它會自動重試失敗的子任務，直到成功為止。",
+        "en": "(A) It automatically retries the failed subtask until it succeeds.",
+        "wg": [
+          {
+            "t": "重試",
+            "en": "retries",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(B) 它會自動取消仍在運行的 `fetchServiceB()`，確保生命週期一致性，完美解決執行緒洩漏（Thread Leak）問題。",
+        "en": "(B) It automatically cancels the still-running `fetchServiceB()`, ensuring lifecycle consistency and perfectly solving the thread leak issue.",
+        "wg": [
+          {
+            "t": "生命週期一致性",
+            "en": "lifecycle consistency",
+            "ps": "N"
+          },
+          {
+            "t": "執行緒洩漏",
+            "en": "thread leak",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) 它會將異常靜默吞噬，並為 `task1` 返回一個預設的 null 值。",
+        "en": "(C) It silently swallows the exception and returns a default null value for `task1`.",
+        "wg": [
+          {
+            "t": "靜默吞噬",
+            "en": "silently swallows",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(D) 它會將底層的 Carrier Thread 替換為新的 OS 執行緒以隔離錯誤。",
+        "en": "(D) It replaces the underlying Carrier Thread with a new OS thread to isolate the error.",
+        "wg": [
+          {
+            "t": "隔離",
+            "en": "isolate",
+            "ps": "V"
+          }
+        ]
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "StructuredTaskScope.ShutdownOnFailure() 的核心理念是將多個並行任務視為一個整體。當其中一個子任務失敗時，作用域會自動發送中斷信號（Interrupt）取消其他尚未完成的兄弟任務，避免無謂的資源消耗與執行緒洩漏。",
+      "en": "The core philosophy of StructuredTaskScope.ShutdownOnFailure() is to treat multiple concurrent tasks as a single unit. When one subtask fails, the scope automatically sends an interrupt signal to cancel other pending sibling tasks, avoiding unnecessary resource consumption and thread leaks.",
+      "wg": [
+        {
+          "t": "整體",
+          "en": "single unit",
+          "ps": "N"
+        },
+        {
+          "t": "兄弟任務",
+          "en": "sibling tasks",
+          "ps": "N"
+        },
+        {
+          "t": "無謂的",
+          "en": "unnecessary",
+          "ps": "Adj"
+        }
+      ]
+    }
+  },
+  {
+    "no": "6",
+    "level": "advanced",
+    "keywords": "StampedLock, ReadWriteLock, Optimistic Read",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在一個極端「讀多寫少」（例如 99.9% 讀取，0.1% 寫入）的高併發快取系統中，開發團隊發現使用 `ReentrantReadWriteLock` 會導致嚴重的「寫入飢餓（Writer Starvation）」問題。",
+        "en": "In an extreme 'read-heavy' (e.g., 99.9% reads, 0.1% writes) high-concurrency cache system, the development team found that using `ReentrantReadWriteLock` causes severe 'Writer Starvation' issues.",
+        "wg": [
+          {
+            "t": "讀多寫少",
+            "en": "read-heavy",
+            "ps": "Adj"
+          },
+          {
+            "t": "寫入飢餓",
+            "en": "Writer Starvation",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "為了優化此場景，下列哪一種鎖機制是最合適的選擇？",
+        "en": "To optimize this scenario, which of the following lock mechanisms is the most appropriate choice?",
+        "wg": [
+          {
+            "t": "優化",
+            "en": "optimize",
+            "ps": "V"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 改用 `synchronized` 關鍵字，依賴 JVM 的偏向鎖優化。",
+        "en": "(A) Switch to the `synchronized` keyword, relying on the JVM's biased locking optimization.",
+        "wg": [
+          {
+            "t": "偏向鎖",
+            "en": "biased locking",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(B) 改用 `ReentrantLock` 並開啟公平鎖（Fairness）模式。",
+        "en": "(B) Switch to `ReentrantLock` and enable Fairness mode.",
+        "wg": [
+          {
+            "t": "公平鎖",
+            "en": "Fairness",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(C) 改用 `StampedLock` 並使用其「樂觀讀（Optimistic Read）」功能。",
+        "en": "(C) Switch to `StampedLock` and use its 'Optimistic Read' feature.",
+        "wg": [
+          {
+            "t": "樂觀讀",
+            "en": "Optimistic Read",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(D) 改用 `Semaphore` 將併發數限制為 1。",
+        "en": "(D) Switch to `Semaphore` to limit the concurrency level to 1.",
+        "wg": []
+      }
+    ],
+    "answer": "C",
+    "why": {
+      "t": "StampedLock 提供了樂觀讀（Optimistic Read）機制。它在讀取時不會阻塞寫入執行緒，而是在讀取完成後驗證戳記（Stamp）是否被修改過。這大幅降低了讀取操作對寫入操作的阻礙，完美解決了讀多寫少場景下的寫入飢餓問題。",
+      "en": "StampedLock provides an Optimistic Read mechanism. It does not block writing threads during a read; instead, it validates whether the stamp has been modified after the read is complete. This drastically reduces the hindrance of read operations on write operations, perfectly solving the writer starvation problem in read-heavy scenarios.",
+      "wg": [
+        {
+          "t": "驗證",
+          "en": "validates",
+          "ps": "V"
+        },
+        {
+          "t": "戳記",
+          "en": "stamp",
+          "ps": "N"
+        },
+        {
+          "t": "阻礙",
+          "en": "hindrance",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "7",
+    "level": "intermediate",
+    "keywords": "ThreadLocal, Memory Leak, Thread Pool, Tomcat",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在 Spring Boot (Tomcat) 應用程式中，開發者常使用 `ThreadLocal` 在攔截器（Interceptor）中儲存當前使用者的上下文資訊（User Context）。",
+        "en": "In a Spring Boot (Tomcat) application, developers often use `ThreadLocal` in an Interceptor to store the current user's context information (User Context).",
+        "wg": [
+          {
+            "t": "攔截器",
+            "en": "Interceptor",
+            "ps": "N"
+          },
+          {
+            "t": "上下文資訊",
+            "en": "context information",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "如果在請求結束時忘記呼叫 `ThreadLocal.remove()`，最可能引發下列哪一種嚴重的問題？",
+        "en": "If `ThreadLocal.remove()` is forgotten to be called at the end of the request, which of the following severe problems is most likely to occur?",
+        "wg": [
+          {
+            "t": "引發",
+            "en": "occur",
+            "ps": "V"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 該執行緒會被永久阻塞，導致執行緒池可用數量減少。",
+        "en": "(A) The thread will be permanently blocked, reducing the number of available threads in the pool.",
+        "wg": [
+          {
+            "t": "永久阻塞",
+            "en": "permanently blocked",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "(B) JVM 會在下一次 Garbage Collection 時自動清理該變數，因此不會有任何影響。",
+        "en": "(B) The JVM will automatically clean up the variable during the next Garbage Collection, so there will be no impact.",
+        "wg": []
+      },
+      {
+        "t": "(C) 由於 Web 容器重複利用執行緒，上一個使用者的敏感資料可能會殘留在執行緒中，被下一個使用者讀取，造成安全漏洞與記憶體洩漏。",
+        "en": "(C) Because web containers reuse threads, the previous user's sensitive data might remain in the thread and be read by the next user, causing security vulnerabilities and memory leaks.",
+        "wg": [
+          {
+            "t": "重複利用",
+            "en": "reuse",
+            "ps": "V"
+          },
+          {
+            "t": "殘留",
+            "en": "remain",
+            "ps": "V"
+          },
+          {
+            "t": "安全漏洞",
+            "en": "security vulnerabilities",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(D) 會觸發 ConcurrentModificationException，導致後續請求全部 HTTP 500。",
+        "en": "(D) It will trigger a ConcurrentModificationException, causing all subsequent requests to return HTTP 500.",
+        "wg": []
+      }
+    ],
+    "answer": "C",
+    "why": {
+      "t": "Tomcat 等 Web 容器底層依賴執行緒池來處理請求。當請求結束後，執行緒不會被銷毀而是歸還給池中。若未呼叫 remove()，ThreadLocal 中的資料會一直綁定在該執行緒上，導致下一個分配到此執行緒的請求讀取到錯誤的上下文，引發嚴重的資安越權與記憶體洩漏。",
+      "en": "Web containers like Tomcat rely on thread pools to handle requests. When a request finishes, the thread is not destroyed but returned to the pool. If remove() is not called, the data in ThreadLocal remains bound to that thread, causing the next request assigned to this thread to read the wrong context, leading to severe security authorization bypasses and memory leaks.",
+      "wg": [
+        {
+          "t": "銷毀",
+          "en": "destroyed",
+          "ps": "V"
+        },
+        {
+          "t": "歸還",
+          "en": "returned",
+          "ps": "V"
+        },
+        {
+          "t": "資安越權",
+          "en": "security authorization bypasses",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "8",
+    "level": "advanced",
+    "keywords": "Thread Pool Tuning, Little's Law, I/O Bound",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在進行執行緒池大小的動態調優時，我們需要區分 CPU 密集型與 I/O 密集型任務。",
+        "en": "When performing dynamic tuning of thread pool sizes, we need to distinguish between CPU-bound and I/O-bound tasks.",
+        "wg": [
+          {
+            "t": "動態調優",
+            "en": "dynamic tuning",
+            "ps": "N"
+          },
+          {
+            "t": "區分",
+            "en": "distinguish",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "假設你的伺服器擁有 4 核心 CPU，目標是達到 100% 的 CPU 使用率。已知某個 I/O 密集型任務的平均等待時間（Wait time）是計算時間（Compute time）的 4 倍。",
+        "en": "Suppose your server has a 4-core CPU, and the goal is to achieve 100% CPU utilization. It is known that for a certain I/O-bound task, the average wait time is 4 times the compute time.",
+        "wg": [
+          {
+            "t": "使用率",
+            "en": "utilization",
+            "ps": "N"
+          },
+          {
+            "t": "等待時間",
+            "en": "wait time",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "根據理論公式，你應該將核心執行緒數（Core Pool Size）設定為多少？",
+        "en": "According to the theoretical formula, what should you set the Core Pool Size to?",
+        "wg": [
+          {
+            "t": "理論公式",
+            "en": "theoretical formula",
+            "ps": "N"
+          },
+          {
+            "t": "核心執行緒數",
+            "en": "Core Pool Size",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 4",
+        "en": "(A) 4",
+        "wg": []
+      },
+      {
+        "t": "(B) 5",
+        "en": "(B) 5",
+        "wg": []
+      },
+      {
+        "t": "(C) 16",
+        "en": "(C) 16",
+        "wg": []
+      },
+      {
+        "t": "(D) 20",
+        "en": "(D) 20",
+        "wg": []
+      }
+    ],
+    "answer": "D",
+    "why": {
+      "t": "I/O 密集型任務的理論執行緒數公式為：N_cpu * U_cpu * (1 + W/C)。在此情境中，N_cpu = 4，目標 U_cpu = 1 (100%)，W/C = 4。代入公式計算：4 * 1 * (1 + 4) = 20。這表示在等待 I/O 的期間，CPU 可以切換去處理其他 4 個任務，因此需要 20 個執行緒才能讓 4 核心保持滿載。",
+      "en": "The theoretical thread count formula for I/O-bound tasks is: N_cpu * U_cpu * (1 + W/C). In this scenario, N_cpu = 4, target U_cpu = 1 (100%), and W/C = 4. Substituting into the formula: 4 * 1 * (1 + 4) = 20. This means while waiting for I/O, the CPU can switch to process 4 other tasks, so 20 threads are needed to keep the 4 cores fully loaded.",
+      "wg": [
+        {
+          "t": "代入",
+          "en": "Substituting",
+          "ps": "V"
+        },
+        {
+          "t": "滿載",
+          "en": "fully loaded",
+          "ps": "Adj"
+        }
+      ]
+    }
+  },
+  {
+    "no": "chapter03-q09",
+    "level": "intermediate",
+    "keywords": "ThreadPoolExecutor, Rejection Policy, CallerRunsPolicy, Backpressure",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "開發者為 BFF 服務配置了一個帶有界佇列與 `CallerRunsPolicy` 的 `ThreadPoolExecutor`。",
+        "en": "A developer configures a `ThreadPoolExecutor` for a BFF service with a bounded queue and `CallerRunsPolicy`.",
+        "wg": [
+          {
+            "t": "有界佇列",
+            "en": "bounded queue",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "在突發的巨大流量下，佇列已滿且達到最大執行緒數。",
+        "en": "During a massive traffic spike, the queue fills up and max threads are reached.",
+        "wg": [
+          {
+            "t": "突發流量",
+            "en": "traffic spike",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "此拒絕策略對系統的立即影響是什麼？",
+        "en": "What is the immediate effect of this rejection policy on the system?",
+        "wg": [
+          {
+            "t": "拒絕策略",
+            "en": "rejection policy",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 它會拋出 `RejectedExecutionException`，導致 API 請求立即失敗。",
+        "en": "(A) It throws a `RejectedExecutionException`, causing the API requests to fail immediately.",
+        "wg": []
+      },
+      {
+        "t": "(B) 它會默默丟棄新任務，導致資料遺失且沒有任何錯誤日誌。",
+        "en": "(B) It silently drops the new tasks, leading to data loss without any error logs.",
+        "wg": []
+      },
+      {
+        "t": "(C) 它會強迫提交任務的執行緒（例如 Tomcat 工作執行緒）自行執行該任務，從而自然地減緩接收新請求的速度（背壓）。",
+        "en": "(C) It forces the thread submitting the task (e.g., the Tomcat worker thread) to execute the task itself, naturally slowing down the acceptance of new requests (Backpressure).",
+        "wg": [
+          {
+            "t": "背壓",
+            "en": "Backpressure",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(D) 它會動態擴展最大執行緒限制以容納突發流量。",
+        "en": "(D) It dynamically expands the maximum thread limit to accommodate the burst traffic.",
+        "wg": []
+      }
+    ],
+    "answer": "C",
+    "why": {
+      "t": "`CallerRunsPolicy` 會在呼叫者的執行緒中執行被拒絕的任務。這作為一種簡單的背壓機制，能有效減緩提交新任務的速率，防止系統過載。",
+      "en": "`CallerRunsPolicy` executes the rejected task in the caller's thread. This acts as a simple backpressure mechanism, effectively slowing down the rate at which new tasks are submitted and preventing system overload.",
+      "wg": [
+        {
+          "t": "背壓機制",
+          "en": "backpressure mechanism",
+          "ps": "N"
+        },
+        {
+          "t": "過載",
+          "en": "overload",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "chapter03-q10",
+    "level": "intermediate",
+    "keywords": "CompletableFuture, Exception Handling, Graceful Degradation",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在微服務架構中，`getUserDashboard` API 使用 `CompletableFuture` 同時從三個下游服務獲取資料。",
+        "en": "In a microservices architecture, a `getUserDashboard` API uses `CompletableFuture` to concurrently fetch data from three downstream services.",
+        "wg": [
+          {
+            "t": "下游服務",
+            "en": "downstream services",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "推薦服務屬於非關鍵資料，因此被加上了 `.exceptionally(ex -> Collections.emptyList())` 處理。",
+        "en": "The recommendation service is non-critical, so it is wrapped with `.exceptionally(ex -> Collections.emptyList())`.",
+        "wg": [
+          {
+            "t": "非關鍵資料",
+            "en": "non-critical data",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "如果推薦服務發生超時，`CompletableFuture.allOf()` 會如何表現？",
+        "en": "If the recommendation service times out, how does `CompletableFuture.allOf()` behave?",
+        "wg": []
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) `allOf()` 會立即拋出 `CompletionException`，導致整個儀表板請求失敗。",
+        "en": "(A) `allOf()` throws a `CompletionException` immediately, failing the entire dashboard request.",
+        "wg": []
+      },
+      {
+        "t": "(B) `allOf()` 會正常完成，且推薦服務的 Future 會返回空列表，允許儀表板優雅降級。",
+        "en": "(B) `allOf()` completes normally, and the recommendation future yields an empty list, allowing the dashboard to degrade gracefully.",
+        "wg": [
+          {
+            "t": "優雅降級",
+            "en": "degrade gracefully",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(C) `allOf()` 會無限期阻塞，直到推薦服務恢復正常。",
+        "en": "(C) `allOf()` blocks indefinitely until the recommendation service recovers.",
+        "wg": []
+      },
+      {
+        "t": "(D) `allOf()` 會取消另外兩個正在進行的請求以節省資源。",
+        "en": "(D) `allOf()` cancels the other two ongoing requests to save resources.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "`.exceptionally()` 方法會捕捉異常並提供一個降級的預設值。因此，從 `allOf()` 的視角來看，該 Future 是正常完成的，這使得系統能夠實現優雅降級。",
+      "en": "The `.exceptionally()` method catches the exception and provides a fallback value. Therefore, from the perspective of `allOf()`, the future completes normally, enabling the system to achieve graceful degradation.",
+      "wg": [
+        {
+          "t": "預設值",
+          "en": "fallback value",
+          "ps": "N"
+        },
+        {
+          "t": "優雅降級",
+          "en": "graceful degradation",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "chapter03-q11",
+    "level": "advanced",
+    "keywords": "Project Loom, Structured Concurrency, Virtual Threads, Cancellation",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "開發者使用 Java 21 的 `StructuredTaskScope.ShutdownOnFailure()` 建立了三個子任務（A、B、C）作為虛擬執行緒。",
+        "en": "A developer uses Java 21's `StructuredTaskScope.ShutdownOnFailure()` to fork three subtasks (A, B, C) as virtual threads.",
+        "wg": [
+          {
+            "t": "虛擬執行緒",
+            "en": "virtual threads",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "如果子任務 A 在 100 毫秒後拋出異常並失敗，而 B 和 C 仍在執行耗時的 I/O 操作，該作用域（Scope）會如何處理？",
+        "en": "If subtask A throws an exception and fails after 100ms, while B and C are still performing long-running I/O operations, how does the scope handle this?",
+        "wg": [
+          {
+            "t": "作用域",
+            "en": "scope",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 作用域會等待 B 和 C 正常完成，然後拋出 A 的異常。",
+        "en": "(A) The scope waits for B and C to finish normally, then throws the exception from A.",
+        "wg": []
+      },
+      {
+        "t": "(B) 作用域會立即向 B 和 C 發送中斷訊號將其取消，以避免浪費資源，並傳播該失敗。",
+        "en": "(B) The scope immediately sends an interrupt signal to B and C, cancelling them to avoid wasting resources, and propagates the failure.",
+        "wg": [
+          {
+            "t": "傳播",
+            "en": "propagates",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(C) 作用域會忽略 A 的失敗，並回傳 B 和 C 的結果。",
+        "en": "(C) The scope ignores the failure of A and returns the results of B and C.",
+        "wg": []
+      },
+      {
+        "t": "(D) 由於虛擬執行緒中出現未處理的異常，JVM 會終止整個應用程式。",
+        "en": "(D) The JVM terminates the entire application due to an unhandled exception in a virtual thread.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "`ShutdownOnFailure` 的設計理念是快速失敗（Fail-fast）。如果任何子任務失敗，它會自動取消作用域內所有尚未完成的子任務，完美解決了執行緒洩漏與資源浪費的問題。",
+      "en": "The design philosophy of `ShutdownOnFailure` is fail-fast. If any subtask fails, it automatically cancels all pending subtasks within the scope, perfectly solving the issues of thread leaks and wasted resources.",
+      "wg": [
+        {
+          "t": "快速失敗",
+          "en": "fail-fast",
+          "ps": "Adj"
+        },
+        {
+          "t": "執行緒洩漏",
+          "en": "thread leaks",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "chapter03-q12",
+    "level": "intermediate",
+    "keywords": "Troubleshooting, Thread Dump, jstack, BLOCKED, WAITING",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "一個大型單體應用程式的吞吐量突然急遽下降，但 CPU 使用率卻保持在非常低的水準。",
+        "en": "A large monolithic application experiences a sudden, sharp drop in throughput, but the CPU utilization remains at a very low level.",
+        "wg": [
+          {
+            "t": "單體應用程式",
+            "en": "monolithic application",
+            "ps": "N"
+          },
+          {
+            "t": "吞吐量",
+            "en": "throughput",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "你使用 `jstack` 匯出了一份 Thread Dump。",
+        "en": "You use `jstack` to export a Thread Dump.",
+        "wg": []
+      },
+      {
+        "t": "為了找出根本原因，你主要會尋找哪種執行緒狀態？這又代表什麼意義？",
+        "en": "To identify the root cause, which thread state would you primarily look for, and what does it indicate?",
+        "wg": [
+          {
+            "t": "根本原因",
+            "en": "root cause",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) `RUNNABLE`，表示執行緒卡在無限迴圈中消耗 CPU。",
+        "en": "(A) `RUNNABLE`, indicating that threads are stuck in an infinite loop consuming CPU.",
+        "wg": []
+      },
+      {
+        "t": "(B) `BLOCKED` 或 `WAITING`，表示執行緒正卡在等待鎖、I/O 或外部 API 回應。",
+        "en": "(B) `BLOCKED` or `WAITING`, indicating that threads are stuck waiting for a lock, I/O, or an external API response.",
+        "wg": []
+      },
+      {
+        "t": "(C) `TERMINATED`，表示執行緒池已經崩潰且無法接收新任務。",
+        "en": "(C) `TERMINATED`, indicating that the thread pool has crashed and cannot accept new tasks.",
+        "wg": []
+      },
+      {
+        "t": "(D) `NEW`，表示 JVM 無法為新執行緒配置記憶體。",
+        "en": "(D) `NEW`, indicating that the JVM is unable to allocate memory for new threads.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "低 CPU 使用率加上低吞吐量，通常意味著執行緒並未進行主動運算，而是處於阻塞或等待狀態。尋找 `BLOCKED`（等待監視器鎖）或 `WAITING`（等待 I/O 或其他執行緒）是正確的排查步驟。",
+      "en": "Low CPU usage combined with low throughput usually means threads are not actively computing, but are blocked or waiting. Looking for `BLOCKED` (waiting for a monitor lock) or `WAITING` (waiting for I/O or other threads) is the correct troubleshooting step.",
+      "wg": [
+        {
+          "t": "監視器鎖",
+          "en": "monitor lock",
+          "ps": "N"
+        },
+        {
+          "t": "排查",
+          "en": "troubleshooting",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "chapter03-q13",
+    "level": "advanced",
+    "keywords": "ReentrantLock, Fairness, Interruptibility, High Contention",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "一個高競爭的交易系統需要嚴格的公平性，以防止執行緒飢餓（執行緒必須完全依照請求的順序獲得鎖）。",
+        "en": "A high-contention trading system requires strict fairness to prevent thread starvation (threads must acquire the lock in the exact order they requested it).",
+        "wg": [
+          {
+            "t": "高競爭",
+            "en": "high-contention",
+            "ps": "Adj"
+          },
+          {
+            "t": "執行緒飢餓",
+            "en": "thread starvation",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "此外，如果執行緒等待超過 50 毫秒，就必須放棄嘗試。",
+        "en": "Additionally, threads must give up trying if they wait longer than 50ms.",
+        "wg": []
+      },
+      {
+        "t": "哪種同步機制最適合這個場景？",
+        "en": "Which synchronization mechanism is most appropriate for this scenario?",
+        "wg": [
+          {
+            "t": "同步機制",
+            "en": "synchronization mechanism",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 結合 `Object.wait(50)` 的 `synchronized` 區塊。",
+        "en": "(A) A `synchronized` block combined with `Object.wait(50)`.",
+        "wg": []
+      },
+      {
+        "t": "(B) 初始化為 `fair = true` 的 `ReentrantLock`，並使用 `tryLock(50, TimeUnit.MILLISECONDS)`。",
+        "en": "(B) A `ReentrantLock` initialized with `fair = true`, using `tryLock(50, TimeUnit.MILLISECONDS)`.",
+        "wg": []
+      },
+      {
+        "t": "(C) 利用樂觀讀特性的 `StampedLock`。",
+        "en": "(C) A `StampedLock` utilizing its optimistic read feature.",
+        "wg": [
+          {
+            "t": "樂觀讀",
+            "en": "optimistic read",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(D) 用來分離讀寫操作的 `ReadWriteLock`。",
+        "en": "(D) A `ReadWriteLock` to separate read and write operations.",
+        "wg": []
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "`ReentrantLock` 可以配置為公平鎖（`fair = true`）來保證 FIFO 順序。其 `tryLock` 方法搭配超時參數，完美滿足了等待 50 毫秒後放棄的需求，而 `synchronized` 無法保證公平性且缺乏超時機制。",
+      "en": "`ReentrantLock` can be configured as a fair lock (`fair = true`) to guarantee FIFO ordering. Its `tryLock` method with a timeout parameter perfectly satisfies the requirement to give up after 50ms, whereas `synchronized` cannot guarantee fairness and lacks a timeout mechanism.",
+      "wg": [
+        {
+          "t": "公平鎖",
+          "en": "fair lock",
+          "ps": "N"
+        },
+        {
+          "t": "超時機制",
+          "en": "timeout mechanism",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "chapter03-q14",
+    "level": "advanced",
+    "keywords": "Java 21, ScopedValue, ThreadLocal, Virtual Threads",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "在將 Spring Boot 應用程式遷移至使用虛擬執行緒（Project Loom）時，團隊發現數以萬計的虛擬執行緒持有 `ThreadLocal` 變數（例如使用者上下文），導致了顯著的記憶體開銷。",
+        "en": "When migrating a Spring Boot application to use Virtual Threads (Project Loom), the team notices significant memory overhead caused by tens of thousands of virtual threads holding `ThreadLocal` variables (e.g., User Context).",
+        "wg": [
+          {
+            "t": "記憶體開銷",
+            "en": "memory overhead",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "根據現代 Java 21 的最佳實務，建議使用什麼替代方案來緩解此問題？",
+        "en": "According to modern Java 21 best practices, what is the recommended alternative to mitigate this issue?",
+        "wg": [
+          {
+            "t": "緩解",
+            "en": "mitigate",
+            "ps": "V"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 使用全域的 `ConcurrentHashMap` 將虛擬執行緒 ID 映射到上下文物件。",
+        "en": "(A) Use a global `ConcurrentHashMap` to map Virtual Thread IDs to context objects.",
+        "wg": []
+      },
+      {
+        "t": "(B) 停用虛擬執行緒，並在需要上下文的請求中退回使用傳統的 OS 執行緒。",
+        "en": "(B) Disable Virtual Threads and revert to traditional OS threads for requests requiring context.",
+        "wg": []
+      },
+      {
+        "t": "(C) 將 `ThreadLocal` 替換為 `ScopedValue`，以進行不可變且安全作用域的上下文共享。",
+        "en": "(C) Replace `ThreadLocal` with `ScopedValue` for immutable, safely scoped context sharing.",
+        "wg": [
+          {
+            "t": "不可變",
+            "en": "immutable",
+            "ps": "Adj"
+          }
+        ]
+      },
+      {
+        "t": "(D) 在每個請求後手動呼叫 `System.gc()` 來清理 `ThreadLocal` 記憶體。",
+        "en": "(D) Manually call `System.gc()` after each request to clean up `ThreadLocal` memory.",
+        "wg": []
+      }
+    ],
+    "answer": "C",
+    "why": {
+      "t": "在 Java 21 中，`ScopedValue` 被引入作為 `ThreadLocal` 的輕量級、不可變替代品。它專為與虛擬執行緒高效協作而設計，避免了 `ThreadLocal` 帶來的記憶體開銷與可變性問題。",
+      "en": "In Java 21, `ScopedValue` is introduced as a lightweight, immutable alternative to `ThreadLocal`. It is specifically designed to work efficiently with Virtual Threads, avoiding the memory overhead and mutability issues associated with `ThreadLocal`.",
+      "wg": [
+        {
+          "t": "輕量級",
+          "en": "lightweight",
+          "ps": "Adj"
+        },
+        {
+          "t": "可變性",
+          "en": "mutability",
+          "ps": "N"
+        }
+      ]
+    }
+  },
+  {
+    "no": "chapter03-q15",
+    "level": "advanced",
+    "keywords": "AQS, ReentrantLock, CAS, Internals",
+    "parentNo": null,
+    "images": null,
+    "codeSnippet": null,
+    "question": [
+      {
+        "t": "一個執行緒成功獲取了 `ReentrantLock`，隨後又呼叫了另一個試圖獲取同一個鎖的方法。",
+        "en": "A thread successfully acquires a `ReentrantLock` and subsequently calls another method that attempts to acquire the exact same lock.",
+        "wg": [
+          {
+            "t": "獲取",
+            "en": "acquires",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "底層的 AbstractQueuedSynchronizer (AQS) 是如何處理這種可重入行為的？",
+        "en": "How does the underlying AbstractQueuedSynchronizer (AQS) handle this reentrant behavior?",
+        "wg": [
+          {
+            "t": "可重入行為",
+            "en": "reentrant behavior",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "type": "單選題",
+    "options": [
+      {
+        "t": "(A) 它會將該執行緒放入 FIFO 佇列中使其阻塞，從而導致死鎖。",
+        "en": "(A) It blocks the thread by placing it into the FIFO queue, resulting in a deadlock.",
+        "wg": [
+          {
+            "t": "死鎖",
+            "en": "deadlock",
+            "ps": "N"
+          }
+        ]
+      },
+      {
+        "t": "(B) 它會將 AQS 的 `state` 變數加 1，並需要相等次數的解鎖操作將其減回 0，鎖才會真正釋放。",
+        "en": "(B) It increments the AQS `state` variable by 1, requiring an equal number of unlock operations to decrement it back to 0 before the lock is truly released.",
+        "wg": [
+          {
+            "t": "遞減",
+            "en": "decrement",
+            "ps": "V"
+          }
+        ]
+      },
+      {
+        "t": "(C) 它會拋出 `IllegalMonitorStateException`，因為鎖已經被持有。",
+        "en": "(C) It throws an `IllegalMonitorStateException` because the lock is already held.",
+        "wg": []
+      },
+      {
+        "t": "(D) 它會使用 Compare-And-Swap (CAS) 操作為巢狀呼叫建立一個新的鎖實例。",
+        "en": "(D) It uses a Compare-And-Swap (CAS) operation to create a new lock instance for the nested call.",
+        "wg": [
+          {
+            "t": "巢狀呼叫",
+            "en": "nested call",
+            "ps": "N"
+          }
+        ]
+      }
+    ],
+    "answer": "B",
+    "why": {
+      "t": "`ReentrantLock` 透過檢查當前執行緒是否已擁有該鎖來支援可重入性。如果是，它只需遞增 AQS 的 `state` 計數器。只有當對應的解鎖呼叫使 `state` 降至 0 時，鎖才會被完全釋放。",
+      "en": "`ReentrantLock` supports reentrancy by checking if the current thread already owns the lock. If so, it simply increments the AQS `state` counter. The lock is only fully released when corresponding unlock calls bring the `state` down to 0.",
+      "wg": [
+        {
+          "t": "可重入性",
+          "en": "reentrancy",
+          "ps": "N"
+        },
+        {
+          "t": "遞增",
+          "en": "increments",
+          "ps": "V"
+        }
+      ]
+    }
+  }
+]
