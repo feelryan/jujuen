@@ -203,5 +203,3 @@ User user = new User(
 
 > **當物件屬性多且部分為選填，或需要不可變物件時，使用 Builder Pattern。可用靜態內部類別或 Lombok 的 `@Builder`；在現代 Java 中，若只是資料載體，優先選擇 `record` 搭配精簡建構子。**
 
-
-只要說一聲 👍
