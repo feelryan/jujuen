@@ -22,7 +22,7 @@ With the evolution of modern Java (e.g., Lambdas, Records, Interface Default Met
 *   **Best Practice:** 使用靜態內部類別 (Static Inner Class) 實作，或直接使用 Lombok 的 `@Builder` 標註。在現代 Java 中，如果只是單純的資料載體，請優先考慮 `Record` 搭配精簡的建構子。
 *   **Best Practice:** Implement using a Static Inner Class, or simply use Lombok's `@Builder` annotation. In modern Java, if it's just a data carrier, prioritize `Record` with compact constructors.
 
-* [code examples](./Builder Pattern (建造者模式).md)
+* [code examples](https://github.com/feelryan/jujuen/skills/java/handbook/Builder Pattern (建造者模式).md)
 
 ### 2. Factory Pattern (工廠模式)
 **情境 / Scenario:** 需要將「物件建立的邏輯」與「物件使用的邏輯」解耦時。 / When you need to decouple "object creation logic" from "object usage logic".
