@@ -28,16 +28,19 @@ With the evolution of modern Java (e.g., Lambdas, Records, Interface Default Met
 **情境 / Scenario:** 需要將「物件建立的邏輯」與「物件使用的邏輯」解耦時。 / When you need to decouple "object creation logic" from "object usage logic".
 *   **Best Practice:** 利用 Java 8+ 的介面靜態方法 (Interface Static Methods) 作為簡單工廠。對於動態建立，可以使用 `Supplier<T>` 函數式介面來取代傳統的 Factory 介面。
 *   **Best Practice:** Use Java 8+ Interface Static Methods as a simple factory. For dynamic creation, use the `Supplier<T>` functional interface instead of traditional Factory interfaces.
+*   [code examples](https://github.com/feelryan/jujuen/blob/skills/java/handbook/Factory%20Pattern%20(%E5%B7%A5%E5%BB%A0%E6%A8%A1%E5%BC%8F).md)
 
 ### 3. Singleton Pattern (單例模式)
 **情境 / Scenario:** 確保系統中某個類別只有一個實例（例如全域配置管理）。 / Ensuring only one instance of a class exists in the system (e.g., global configuration manager).
 *   **Best Practice:** 除非你在寫底層函式庫，否則**交給 Spring IoC (`@Component`) 管理**。若必須手動實作，**使用 Enum 實作單例** 是最安全且防禦反射攻擊 (Reflection attacks) 與序列化問題的最佳解。
 *   **Best Practice:** Unless you are writing a low-level library, **let Spring IoC (`@Component`) manage it**. If manual implementation is required, **using an Enum for Singleton** is the safest approach, protecting against reflection attacks and serialization issues.
+*   [code example](https://github.com/feelryan/jujuen/blob/skills/java/handbook/Singleton%20Pattern%20(%E5%96%AE%E4%BE%8B%E6%A8%A1%E5%BC%8F).md)
 
 ### 4. Strategy Pattern (策略模式)
 **情境 / Scenario:** 演算法或業務邏輯需要在執行時期動態切換。 / When algorithms or business logic need to be dynamically switched at runtime.
 *   **Best Practice:** 捨棄建立多個實體策略類別，改用 `Enum` 結合 Lambda 運算式，或者直接傳遞 `Function<T, R>` 等函數式介面。
 *   **Best Practice:** Discard creating multiple concrete strategy classes; instead, use `Enum` combined with Lambda expressions, or directly pass functional interfaces like `Function<T, R>`.
+*   [code example](https://github.com/feelryan/jujuen/blob/skills/java/handbook/Strategy%20Pattern%20(%E7%AD%96%E7%95%A5%E6%A8%A1%E5%BC%8F).md)
 
 ---
 
