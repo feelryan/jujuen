@@ -1,0 +1,310 @@
+Identity Management & Zero Trust Practices.pdf
+
+在雲端時代，單靠網路邊界的城堡與護城河思維已經不足。  
+In the cloud era, relying only on a network perimeter with a castle-and-moat mindset is no longer enough.
+
+安全邊界需要轉向「身分即邊界」，把身分當成最核心的控制點。  
+The boundary shifts to “identity as the perimeter,” making identity the primary control point.
+
+零信任的核心哲學，是對任何請求都不先給信任，不分內外網。  
+Zero Trust is the philosophy of granting no implicit trust to any request, regardless of network location.
+
+明確驗證代表每一次存取都要用可觀測訊號重新判斷風險。  
+Verify explicitly means reevaluating risk for every access using observable signals.
+
+這些訊號包含身分、地理位置、裝置健康、服務分類與異常行為。  
+These signals include identity, location, device health, service classification, and anomalous behavior.
+
+最小權限存取代表權限給得更少、時間給得更短，而且只在需要時存在。  
+Least privilege means fewer permissions, shorter duration, and access that exists only when needed.
+
+JIT 與 JEA 的精神，是把高權限變成可控的短期能力，而不是長期持有。  
+The idea behind JIT and JEA is to turn elevated access into controlled, short-lived capability instead of standing privilege.
+
+假設已遭入侵代表架構設計從一開始就把入侵當成已發生的狀態。  
+Assume breach means designing from day one as if compromise has already happened.
+
+在這個假設下，微切分與加密用來限制橫向移動與降低損害範圍。  
+With that assumption, micro-segmentation and encryption limit lateral movement and reduce blast radius.
+
+理解 Azure 身分管理時，可以用三支柱來整理全貌。  
+Azure identity can be organized clearly using three pillars.
+
+第一支柱是驗證，重點在回答「你是誰」。  
+The first pillar is authentication, focused on answering “who are you.”
+
+常見的驗證主體包含 Entra ID 的使用者、Service Principal 與 Managed Identity。  
+Common authentication principals include Entra ID users, service principals, and managed identities.
+
+第二支柱是授權，重點在回答「你能做什麼」。  
+The second pillar is authorization, focused on answering “what can you do.”
+
+Azure RBAC 是授權的主要機制，用角色與範圍來定義可執行的行為。  
+Azure RBAC is the primary mechanism, defining allowed actions through roles and scopes.
+
+第三支柱是存取控制策略，重點在回答「在什麼條件下你能做」。  
+The third pillar is access control policies, focused on “under what conditions can you do it.”
+
+Conditional Access 會把風險訊號轉成政策，決定是否允許、是否強制額外驗證。  
+Conditional Access turns risk signals into policies that decide allow, deny, or require additional verification.
+
+用一個直覺比喻來說，Entra ID 像是身分證發放機關。  
+As an intuition, Entra ID acts like the identity-issuing authority.
+
+RBAC 像是門禁卡的權限設定，決定能進哪些區域。  
+RBAC is like access card permissions, determining which areas can be entered.
+
+Conditional Access 像是門口警衛，看到異常就算有卡也會拒絕放行。  
+Conditional Access is like a guard who can deny entry on suspicious signals even if a card exists.
+
+在常見模式中，應用程式身分的首選是 Managed Identities。  
+Among common patterns, managed identities are the first choice for application identity.
+
+Azure 資源彼此溝通時，不應使用包含帳號密碼的連線字串或設定檔。  
+When Azure resources communicate, connection strings or configs should not carry usernames and passwords.
+
+這個選擇的設計意圖，是消除秘密在設定、部署與原始碼中的擴散。  
+The design intent is to eliminate secret sprawl across configuration, deployment, and source code.
+
+System-Assigned Managed Identity 適合資源生命週期獨立的情境，例如單一 Web App。  
+System-assigned managed identity fits cases where the identity lifecycle is tied to one resource, such as a single web app.
+
+它的優點是隨資源建立與刪除自動管理，維護成本幾乎為零。  
+Its advantage is automatic lifecycle management with near-zero operational overhead.
+
+User-Assigned Managed Identity 適合多個資源共享同一身分的情境。  
+User-assigned managed identity fits scenarios where multiple resources share the same identity.
+
+例如 VM Scale Set 中的多台 VM 需要一致地存取同一個 Storage Account。  
+For example, multiple VMs in a scale set may need consistent access to the same storage account.
+
+它的優點是建立一次即可重複指派，權限整理更乾淨也更可治理。  
+Its advantage is create once and assign repeatedly, keeping permissions cleaner and more governable.
+
+關鍵限制是授權必須以 RBAC 或資源支援的身分機制為主，而不是用靜態金鑰解決一切。  
+A key constraint is that authorization must rely on RBAC or identity-supported mechanisms rather than static keys.
+
+常見失敗模式是為了方便回頭放入密碼，導致輪替成本上升且曝險時間變長。  
+A common failure mode is reverting to passwords for convenience, increasing rotation burden and exposure time.
+
+這個模式適用於 Azure 原生服務之間的存取與授權。  
+This pattern is ideal for access between Azure-native services.
+
+不適用的情境是目標系統只接受固定金鑰，且無法做身分型驗證。  
+It is not suitable when the target only accepts fixed keys and cannot do identity-based authentication.
+
+在 CI/CD 身分上，帶長期 Secret 的 Service Principal 應該被淘汰。  
+For CI/CD identity, service principals with long-lived secrets should be phased out.
+
+更好的模式是 Workload Identity Federation，也就是用 OIDC 做同盟交換。  
+A better pattern is workload identity federation, using OIDC for token exchange.
+
+設計意圖是讓 GitHub 或 GitLab 的短期 Token 直接換取 Azure 的短效 Access Token。  
+The intent is for GitHub or GitLab short-lived tokens to exchange directly for short-lived Azure access tokens.
+
+這樣就不需要管理 Client Secret，也降低過期與洩漏的長期風險。  
+This removes the need to manage client secrets and reduces long-term risks of expiration and leakage.
+
+流程上會先由工作流程取得 OIDC 身分權杖，再由同盟信任換到 Azure 權杖。  
+Flow-wise, a workflow first obtains an OIDC identity token, then exchanges it for an Azure token via federated trust.
+
+關鍵限制是同盟憑證需要把使用條件鎖定得夠精準。  
+A key constraint is that federated credentials must be scoped with precise conditions.
+
+常見作法是把主體限制在特定 repo 與特定分支，例如只允許 main 分支。  
+A common approach is restricting the subject to a specific repo and branch, such as main only.
+
+風險邊界在於條件過寬會放大可被濫用的工作負載範圍。  
+The risk boundary is that overly broad conditions expand the scope of potential misuse.
+
+這個模式適用於需要長期穩定運作的自動化部署管線。  
+This pattern is well suited for deployment pipelines that must run reliably over long periods.
+
+在人員存取上，PIM 的目標是消除永久的 Admin 或 Owner 權限。  
+For human access, PIM aims to eliminate permanent Admin or Owner privileges.
+
+核心做法是把高權限設成 Eligible，而不是長期 Active。  
+The core practice is to make elevated roles eligible rather than continuously active.
+
+典型流程是申請啟用、強制 MFA、填寫理由，取得短期權限後自動撤銷。  
+A typical flow is request activation, enforce MFA, provide justification, receive time-bound access, and then auto-revoke.
+
+文件中的範例時間窗是四小時，讓變更完成後權限自然回收。  
+The example time window is four hours, letting privileges expire after the change window.
+
+設計意圖是把特權操作變成可審計、可追溯、可收斂的事件。  
+The intent is to make privileged operations auditable, traceable, and bounded.
+
+常見失敗模式是把例外當常態，讓特權長期存在而失去治理效果。  
+A common failure mode is normalizing exceptions, causing standing privilege to return and governance to erode.
+
+在 RBAC 權限設計上，重點是自上而下的繼承策略與群組化指派。  
+In RBAC design, the focus is top-down inheritance strategy and group-based assignment.
+
+範圍策略上，權限盡量在 Resource Group 層級指派，平衡爆炸半徑與維護成本。  
+For scope strategy, assign at the resource group level to balance blast radius and maintainability.
+
+Subscription 層級過度授權會讓事故影響面積變得過大。  
+Over-granting at subscription scope makes incidents far more damaging.
+
+Resource 層級到處零散指派會讓權限變得難以維護且難以審查。  
+Scattered per-resource assignments make permissions hard to maintain and review.
+
+群組化指派代表把角色賦予 Entra ID Group，而不是直接賦予個別使用者。  
+Group-based assignment means granting roles to Entra ID groups instead of individual users.
+
+這樣人員異動時只需調整群組成員，不必反覆修改 Azure 資源的設定。  
+This way, personnel changes require only group membership updates, not repeated resource changes.
+
+反模式之一是把金鑰與密碼寫進程式碼或 appsettings 之類的設定檔。  
+One anti-pattern is putting keys and passwords into code or appsettings-style configuration files.
+
+這種做法的後果是原始碼一旦外洩，資料庫或儲存體就等於直接被打開。  
+The consequence is that a source leak effectively unlocks databases or storage outright.
+
+修正方向是使用 Azure.Identity 的 DefaultAzureCredential 搭配 Managed Identity 做身分型存取。  
+The fix is using Azure.Identity’s DefaultAzureCredential together with managed identity for identity-based access.
+
+如果確實需要秘密，秘密應放在 Key Vault，並透過 Managed Identity 在執行期讀取。  
+If a secret is truly required, store it in Key Vault and retrieve it at runtime via managed identity.
+
+反模式之二是 Service Principal 在整個 Subscription 上被賦予 Contributor 的廣泛權限。  
+A second anti-pattern is granting a service principal broad Contributor rights across an entire subscription.
+
+後果是 CI/CD 管線一旦被入侵，攻擊者可能刪除訂閱下的所有資源。  
+The consequence is that a compromised CI/CD pipeline can delete all resources in the subscription.
+
+修正方向是建立 Custom Role，只授予部署所需的特定動作。  
+The fix is creating a custom role that grants only the specific actions needed for deployment.
+
+設計重點是縮小可寫入與可破壞的面積，避免方便性換來最大爆炸半徑。  
+The design focus is shrinking writable and destructive surface area instead of trading safety for convenience.
+
+反模式之三是把 Global Admin 排除在 MFA 政策之外，並且沒有妥善的緊急帳號設計。  
+A third anti-pattern is excluding Global Admin from MFA policies without a sound break-glass design.
+
+後果是最高權限帳號只靠密碼登入，極易成為釣魚攻擊的目標。  
+The consequence is that top-privilege accounts become password-only and highly vulnerable to phishing.
+
+修正方向是強制所有管理員啟用 MFA，同時保留一到兩個 Break-glass Accounts。  
+The fix is enforcing MFA for all admins while keeping one or two break-glass accounts.
+
+緊急帳號需要極嚴格的監控告警，並且只在 Entra ID 故障時使用。  
+Break-glass accounts require strict monitoring and should be used only during Entra ID outages.
+
+踩雷點之一是把 Control Plane 與 Data Plane 混為一談。  
+One pitfall is treating the control plane and data plane as the same thing.
+
+Control Plane 管理資源本身，Data Plane 存取資源內的資料內容。  
+The control plane manages the resource itself, while the data plane accesses the data within it.
+
+擁有 Azure RBAC 的 Owner 權限不代表能自動讀到 Key Vault 的 Secret 或 Storage 的資料。  
+Having Azure RBAC Owner does not automatically grant access to Key Vault secrets or Storage data.
+
+Key Vault 的資料存取需要使用 RBAC 模式或 Access Policy 來治理。  
+Key Vault data access must be governed via RBAC mode or access policies.
+
+Storage Account 的資料存取需要指派像 Storage Blob Data Contributor 這類 Data Plane 角色。  
+Storage data access requires data-plane roles such as Storage Blob Data Contributor.
+
+在開發階段的檢查清單中，第一項是秘密掃描，確認程式庫沒有硬編碼秘密。  
+In the development checklist, the first item is secret scanning to confirm there are no hardcoded secrets.
+
+工具範例包含 GitGuardian 或 GitHub Advanced Security。  
+Example tools include GitGuardian or GitHub Advanced Security.
+
+第二項是確認應用程式已啟用 Managed Identity，讓身分型存取成為預設路徑。  
+The second item is confirming managed identity is enabled so identity-based access becomes the default path.
+
+第三項是本機開發使用 DefaultAzureCredential，讓本機與生產的認證行為一致。  
+The third item is using DefaultAzureCredential locally so authentication behavior matches production.
+
+這個認證鏈可利用 Visual Studio、Azure CLI 與 VS Code 的登入狀態。  
+That credential chain can leverage sign-in state from Visual Studio, Azure CLI, and VS Code.
+
+第四項是 App Service 以 Key Vault References 方式引用必要秘密，而不是把秘密值寫死在設定中。  
+The fourth item is using Key Vault references in App Service rather than hardcoding secret values into settings.
+
+在架構與安全審查中，第一項是 RBAC Audit，找出不明的 Owner 或 User Access Administrator。  
+In architecture and security review, the first item is an RBAC audit to find unknown Owners or User Access Administrators.
+
+第二項是 Service Principal Expiry，檢查即將過期或被設成永不過期的 Client Secrets。  
+The second item is service principal expiry hygiene, checking secrets that are expiring soon or set to never expire.
+
+第三項是 Public Access，確認 Storage Account 與 SQL DB 的 Public Network Access 已關閉。  
+The third item is public access posture, confirming Public Network Access is disabled for Storage Accounts and SQL DBs.
+
+同時應強制走 Private Endpoint 加上 Identity Authentication，降低暴露面。  
+At the same time, enforce private endpoints plus identity authentication to reduce exposure.
+
+第四項是 PIM Setup，確認生產環境的寫入權限都納入 PIM 管控。  
+The fourth item is PIM setup, ensuring production write permissions are governed by PIM.
+
+在緊急應變流程中，第一項是 Break-glass Account 已建立且已測過登入流程。  
+In emergency workflow, the first item is having break-glass accounts created and sign-in tested.
+
+第二項是能用 KQL 查詢 SigninLogs 與 AuditLogs 追蹤異常登入與變更行為。  
+The second item is being able to use KQL on SigninLogs and AuditLogs to trace abnormal sign-ins and changes.
+
+實戰案例一描述 Web App 存取 Azure SQL Database 的現代做法。  
+Scenario one describes a modern approach for a web app accessing Azure SQL Database.
+
+傳統做法把資料庫帳密放進連線字串，讓秘密散落在多個部署面。  
+The legacy approach puts database credentials in the connection string, scattering secrets across deployment surfaces.
+
+零信任做法先在基礎設施層啟用 Azure SQL 的 Entra authentication only，並停用 SQL 驗證。  
+The Zero Trust approach first enables Entra authentication only on Azure SQL and disables SQL authentication.
+
+同時為 App Service 啟用 System-Assigned Managed Identity，讓應用程式有可被授權的身分。  
+It also enables a system-assigned managed identity on the App Service so the application has an authorizable identity.
+
+資料庫層的設定重點，是在 SQL Database 內把該工作負載身分建立成外部提供者的使用者。  
+The database setup focuses on creating a user for that workload identity from an external provider.
+
+接著把這個使用者加入能讀與能寫資料的資料庫角色，以角色來控管資料權限。  
+Then it adds that user to database roles for reading and writing, governing data permissions through roles.
+
+執行期的流程是取得針對 SQL 服務的短效權杖，並把權杖用在資料庫連線上完成登入。  
+At runtime, the flow is to obtain a short-lived token for the SQL service and use it on the database connection to sign in.
+
+權杖的目標資源範圍需要對應 SQL 的預設範圍，也就是以 database.windows.net 的 default scope 為準。  
+The token audience must target SQL’s default scope, using the database.windows.net default scope.
+
+這種設計把秘密移除，並把存取治理交回身分、角色與可稽核的權杖流程。  
+This design removes secrets and returns access governance to identity, roles, and auditable token-based flows.
+
+常見失敗模式是資料庫端未完成 Entra-only 與身分對應設定，導致權杖取得了仍無法連線。  
+A common failure mode is incomplete Entra-only and identity mapping configuration, causing token acquisition to succeed but connection to fail.
+
+這個模式適用於 Azure 原生託管工作負載需要安全地連線到 Azure SQL 的情境。  
+This pattern fits Azure-hosted workloads that need secure connectivity to Azure SQL.
+
+實戰案例二描述 GitHub Actions 部署到 Azure 的最佳實務。  
+Scenario two describes best practice for deploying to Azure from GitHub Actions.
+
+反模式是建立帶兩年期秘密的 Service Principal，並把秘密放進 GitHub Secrets。  
+The anti-pattern is creating a service principal with a two-year secret and storing it in GitHub Secrets.
+
+後果是秘密過期會讓管線在某一天突然壞掉，而且秘密外洩的風險長期存在。  
+The consequence is an unexpected pipeline failure on expiry day and prolonged exposure risk if the secret leaks.
+
+最佳實務是在 Entra ID 的 App Registration 設定 Federated Credentials，改走 OIDC 同盟。  
+Best practice is configuring federated credentials in an Entra ID app registration and using OIDC federation.
+
+主體條件需要鎖定到特定 repo 與特定分支，例如限制在 main branch。  
+The subject conditions must be locked to a specific repo and branch, such as restricting to main.
+
+工作流程需要允許簽發 OIDC 身分權杖，並維持最小必要的 repository 讀取權限。  
+The workflow must allow OIDC token issuance while keeping only minimal repository read permissions.
+
+登入 Azure 時只需要提供應用程式的 client ID、tenant ID 與 subscription ID，不需要提供 client secret。  
+When logging into Azure, only the app’s client ID, tenant ID, and subscription ID are required, with no client secret needed.
+
+設計意圖是用短效權杖取代長期秘密，讓安全與可用性不再依賴秘密輪替作業。  
+The intent is to replace long-lived secrets with short-lived tokens, removing security and reliability dependence on secret rotation.
+
+風險邊界在於同盟條件若設得不夠精準，可能讓不該部署的工作流程取得交換權限。  
+The risk boundary is that imprecise federation conditions can allow unintended workflows to gain exchange capability.
+
+整份實踐的共同方向，是把身分、條件與最小權限當成日常設計，而不是事後補救。  
+The shared direction across these practices is treating identity, conditions, and least privilege as default design, not after-the-fact remediation.
